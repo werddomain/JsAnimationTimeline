@@ -1,1 +1,388 @@
- 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Control - CSS Animation Generator</title>
+    <link rel="stylesheet" href="../styles/timeline.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            padding: 15px;
+            background-color: #333333;
+            border-bottom: 1px solid #444444;
+        }
+
+        .content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .panel-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #2a2a2a;
+        }
+
+        .sidebar {
+            width: 300px;
+            border-left: 1px solid #444444;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .property-editor-container {
+            flex: 1;
+            overflow: auto;
+            border-bottom: 1px solid #444444;
+        }
+
+        .animation-preview-container {
+            height: 400px;
+            overflow: auto;
+        }
+
+        .timeline-container {
+            height: 300px;
+            width: 100%;
+            border-top: 1px solid #444444;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+            .controls button {
+                padding: 8px 16px;
+                background-color: #444444;
+                border: 1px solid #555555;
+                color: #ffffff;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+
+                .controls button:hover {
+                    background-color: #555555;
+                }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Timeline Control - CSS Animation Generator</h1>
+            <div class="controls">
+                <button id="play-btn">Play</button>
+                <button id="pause-btn">Pause</button>
+                <button id="stop-btn">Stop</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="panel-container" id="panel-container"></div>
+            <div class="sidebar">
+                <div class="property-editor-container" id="property-editor-container"></div>
+                <div class="animation-preview-container" id="animation-preview-container"></div>
+            </div>
+        </div>
+
+        <div class="timeline-container" id="timeline-container"></div>
+    </div>
+
+    <script type="module">
+    import { TimelineControl, TimelineConstants } from '../dist/index.js';
+    import { PanelComponent } from '../dist/plugins/panel/PanelComponent.js';
+    import { PropertyEditor } from '../dist/plugins/panel/PropertyEditor.js';
+    import { MotionTweenPreview } from '../dist/plugins/panel/MotionTweenPreview.js';
+
+    // Initialize the timeline and components when DOM is loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      // Create timeline instance
+      const timelineContainer = document.getElementById('timeline-container');
+      const timeline = new TimelineControl({
+        container: timelineContainer,
+        duration: 10, // Start with 10 seconds
+      });
+
+      // Create panel instance
+      const panelContainer = document.getElementById('panel-container');
+      const panel = new PanelComponent({
+        container: panelContainer,
+        eventEmitter: timeline.getEventEmitter(),
+        onLayerAdd: (name, color) => {
+          // Add a layer to the timeline
+          const layer = timeline.addLayer({
+            name,
+            visible: true,
+            locked: false,
+            color,
+            keyframes: [],
+            motionTweens: []
+          });
+
+          return layer ? layer.id : '';
+        },
+        onElementSelect: (layerId) => {
+          // Select the layer in the timeline
+          timeline.selectLayer(layerId, false);
+        }
+      });
+
+      // Create property editor instance
+      const propertyEditorContainer = document.getElementById('property-editor-container');
+      const propertyEditor = new PropertyEditor({
+        container: propertyEditorContainer,
+        eventEmitter: timeline.getEventEmitter(),
+        onPropertyChange: (elementId, property, value) => {
+          // Update element property
+          panel.updateElementProperty(elementId, property, value);
+
+          // Create keyframe at current time with the updated property
+          const element = panel.getElements().find(e => e.id === elementId);
+          if (element) {
+            // Create a keyframe
+            const properties = {};
+            properties[property] = value;
+
+            timeline.addKeyframe(element.layerId, {
+              time: timeline.getCurrentTime(),
+              properties: properties
+            });
+          }
+        }
+      });
+
+      // Create motion tween preview
+      const animationPreviewContainer = document.getElementById('animation-preview-container');
+      const motionTweenPreview = new MotionTweenPreview({
+        container: animationPreviewContainer,
+        eventEmitter: timeline.getEventEmitter()
+      });
+
+      // Register components with the timeline's plugin manager
+      timeline.pluginManager.register('panel', panel);
+      timeline.pluginManager.register('propertyEditor', propertyEditor);
+      timeline.pluginManager.register('motionTweenPreview', motionTweenPreview);
+
+      // Setup demo content
+      setTimeout(() => {
+        // Add a button element
+        const buttonLayer = timeline.addLayer({
+          name: 'Button',
+          visible: true,
+          locked: false,
+          color: '#42A5F5',
+          keyframes: [],
+          motionTweens: []
+        });
+
+        if (buttonLayer) {
+          panel.addElement({
+            layerId: buttonLayer.id,
+            x: 150,
+            y: 150,
+            width: 200,
+            height: 60,
+            rotation: 0,
+            opacity: 1,
+            zIndex: 1,
+            properties: {
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: '#42A5F5',
+              color: 'white',
+              fontSize: 18,
+              fontWeight: 'bold',
+              borderRadius: 30,
+              cursor: 'pointer',
+              boxShadowX: 0,
+              boxShadowY: 4,
+              boxShadowBlur: 8,
+              boxShadowSpread: 0,
+              boxShadowColor: 'rgba(0,0,0,0.3)',
+              userSelect: 'none'
+            },
+            content: '<div>Click Me</div>'
+          });
+
+          // Add keyframes
+          const keyframe1 = timeline.addKeyframe(buttonLayer.id, {
+            time: 0,
+            properties: {
+              x: 150,
+              y: 150,
+              scale: 1,
+              backgroundColor: '#42A5F5',
+              boxShadowY: 4,
+              boxShadowBlur: 8,
+              boxShadowSpread: 0
+            }
+          });
+
+          const keyframe2 = timeline.addKeyframe(buttonLayer.id, {
+            time: 0.3,
+            properties: {
+              x: 150,
+              y: 150,
+              scale: 0.95,
+              backgroundColor: '#1E88E5',
+              boxShadowY: 2,
+              boxShadowBlur: 4,
+              boxShadowSpread: 0
+            }
+          });
+
+          const keyframe3 = timeline.addKeyframe(buttonLayer.id, {
+            time: 0.6,
+            properties: {
+              x: 150,
+              y: 150,
+              scale: 1,
+              backgroundColor: '#42A5F5',
+              boxShadowY: 4,
+              boxShadowBlur: 8,
+              boxShadowSpread: 0
+            }
+          });
+
+          // Add motion tweens
+          if (keyframe1 && keyframe2) {
+            timeline.addMotionTween(buttonLayer.id, {
+              startKeyframeId: keyframe1.id,
+              endKeyframeId: keyframe2.id,
+              easingFunction: 'easeOutQuad'
+            });
+          }
+
+          if (keyframe2 && keyframe3) {
+            timeline.addMotionTween(buttonLayer.id, {
+              startKeyframeId: keyframe2.id,
+              endKeyframeId: keyframe3.id,
+              easingFunction: 'easeInOutQuad'
+            });
+          }
+        }
+
+        // Add a notification element
+        const notificationLayer = timeline.addLayer({
+          name: 'Notification',
+          visible: true,
+          locked: false,
+          color: '#FF5252',
+          keyframes: [],
+          motionTweens: []
+        });
+
+        if (notificationLayer) {
+          panel.addElement({
+            layerId: notificationLayer.id,
+            x: 400,
+            y: 50,
+            width: 250,
+            height: 80,
+            rotation: 0,
+            opacity: 0, // Start hidden
+            zIndex: 2,
+            properties: {
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: '#FF5252',
+              color: 'white',
+              fontSize: 16,
+              borderRadius: 8,
+              padding: 15,
+              boxShadowX: 0,
+              boxShadowY: 6,
+              boxShadowBlur: 12,
+              boxShadowSpread: 0,
+              boxShadowColor: 'rgba(255,82,82,0.4)'
+            },
+            content: '<div>New notification arrived!</div>'
+          });
+
+          // Add keyframes
+          const keyframe1 = timeline.addKeyframe(notificationLayer.id, {
+            time: 0,
+            properties: {
+              x: 450,
+              y: 0,
+              opacity: 0,
+              scale: 0.8
+            }
+          });
+
+          const keyframe2 = timeline.addKeyframe(notificationLayer.id, {
+            time: 0.5,
+            properties: {
+              x: 400,
+              y: 50,
+              opacity: 1,
+              scale: 1
+            }
+          });
+
+          const keyframe3 = timeline.addKeyframe(notificationLayer.id, {
+            time: 3.5,
+            properties: {
+              x: 400,
+              y: 50,
+              opacity: 1,
+              scale: 1
+            }
+          });
+
+          const keyframe4 = timeline.addKeyframe(notificationLayer.id, {
+            time: 4,
+            properties: {
+              x: 400,
+              y: -80,
+              opacity: 0,
+              scale: 0.8
+            }
+          });
+
+          // Add motion tweens
+          if (keyframe1 && keyframe2) {
+            timeline.addMotionTween(notificationLayer.id, {
+              startKeyframeId: keyframe1.id,
+              endKeyframeId: keyframe2.id,
+              easingFunction: 'easeOutBack'
+            });
+          }
+
+          if (keyframe3 && keyframe4) {
+            timeline.addMotionTween(notificationLayer.id, {
+              startKeyframeId: keyframe3.id,
+              endKeyframeId: keyframe4.id,
+              easingFunction: 'easeInQuad'
+            });
+          }
+        }
+      }, 100);
+
+      // Connect playback buttons
+      document.getElementById('play-btn').addEventListener('click', () => timeline.play());
+      document.getElementById('pause-btn').addEventListener('click', () => timeline.pause());
+      document.getElementById('stop-btn').addEventListener('click', () => timeline.stop());
+    });
+    </script>
+</body>
+</html>
