@@ -40,5 +40,13 @@
     "styles",
     "README.md",
     "LICENSE"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/werddomain/JsAnimationTimeline.git"
+  },
+  "bugs": {
+    "url": "https://github.comwerddomain/JsAnimationTimeline/issues"
+  },
+  "homepage": "https://github.com/werddomain/JsAnimationTimeline#readme"
 }
