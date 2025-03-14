@@ -1,1 +1,306 @@
- 
+<!-- examples/panel.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Control with Panel Example</title>
+    <link rel="stylesheet" href="../styles/timeline.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            padding: 15px;
+            background-color: #333333;
+            border-bottom: 1px solid #444444;
+        }
+
+        .content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .panel-container {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            background-color: #2a2a2a;
+            border-right: 1px solid #444444;
+        }
+
+        .timeline-container {
+            height: 300px;
+            width: 100%;
+            border-top: 1px solid #444444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Timeline Control with Panel Example</h1>
+        </div>
+
+        <div class="content">
+            <div class="panel-container" id="panel-container"></div>
+        </div>
+
+        <div class="timeline-container" id="timeline-container"></div>
+    </div>
+
+    <script type="module">
+    import { TimelineControl, TimelineConstants } from '../dist/index.js';
+    import { PanelComponent } from '../dist/plugins/panel/PanelComponent.js';
+
+    // Initialize the timeline and panel when DOM is loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      // Create timeline instance
+      const timelineContainer = document.getElementById('timeline-container');
+      const timeline = new TimelineControl({
+        container: timelineContainer,
+        duration: 60, // Start with 1 minute
+      });
+
+      // Create panel instance
+      const panelContainer = document.getElementById('panel-container');
+      const panel = new PanelComponent({
+        container: panelContainer,
+        eventEmitter: timeline.getEventEmitter(),
+        onLayerAdd: (name, color) => {
+          // Add a layer to the timeline
+          const layer = timeline.addLayer({
+            name,
+            visible: true,
+            locked: false,
+            color,
+            keyframes: [],
+            motionTweens: []
+          });
+
+          return layer ? layer.id : '';
+        },
+        onElementSelect: (layerId) => {
+          // Select the layer in the timeline
+          timeline.selectLayer(layerId, false);
+        }
+      });
+
+      // Register panel with the timeline's plugin manager
+      timeline.pluginManager.register('panel', panel);
+
+      // Listen for keyframe updates from panel
+      timeline.on('panel:element:updated', (element, time) => {
+        console.log(`Element ${element.id} updated at time ${time}`);
+
+        // Create or update keyframe for the element
+        timeline.addKeyframe(element.layerId, {
+          time: time,
+          properties: {
+            x: element.x,
+            y: element.y,
+            width: element.width,
+            height: element.height,
+            rotation: element.rotation,
+            opacity: element.opacity,
+            zIndex: element.zIndex,
+            content: element.content
+          }
+        });
+      });
+
+      // Listen for timeline updates to update panel
+      timeline.on(TimelineConstants.EVENTS.TIME_CHANGE, (time) => {
+        // Get objects at current time
+        const objectsAtTime = timeline.getObjectsAtTime(time);
+
+        // Update panel elements with interpolated properties
+        objectsAtTime.forEach(({ layer, properties }) => {
+          // Find panel element linked to this layer
+          const elements = panel.getElements();
+          const element = elements.find(e => e.layerId === layer.id);
+
+          if (element) {
+            // Update element with interpolated properties
+            panel.updateElement(element.id, {
+              x: properties.x !== undefined ? properties.x : element.x,
+              y: properties.y !== undefined ? properties.y : element.y,
+              width: properties.width !== undefined ? properties.width : element.width,
+              height: properties.height !== undefined ? properties.height : element.height,
+              rotation: properties.rotation !== undefined ? properties.rotation : element.rotation,
+              opacity: properties.opacity !== undefined ? properties.opacity : element.opacity,
+              zIndex: properties.zIndex !== undefined ? properties.zIndex : element.zIndex,
+              content: properties.content !== undefined ? properties.content : element.content
+            });
+          }
+        });
+      });
+
+      // Add three initial elements
+      setTimeout(() => {
+        // Add a rectangle
+        const blueLayer = timeline.addLayer({
+          name: 'Blue Rectangle',
+          visible: true,
+          locked: false,
+          color: '#42A5F5',
+          keyframes: [],
+          motionTweens: []
+        });
+
+        if (blueLayer) {
+          panel.addElement({
+            layerId: blueLayer.id,
+            x: 50,
+            y: 50,
+            width: 100,
+            height: 80,
+            rotation: 0,
+            opacity: 1,
+            zIndex: 1,
+            content: '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#fff;">Rectangle</div>'
+          });
+
+          // Add keyframes
+          timeline.addKeyframe(blueLayer.id, {
+            time: 0,
+            properties: { x: 50, y: 50, rotation: 0 }
+          });
+
+          timeline.addKeyframe(blueLayer.id, {
+            time: 5,
+            properties: { x: 200, y: 100, rotation: 45 }
+          });
+        }
+
+        // Add a circle
+        const greenLayer = timeline.addLayer({
+          name: 'Green Circle',
+          visible: true,
+          locked: false,
+          color: '#66BB6A',
+          keyframes: [],
+          motionTweens: []
+        });
+
+        if (greenLayer) {
+          panel.addElement({
+            layerId: greenLayer.id,
+            x: 200,
+            y: 150,
+            width: 80,
+            height: 80,
+            rotation: 0,
+            opacity: 1,
+            zIndex: 2,
+            content: '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#fff;border-radius:50%;">Circle</div>'
+          });
+
+          // Add keyframes
+          timeline.addKeyframe(greenLayer.id, {
+            time: 0,
+            properties: { x: 200, y: 150, opacity: 0.5 }
+          });
+
+          timeline.addKeyframe(greenLayer.id, {
+            time: 3,
+            properties: { x: 200, y: 150, opacity: 1 }
+          });
+        }
+
+        // Add some text
+        const orangeLayer = timeline.addLayer({
+          name: 'Text Element',
+          visible: true,
+          locked: false,
+          color: '#FFAB40',
+          keyframes: [],
+          motionTweens: []
+        });
+
+        if (orangeLayer) {
+          panel.addElement({
+            layerId: orangeLayer.id,
+            x: 100,
+            y: 250,
+            width: 150,
+            height: 40,
+            rotation: 0,
+            opacity: 1,
+            zIndex: 3,
+            content: '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-weight:bold;color:#fff;">Animated Text</div>'
+          });
+
+          // Add keyframes
+          timeline.addKeyframe(orangeLayer.id, {
+            time: 0,
+            properties: { x: 100, y: 250, width: 150 }
+          });
+
+          timeline.addKeyframe(orangeLayer.id, {
+            time: 7,
+            properties: { x: 300, y: 250, width: 200 }
+          });
+        }
+
+        // Create motion tweens
+        if (blueLayer) {
+          const keyframes = timeline.getKeyframesForLayer(blueLayer.id);
+          if (keyframes.length >= 2) {
+            timeline.addMotionTween(blueLayer.id, {
+              startKeyframeId: keyframes[0].id,
+              endKeyframeId: keyframes[1].id,
+              easingFunction: 'easeInOutQuad'
+            });
+          }
+        }
+
+        if (orangeLayer) {
+          const keyframes = timeline.getKeyframesForLayer(orangeLayer.id);
+          if (keyframes.length >= 2) {
+            timeline.addMotionTween(orangeLayer.id, {
+              startKeyframeId: keyframes[0].id,
+              endKeyframeId: keyframes[1].id,
+              easingFunction: 'easeOutQuart'
+            });
+          }
+        }
+      }, 100);
+
+      // Add play controls
+      const playBtn = document.createElement('button');
+      playBtn.textContent = 'Play';
+      playBtn.style.margin = '10px';
+      playBtn.addEventListener('click', () => timeline.play());
+
+      const pauseBtn = document.createElement('button');
+      pauseBtn.textContent = 'Pause';
+      pauseBtn.style.margin = '10px';
+      pauseBtn.addEventListener('click', () => timeline.pause());
+
+      const stopBtn = document.createElement('button');
+      stopBtn.textContent = 'Stop';
+      stopBtn.style.margin = '10px';
+      stopBtn.addEventListener('click', () => timeline.stop());
+
+      const header = document.querySelector('.header');
+      header.appendChild(playBtn);
+      header.appendChild(pauseBtn);
+      header.appendChild(stopBtn);
+    });
+    </script>
+</body>
+</html>

@@ -1,1 +1,55 @@
- 
+// styles/components/object-toolbar.less
+/**
+ * Object Toolbar Component Styles
+ */
+
+.timeline-object-toolbar {
+    height: @object-toolbar-height;
+    padding: 0 10px;
+    background-color: @toolbar-color;
+    border-top: 1px solid @border-color;
+    display: flex;
+    align-items: center;
+}
+
+.timeline-object-toolbar-content {
+    display: flex;
+    align-items: center;
+    // Buttons
+    .timeline-btn {
+        background-color: #444444;
+        border: 1px solid #555555;
+        color: @text-color;
+        height: 24px;
+        padding: 0 8px;
+        margin-right: 8px;
+        border-radius: @border-radius;
+        font-size: 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color @transition-speed @transition-ease;
+
+        &:hover {
+            background-color: #555555;
+        }
+
+        &:active {
+            background-color: #666666;
+        }
+
+        &:disabled {
+            opacity: 0.5;
+            cursor: default;
+            background-color: #444444;
+        }
+
+        .timeline-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 4px;
+        }
+    }
+}

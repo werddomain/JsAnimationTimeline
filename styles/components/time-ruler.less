@@ -1,1 +1,49 @@
- 
+// styles/components/time-ruler.less
+/**
+ * Time Ruler Component Styles
+ */
+
+.timeline-ruler {
+    height: @time-ruler-height;
+    background-color: @toolbar-color;
+    border-bottom: 1px solid @border-color;
+    position: relative;
+    overflow: hidden;
+    // Content container
+    .timeline-ruler-content {
+        height: 100%;
+        position: relative;
+    }
+    // Time markers
+    .timeline-ruler-mark {
+        position: absolute;
+        height: 100%;
+        width: 1px;
+        background-color: #555555;
+
+        &.timeline-ruler-mark-major {
+            background-color: #666666;
+        }
+    }
+    // Time labels
+    .timeline-ruler-mark-label {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        font-size: 11px;
+        color: @dim-text-color;
+        white-space: nowrap;
+    }
+    // Time cursor
+    .timeline-time-cursor {
+        position: absolute;
+        top: 0;
+        width: 1px;
+        height: 100%;
+        background-color: @time-cursor-color;
+        z-index: 10;
+        pointer-events: none;
+        // Shadow for better visibility
+        box-shadow: 0 0 2px rgba(255, 0, 0, 0.7);
+    }
+}
