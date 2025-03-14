@@ -9,6 +9,11 @@ import { TimelineDataModel, Layer, Keyframe, MotionTween } from './DataModel';
 import { TimelineConstants } from './Constants';
 import { TimelineEventMap, TimelineEventListener } from './EventTypes';
 import { PluginManager } from './PluginManager';
+import { LayerManager } from '../plugins/layers/LayerManager';
+import { KeyframeManager } from '../plugins/keyframes/KeyframeManager';
+import { MainToolbar } from '../plugins/toolbar/MainToolbar';
+import { ObjectToolbar } from '../plugins/toolbar/ObjectToolbar';
+import { TimeRuler } from '../plugins/time/TimeRuler';
 
 // Timeline initialization options
 export interface TimelineOptions {
@@ -32,8 +37,8 @@ export class TimelineControl {
     private layersContainerEl: HTMLElement;
     private keyframesContainerEl: HTMLElement;
     private timeRulerEl: HTMLElement;
-    private toolbarEl: HTMLElement;
-    private objectToolbarEl: HTMLElement;
+    private toolbarEl: HTMLElement ;
+    private objectToolbarEl: HTMLElement ;
     private timeCursorEl: HTMLElement;
 
     // Component instances
@@ -75,6 +80,10 @@ export class TimelineControl {
 
         // Initialize event listeners
         this.initEventListeners();
+        /**
+         * Render all components
+         */
+        this.initializeComponents();
     }
 
     /**
@@ -93,7 +102,7 @@ export class TimelineControl {
    */
     private updateLayerDisplay(): void {
         const layers = this.dataModel.getLayers();
-        this.layerManager.updateLayers(layers);
+        this.layerManager.update(layers);
 
         // Update object toolbar button states based on selection
         const hasSelection = layers.some(l => l.isSelected);
@@ -106,37 +115,37 @@ export class TimelineControl {
     private updateKeyframeDisplay(): void {
         const layers = this.dataModel.getLayers();
         const timeScale = this.dataModel.getTimeScale();
-        this.keyframeManager.updateLayers(layers, timeScale);
+        this.keyframeManager.update({ layers: layers, timeScale: timeScale });
     }
 
-    /**
-     * Render all components
-     */
-    private renderAll(): void {
-        this.timeRuler.update(this.dataModel.getDuration(), this.dataModel.getTimeScale());
-        this.updateLayerDisplay();
-        this.updateKeyframeDisplay();
-        this.updateTimeCursor();
-    }
+    ///**
+    // * Render all components
+    // */
+    //private renderAll(): void {
+    //    this.timeRuler.update(this.dataModel.getDuration(), this.dataModel.getTimeScale());
+    //    this.updateLayerDisplay();
+    //    this.updateKeyframeDisplay();
+    //    this.updateTimeCursor();
+    //}
 
-    /**
-     * Update the time cursor position
-     */
-    private updateTimeCursor(): void {
-        const currentTime = this.dataModel.getCurrentTime();
-        const timeScale = this.dataModel.getTimeScale();
-        const position = currentTime * timeScale * TimelineConstants.DIMENSIONS.PIXELS_PER_SECOND;
+    ///**
+    // * Update the time cursor position
+    // */
+    //private updateTimeCursor(): void {
+    //    const currentTime = this.dataModel.getCurrentTime();
+    //    const timeScale = this.dataModel.getTimeScale();
+    //    const position = currentTime * timeScale * TimelineConstants.DIMENSIONS.PIXELS_PER_SECOND;
 
-        this.timeCursorEl.style.left = `${position}px`;
-        this.timeRuler.updateTimeCursor(currentTime);
-    }
+    //    this.timeCursorEl.style.left = `${position}px`;
+    //    this.timeRuler.updateTimeCursor(currentTime);
+    //}
 
-    /**
-     * Render the time ruler
-     */
-    private renderTimeRuler(): void {
-        this.timeRuler.update(this.dataModel.getDuration(), this.dataModel.getTimeScale());
-    }  // Keyframe operation handlers
+    ///**
+    // * Render the time ruler
+    // */
+    //private renderTimeRuler(): void {
+    //    this.timeRuler.update(this.dataModel.getDuration(), this.dataModel.getTimeScale());
+    //}  // Keyframe operation handlers
 
     /**
      * Handle keyframe selection

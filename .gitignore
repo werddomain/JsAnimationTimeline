@@ -2,3 +2,7 @@
 /.vs/JsAnimationTimeline/CopilotIndices/17.13.430.18484
 /.vs/JsAnimationTimeline/FileContentIndex
 /.vs
+/node_modules
+/dist
+/obj/Debug
+/.vscode

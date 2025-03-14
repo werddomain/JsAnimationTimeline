@@ -69,9 +69,9 @@ export class LayerManager extends Component {
      * Update the layers array
      * @param data Updated layers array
      */
-    public update(data: { layers: Layer[] }): void {
-        if (data.layers) {
-            this.layers = data.layers;
+    public update( layers: Layer[]): void {
+        if (layers) {
+            this.layers = layers;
         }
 
         // Apply the rendered HTML to the container
