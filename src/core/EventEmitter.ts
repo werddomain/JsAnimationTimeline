@@ -8,11 +8,12 @@
 import { TimelineEventMap, TimelineEventListener } from './EventTypes';
 import { TimelineConstants } from './Constants';
 import { Layer, Keyframe, MotionTween } from './DataModel';
+import { PanelElementData } from '../plugins/panel/PanelComponent';
 
 const { EVENTS } = TimelineConstants;
 
 export class EventEmitter {
-   
+
     private events: Map<string, Function[]> = new Map();
 
     /**
@@ -147,12 +148,15 @@ export class EventEmitter {
     public emitLayerVisibilityChanged(layerId: string, visible: boolean): void {
         this.emitBase(EVENTS.LAYER_VISIBILITY_CHANGED, layerId, visible);
     }
-    emitLayerGroupToggle(layerId: string, isExpanded: boolean) {
-        this.emitBase(EVENTS.LAYER_GROUP_TOOGLE, layerId, isExpanded);
+
+    public emitLayerGroupToggle(layerId: string, isExpanded: boolean): void {
+        this.emitBase(EVENTS.LAYER_GROUP_TOGGLE, layerId, isExpanded);
     }
-    emitLayerGroupRemoved(layerId: string) {
-        this.emitBase(EVENTS.LAYER_GROUP_TOOGLE, layerId);
+
+    public emitLayerGroupRemoved(layerId: string): void {
+        this.emitBase(EVENTS.LAYER_GROUP_REMOVED, layerId);
     }
+
     public emitLayerLockChanged(layerId: string, locked: boolean): void {
         this.emitBase(EVENTS.LAYER_LOCK_CHANGED, layerId, locked);
     }
@@ -206,7 +210,8 @@ export class EventEmitter {
     public emitTweenSelected(layer: Layer, tweenId: string): void {
         this.emitBase(EVENTS.TWEEN_SELECTED, layer, tweenId);
     }
-    public emitTweenDeSelected(): void {
+
+    public emitTweenDeselected(): void {
         this.emitBase(EVENTS.TWEEN_DESELECTED);
     }
 
@@ -233,5 +238,71 @@ export class EventEmitter {
 
     public emitSeekToTime(time: number): void {
         this.emitBase(EVENTS.SEEK_TO_TIME, time);
+    }
+
+    // Panel events
+    public emitPanelElementSelected(element: PanelElementData): void {
+        this.emitBase(EVENTS.PANEL_ELEMENT_SELECTED, element);
+    }
+
+    public emitPanelElementDeselected(): void {
+        this.emitBase(EVENTS.PANEL_ELEMENT_DESELECTED);
+    }
+
+    public emitPanelElementUpdated(element: PanelElementData, time: number): void {
+        this.emitBase(EVENTS.PANEL_ELEMENT_UPDATED, element, time);
+    }
+
+    // Property events
+    public emitPropertyChanged(elementId: string, propertyName: string, value: any): void {
+        this.emitBase(EVENTS.PROPERTY_CHANGED, elementId, propertyName, value);
+    }
+
+    // Timeline editor events
+    public emitEditModeChanged(mode: string): void {
+        this.emitBase(EVENTS.EDIT_MODE_CHANGED, mode);
+    }
+
+    public emitSelectionChanged(selectedItems: Array<any>): void {
+        this.emitBase(EVENTS.SELECTION_CHANGED, selectedItems);
+    }
+
+    public emitUndo(): void {
+        this.emitBase(EVENTS.UNDO);
+    }
+
+    public emitRedo(): void {
+        this.emitBase(EVENTS.REDO);
+    }
+
+    // Group events
+    public emitGroupCreated(groupId: string, childIds: string[]): void {
+        this.emitBase(EVENTS.GROUP_CREATED, groupId, childIds);
+    }
+
+    public emitGroupDeleted(groupId: string, preserveChildren: boolean): void {
+        this.emitBase(EVENTS.GROUP_DELETED, groupId, preserveChildren);
+    }
+
+    public emitGroupUpdated(groupId: string, properties: any): void {
+        this.emitBase(EVENTS.GROUP_UPDATED, groupId, properties);
+    }
+
+    // Timeline state events
+    public emitStateSaved(stateId: string): void {
+        this.emitBase(EVENTS.STATE_SAVED, stateId);
+    }
+
+    public emitStateLoaded(stateId: string): void {
+        this.emitBase(EVENTS.STATE_LOADED, stateId);
+    }
+
+    // Error and notification events
+    public emitError(error: Error | string, source?: string): void {
+        this.emitBase(EVENTS.ERROR, error, source);
+    }
+
+    public emitNotification(message: string, type: 'info' | 'warning' | 'error' | 'success' = 'info'): void {
+        this.emitBase(EVENTS.NOTIFICATION, message, type);
     }
 }

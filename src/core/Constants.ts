@@ -82,7 +82,7 @@ export const TimelineConstants = {
         LAYER_LOCK_CHANGED: 'layer:lock:changed',
         LAYER_COLOR_CHANGED: 'layer:color:changed',
         LAYER_NAME_CHANGED: 'layer:name:changed',
-        LAYER_GROUP_TOOGLE: 'layer:group:toggle',
+        LAYER_GROUP_TOGGLE: 'layer:group:toggle', // Fixed typo: TOOGLE -> TOGGLE
         LAYER_GROUP_REMOVED: 'layer:group:removed',
 
         // Keyframe events
@@ -106,7 +106,34 @@ export const TimelineConstants = {
         RESIZE: 'resize',
         DATA_IMPORTED: 'data:imported',
         DATA_EXPORTED: 'data:exported',
-        SEEK_TO_TIME: 'seek:to:time'
+        SEEK_TO_TIME: 'seek:to:time',
+
+        // Panel events
+        PANEL_ELEMENT_SELECTED: 'panel:element:selected',
+        PANEL_ELEMENT_DESELECTED: 'panel:element:deselected',
+        PANEL_ELEMENT_UPDATED: 'panel:element:updated',
+
+        // Property events
+        PROPERTY_CHANGED: 'property:changed',
+
+        // Timeline editor events
+        EDIT_MODE_CHANGED: 'edit:mode:changed',
+        SELECTION_CHANGED: 'selection:changed',
+        UNDO: 'undo',
+        REDO: 'redo',
+
+        // Group events
+        GROUP_CREATED: 'group:created',
+        GROUP_DELETED: 'group:deleted',
+        GROUP_UPDATED: 'group:updated',
+
+        // Timeline state events
+        STATE_SAVED: 'state:saved',
+        STATE_LOADED: 'state:loaded',
+
+        // Error and notification events
+        ERROR: 'error',
+        NOTIFICATION: 'notification'
     },
 
     // Default ease functions for motion tweens

@@ -5,6 +5,7 @@
 
 import { Layer, Keyframe, MotionTween } from './DataModel';
 import { TimelineConstants } from './Constants';
+import { PanelElementData } from '../plugins/panel/PanelComponent';
 
 const { EVENTS } = TimelineConstants;
 
@@ -27,7 +28,7 @@ export interface TimelineEventMap {
     [EVENTS.LAYER_LOCK_CHANGED]: (layerId: string, locked: boolean) => void;
     [EVENTS.LAYER_COLOR_CHANGED]: (layerId: string, color: string) => void;
     [EVENTS.LAYER_NAME_CHANGED]: (layerId: string, name: string) => void;
-    [EVENTS.LAYER_GROUP_TOOGLE]: (layerId: string, locked: boolean) => void;
+    [EVENTS.LAYER_GROUP_TOGGLE]: (layerId: string, isExpanded: boolean) => void;
     [EVENTS.LAYER_GROUP_REMOVED]: (layerId: string) => void;
 
     // Keyframe events
@@ -40,11 +41,11 @@ export interface TimelineEventMap {
 
     // Motion tween events
     [EVENTS.TWEEN_ADDED]: (layerId: string, tween: MotionTween) => void;
-    [EVENTS.TWEEN_SELECTED]: (layer: Layer, tween: MotionTween) => void;
-    [EVENTS.TWEEN_DESELECTED]: () => void;
     [EVENTS.TWEEN_UPDATED]: (layerId: string, tween: MotionTween) => void;
     [EVENTS.TWEEN_REMOVED]: (layerId: string, tweenId: string) => void;
     [EVENTS.TWEEN_USER_CREATED]: (layerId: string, startKeyframeId: string, endKeyframeId: string) => void;
+    [EVENTS.TWEEN_SELECTED]: (layer: Layer, tweenId: string) => void;
+    [EVENTS.TWEEN_DESELECTED]: () => void;
 
     // UI events
     [EVENTS.ZOOM_CHANGED]: (scale: number) => void;
@@ -52,6 +53,33 @@ export interface TimelineEventMap {
     [EVENTS.DATA_IMPORTED]: () => void;
     [EVENTS.DATA_EXPORTED]: (data: string) => void;
     [EVENTS.SEEK_TO_TIME]: (time: number) => void;
+
+    // Panel events
+    [EVENTS.PANEL_ELEMENT_SELECTED]: (element: PanelElementData) => void;
+    [EVENTS.PANEL_ELEMENT_DESELECTED]: () => void;
+    [EVENTS.PANEL_ELEMENT_UPDATED]: (element: PanelElementData, time: number) => void;
+
+    // Property events
+    [EVENTS.PROPERTY_CHANGED]: (elementId: string, propertyName: string, value: any) => void;
+
+    // Timeline editor events
+    [EVENTS.EDIT_MODE_CHANGED]: (mode: string) => void;
+    [EVENTS.SELECTION_CHANGED]: (selectedItems: Array<any>) => void;
+    [EVENTS.UNDO]: () => void;
+    [EVENTS.REDO]: () => void;
+
+    // Group events
+    [EVENTS.GROUP_CREATED]: (groupId: string, childIds: string[]) => void;
+    [EVENTS.GROUP_DELETED]: (groupId: string, preserveChildren: boolean) => void;
+    [EVENTS.GROUP_UPDATED]: (groupId: string, properties: any) => void;
+
+    // Timeline state events
+    [EVENTS.STATE_SAVED]: (stateId: string) => void;
+    [EVENTS.STATE_LOADED]: (stateId: string) => void;
+
+    // Error and notification events
+    [EVENTS.ERROR]: (error: Error | string, source?: string) => void;
+    [EVENTS.NOTIFICATION]: (message: string, type?: 'info' | 'warning' | 'error' | 'success') => void;
 }
 
 // Define a generic event listener type

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-inferrable-types */
 // src/core/DataModel.ts
 /**
  * Timeline Control Data Model
@@ -53,7 +54,9 @@ export class TimelineDataModel {
     private selectedKeyframeIds: string[] = [];
     private timeScale: number = 1; // Zoom factor
 
-    constructor() { }
+    //constructor() {
+
+    //}
 
     // Layer methods
     public getLayers(): Layer[] {
@@ -66,7 +69,14 @@ export class TimelineDataModel {
             id: this.generateId('layer'),
             keyframes: [],
             motionTweens: [],
-            isSelected: false
+            isSelected: false,
+            parentId: layer.parentId,
+            children: layer.children,
+            isExpanded: layer.isExpanded,
+            name: layer.name || 'Layer',
+            visible: layer.visible || true,
+            locked: layer.locked || false,
+            color: layer.color || '#fff'
         };
         this.layers.push(newLayer);
         return newLayer;
