@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-types */
 // src/core/EventEmitter.ts
 /**
  * Event Emitter with Strongly-Typed Events

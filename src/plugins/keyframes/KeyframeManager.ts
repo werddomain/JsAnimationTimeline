@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-inferrable-types */
 // src/plugins/keyframes/KeyframeManager.ts
 /**
  * Keyframe Manager
