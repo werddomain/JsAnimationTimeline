@@ -15,6 +15,7 @@ import { KeyframeManager } from '../plugins/keyframes/KeyframeManager';
 import { MainToolbar } from '../plugins/toolbar/MainToolbar';
 import { ObjectToolbar } from '../plugins/toolbar/ObjectToolbar';
 import { TimeRuler } from '../plugins/time/TimeRuler';
+import { GroupManager } from '../plugins/layers/GroupManager';
 
 // Timeline initialization options
 export interface TimelineOptions {
@@ -56,6 +57,7 @@ export class TimelineControl {
     private height: number;
     private layerHeight: number;
     private leftPanelWidth: number;
+    groupManager: GroupManager;
 
     constructor(options: TimelineOptions) {
         this.lastFrameTime = 0;
@@ -488,33 +490,126 @@ export class TimelineControl {
     /**
      * Handle creation of a layer group
      */
+
     private handleCreateGroup(): void {
         // Get selected layers
         const selectedLayers = this.dataModel.getLayers().filter(l => l.isSelected);
         if (selectedLayers.length === 0) return;
 
-        // Create a new group layer
-        const groupLayer = this.dataModel.addLayer({
-            name: 'Group',
-            visible: true,
-            locked: false,
-            color: TimelineConstants.COLORS.LAYER_DEFAULTS[0],
-            keyframes: [],
-            motionTweens: [],
-            isSelected: false,
-            isExpanded: true,
-            children: []
-        });
+        // Get layer IDs
+        const selectedLayerIds = selectedLayers.map(layer => layer.id);
 
-        // Move selected layers to be children of the group
-        selectedLayers.forEach(layer => {
-            this.dataModel.updateLayer(layer.id, { parentId: groupLayer.id });
-        });
+        // Use the GroupManager to create the group
+        this.groupManager.createGroup('Group', selectedLayerIds);
+    }
 
+    //private handleCreateGroup(): void {
+    //    // Get selected layers
+    //    const selectedLayers = this.dataModel.getLayers().filter(l => l.isSelected);
+    //    if (selectedLayers.length === 0) return;
+
+    //    // Create a new group layer
+    //    const groupLayer = this.dataModel.addLayer({
+    //        name: 'Group',
+    //        visible: true,
+    //        locked: false,
+    //        color: TimelineConstants.COLORS.LAYER_DEFAULTS[0],
+    //        keyframes: [],
+    //        motionTweens: [],
+    //        isSelected: false,
+    //        isExpanded: true,
+    //        children: []
+    //    });
+
+    //    // Move selected layers to be children of the group
+    //    selectedLayers.forEach(layer => {
+    //        this.dataModel.updateLayer(layer.id, { parentId: groupLayer.id });
+    //    });
+
+    //    this.updateLayerDisplay();
+    //    this.eventEmitter.emitLayerAdded(groupLayer);
+    //    //this.emit(TimelineConstants.EVENTS.LAYER_ADDED, groupLayer);
+    //}
+
+ //   /**
+ //* Handle creating a group from selected layers
+ //*/
+ //   private handleCreateGroup(name: string, selectedLayerIds: string[]): void {
+ //       // Create a new group layer
+ //       const groupLayer = this.dataModel.addLayer({
+ //           name: name || 'Group',
+ //           visible: true,
+ //           locked: false,
+ //           color: TimelineConstants.COLORS.LAYER_DEFAULTS[0],
+ //           keyframes: [],
+ //           motionTweens: [],
+ //           isSelected: false,
+ //           isExpanded: true
+ //       });
+
+ //       // Move selected layers to be children of the group
+ //       selectedLayerIds.forEach(layerId => {
+ //           this.dataModel.updateLayer(layerId, { parentId: groupLayer.id });
+ //       });
+
+ //       this.updateLayerDisplay();
+ //       this.eventEmitter.emitLayerAdded(groupLayer);
+ //   }
+
+    /**
+     * Handle deleting a group
+     */
+    private handleDeleteGroup(groupId: string, preserveChildren: boolean): void {
+        // Get all child layers
+        const childLayers = this.dataModel.getLayers().filter(l => l.parentId === groupId);
+
+        if (preserveChildren) {
+            // Move children up a level
+            const group = this.dataModel.getLayers().find(l => l.id === groupId);
+            const parentGroupId = group?.parentId;
+
+            childLayers.forEach(child => {
+                this.dataModel.updateLayer(child.id, { parentId: parentGroupId });
+            });
+        } else {
+            // Delete all children
+            childLayers.forEach(child => {
+                this.handleLayerDelete(child.id);
+            });
+        }
+
+        // Delete the group itself
+        this.handleLayerDelete(groupId);
+    }
+
+    /**
+     * Handle toggling group expanded/collapsed state
+     */
+    private handleToggleGroupExpanded(groupId: string): void {
+        const layer = this.dataModel.getLayers().find(l => l.id === groupId);
+        if (!layer) return;
+
+        // Toggle the expanded state
+        this.dataModel.updateLayer(groupId, { isExpanded: !layer.isExpanded });
         this.updateLayerDisplay();
-        this.eventEmitter.emitLayerAdded(groupLayer);
-        //this.emit(TimelineConstants.EVENTS.LAYER_ADDED, groupLayer);
-    }  /**
+    }
+
+    /**
+     * Handle adding a layer to a group
+     */
+    private handleAddLayerToGroup(layerId: string, groupId: string): void {
+        this.dataModel.updateLayer(layerId, { parentId: groupId });
+        this.updateLayerDisplay();
+    }
+
+    /**
+     * Handle removing a layer from its group
+     */
+    private handleRemoveLayerFromGroup(layerId: string): void {
+        this.dataModel.updateLayer(layerId, { parentId: undefined });
+        this.updateLayerDisplay();
+    }
+    /**
    * Initialize all component instances
    */
     private initializeComponents(): void {
@@ -578,7 +673,15 @@ export class TimelineControl {
             onMotionTweenDelete: (layerId, tweenId) =>
                 this.handleMotionTweenDelete(layerId, tweenId)
         });
-
+        this.groupManager = new GroupManager(this.layersContainerEl, {
+            eventEmitter: this.eventEmitter,
+            onCreateGroup: (name, selectedLayerIds) => this.handleCreateGroup(name, selectedLayerIds),
+            onDeleteGroup: (groupId, preserveChildren) => this.handleDeleteGroup(groupId, preserveChildren),
+            onRenameGroup: (groupId, newName) => this.handleLayerNameChange(groupId, newName),
+            onToggleGroupExpanded: (groupId) => this.handleToggleGroupExpanded(groupId),
+            onAddLayerToGroup: (layerId, groupId) => this.handleAddLayerToGroup(layerId, groupId),
+            onRemoveLayerFromGroup: (layerId) => this.handleRemoveLayerFromGroup(layerId)
+        });
         // Initial render of all components
         this.renderAll();
     }
