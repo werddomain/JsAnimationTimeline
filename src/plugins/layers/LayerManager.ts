@@ -1,4 +1,5 @@
-﻿// src/plugins/layers/LayerManager.ts
+﻿/* eslint-disable @typescript-eslint/no-inferrable-types */
+// src/plugins/layers/LayerManager.ts
 /**
  * Layer Manager
  * Manages the layer data and UI interactions
@@ -91,69 +92,127 @@ export class LayerManager extends Component {
       </div>
     `;
     }
+    // Add a method to render a single layer with proper indentation
+    private renderLayer(layer: Layer, indentLevel: number = 0): string {
+        const selectedClass = layer.isSelected ? CSS_CLASSES.SELECTED : '';
+        const visibilityIcon = layer.visible ? 'eye' : 'eye-slash';
+        const lockIcon = layer.locked ? 'lock' : 'unlock';
+        const isGroup = this.isGroup(layer);
+        const isExpanded = layer.isExpanded !== false; // Default to expanded
+
+        // Calculate indentation
+        const indentPadding = indentLevel * 15; // 15px per level
+
+        return `
+        <div class="${CSS_CLASSES.LAYER} ${selectedClass} ${layer.locked ? 'locked' : ''} ${!layer.visible ? 'hidden' : ''} ${isGroup ? 'layer-group' : ''}" 
+             data-id="${layer.id}" 
+             data-index="${this.getLayerIndex(layer)}"
+             style="border-left-color: ${layer.color}; padding-left: ${indentPadding}px;">
+            <div class="timeline-layer-header">
+                <span class="timeline-layer-drag-handle">≡</span>
+                ${isGroup ? `
+                    <span class="timeline-layer-toggle" data-action="toggle-group">
+                        ${isExpanded ? '▼' : '►'}
+                    </span>
+                ` : ''}
+                <span class="timeline-layer-name">${layer.name}</span>
+                <div class="timeline-layer-controls">
+                    <button class="timeline-layer-btn" data-action="toggle-visibility" title="${layer.visible ? 'Hide' : 'Show'} Layer">
+                        <i class="icon ${visibilityIcon}">${layer.visible ? '👁️' : '👁️‍🗨️'}</i>
+                    </button>
+                    <button class="timeline-layer-btn" data-action="toggle-lock" title="${layer.locked ? 'Unlock' : 'Lock'} Layer">
+                        <i class="icon ${lockIcon}">${layer.locked ? '🔒' : '🔓'}</i>
+                    </button>
+                    <button class="timeline-layer-btn" data-action="edit-name" title="Edit Name">
+                        <i class="icon edit">✏️</i>
+                    </button>
+                    <button class="timeline-layer-btn" data-action="change-color" title="Change Color">
+                        <span class="color-swatch" style="background-color: ${layer.color};"></span>
+                    </button>
+                    ${isGroup ? `
+                        <button class="timeline-layer-btn" data-action="add-to-group" title="Add Layer to Group">
+                            <i class="icon">➕</i>
+                        </button>
+                    ` : `
+                        <button class="timeline-layer-btn" data-action="remove-from-group" title="Remove from Group" ${layer.parentId ? '' : 'disabled'}>
+                            <i class="icon">➖</i>
+                        </button>
+                    `}
+                </div>
+            </div>
+        </div>
+    `;
+    }
 
     /**
      * Render the layers content
      */
     private renderContent(): string {
+        if (this.layers.length === 0) {
+            return '<div class="timeline-empty-state">No objects. Click "New Object" to add one.</div>';
+        }
+
         let html = '';
 
-        this.layers.forEach((layer, index) => {
-            const selectedClass = layer.isSelected ? CSS_CLASSES.SELECTED : '';
-            const visibilityIcon = layer.visible ? 'eye' : 'eye-slash';
-            const lockIcon = layer.locked ? 'lock' : 'unlock';
-            const isGroup = layer.children && layer.children.length > 0;
-            const isExpanded = layer.isExpanded !== false; // Default to expanded
+        // Get layers with proper indentation
+        const layersWithIndent = this.getLayersWithIndentation();
 
-            html += `
-        <div class="${CSS_CLASSES.LAYER} ${selectedClass} ${layer.locked ? 'locked' : ''} ${!layer.visible ? 'hidden' : ''}" 
-             data-id="${layer.id}" 
-             data-index="${index}"
-             style="border-left-color: ${layer.color};">
-          <div class="timeline-layer-header">
-            <span class="timeline-layer-drag-handle">≡</span>
-            ${isGroup ? `
-              <span class="timeline-layer-toggle" data-action="toggle-group">
-                ${isExpanded ? '▼' : '►'}
-              </span>
-            ` : ''}
-            <span class="timeline-layer-name">${layer.name}</span>
-            <div class="timeline-layer-controls">
-              <button class="timeline-layer-btn" data-action="toggle-visibility" title="${layer.visible ? 'Hide' : 'Show'} Layer">
-                <i class="icon ${visibilityIcon}">${layer.visible ? '👁️' : '👁️‍🗨️'}</i>
-              </button>
-              <button class="timeline-layer-btn" data-action="toggle-lock" title="${layer.locked ? 'Unlock' : 'Lock'} Layer">
-                <i class="icon ${lockIcon}">${layer.locked ? '🔒' : '🔓'}</i>
-              </button>
-              <button class="timeline-layer-btn" data-action="edit-name" title="Edit Name">
-                <i class="icon edit">✏️</i>
-              </button>
-              <button class="timeline-layer-btn" data-action="change-color" title="Change Color">
-                <span class="color-swatch" style="background-color: ${layer.color};"></span>
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-
-            // Render children if this is a group and it's expanded
-            if (isGroup && isExpanded && layer.children) {
-                html += `<div class="timeline-layer-children" data-parent-id="${layer.id}">`;
-                layer.children.forEach(childLayer => {
-                    // TODO: Recursive rendering of children
-                });
-                html += `</div>`;
-            }
+        // Render each layer
+        layersWithIndent.forEach(({ layer, indentLevel }) => {
+            html += this.renderLayer(layer, indentLevel);
         });
-
-        // Add empty state if no layers
-        if (this.layers.length === 0) {
-            html = '<div class="timeline-empty-state">No objects. Click "New Object" to add one.</div>';
-        }
 
         return html;
     }
+    // Check if a layer is a group
+    private isGroup(layer: Layer): boolean {
+        return this.layers.some(l => l.parentId === layer.id);
+    }
 
+    // Get the index of a layer
+    private getLayerIndex(layer: Layer): number {
+        return this.layers.findIndex(l => l.id === layer.id);
+    }
+
+    // Get layers with proper indentation
+    private getLayersWithIndentation(): { layer: Layer, indentLevel: number }[] {
+        const result: { layer: Layer, indentLevel: number }[] = [];
+
+        // Get top-level layers (those without a parent)
+        const topLevelLayers = this.layers.filter(layer => !layer.parentId);
+
+        // Process each top-level layer and its children recursively
+        topLevelLayers.forEach(layer => {
+            this.addLayerWithChildren(layer, 0, result);
+        });
+
+        return result;
+    }
+
+    // Add a layer and its children to the result array
+    private addLayerWithChildren(
+        layer: Layer,
+        indentLevel: number,
+        result: { layer: Layer, indentLevel: number }[]
+    ): void {
+        // Add the layer itself
+        result.push({ layer, indentLevel });
+
+        // If this is a group and it's expanded, add its children
+        if (this.isGroup(layer) && layer.isExpanded !== false) {
+            const children = this.getChildLayers(layer.id);
+
+            // Process each child
+            children.forEach(child => {
+                this.addLayerWithChildren(child, indentLevel + 1, result);
+            });
+        }
+    }
+
+    // Get all child layers of a group
+    private getChildLayers(groupId: string): Layer[] {
+        return this.layers.filter(layer => layer.parentId === groupId);
+    }
     /**
      * Create a new layer
      * @param name Layer name
@@ -185,7 +244,18 @@ export class LayerManager extends Component {
 
         const layerId = layerEl.getAttribute('data-id');
         if (!layerId) return;
+        if (target.closest('.timeline-layer-toggle')) {
+            const layer = this.layers.find(l => l.id === layerId);
+            if (layer) {
+                layer.isExpanded = !layer.isExpanded;
+                this.update(this.layers);
 
+                // Notify about group expansion toggle
+                this.eventEmitter.emitLayerGroupToggle(layerId, layer.isExpanded);
+                //this.eventEmitter.emit('layer:group:toggle', layerId, layer.isExpanded);
+            }
+            return;
+        }
         // Check if clicked on a control button
         if (target.closest('.timeline-layer-btn')) {
             const button = target.closest('.timeline-layer-btn');
@@ -204,6 +274,13 @@ export class LayerManager extends Component {
                 case 'change-color':
                     this.promptColorChange(layerId, target);
                     break;
+                case 'add-to-group':
+                    this.showAddToGroupDialog(layerId);
+                    return;
+
+                case 'remove-from-group':
+                    this.removeFromGroup(layerId);
+                    return;
             }
             return;
         }
@@ -223,6 +300,25 @@ export class LayerManager extends Component {
         this.options.onLayerSelect(layerId, multiSelect);
     }
 
+    // Show a dialog to add a layer to a group
+    private showAddToGroupDialog(groupId: string): void {
+        // This would show a UI to select layers to add to the group
+        // For simplicity, we'll just show an alert for now
+        alert('In a real implementation, this would show a dialog to select layers to add to this group.');
+
+        // You could create a popup with checkboxes for each layer that's not already in a group
+        // and then call addLayerToGroup for each selected layer
+    }
+
+    // Remove a layer from its group
+    private removeFromGroup(layerId: string): void {
+        const layer = this.layers.find(l => l.id === layerId);
+        if (!layer || !layer.parentId) return;
+
+        // Notify about removing from group
+        this.eventEmitter.emitLayerGroupRemoved(layerId);
+        //this.eventEmitter.emit('layer:group:remove', layerId);
+    }
     /**
      * Handle double click events (for editing layer name)
      * @param e Mouse event

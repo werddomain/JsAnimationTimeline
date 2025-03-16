@@ -82,6 +82,8 @@ export const TimelineConstants = {
         LAYER_LOCK_CHANGED: 'layer:lock:changed',
         LAYER_COLOR_CHANGED: 'layer:color:changed',
         LAYER_NAME_CHANGED: 'layer:name:changed',
+        LAYER_GROUP_TOOGLE: 'layer:group:toggle',
+        LAYER_GROUP_REMOVED: 'layer:group:removed',
 
         // Keyframe events
         KEYFRAME_ADDED: 'keyframe:added',

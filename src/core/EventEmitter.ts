@@ -12,6 +12,7 @@ import { Layer, Keyframe, MotionTween } from './DataModel';
 const { EVENTS } = TimelineConstants;
 
 export class EventEmitter {
+   
     private events: Map<string, Function[]> = new Map();
 
     /**
@@ -146,7 +147,12 @@ export class EventEmitter {
     public emitLayerVisibilityChanged(layerId: string, visible: boolean): void {
         this.emitBase(EVENTS.LAYER_VISIBILITY_CHANGED, layerId, visible);
     }
-
+    emitLayerGroupToggle(layerId: string, isExpanded: boolean) {
+        this.emitBase(EVENTS.LAYER_GROUP_TOOGLE, layerId, isExpanded);
+    }
+    emitLayerGroupRemoved(layerId: string) {
+        this.emitBase(EVENTS.LAYER_GROUP_TOOGLE, layerId);
+    }
     public emitLayerLockChanged(layerId: string, locked: boolean): void {
         this.emitBase(EVENTS.LAYER_LOCK_CHANGED, layerId, locked);
     }

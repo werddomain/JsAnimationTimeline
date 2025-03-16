@@ -1,0 +1,234 @@
+// styles/components/layer-editor.less
+@import "../variables";
+/**
+ * Layer Editor Component Styles
+ */
+
+.timeline-layer-editor {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid @border-color;
+    border-radius: @border-radius;
+    background-color: @panel-color;
+    overflow: hidden;
+    height: 100%;
+    // Header
+    .timeline-layer-editor-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background-color: @toolbar-color;
+        border-bottom: 1px solid @border-color;
+
+        h3 {
+            margin: 0;
+            color: @text-color;
+            font-size: 14px;
+            font-weight: 500;
+        }
+    }
+    // Empty state
+    .timeline-layer-editor-empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: @dim-text-color;
+        font-style: italic;
+        text-align: center;
+        padding: 20px;
+    }
+    // Form
+    .timeline-layer-editor-form {
+        padding: 12px;
+        overflow: auto;
+        flex: 1;
+    }
+    // Form fields
+    .timeline-layer-editor-field {
+        margin-bottom: 12px;
+
+        label {
+            display: block;
+            margin-bottom: 4px;
+            color: @dim-text-color;
+            font-size: 12px;
+        }
+
+        input[type="text"],
+        select {
+            width: 100%;
+            background-color: #333333;
+            border: 1px solid #555555;
+            color: @text-color;
+            padding: 6px 8px;
+            border-radius: @border-radius-sm;
+
+            &:focus {
+                outline: none;
+                border-color: @highlight-color;
+            }
+        }
+    }
+    // Color picker
+    .timeline-layer-editor-color-picker {
+        display: flex;
+        align-items: center;
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 30px;
+            height: 30px;
+            padding: 0;
+
+            &::-webkit-color-swatch-wrapper {
+                padding: 0;
+            }
+
+            &::-webkit-color-swatch {
+                border: 1px solid #555555;
+                border-radius: @border-radius-sm;
+            }
+
+            &:focus {
+                outline: none;
+            }
+        }
+    }
+    // Toggle switches
+    .timeline-layer-editor-toggle {
+        display: flex;
+        align-items: center;
+
+        input[type="checkbox"] {
+            display: none;
+
+            & + .toggle-label {
+                position: relative;
+                padding-left: 44px;
+                cursor: pointer;
+
+                &:before {
+                    content: '';
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    width: 36px;
+                    height: 18px;
+                    background-color: #444444;
+                    border-radius: 9px;
+                    transition: background-color @transition-speed @transition-ease;
+                }
+
+                &:after {
+                    content: '';
+                    position: absolute;
+                    left: 3px;
+                    top: 3px;
+                    width: 12px;
+                    height: 12px;
+                    background-color: @text-color;
+                    border-radius: 50%;
+                    transition: left @transition-speed @transition-ease;
+                }
+            }
+
+            &:checked + .toggle-label {
+                &:before {
+                    background-color: @highlight-color;
+                }
+
+                &:after {
+                    left: 21px;
+                }
+            }
+        }
+    }
+    // Group options
+    .timeline-layer-editor-group-options {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    // Group select
+    .timeline-layer-editor-group-select {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        select {
+            flex: 1;
+        }
+    }
+    // Action buttons
+    .timeline-layer-editor-actions {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 20px;
+
+        .timeline-btn {
+            background-color: #444444;
+            border: 1px solid #555555;
+            color: @text-color;
+            height: 30px;
+            padding: 0 12px;
+            border-radius: @border-radius;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color @transition-speed @transition-ease;
+
+            &:hover {
+                background-color: #555555;
+            }
+
+            &:active {
+                background-color: #666666;
+            }
+
+            &.danger {
+                background-color: #d32f2f;
+                border-color: #b71c1c;
+
+                &:hover {
+                    background-color: #f44336;
+                }
+
+                &:active {
+                    background-color: #e53935;
+                }
+            }
+        }
+    }
+}
+
+// Group specific styles for layers
+.timeline-layer {
+    &.layer-group {
+        background-color: rgba(0, 0, 0, 0.1);
+
+        .timeline-layer-name {
+            font-weight: 500;
+        }
+
+        .timeline-layer-toggle {
+            cursor: pointer;
+            margin-right: 6px;
+            user-select: none;
+
+            &:hover {
+                color: @highlight-color;
+            }
+        }
+    }
+}
+
+// Layer children container
+.timeline-layer-children {
+    margin-left: 15px;
+    border-left: 1px dashed rgba(255, 255, 255, 0.1);
+}

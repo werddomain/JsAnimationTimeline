@@ -27,6 +27,8 @@ export interface TimelineEventMap {
     [EVENTS.LAYER_LOCK_CHANGED]: (layerId: string, locked: boolean) => void;
     [EVENTS.LAYER_COLOR_CHANGED]: (layerId: string, color: string) => void;
     [EVENTS.LAYER_NAME_CHANGED]: (layerId: string, name: string) => void;
+    [EVENTS.LAYER_GROUP_TOOGLE]: (layerId: string, locked: boolean) => void;
+    [EVENTS.LAYER_GROUP_REMOVED]: (layerId: string) => void;
 
     // Keyframe events
     [EVENTS.KEYFRAME_ADDED]: (layerId: string, keyframe: Keyframe) => void;
