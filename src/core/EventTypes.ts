@@ -38,6 +38,8 @@ export interface TimelineEventMap {
 
     // Motion tween events
     [EVENTS.TWEEN_ADDED]: (layerId: string, tween: MotionTween) => void;
+    [EVENTS.TWEEN_SELECTED]: (layer: Layer, tween: MotionTween) => void;
+    [EVENTS.TWEEN_DESELECTED]: () => void;
     [EVENTS.TWEEN_UPDATED]: (layerId: string, tween: MotionTween) => void;
     [EVENTS.TWEEN_REMOVED]: (layerId: string, tweenId: string) => void;
     [EVENTS.TWEEN_USER_CREATED]: (layerId: string, startKeyframeId: string, endKeyframeId: string) => void;

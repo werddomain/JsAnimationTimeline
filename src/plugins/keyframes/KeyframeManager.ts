@@ -341,7 +341,8 @@ export class KeyframeManager extends Component {
         this.updateTweenDisplay();
 
         // Emit event
-        this.eventEmitter.emit('motion:tween:selected', layer, tween);
+        this.eventEmitter.emitTweenSelected(layer, tweenId);
+        //this.eventEmitter.emit('motion:tween:selected', layer, tween);
     }
 
     /**
@@ -357,7 +358,8 @@ export class KeyframeManager extends Component {
         this.updateTweenDisplay();
 
         // Emit event
-        this.eventEmitter.emit('motion:tween:deselected');
+        this.eventEmitter.emitTweenDeSelected();
+        //this.eventEmitter.emit('motion:tween:deselected');
     }
     /**
  * Update tween display

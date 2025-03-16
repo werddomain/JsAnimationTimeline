@@ -96,6 +96,8 @@ export const TimelineConstants = {
         TWEEN_UPDATED: 'motiontween:updated',
         TWEEN_REMOVED: 'motiontween:removed',
         TWEEN_USER_CREATED: 'motiontween:user:created',
+        TWEEN_SELECTED: 'motiontween:selected',
+        TWEEN_DESELECTED: 'motiontween:deselected',
 
         // UI events
         ZOOM_CHANGED: 'zoom:changed',

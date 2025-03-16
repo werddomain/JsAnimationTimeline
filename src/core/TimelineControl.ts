@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-inferrable-types */
 // src/core/TimelineControl.ts
 /**
  * Timeline Control
@@ -28,17 +29,17 @@ export class TimelineControl {
     private container: HTMLElement;
     private dataModel: TimelineDataModel;
     private eventEmitter: EventEmitter;
-    private isPlaying: boolean = false;
+    private isPlaying: boolean;
     private animationFrameId: number | null = null;
-    private lastFrameTime: number = 0;
+    private lastFrameTime: number;
 
     // DOM Elements
     private timelineEl: HTMLElement;
     private layersContainerEl: HTMLElement;
     private keyframesContainerEl: HTMLElement;
     private timeRulerEl: HTMLElement;
-    private toolbarEl: HTMLElement ;
-    private objectToolbarEl: HTMLElement ;
+    private toolbarEl: HTMLElement;
+    private objectToolbarEl: HTMLElement;
     private timeCursorEl: HTMLElement;
 
     // Component instances
@@ -53,10 +54,14 @@ export class TimelineControl {
     // Dimensions
     private width: number;
     private height: number;
-    private layerHeight: number = 30;
-    private leftPanelWidth: number = 200;
+    private layerHeight: number;
+    private leftPanelWidth: number;
 
     constructor(options: TimelineOptions) {
+        this.lastFrameTime = 0;
+        this.isPlaying = false;
+        this.layerHeight = TimelineConstants.DIMENSIONS.LAYER_HEIGHT;
+        this.leftPanelWidth = TimelineConstants.DIMENSIONS.LEFT_PANEL_WIDTH;
         this.container = options.container;
         this.width = options.width || this.container.clientWidth;
         this.height = options.height || this.container.clientHeight;
@@ -153,7 +158,8 @@ export class TimelineControl {
     private handleKeyframeSelect(layerId: string, keyframeId: string, multiSelect: boolean): void {
         this.dataModel.selectKeyframe(layerId, keyframeId, multiSelect);
         this.updateKeyframeDisplay();
-        this.emit(TimelineConstants.EVENTS.KEYFRAME_SELECTED, layerId, keyframeId, multiSelect);
+        this.eventEmitter.emitKeyframeSelected(layerId, keyframeId, multiSelect);
+        //this.emit(TimelineConstants.EVENTS.KEYFRAME_SELECTED, layerId, keyframeId, multiSelect);
     }
 
     /**
@@ -172,7 +178,8 @@ export class TimelineControl {
         // Update keyframe time
         this.dataModel.updateKeyframe(layerId, keyframeId, { time: newTime });
         this.updateKeyframeDisplay();
-        this.emit(TimelineConstants.EVENTS.KEYFRAME_MOVED, layerId, keyframeId, newTime);
+        this.eventEmitter.emitKeyframeMoved(layerId, keyframeId, newTime);
+        //this.emit(TimelineConstants.EVENTS.KEYFRAME_MOVED, layerId, keyframeId, newTime);
     }
 
     /**
@@ -195,7 +202,8 @@ export class TimelineControl {
         // Remove the keyframe
         this.dataModel.removeKeyframe(layerId, keyframeId);
         this.updateKeyframeDisplay();
-        this.emit(TimelineConstants.EVENTS.KEYFRAME_REMOVED, layerId, keyframeId);
+        this.eventEmitter.emitKeyframeRemoved(layerId, keyframeId);
+        //this.emit(TimelineConstants.EVENTS.KEYFRAME_REMOVED, layerId, keyframeId);
     }
 
     /**
@@ -219,10 +227,12 @@ export class TimelineControl {
             this.handleKeyframeSelect(layerId, newKeyframe.id, false);
 
             // Emit user created event
-            this.emit(TimelineConstants.EVENTS.KEYFRAME_USER_CREATED, layerId, time);
+            this.eventEmitter.emitKeyframeUserCreated(layerId, time);
+            //this.emit(TimelineConstants.EVENTS.KEYFRAME_USER_CREATED, layerId, time);
 
             // Also emit normal keyframe added event
-            this.emit(TimelineConstants.EVENTS.KEYFRAME_ADDED, layerId, newKeyframe);
+            this.eventEmitter.emitKeyframeAdded(layerId, newKeyframe);
+            //this.emit(TimelineConstants.EVENTS.KEYFRAME_ADDED, layerId, newKeyframe);
         }
     }
 
@@ -294,10 +304,12 @@ export class TimelineControl {
             this.updateKeyframeDisplay();
 
             // Emit user created event
-            this.emit(TimelineConstants.EVENTS.TWEEN_USER_CREATED, layerId, startKeyframeId, endKeyframeId);
+            this.eventEmitter.emitTweenUserCreated(layerId, startKeyframeId, endKeyframeId);
+            //this.emit(TimelineConstants.EVENTS.TWEEN_USER_CREATED, layerId, startKeyframeId, endKeyframeId);
 
             // Also emit normal tween added event
-            this.emit(TimelineConstants.EVENTS.TWEEN_ADDED, layerId, newTween);
+            this.eventEmitter.emitTweenAdded(layerId, newTween);
+            //this.emit(TimelineConstants.EVENTS.TWEEN_ADDED, layerId, newTween);
         }
     }
 
@@ -320,7 +332,8 @@ export class TimelineControl {
     private handleMotionTweenDelete(layerId: string, tweenId: string): void {
         this.dataModel.removeMotionTween(layerId, tweenId);
         this.updateKeyframeDisplay();
-        this.emit(TimelineConstants.EVENTS.TWEEN_REMOVED, layerId, tweenId);
+        this.eventEmitter.emitTweenRemoved(layerId, tweenId);
+        //this.emit(TimelineConstants.EVENTS.TWEEN_REMOVED, layerId, tweenId);
     }
 
     /**
@@ -342,7 +355,8 @@ export class TimelineControl {
     private handleLayerSelect(layerId: string, multiSelect: boolean): void {
         this.dataModel.selectLayer(layerId, multiSelect);
         this.updateLayerDisplay();
-        this.emit(TimelineConstants.EVENTS.LAYER_SELECTED, layerId, multiSelect);
+        this.eventEmitter.emitLayerSelected(layerId, multiSelect);
+        //this.emit(TimelineConstants.EVENTS.LAYER_SELECTED, layerId, multiSelect);
     }
 
     /**
@@ -367,7 +381,8 @@ export class TimelineControl {
         });
 
         this.updateLayerDisplay();
-        this.emit(TimelineConstants.EVENTS.LAYER_MOVED, layerId, targetIndex);
+        this.eventEmitter.emitLayerMoved(layerId, targetIndex);
+        //this.emit(TimelineConstants.EVENTS.LAYER_MOVED, layerId, targetIndex);
     }
 
     /**
@@ -376,7 +391,8 @@ export class TimelineControl {
     private handleLayerNameChange(layerId: string, newName: string): void {
         this.dataModel.updateLayer(layerId, { name: newName });
         this.updateLayerDisplay();
-        this.emit(TimelineConstants.EVENTS.LAYER_NAME_CHANGED, layerId, newName);
+        this.eventEmitter.emitLayerNameChanged(layerId, newName);
+        //this.emit(TimelineConstants.EVENTS.LAYER_NAME_CHANGED, layerId, newName);
     }
 
     /**
@@ -389,7 +405,8 @@ export class TimelineControl {
         const newVisibility = !layer.visible;
         this.dataModel.updateLayer(layerId, { visible: newVisibility });
         this.updateLayerDisplay();
-        this.emit(TimelineConstants.EVENTS.LAYER_VISIBILITY_CHANGED, layerId, newVisibility);
+        this.eventEmitter.emitLayerVisibilityChanged(layerId, newVisibility);
+        //this.emit(TimelineConstants.EVENTS.LAYER_VISIBILITY_CHANGED, layerId, newVisibility);
     }
 
     /**
@@ -402,7 +419,9 @@ export class TimelineControl {
         const newLockState = !layer.locked;
         this.dataModel.updateLayer(layerId, { locked: newLockState });
         this.updateLayerDisplay();
-        this.emit(TimelineConstants.EVENTS.LAYER_LOCK_CHANGED, layerId, newLockState);
+
+        this.eventEmitter.emitLayerLockChanged(layerId, newLockState);
+        //this.emit(TimelineConstants.EVENTS.LAYER_LOCK_CHANGED, layerId, newLockState);
     }
 
     /**
@@ -411,7 +430,8 @@ export class TimelineControl {
     private handleLayerColorChange(layerId: string, newColor: string): void {
         this.dataModel.updateLayer(layerId, { color: newColor });
         this.updateLayerDisplay();
-        this.emit(TimelineConstants.EVENTS.LAYER_COLOR_CHANGED, layerId, newColor);
+        this.eventEmitter.emitLayerColorChanged(layerId, newColor);
+        //this.emit(TimelineConstants.EVENTS.LAYER_COLOR_CHANGED, layerId, newColor);
     }
 
     /**
@@ -440,7 +460,8 @@ export class TimelineControl {
         this.dataModel.removeLayer(layerId);
         this.updateLayerDisplay();
         this.updateKeyframeDisplay();
-        this.emit(TimelineConstants.EVENTS.LAYER_REMOVED, layerId);
+        this.eventEmitter.emitLayerRemoved(layerId);
+        //this.emit(TimelineConstants.EVENTS.LAYER_REMOVED, layerId);
     }
 
     /**
@@ -459,7 +480,9 @@ export class TimelineControl {
         });
 
         this.updateLayerDisplay();
-        this.emit(TimelineConstants.EVENTS.LAYER_ADDED, newLayer);
+        this.eventEmitter.emitLayerAdded(newLayer);
+
+        //this.emit(TimelineConstants.EVENTS.LAYER_ADDED, newLayer);
     }
 
     /**
@@ -489,7 +512,8 @@ export class TimelineControl {
         });
 
         this.updateLayerDisplay();
-        this.emit(TimelineConstants.EVENTS.LAYER_ADDED, groupLayer);
+        this.eventEmitter.emitLayerAdded(groupLayer);
+        //this.emit(TimelineConstants.EVENTS.LAYER_ADDED, groupLayer);
     }  /**
    * Initialize all component instances
    */
@@ -578,7 +602,8 @@ export class TimelineControl {
         const newLayer = this.dataModel.addLayer(layer);
         if (newLayer) {
             this.renderLayers();
-            this.emit('layer:added', newLayer);
+            this.eventEmitter.emitLayerAdded(newLayer);
+            //this.emit('layer:added', newLayer);
             return newLayer;
         }
         return null;
@@ -594,7 +619,8 @@ export class TimelineControl {
         const newKeyframe = this.dataModel.addKeyframe(layerId, keyframe);
         if (newKeyframe) {
             this.renderKeyframes();
-            this.emit('keyframe:added', layerId, newKeyframe);
+            this.eventEmitter.emitKeyframeAdded(layerId, newKeyframe);
+            //this.emit('keyframe:added', layerId, newKeyframe);
             return newKeyframe;
         }
         return null;
@@ -610,7 +636,8 @@ export class TimelineControl {
         const newTween = this.dataModel.addMotionTween(layerId, tween);
         if (newTween) {
             this.renderKeyframes(); // Rerender to show the tween
-            this.emit('motiontween:added', layerId, newTween);
+            this.eventEmitter.emitTweenAdded(layerId, newTween);
+            //this.emit('motiontween:added', layerId, newTween);
             return newTween;
         }
         return null;
@@ -629,13 +656,14 @@ export class TimelineControl {
                 const newDuration = this.dataModel.getDuration();
                 this.renderTimeRuler();
                 this.renderKeyframes();
-                this.emit(TimelineConstants.EVENTS.DURATION_CHANGE, newDuration);
+                this.eventEmitter.emitDurationChange(newDuration);
+                //this.emit(TimelineConstants.EVENTS.DURATION_CHANGE, newDuration);
             }
         }
 
         this.dataModel.setCurrentTime(time);
-        this.updateTimeCursor();
-        this.emit(TimelineConstants.EVENTS.TIME_CHANGE, time);
+        this.updateTimeCursor(); this.eventEmitter.emitTimeChange(time);
+        //this.emit(TimelineConstants.EVENTS.TIME_CHANGE, time);
     }
 
     /**
@@ -684,7 +712,8 @@ export class TimelineControl {
         this.isPlaying = true;
         this.lastFrameTime = performance.now();
         this.animationFrameId = requestAnimationFrame(this.playbackLoop.bind(this));
-        this.emit('playback:play');
+        this.eventEmitter.emitPlay();
+        //this.emit('playback:play');
     }
 
     /**
@@ -698,7 +727,8 @@ export class TimelineControl {
             cancelAnimationFrame(this.animationFrameId);
             this.animationFrameId = null;
         }
-        this.emit('playback:pause');
+        this.eventEmitter.emitPause();
+        //this.emit('playback:pause');
     }
 
     /**
@@ -707,7 +737,8 @@ export class TimelineControl {
     public stop(): void {
         this.pause();
         this.setCurrentTime(0);
-        this.emit('playback:stop');
+        this.eventEmitter.emitStop();
+        //this.emit('playback:stop');
     }
 
     /**
@@ -725,7 +756,8 @@ export class TimelineControl {
     public importData(json: string): void {
         this.dataModel.fromJSON(json);
         this.renderAll();
-        this.emit('data:imported');
+        this.eventEmitter.emitDataImported();
+        //this.emit('data:imported');
     }
 
     /**
@@ -762,7 +794,8 @@ export class TimelineControl {
         this.updateKeyframeDisplay();
         this.updateTimeCursor();
         this.mainToolbar.setZoomLevel(scale);
-        this.emit(TimelineConstants.EVENTS.ZOOM_CHANGED, scale);
+        this.eventEmitter.emitZoomChanged(scale);
+        //this.emit(TimelineConstants.EVENTS.ZOOM_CHANGED, scale);
     }
 
     /**
@@ -778,7 +811,8 @@ export class TimelineControl {
         this.timelineEl.style.height = `${height}px`;
 
         this.renderAll();
-        this.emit(TimelineConstants.EVENTS.RESIZE, width, height);
+        this.eventEmitter.emitResize(width, height);
+        //this.emit(TimelineConstants.EVENTS.RESIZE, width, height);
     }
 
     // Private methods
@@ -1006,7 +1040,8 @@ export class TimelineControl {
                 const newDuration = this.dataModel.getDuration();
                 this.renderTimeRuler();
                 this.renderKeyframes();
-                this.emit(TimelineConstants.EVENTS.DURATION_CHANGE, newDuration);
+                this.eventEmitter.emitDurationChange(newDuration);
+                //this.emit(TimelineConstants.EVENTS.DURATION_CHANGE, newDuration);
             }
         }
 
@@ -1044,13 +1079,13 @@ export class TimelineControl {
         return 0.5; // 500 milliseconds
     }
 
-    /**
-     * Emit an event
-     */
-    private emit<T extends keyof TimelineEventMap>(
-        eventName: T,
-        ...args: Parameters<TimelineEventMap[T]>
-    ): void {
-        this.eventEmitter.emit(eventName, ...args);
-    }
+    ///**
+    // * Emit an event
+    // */
+    //private emit<T extends keyof TimelineEventMap>(
+    //    eventName: T,
+    //    ...args: Parameters<TimelineEventMap[T]>
+    //): void {
+    //    this.eventEmitter.emit(eventName, ...args);
+    //}
 }
