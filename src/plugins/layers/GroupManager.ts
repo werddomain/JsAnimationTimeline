@@ -7,31 +7,29 @@
 
 import { Component } from '../../core/BaseComponent';
 import { EventEmitter } from '../../core/EventEmitter';
-import { Layer } from '../../core/DataModel';
+import { Layer, TimelineDataModel } from '../../core/DataModel';
 import { TimelineConstants } from '../../core/Constants';
+
 
 const { EVENTS, CSS_CLASSES, COLORS } = TimelineConstants;
 
 export interface GroupManagerOptions {
     eventEmitter: EventEmitter;
-    onCreateGroup: (name: string, selectedLayerIds: string[]) => void;
-    onDeleteGroup: (groupId: string, preserveChildren: boolean) => void;
-    onRenameGroup: (groupId: string, newName: string) => void;
-    onToggleGroupExpanded: (groupId: string) => void;
-    onAddLayerToGroup: (layerId: string, groupId: string) => void;
-    onRemoveLayerFromGroup: (layerId: string) => void;
+    dataModel: TimelineDataModel;
+
 }
 
 export class GroupManager extends Component {
     private eventEmitter: EventEmitter;
+    private dataModel: TimelineDataModel;
     private options: GroupManagerOptions;
     private layers: Layer[] = [];
 
     constructor(container: HTMLElement, options: GroupManagerOptions) {
         super(container, 'timeline-group-manager');
         this.eventEmitter = options.eventEmitter;
+        this.dataModel = options.dataModel;
         this.options = options;
-
         this.initialize();
     }
 
@@ -75,133 +73,201 @@ export class GroupManager extends Component {
      * Create a new group from selected layers
      * @param groupName Name for the new group
      * @param selectedLayerIds IDs of layers to include in the group
-     * @returns The new group layer
+     * @returns The new group layer ID
      */
-    public createGroup(groupName: string, selectedLayerIds: string[]): void {
+    public createGroup(groupName: string, selectedLayerIds: string[]): string | null {
         if (selectedLayerIds.length === 0) {
             console.warn('Cannot create a group with no layers selected');
-            return;
+            return null;
         }
 
         // Validate that all selected layers exist
         const selectedLayers = this.layers.filter(layer => selectedLayerIds.includes(layer.id));
         if (selectedLayers.length !== selectedLayerIds.length) {
             console.warn('Some selected layers were not found');
-            return;
+            return null;
         }
 
-        // Check if any selected layer is already in a group
-        const layersInGroups = selectedLayers.filter(layer => layer.parentId);
-        if (layersInGroups.length > 0) {
-            // We could handle this by removing them from their current groups first
-            // For now, we'll just warn the user
-            console.warn('Some selected layers are already in groups');
+        // Create a new group layer
+        const colorIndex = this.layers.length % COLORS.LAYER_DEFAULTS.length;
+        const newGroup = this.dataModel.addLayer({
+            name: groupName || 'Group',
+            visible: true,
+            locked: false,
+            color: COLORS.LAYER_DEFAULTS[colorIndex],
+            isExpanded: true
+        });
+
+        if (!newGroup) {
+            console.error('Failed to create group layer');
+            return null;
         }
 
-        // TODO: Create a new group layer
+        // Move selected layers to be children of the group
+        selectedLayerIds.forEach(layerId => {
+            this.dataModel.updateLayer(layerId, { parentId: newGroup.id });
+        });
 
+        // Emit event to notify about the group creation
+        this.eventEmitter.emitGroupCreated(newGroup.id, selectedLayerIds);
 
-        //Fire event to the end user when the group is created.
-        this.options.onCreateGroup(groupName, selectedLayerIds);
+        return newGroup.id;
     }
 
     /**
      * Delete a group
      * @param groupId Group layer ID
      * @param preserveChildren Whether to keep child layers or delete them too
+     * @returns Success status
      */
-    public deleteGroup(groupId: string, preserveChildren: boolean = true): void {
+    public deleteGroup(groupId: string, preserveChildren: boolean = true): boolean {
         const group = this.findGroupById(groupId);
         if (!group) {
             console.warn(`Group with ID ${groupId} not found`);
-            return;
+            return false;
         }
 
-        this.options.onDeleteGroup(groupId, preserveChildren);
+        const childLayers = this.getChildLayers(groupId);
+
+        if (preserveChildren) {
+            // Move children up to the group's parent (or to root if none)
+            childLayers.forEach(child => {
+                this.dataModel.updateLayer(child.id, { parentId: group.parentId });
+            });
+        } else {
+            // Delete all children
+            childLayers.forEach(child => {
+                this.dataModel.removeLayer(child.id);
+            });
+        }
+
+        // Delete the group itself
+        const result = this.dataModel.removeLayer(groupId);
+
+        // Emit event for the deletion
+        if (result) {
+            this.eventEmitter.emitGroupDeleted(groupId, preserveChildren);
+        }
+
+        return result;
     }
 
     /**
-         * Rename a group
-         * @param groupId Group layer ID
-         * @param newName New group name
-         */
-    public renameGroup(groupId: string, newName: string): void {
+     * Rename a group
+     * @param groupId Group layer ID
+     * @param newName New group name
+     * @returns Success status
+     */
+    public renameGroup(groupId: string, newName: string): boolean {
         const group = this.findGroupById(groupId);
         if (!group) {
             console.warn(`Group with ID ${groupId} not found`);
-            return;
+            return false;
         }
 
         // Update the model
-        group.name = newName;
+        const updatedGroup = this.dataModel.updateLayer(groupId, { name: newName });
 
-        // Update the UI - find the group element and update its name
-        const groupElement = document.querySelector(`[data-layer-id="${groupId}"] .${CSS_CLASSES.LAYER_NAME}`);
-        if (groupElement) {
-            groupElement.textContent = newName;
+        // Emit event for the rename
+        if (updatedGroup) {
+            this.eventEmitter.emitLayerNameChanged(groupId, newName);
+            return true;
         }
 
-        // Fire event to the end user when the group is renamed
-        this.options.onRenameGroup(groupId, newName);
+        return false;
     }
 
     /**
      * Toggle group expanded/collapsed state
      * @param groupId Group layer ID
+     * @returns Success status
      */
-    public toggleGroupExpanded(groupId: string): void {
+    public toggleGroupExpanded(groupId: string): boolean {
         const group = this.findGroupById(groupId);
         if (!group) {
             console.warn(`Group with ID ${groupId} not found`);
-            return;
+            return false;
         }
 
-        this.options.onToggleGroupExpanded(groupId);
+        const isExpanded = group.isExpanded !== false;
+        const updatedGroup = this.dataModel.updateLayer(groupId, { isExpanded: !isExpanded });
+
+        // Emit event for the toggle
+        if (updatedGroup) {
+            this.eventEmitter.emitGroupToggle(groupId, !isExpanded);
+            return true;
+        }
+
+        return false;
     }
 
     /**
      * Add a layer to a group
      * @param layerId Layer ID
      * @param groupId Group layer ID
+     * @returns Success status
      */
-    public addLayerToGroup(layerId: string, groupId: string): void {
+    public addLayerToGroup(layerId: string, groupId: string): boolean {
         const layer = this.layers.find(l => l.id === layerId);
         const group = this.findGroupById(groupId);
 
         if (!layer) {
             console.warn(`Layer with ID ${layerId} not found`);
-            return;
+            return false;
         }
 
         if (!group) {
             console.warn(`Group with ID ${groupId} not found`);
-            return;
+            return false;
         }
 
+        // Check if adding would create a circular reference
+        if (this.wouldCreateCircularReference(layerId, groupId)) {
+            console.warn('Cannot add layer to group: would create circular reference');
+            return false;
+        }
 
-        //fire the event to the end user when the layer is added to the group.
-        this.options.onAddLayerToGroup(layerId, groupId);
+        // Update layer's parent
+        const updatedLayer = this.dataModel.updateLayer(layerId, { parentId: groupId });
+
+        // Emit event for the addition
+        if (updatedLayer) {
+            this.eventEmitter.emitLayerUpdated(updatedLayer);
+            return true;
+        }
+
+        return false;
     }
 
     /**
      * Remove a layer from its group
      * @param layerId Layer ID
+     * @returns Success status
      */
-    public removeLayerFromGroup(layerId: string): void {
+    public removeLayerFromGroup(layerId: string): boolean {
         const layer = this.layers.find(l => l.id === layerId);
 
         if (!layer) {
             console.warn(`Layer with ID ${layerId} not found`);
-            return;
+            return false;
         }
 
         if (!layer.parentId) {
             console.warn(`Layer with ID ${layerId} is not in a group`);
-            return;
+            return false;
         }
 
-        //fire the event to the end user when the layer is removed from the group.
-        this.options.onRemoveLayerFromGroup(layerId);
+        // Update layer to remove parent
+        const updatedLayer = this.dataModel.updateLayer(layerId, { parentId: undefined });
+
+        // Emit event for the removal
+        if (updatedLayer) {
+            this.eventEmitter.emitLayerUpdated(updatedLayer);
+            this.eventEmitter.emitLayerGroupRemoved(layerId);
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -248,8 +314,30 @@ export class GroupManager extends Component {
      * Update group structure after changes
      */
     private updateGroupStructure(): void {
-        // This would handle any necessary updates to maintain group hierarchy
-        // For example, after layers are reordered
+        // Update internal state
+        // Could implement more complex logic here if needed
+    }
+
+    /**
+     * Check if adding a layer to a group would create a circular reference
+     * @param layerId Layer to add
+     * @param groupId Group to add to
+     * @returns True if circular reference would be created
+     */
+    private wouldCreateCircularReference(layerId: string, groupId: string): boolean {
+        // Check if the layer is an ancestor of the group
+        let currentId = groupId;
+        let currentLayer = this.layers.find(l => l.id === currentId);
+
+        while (currentLayer && currentLayer.parentId) {
+            if (currentLayer.parentId === layerId) {
+                return true;
+            }
+            currentId = currentLayer.parentId;
+            currentLayer = this.layers.find(l => l.id === currentId);
+        }
+
+        return false;
     }
 
     /**
@@ -270,7 +358,7 @@ export class GroupManager extends Component {
 
         if (childLayers.length > 0) {
             console.log(`Layer ${layerId} was a group with ${childLayers.length} children`);
-            // Children will be handled by the TimelineControl based on the preserveChildren flag
+            // Children will need to be reassigned or deleted
         }
     }
 
@@ -290,17 +378,6 @@ export class GroupManager extends Component {
         return this.layers.filter(layer =>
             this.isGroup(layer) && !layer.parentId
         );
-    }
-
-    /**
-     * Check if a layer is a direct child of a group
-     * @param layerId Layer ID to check
-     * @param groupId Group ID to check against
-     * @returns True if the layer is a direct child of the group
-     */
-    public isChildOfGroup(layerId: string, groupId: string): boolean {
-        const layer = this.layers.find(l => l.id === layerId);
-        return layer ? layer.parentId === groupId : false;
     }
 
     /**

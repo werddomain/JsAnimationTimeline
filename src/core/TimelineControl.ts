@@ -673,13 +673,15 @@ export class TimelineControl {
                 this.handleMotionTweenDelete(layerId, tweenId)
         });
         this.groupManager = new GroupManager(this.layersContainerEl, {
+
             eventEmitter: this.eventEmitter,
-            onCreateGroup: (name, selectedLayerIds) => this.handleCreateGroup(name, selectedLayerIds),
-            onDeleteGroup: (groupId, preserveChildren) => this.handleDeleteGroup(groupId, preserveChildren),
-            onRenameGroup: (groupId, newName) => this.handleLayerNameChange(groupId, newName),
-            onToggleGroupExpanded: (groupId) => this.handleToggleGroupExpanded(groupId),
-            onAddLayerToGroup: (layerId, groupId) => this.handleAddLayerToGroup(layerId, groupId),
-            onRemoveLayerFromGroup: (layerId) => this.handleRemoveLayerFromGroup(layerId)
+            dataModel: this.dataModel  // Pass the data model directly
+            /*onCreateGroup: (name, selectedLayerIds) => this.handleCreateGroup(name, selectedLayerIds),*/
+            /*onDeleteGroup: (groupId, preserveChildren) => this.handleDeleteGroup(groupId, preserveChildren),*/
+            //onRenameGroup: (groupId, newName) => this.handleLayerNameChange(groupId, newName),
+            //onToggleGroupExpanded: (groupId) => this.handleToggleGroupExpanded(groupId),
+            //onAddLayerToGroup: (layerId, groupId) => this.handleAddLayerToGroup(layerId, groupId),
+            //onRemoveLayerFromGroup: (layerId) => this.handleRemoveLayerFromGroup(layerId)
         });
         
         this.components = {
