@@ -287,6 +287,9 @@ export class EventEmitter {
     public emitGroupUpdated(groupId: string, properties: any): void {
         this.emitBase(EVENTS.GROUP_UPDATED, groupId, properties);
     }
+    public emitGroupToggle(groupId: string, isExpanded: boolean): void {
+        this.emitBase(EVENTS.LAYER_GROUP_TOGGLE, groupId, isExpanded);
+    }
 
     // Timeline state events
     public emitStateSaved(stateId: string): void {

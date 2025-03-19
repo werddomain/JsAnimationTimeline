@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-inferrable-types */
 // src/plugins/layers/GroupManager.ts
 /**
  * Group Manager
@@ -82,6 +83,25 @@ export class GroupManager extends Component {
             return;
         }
 
+        // Validate that all selected layers exist
+        const selectedLayers = this.layers.filter(layer => selectedLayerIds.includes(layer.id));
+        if (selectedLayers.length !== selectedLayerIds.length) {
+            console.warn('Some selected layers were not found');
+            return;
+        }
+
+        // Check if any selected layer is already in a group
+        const layersInGroups = selectedLayers.filter(layer => layer.parentId);
+        if (layersInGroups.length > 0) {
+            // We could handle this by removing them from their current groups first
+            // For now, we'll just warn the user
+            console.warn('Some selected layers are already in groups');
+        }
+
+        // TODO: Create a new group layer
+
+
+        //Fire event to the end user when the group is created.
         this.options.onCreateGroup(groupName, selectedLayerIds);
     }
 
@@ -101,10 +121,10 @@ export class GroupManager extends Component {
     }
 
     /**
-     * Rename a group
-     * @param groupId Group layer ID
-     * @param newName New group name
-     */
+         * Rename a group
+         * @param groupId Group layer ID
+         * @param newName New group name
+         */
     public renameGroup(groupId: string, newName: string): void {
         const group = this.findGroupById(groupId);
         if (!group) {
@@ -112,6 +132,16 @@ export class GroupManager extends Component {
             return;
         }
 
+        // Update the model
+        group.name = newName;
+
+        // Update the UI - find the group element and update its name
+        const groupElement = document.querySelector(`[data-layer-id="${groupId}"] .${CSS_CLASSES.LAYER_NAME}`);
+        if (groupElement) {
+            groupElement.textContent = newName;
+        }
+
+        // Fire event to the end user when the group is renamed
         this.options.onRenameGroup(groupId, newName);
     }
 
@@ -148,6 +178,8 @@ export class GroupManager extends Component {
             return;
         }
 
+
+        //fire the event to the end user when the layer is added to the group.
         this.options.onAddLayerToGroup(layerId, groupId);
     }
 
@@ -168,6 +200,7 @@ export class GroupManager extends Component {
             return;
         }
 
+        //fire the event to the end user when the layer is removed from the group.
         this.options.onRemoveLayerFromGroup(layerId);
     }
 

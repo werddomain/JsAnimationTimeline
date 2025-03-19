@@ -16,6 +16,7 @@ import { MainToolbar } from '../plugins/toolbar/MainToolbar';
 import { ObjectToolbar } from '../plugins/toolbar/ObjectToolbar';
 import { TimeRuler } from '../plugins/time/TimeRuler';
 import { GroupManager } from '../plugins/layers/GroupManager';
+import { Components } from './Components';
 
 // Timeline initialization options
 export interface TimelineOptions {
@@ -49,6 +50,7 @@ export class TimelineControl {
     private mainToolbar: MainToolbar;
     private objectToolbar: ObjectToolbar;
     private timeRuler: TimeRuler;
+    private groupManager: GroupManager;
     // Plugin manager
     public pluginManager: PluginManager;
 
@@ -57,7 +59,8 @@ export class TimelineControl {
     private height: number;
     private layerHeight: number;
     private leftPanelWidth: number;
-    groupManager: GroupManager;
+
+    private components: Components;
 
     constructor(options: TimelineOptions) {
         this.lastFrameTime = 0;
@@ -491,16 +494,11 @@ export class TimelineControl {
      * Handle creation of a layer group
      */
 
-    private handleCreateGroup(): void {
-        // Get selected layers
-        const selectedLayers = this.dataModel.getLayers().filter(l => l.isSelected);
-        if (selectedLayers.length === 0) return;
-
-        // Get layer IDs
-        const selectedLayerIds = selectedLayers.map(layer => layer.id);
+    private handleCreateGroup(name: string, selectedLayerIds: string[]): void {
+        
 
         // Use the GroupManager to create the group
-        this.groupManager.createGroup('Group', selectedLayerIds);
+        this.groupManager.createGroup(name || 'Group', selectedLayerIds);
     }
 
     //private handleCreateGroup(): void {
@@ -613,6 +611,7 @@ export class TimelineControl {
    * Initialize all component instances
    */
     private initializeComponents(): void {
+        this.pluginManager = new PluginManager(this.container, this.eventEmitter);
         // Initialize MainToolbar
         this.mainToolbar = new MainToolbar({
             container: this.toolbarEl,
@@ -632,7 +631,7 @@ export class TimelineControl {
             container: this.objectToolbarEl,
             eventEmitter: this.eventEmitter,
             onNewObject: () => this.handleNewObject(),
-            onCreateGroup: () => this.handleCreateGroup(),
+            onCreateGroup: () => this.createGroup(),
             onDeleteObject: () => this.handleDeleteObject()
         });
 
@@ -682,8 +681,35 @@ export class TimelineControl {
             onAddLayerToGroup: (layerId, groupId) => this.handleAddLayerToGroup(layerId, groupId),
             onRemoveLayerFromGroup: (layerId) => this.handleRemoveLayerFromGroup(layerId)
         });
+        
+        this.components = {
+            GroupManager: this.groupManager,
+            LayerManager: this.layerManager,
+            KeyframeManager: this.keyframeManager,
+            MainToolbar: this.mainToolbar,
+            ObjectToolbar: this.objectToolbar,
+            TimeRuler: this.timeRuler,
+            PluginManager: this.pluginManager
+
+        };
+        this.pluginManager.registerComponents(this, this.components);
+
         // Initial render of all components
         this.renderAll();
+    }
+    createGroup(): void {
+        // Get selected layers
+        const selectedLayers = this.dataModel.getLayers().filter(l => l.isSelected);
+        if (selectedLayers.length === 0) return;
+
+        // Extract the IDs of the selected layers
+        const selectedLayerIds = selectedLayers.map(layer => layer.id);
+
+        // Use the GroupManager to create the group and move selected layers
+        this.groupManager.createGroup('Group', selectedLayerIds);
+
+        // Update the display
+        this.updateLayerDisplay();
     }
 
     // Public API Methods

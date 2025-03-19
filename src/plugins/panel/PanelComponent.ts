@@ -1,4 +1,5 @@
-﻿// src/plugins/panel/PanelComponent.ts
+﻿/* eslint-disable @typescript-eslint/no-inferrable-types */
+// src/plugins/panel/PanelComponent.ts
 /**
  * Panel Component
  * Provides a visual canvas where divs are linked to timeline layers
@@ -136,7 +137,7 @@ export class PanelComponent extends Component {
             const isSelected = element.id === this.selectedElementId;
 
             // Create style attribute with base properties
-            let styleAttr = `
+            const styleAttr = `
       left: ${element.x}px;
       top: ${element.y}px;
       width: ${element.width}px;
@@ -466,7 +467,7 @@ export class PanelComponent extends Component {
             this.options.onElementSelect(element.layerId);
 
             // Emit selection event for property editor
-            this.eventEmitter.emit('panel:element:selected', element);
+            this.eventEmitter.emitPanelElementSelected(element);
         }
 
         // Update display
@@ -481,7 +482,7 @@ export class PanelComponent extends Component {
         const panelContent = this.getElement()?.querySelector('.timeline-panel-content');
         if (panelContent && e.target === panelContent) {
             this.selectedElementId = null;
-            this.eventEmitter.emit('panel:element:deselected');
+            this.eventEmitter.emitPanelElementDeselected();
             this.update({});
         }
     }

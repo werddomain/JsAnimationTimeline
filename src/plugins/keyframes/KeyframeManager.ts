@@ -359,7 +359,7 @@ export class KeyframeManager extends Component {
         this.updateTweenDisplay();
 
         // Emit event
-        this.eventEmitter.emitTweenDeSelected();
+        this.eventEmitter.emitTweenDeselected();
         //this.eventEmitter.emit('motion:tween:deselected');
     }
     /**

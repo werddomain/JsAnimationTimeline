@@ -10,7 +10,7 @@ import { EventEmitter } from '../../core/EventEmitter';
 import { TimelineConstants } from '../../core/Constants';
 import { Component } from '../../core/BaseComponent';
 
-const { EVENTS, CSS_CLASSES, COLORS } = TimelineConstants;
+const { CSS_CLASSES, COLORS } = TimelineConstants;
 
 export interface LayerManagerOptions {
     container: HTMLElement;
@@ -115,7 +115,7 @@ export class LayerManager extends Component {
                         ${isExpanded ? '▼' : '►'}
                     </span>
                 ` : ''}
-                <span class="timeline-layer-name">${layer.name}</span>
+                <span class="timeline-layer-name" data-layer-id="${layer.id}">${layer.name}</span>
                 <div class="timeline-layer-controls">
                     <button class="timeline-layer-btn" data-action="toggle-visibility" title="${layer.visible ? 'Hide' : 'Show'} Layer">
                         <i class="icon ${visibilityIcon}">${layer.visible ? '👁️' : '👁️‍🗨️'}</i>
@@ -314,6 +314,8 @@ export class LayerManager extends Component {
     private removeFromGroup(layerId: string): void {
         const layer = this.layers.find(l => l.id === layerId);
         if (!layer || !layer.parentId) return;
+
+        //TODO: Remove from group
 
         // Notify about removing from group
         this.eventEmitter.emitLayerGroupRemoved(layerId);

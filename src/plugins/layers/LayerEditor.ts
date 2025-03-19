@@ -182,23 +182,41 @@ export class LayerEditor extends Component {
         `;
     }
 
+    ///**
+    // * Render options specific to groups
+    // */
+    //private renderGroupOptions(): string {
+    //    return `
+    //        <div class="timeline-layer-editor-field">
+    //            <label>Group Options:</label>
+    //            <div class="timeline-layer-editor-group-options">
+    //                <button type="button" class="timeline-btn" data-action="add-to-group">
+    //                    Add Layers to Group
+    //                </button>
+    //                <button type="button" class="timeline-btn" data-action="toggle-expanded">
+    //                    ${this.selectedLayer?.isExpanded !== false ? 'Collapse' : 'Expand'} Group
+    //                </button>
+    //            </div>
+    //        </div>
+    //    `;
+    //}
+
+
     /**
-     * Render options specific to groups
+     * Render options for group selection dropdown
      */
     private renderGroupOptions(): string {
-        return `
-            <div class="timeline-layer-editor-field">
-                <label>Group Options:</label>
-                <div class="timeline-layer-editor-group-options">
-                    <button type="button" class="timeline-btn" data-action="add-to-group">
-                        Add Layers to Group
-                    </button>
-                    <button type="button" class="timeline-btn" data-action="toggle-expanded">
-                        ${this.selectedLayer?.isExpanded !== false ? 'Collapse' : 'Expand'} Group
-                    </button>
-                </div>
-            </div>
-        `;
+        return this.availableGroups
+            .filter(group => group.id !== this.selectedLayer?.id) // Prevent assigning to self
+            .map(group => `
+                <option 
+                    value="${group.id}" 
+                    ${group.id === this.selectedLayer?.parentId ? 'selected' : ''}
+                >
+                    ${group.name}
+                </option>
+            `)
+            .join('');
     }
 
     /**
@@ -224,22 +242,7 @@ export class LayerEditor extends Component {
         `;
     }
 
-    /**
-     * Render options for group selection dropdown
-     */
-    private renderGroupOptions(): string {
-        return this.availableGroups
-            .filter(group => group.id !== this.selectedLayer?.id) // Prevent assigning to self
-            .map(group => `
-                <option 
-                    value="${group.id}" 
-                    ${group.id === this.selectedLayer?.parentId ? 'selected' : ''}
-                >
-                    ${group.name}
-                </option>
-            `)
-            .join('');
-    }
+    
 
     /**
      * Handle form submission
@@ -317,7 +320,8 @@ export class LayerEditor extends Component {
             case 'toggle-expanded':
                 // This would be handled by the timeline controller
                 // We'd emit an event that the timeline controller would listen for
-                this.eventEmitter.emit('layer:group:toggle', this.selectedLayer.id);
+                this.eventEmitter.emitGroupToggle(this.selectedLayer.id, this.selectedLayer.isExpanded);
+                //this.eventEmitter.emit('layer:group:toggle', this.selectedLayer.id);
                 break;
         }
     }
@@ -328,7 +332,7 @@ export class LayerEditor extends Component {
     private handleChange(e: Event): void {
         const target = e.target as HTMLInputElement;
         if (!target || !target.name || !this.selectedLayer) return;
-
+        const parentId = target.value;
         // If we want immediate updates without form submission:
         switch (target.name) {
             case 'visible':
@@ -340,7 +344,7 @@ export class LayerEditor extends Component {
                 break;
 
             case 'parentId':
-                const parentId = target.value;
+                
                 if (parentId !== this.selectedLayer.parentId) {
                     if (parentId) {
                         this.options.onAddToGroup(this.selectedLayer.id, parentId);

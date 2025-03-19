@@ -4,7 +4,12 @@
  * Defines the contract for all timeline plugins/components
  */
 
+import { TimelineControl } from "./TimelineControl";
+
 export interface BaseComponent {
+    
+    Registered(mainControl: TimelineControl);
+
     /**
      * Generate the HTML for this component
      * @returns HTML string
@@ -42,11 +47,21 @@ export interface BaseComponent {
 export abstract class Component implements BaseComponent {
     protected elementId: string;
     protected container: HTMLElement;
-
+    private mainControl: TimelineControl
+    public get MainControl(): TimelineControl {
+        return this.mainControl;
+    }
     constructor(container: HTMLElement, id: string) {
         this.container = container;
         this.elementId = id;
+        
+
     }
+
+    Registered(mainControl: TimelineControl): void {
+        this.mainControl = mainControl;
+    }
+
 
     /**
      * Generate the HTML for this component

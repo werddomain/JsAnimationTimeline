@@ -12,6 +12,7 @@ export const TimelineConstants = {
         CONTENT: 'timeline-content',
         RULER: 'timeline-ruler',
         LAYERS: 'timeline-layers-container',
+        LAYER_NAME: 'timeline-layer-name',
         KEYFRAMES: 'timeline-keyframes-container',
         OBJECT_TOOLBAR: 'timeline-object-toolbar',
         CURSOR: 'timeline-cursor',
