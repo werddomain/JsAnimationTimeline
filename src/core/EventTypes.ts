@@ -57,7 +57,7 @@ export interface TimelineEventMap {
     // Panel events
     [EVENTS.PANEL_ELEMENT_SELECTED]: (element: PanelElementData) => void;
     [EVENTS.PANEL_ELEMENT_DESELECTED]: () => void;
-    [EVENTS.PANEL_ELEMENT_UPDATED]: (element: PanelElementData, time: number) => void;
+    [EVENTS.PANEL_ELEMENT_UPDATED]: (element: PanelElementData, time: number, keyframeProperties: Record<string, any>) => void;
 
     // Property events
     [EVENTS.PROPERTY_CHANGED]: (elementId: string, propertyName: string, value: any) => void;

@@ -1,4 +1,5 @@
-﻿// src/plugins/toolbar/ObjectToolbar.ts
+﻿/* eslint-disable @typescript-eslint/no-inferrable-types */
+// src/plugins/toolbar/ObjectToolbar.ts
 /**
  * Object Toolbar
  * Manages the object manipulation toolbar
@@ -124,13 +125,7 @@ export class ObjectToolbar extends Component {
     }
   }
   
-  /**
-   * Enable or disable buttons based on selection
-   * @param hasSelection Whether any objects are selected
-   */
-  public updateButtonState(hasSelection: boolean): void {
-    this.update({ hasSelection });
-  }
+
   
 //  /**
 //   * Clean up event listeners

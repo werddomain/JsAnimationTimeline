@@ -31,7 +31,8 @@ export interface PanelElementData {
     opacity: number;
     zIndex: number;
     content?: string;
-    properties?: Record<string, any>; // Added properties field
+    properties?: Record<string, any>;
+    modifiedProperties?: Set<string>; // Track which properties have been modified
 }
 
 export interface PanelData {
@@ -500,13 +501,25 @@ export class PanelComponent extends Component {
             element.properties = {};
         }
 
+        // Initialize modifiedProperties set if needed
+        if (!element.modifiedProperties) {
+            element.modifiedProperties = new Set<string>();
+        }
+
         // Check if it's a built-in property
         const builtInProps = ['x', 'y', 'width', 'height', 'rotation', 'opacity', 'zIndex'];
         if (builtInProps.includes(property)) {
-            (element as any)[property] = value;
+            // Only track if the value actually changed
+            if ((element as any)[property] !== value) {
+                (element as any)[property] = value;
+                element.modifiedProperties.add(property);
+            }
         } else {
             // It's a custom property
-            element.properties[property] = value;
+            if (element.properties[property] !== value) {
+                element.properties[property] = value;
+                element.modifiedProperties.add(property);
+            }
         }
 
         // Update element in DOM
@@ -573,7 +586,7 @@ export class PanelComponent extends Component {
 
                 // Regular CSS properties
                 default:
-                    styles += `${this.camelToDash(key)}: ${value}${this.getPropertyUnit(key)}; `;
+                    styles += `${this.camelToDash(key)}: ${value}${this.getPropertyUnit(key, element)}; `;
             }
         }
 
@@ -640,7 +653,7 @@ export class PanelComponent extends Component {
     /**
      * Get the appropriate unit for a property
      */
-    private getPropertyUnit(property: string): string {
+    private getPropertyUnit(property: string, element: PanelElementData): string {
         // Properties that need px units
         const pxProperties = [
             'fontSize', 'borderWidth', 'borderRadius', 'letterSpacing',
@@ -658,8 +671,9 @@ export class PanelComponent extends Component {
         ];
 
         if (percentProperties.includes(property) &&
-            typeof this.properties[property] === 'number' &&
-            this.properties[property] <= 1) {
+            element.properties &&
+            typeof element.properties[property] === 'number' &&
+            element.properties[property] <= 1) {
             return '%';
         }
 
@@ -702,15 +716,26 @@ export class PanelComponent extends Component {
      * Update element keyframe at current time
      */
     private updateElementKeyframe(element: PanelElementData): void {
-        // This would trigger an update to the timeline model
-        // For now, we'll just update our local data
+        if (!element.modifiedProperties || element.modifiedProperties.size === 0) {
+            return; // No modifications to save
+        }
 
-        // In a real implementation, this would add/update a keyframe in the timeline
-        // For the associated layer at the current time with the element properties
-        console.log(`Updated keyframe for ${element.id} at time ${this.currentTime}`);
+        // Extract only the modified properties to update in the keyframe
+        const keyframeProperties: Record<string, any> = {};
 
-        // Emit an event that the timeline could listen to
-        this.eventEmitter.emit('panel:element:updated', element, this.currentTime);
+        element.modifiedProperties.forEach(prop => {
+            if (['x', 'y', 'width', 'height', 'rotation', 'opacity', 'zIndex'].includes(prop)) {
+                keyframeProperties[prop] = (element as any)[prop];
+            } else if (element.properties && prop in element.properties) {
+                keyframeProperties[prop] = element.properties[prop];
+            }
+        });
+
+        // Emit event to update keyframe with only the modified properties
+        this.eventEmitter.emitPanelElementUpdated(element, this.currentTime, keyframeProperties);
+
+        // Reset the modified properties tracker after saving to keyframe
+        element.modifiedProperties.clear();
     }
 
     /**

@@ -10,6 +10,7 @@ module.exports = {
         'plugin:@typescript-eslint/recommended',
     ],
     rules: {
-        // Your rules here
+        // Disable the no-inferrable-types rule
+        '@typescript-eslint/no-inferrable-types': 'off',
     }
 };

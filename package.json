@@ -11,7 +11,7 @@
     "lint": "eslint src/**/*.ts",
     "clean": "tsc --build --clean",
     "prepublishOnly": "npm run clean && npm run build",
-    "start": "npm run build && http-server -o -c-1"
+    "start": "http-server -o -c-1"
   },
   "keywords": [
     "timeline",

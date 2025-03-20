@@ -1,4 +1,5 @@
-﻿// src/plugins/toolbar/MainToolbar.ts
+﻿/* eslint-disable @typescript-eslint/no-inferrable-types */
+// src/plugins/toolbar/MainToolbar.ts
 /**
  * Main Toolbar
  * Manages the main timeline toolbar UI
@@ -268,7 +269,7 @@ export class MainToolbar extends Component {
         // Parse time string (MM:SS.ms)
         const time = this.parseTimeString(timeStr);
         if (time !== null) {
-            this.eventEmitter.emit(EVENTS.SEEK_TO_TIME, time);
+            this.eventEmitter.emitSeekToTime(time);
 
             // Clear the input after seeking
             input.value = '';

@@ -249,8 +249,8 @@ export class EventEmitter {
         this.emitBase(EVENTS.PANEL_ELEMENT_DESELECTED);
     }
 
-    public emitPanelElementUpdated(element: PanelElementData, time: number): void {
-        this.emitBase(EVENTS.PANEL_ELEMENT_UPDATED, element, time);
+    public emitPanelElementUpdated(element: PanelElementData, time: number, keyframeProperties: Record<string, any>): void {
+        this.emitBase(EVENTS.PANEL_ELEMENT_UPDATED, element, time, keyframeProperties);
     }
 
     // Property events

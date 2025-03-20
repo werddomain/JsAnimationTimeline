@@ -40,7 +40,8 @@ export class MotionTweenPreview extends Component {
         this.initialize();
 
         // Listen for tween selection events
-        this.eventEmitter.on('motion:tween:selected', (layer: Layer, tween: MotionTween) => {
+        this.eventEmitter.on('motion:tween:selected', (layer: Layer, tweenId: string) => {
+            const tween = layer.tweens.find(t => t.id === tweenId);
             this.setTween(layer, tween);
         });
 
