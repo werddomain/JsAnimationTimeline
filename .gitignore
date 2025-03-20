@@ -3,6 +3,6 @@
 /.vs/JsAnimationTimeline/FileContentIndex
 /.vs
 /node_modules
-/dist
 /obj
+/debug
 

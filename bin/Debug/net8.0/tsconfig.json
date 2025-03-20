@@ -1,0 +1,19 @@
+ 
+// tsconfig.json
+{
+  "compilerOptions": {
+    "target": "es2018",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "declaration": true,
+    "outDir": "./dist",
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "sourceMap": true,
+    "lib": [ "es2018", "dom", "dom.iterable" ]
+  },
+  "include": [ "src/**/*" ],
+  "exclude": [ "node_modules", "dist", "**/*.test.ts" ]
+}
