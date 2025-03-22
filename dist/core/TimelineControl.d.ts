@@ -257,6 +257,10 @@ export declare class TimelineControl {
      */
     private createDOMStructure;
     /**
+ * Set up synchronization between layers and keyframes containers for vertical scrolling
+ */
+    private syncScrollPosition;
+    /**
      * Initialize event listeners
      */
     private initEventListeners;

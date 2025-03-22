@@ -88,11 +88,15 @@ export class TimelineControl {
             this.importLayers(options.initialLayers);
         }
 
+        /**
+     * Render all components
+     */
+        this.renderAll();
+
         // Initialize event listeners
         this.initEventListeners();
-        /**
-         * Render all components
-         */
+
+        // Initialize component instances
         this.initializeComponents();
     }
 
@@ -495,7 +499,7 @@ export class TimelineControl {
      */
 
     private handleCreateGroup(name: string, selectedLayerIds: string[]): void {
-        
+
 
         // Use the GroupManager to create the group
         this.groupManager.createGroup(name || 'Group', selectedLayerIds);
@@ -529,30 +533,30 @@ export class TimelineControl {
     //    //this.emit(TimelineConstants.EVENTS.LAYER_ADDED, groupLayer);
     //}
 
- //   /**
- //* Handle creating a group from selected layers
- //*/
- //   private handleCreateGroup(name: string, selectedLayerIds: string[]): void {
- //       // Create a new group layer
- //       const groupLayer = this.dataModel.addLayer({
- //           name: name || 'Group',
- //           visible: true,
- //           locked: false,
- //           color: TimelineConstants.COLORS.LAYER_DEFAULTS[0],
- //           keyframes: [],
- //           motionTweens: [],
- //           isSelected: false,
- //           isExpanded: true
- //       });
+    //   /**
+    //* Handle creating a group from selected layers
+    //*/
+    //   private handleCreateGroup(name: string, selectedLayerIds: string[]): void {
+    //       // Create a new group layer
+    //       const groupLayer = this.dataModel.addLayer({
+    //           name: name || 'Group',
+    //           visible: true,
+    //           locked: false,
+    //           color: TimelineConstants.COLORS.LAYER_DEFAULTS[0],
+    //           keyframes: [],
+    //           motionTweens: [],
+    //           isSelected: false,
+    //           isExpanded: true
+    //       });
 
- //       // Move selected layers to be children of the group
- //       selectedLayerIds.forEach(layerId => {
- //           this.dataModel.updateLayer(layerId, { parentId: groupLayer.id });
- //       });
+    //       // Move selected layers to be children of the group
+    //       selectedLayerIds.forEach(layerId => {
+    //           this.dataModel.updateLayer(layerId, { parentId: groupLayer.id });
+    //       });
 
- //       this.updateLayerDisplay();
- //       this.eventEmitter.emitLayerAdded(groupLayer);
- //   }
+    //       this.updateLayerDisplay();
+    //       this.eventEmitter.emitLayerAdded(groupLayer);
+    //   }
 
     /**
      * Handle deleting a group
@@ -683,7 +687,7 @@ export class TimelineControl {
             //onAddLayerToGroup: (layerId, groupId) => this.handleAddLayerToGroup(layerId, groupId),
             //onRemoveLayerFromGroup: (layerId) => this.handleRemoveLayerFromGroup(layerId)
         });
-        
+
         this.components = {
             GroupManager: this.groupManager,
             LayerManager: this.layerManager,
@@ -969,11 +973,6 @@ export class TimelineControl {
         contentEl.className = 'timeline-content';
         this.timelineEl.appendChild(contentEl);
 
-        // Create time ruler
-        this.timeRulerEl = document.createElement('div');
-        this.timeRulerEl.className = 'timeline-ruler';
-        contentEl.appendChild(this.timeRulerEl);
-
         // Create content container (for layers and keyframes)
         const contentContainer = document.createElement('div');
         contentContainer.className = 'timeline-content-container';
@@ -985,12 +984,22 @@ export class TimelineControl {
         this.layersContainerEl.style.width = `${this.leftPanelWidth}px`;
         contentContainer.appendChild(this.layersContainerEl);
 
-        // Create keyframes container (right panel)
+        // Create keyframes section (right panel)
+        const keyframesSection = document.createElement('div');
+        keyframesSection.className = 'timeline-keyframes-section';
+        contentContainer.appendChild(keyframesSection);
+
+        // Create time ruler (above keyframes)
+        this.timeRulerEl = document.createElement('div');
+        this.timeRulerEl.className = 'timeline-ruler';
+        keyframesSection.appendChild(this.timeRulerEl);
+
+        // Create keyframes container
         this.keyframesContainerEl = document.createElement('div');
         this.keyframesContainerEl.className = 'timeline-keyframes-container';
-        contentContainer.appendChild(this.keyframesContainerEl);
+        keyframesSection.appendChild(this.keyframesContainerEl);
 
-        // Create object toolbar (at bottom of layers)
+        // Create object toolbar (at bottom)
         this.objectToolbarEl = document.createElement('div');
         this.objectToolbarEl.className = 'timeline-object-toolbar';
         this.timelineEl.appendChild(this.objectToolbarEl);
@@ -1000,8 +1009,42 @@ export class TimelineControl {
         this.timeCursorEl.className = 'timeline-cursor';
         this.keyframesContainerEl.appendChild(this.timeCursorEl);
 
-        // Initialize component instances
-        this.initializeComponents();
+
+    }
+    /**
+ * Set up synchronization between layers and keyframes containers for vertical scrolling
+ */
+    private syncScrollPosition(): void {
+        // Flag to prevent infinite scroll loop
+        let isScrolling = false;
+
+        // Sync layers container scroll to keyframes container
+        this.layersContainerEl.addEventListener('scroll', (e) => {
+            if (isScrolling) return;
+
+            isScrolling = true;
+            // Only sync vertical scrolling
+            this.keyframesContainerEl.scrollTop = this.layersContainerEl.scrollTop;
+
+            // Reset flag after a short delay
+            setTimeout(() => {
+                isScrolling = false;
+            }, 10);
+        });
+
+        // Sync keyframes container scroll to layers container
+        this.keyframesContainerEl.addEventListener('scroll', (e) => {
+            if (isScrolling) return;
+
+            isScrolling = true;
+            // Only sync vertical scrolling
+            this.layersContainerEl.scrollTop = this.keyframesContainerEl.scrollTop;
+
+            // Reset flag after a short delay
+            setTimeout(() => {
+                isScrolling = false;
+            }, 10);
+        });
     }
 
     /**
@@ -1012,7 +1055,7 @@ export class TimelineControl {
         this.eventEmitter.on(TimelineConstants.EVENTS.SEEK_TO_TIME, (time: number) => {
             this.goToTime(time);
         });
-
+        this.syncScrollPosition();
         // TODO: Implement additional event listeners for:
         // - Time ruler clicks (seeking)
         // - Layer/keyframe selection

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -17,5 +17,6 @@
   </ItemGroup>
 	<Target Name="CompileLess" BeforeTargets="Build">
 		<Exec Command="npx lessc styles/timeline.less dist/styles/timeline.css" />
+		<Exec Command="npm run build" />
 	</Target>
 </Project>

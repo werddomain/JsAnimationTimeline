@@ -37,11 +37,13 @@ export class TimelineControl {
         if (options.initialLayers) {
             this.importLayers(options.initialLayers);
         }
+        /**
+     * Render all components
+     */
+        this.renderAll();
         // Initialize event listeners
         this.initEventListeners();
-        /**
-         * Render all components
-         */
+        // Initialize component instances
         this.initializeComponents();
     }
     /**
@@ -801,10 +803,6 @@ export class TimelineControl {
         const contentEl = document.createElement('div');
         contentEl.className = 'timeline-content';
         this.timelineEl.appendChild(contentEl);
-        // Create time ruler
-        this.timeRulerEl = document.createElement('div');
-        this.timeRulerEl.className = 'timeline-ruler';
-        contentEl.appendChild(this.timeRulerEl);
         // Create content container (for layers and keyframes)
         const contentContainer = document.createElement('div');
         contentContainer.className = 'timeline-content-container';
@@ -814,11 +812,19 @@ export class TimelineControl {
         this.layersContainerEl.className = 'timeline-layers-container';
         this.layersContainerEl.style.width = `${this.leftPanelWidth}px`;
         contentContainer.appendChild(this.layersContainerEl);
-        // Create keyframes container (right panel)
+        // Create keyframes section (right panel)
+        const keyframesSection = document.createElement('div');
+        keyframesSection.className = 'timeline-keyframes-section';
+        contentContainer.appendChild(keyframesSection);
+        // Create time ruler (above keyframes)
+        this.timeRulerEl = document.createElement('div');
+        this.timeRulerEl.className = 'timeline-ruler';
+        keyframesSection.appendChild(this.timeRulerEl);
+        // Create keyframes container
         this.keyframesContainerEl = document.createElement('div');
         this.keyframesContainerEl.className = 'timeline-keyframes-container';
-        contentContainer.appendChild(this.keyframesContainerEl);
-        // Create object toolbar (at bottom of layers)
+        keyframesSection.appendChild(this.keyframesContainerEl);
+        // Create object toolbar (at bottom)
         this.objectToolbarEl = document.createElement('div');
         this.objectToolbarEl.className = 'timeline-object-toolbar';
         this.timelineEl.appendChild(this.objectToolbarEl);
@@ -826,8 +832,37 @@ export class TimelineControl {
         this.timeCursorEl = document.createElement('div');
         this.timeCursorEl.className = 'timeline-cursor';
         this.keyframesContainerEl.appendChild(this.timeCursorEl);
-        // Initialize component instances
-        this.initializeComponents();
+    }
+    /**
+ * Set up synchronization between layers and keyframes containers for vertical scrolling
+ */
+    syncScrollPosition() {
+        // Flag to prevent infinite scroll loop
+        let isScrolling = false;
+        // Sync layers container scroll to keyframes container
+        this.layersContainerEl.addEventListener('scroll', (e) => {
+            if (isScrolling)
+                return;
+            isScrolling = true;
+            // Only sync vertical scrolling
+            this.keyframesContainerEl.scrollTop = this.layersContainerEl.scrollTop;
+            // Reset flag after a short delay
+            setTimeout(() => {
+                isScrolling = false;
+            }, 10);
+        });
+        // Sync keyframes container scroll to layers container
+        this.keyframesContainerEl.addEventListener('scroll', (e) => {
+            if (isScrolling)
+                return;
+            isScrolling = true;
+            // Only sync vertical scrolling
+            this.layersContainerEl.scrollTop = this.keyframesContainerEl.scrollTop;
+            // Reset flag after a short delay
+            setTimeout(() => {
+                isScrolling = false;
+            }, 10);
+        });
     }
     /**
      * Initialize event listeners
@@ -837,6 +872,7 @@ export class TimelineControl {
         this.eventEmitter.on(TimelineConstants.EVENTS.SEEK_TO_TIME, (time) => {
             this.goToTime(time);
         });
+        this.syncScrollPosition();
         // TODO: Implement additional event listeners for:
         // - Time ruler clicks (seeking)
         // - Layer/keyframe selection

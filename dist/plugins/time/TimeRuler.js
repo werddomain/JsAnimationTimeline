@@ -78,10 +78,10 @@ export class TimeRuler extends Component {
             const isMajor = time % (interval * 5) === 0;
             const markerClass = isMajor ? 'timeline-ruler-mark-major' : 'timeline-ruler-mark-minor';
             html += `
-        <div class="timeline-ruler-mark ${markerClass}" style="left: ${position}px;">
-          ${isMajor ? `<div class="timeline-ruler-mark-label">${this.formatTime(time)}</div>` : ''}
-        </div>
-      `;
+          <div class="timeline-ruler-mark ${markerClass}" style="left: ${position}px;">
+            ${isMajor ? `<div class="timeline-ruler-mark-label">${this.formatTime(time)}</div>` : ''}
+          </div>
+        `;
         }
         // Add time cursor
         html += `<div class="timeline-time-cursor" style="left: ${this.currentTime * this.timeScale * DIMENSIONS.PIXELS_PER_SECOND}px;"></div>`;

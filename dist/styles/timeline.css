@@ -71,11 +71,19 @@
 /**
  * Keyframes Component Styles
  */
+.timeline-keyframes-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
 .timeline-keyframes-container {
   flex: 1;
   overflow: auto;
   position: relative;
   background-color: #252525;
+  border-left: 1px solid #444444;
 }
 .timeline-keyframes-inner {
   position: relative;
@@ -1078,6 +1086,7 @@
   border-bottom: 1px solid #444444;
   position: relative;
   overflow: hidden;
+  border-left: 1px solid #444444;
 }
 .timeline-ruler .timeline-ruler-content {
   height: 100%;
