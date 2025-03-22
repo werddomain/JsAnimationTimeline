@@ -807,11 +807,19 @@ export class TimelineControl {
         const contentContainer = document.createElement('div');
         contentContainer.className = 'timeline-content-container';
         contentEl.appendChild(contentContainer);
-        // Create layers container (left panel)
+        // Create layers section (left panel)
+        const layersSection = document.createElement('div');
+        layersSection.className = 'timeline-layers-section';
+        contentContainer.appendChild(layersSection);
+        // Create layers header
+        const layersHeader = document.createElement('div');
+        layersHeader.className = 'timeline-layers-header';
+        layersHeader.innerHTML = '<h3>Layers</h3>';
+        layersSection.appendChild(layersHeader);
+        // Create layers container
         this.layersContainerEl = document.createElement('div');
         this.layersContainerEl.className = 'timeline-layers-container';
-        this.layersContainerEl.style.width = `${this.leftPanelWidth}px`;
-        contentContainer.appendChild(this.layersContainerEl);
+        layersSection.appendChild(this.layersContainerEl);
         // Create keyframes section (right panel)
         const keyframesSection = document.createElement('div');
         keyframesSection.className = 'timeline-keyframes-section';

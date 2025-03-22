@@ -3,12 +3,20 @@
 /**
  * Keyframes Component Styles
  */
-.timeline-keyframes-section {
-    flex: 1;
+.timeline-keyframes-section,
+.timeline-layers-section {
     display: flex;
     flex-direction: column;
     overflow: hidden;
     position: relative;
+}
+// Keyframes section takes remaining width
+.timeline-keyframes-section {
+    flex: 1;
+}
+// Layers section has fixed width
+.timeline-layers-section {
+    width: @left-panel-width;
 }
 
 .timeline-keyframes-container {

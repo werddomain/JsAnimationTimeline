@@ -71,12 +71,18 @@
 /**
  * Keyframes Component Styles
  */
-.timeline-keyframes-section {
-  flex: 1;
+.timeline-keyframes-section,
+.timeline-layers-section {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   position: relative;
+}
+.timeline-keyframes-section {
+  flex: 1;
+}
+.timeline-layers-section {
+  width: 200px;
 }
 .timeline-keyframes-container {
   flex: 1;
@@ -377,6 +383,21 @@
   overflow-y: auto;
   overflow-x: hidden;
   position: relative;
+  height: 100%;
+}
+.timeline-layers-header {
+  height: 25px;
+  background-color: #333333;
+  border-bottom: 1px solid #444444;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+}
+.timeline-layers-header h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #eeeeee;
 }
 .timeline-layer {
   height: 30px;

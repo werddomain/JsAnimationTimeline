@@ -11,8 +11,23 @@
     overflow-y: auto;
     overflow-x: hidden;
     position: relative;
+    height:100%;
 }
+.timeline-layers-header {
+    height: @time-ruler-height;
+    background-color: @toolbar-color;
+    border-bottom: 1px solid @border-color;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
 
+    h3 {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 500;
+        color: @text-color;
+    }
+}
 // Layer rows
 .timeline-layer {
     height: @layer-height;
