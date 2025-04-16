@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Animation Editor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        #timeline-container {
+            width: 100%;
+            height: 300px;
+            border: 1px solid #ccc;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .controls {
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <h1>Timeline Animation Editor</h1>
+        <button id="add-layer">Add Layer</button>
+        <button id="add-keyframe">Add Keyframe</button>
+        <button id="zoom-in">Zoom In</button>
+        <button id="zoom-out">Zoom Out</button>
+    </div>
+    
+    <div id="timeline-container"></div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize the timeline
+            const timeline = new TimelineEditor({
+                container: document.getElementById('timeline-container'),
+                duration: 60, // 60 seconds
+                timeScale: 1,
+                pixelsPerSecond: 50
+            });
+            
+            // Add event listeners for buttons
+            document.getElementById('add-layer').addEventListener('click', () => {
+                timeline.addLayer({
+                    id: `layer-${Date.now()}`,
+                    name: `Layer ${timeline.getLayers().length + 1}`
+                });
+            });
+            
+            document.getElementById('add-keyframe').addEventListener('click', () => {
+                const selectedLayer = timeline.getSelectedLayer();
+                if (selectedLayer) {
+                    timeline.addKeyframe({
+                        layerId: selectedLayer.id,
+                        time: timeline.getCurrentTime(),
+                        value: { x: 0, y: 0 }
+                    });
+                } else {
+                    alert('Please select a layer first');
+                }
+            });
+            
+            document.getElementById('zoom-in').addEventListener('click', () => {
+                timeline.setTimeScale(timeline.getTimeScale() * 1.2);
+            });
+            
+            document.getElementById('zoom-out').addEventListener('click', () => {
+                timeline.setTimeScale(timeline.getTimeScale() / 1.2);
+            });
+        });
+    </script>
+</body>
+</html>
