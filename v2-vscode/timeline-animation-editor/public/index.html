@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline Animation Editor</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>Timeline Animation Editor</h1>
+        </header>
+        
+        <main class="app-content">
+            <!-- Timeline Control Container with required DOM structure -->
+            <div id="timeline-control" class="timeline-control">
+                <div id="timeline-toolbar" class="timeline-toolbar">
+                    <button class="toolbar-button" id="add-layer-btn">Add Layer</button>
+                    <button class="toolbar-button" id="add-keyframe-btn">Add Keyframe</button>
+                    <div class="toolbar-separator"></div>
+                    <div class="timeline-zoom-control">
+                        <button class="toolbar-button" id="zoom-out-btn">-</button>
+                        <span class="zoom-value" id="zoom-value">100%</span>
+                        <button class="toolbar-button" id="zoom-in-btn">+</button>
+                    </div>
+                    <div class="toolbar-separator"></div>
+                    <button class="toolbar-button" id="play-btn">Play</button>
+                    <button class="toolbar-button" id="stop-btn">Stop</button>
+                </div>
+                
+                <div id="timeline-content" class="timeline-content">
+                    <div id="timeline-content-container" class="timeline-content-container">
+                        <div id="timeline-layers-container" class="timeline-layers-container">
+                            <!-- Layers will be rendered here -->
+                        </div>
+                        <div id="timeline-keyframes-area" class="timeline-keyframes-area">
+                            <div id="timeline-ruler" class="timeline-ruler">
+                                <!-- Time ruler will be rendered here -->
+                            </div>
+                            <div id="timeline-keyframes-container" class="timeline-keyframes-container">
+                                <!-- Keyframes will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="timeline-object-toolbar" class="timeline-object-toolbar">
+                    <!-- Object-specific controls will be rendered here -->
+                    <span>No object selected</span>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="app-footer">
+            <p>Timeline Animation Editor &copy; 2025</p>
+        </footer>
+    </div>
+    
+    <script src="bundle.js"></script>
+</body>
+</html>

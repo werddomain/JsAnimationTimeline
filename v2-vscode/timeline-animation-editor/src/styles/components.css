@@ -1,0 +1,252 @@
+/* filepath: c:\Users\BenoitRobin\JsTimeline\v2-vscode\timeline-animation-editor\src\styles\components.css */
+/* Layer Components */
+.layer-tools {
+    height: var(--time-ruler-height);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    background-color: var(--ruler-bg-color);
+    border-bottom: 1px solid var(--timeline-border-color);
+}
+
+.layer-tools-header {
+    font-weight: bold;
+    color: var(--timeline-text-color);
+}
+
+.layer-item {
+    height: var(--layer-item-height);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--timeline-border-color);
+    user-select: none;
+    cursor: pointer;
+}
+
+.layer-item:nth-child(odd) {
+    background-color: var(--layer-bg-color);
+}
+
+.layer-item:nth-child(even) {
+    background-color: var(--layer-alt-bg-color);
+}
+
+.layer-item.selected {
+    background-color: var(--layer-selected-color);
+}
+
+.layer-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.layer-controls {
+    display: flex;
+    gap: 5px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.layer-item:hover .layer-controls {
+    opacity: 1;
+}
+
+.add-layer-btn, 
+.rename-layer-btn, 
+.delete-layer-btn {
+    background: transparent;
+    border: 1px solid var(--timeline-border-color);
+    color: var(--timeline-text-color);
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.add-layer-btn:hover, 
+.rename-layer-btn:hover, 
+.delete-layer-btn:hover {
+    background-color: var(--timeline-accent-color);
+    color: #fff;
+}
+
+/* Keyframe Components */
+.layer-keyframes {
+    height: var(--layer-item-height);
+    position: relative;
+    border-bottom: 1px solid var(--timeline-border-color);
+    cursor: crosshair;
+}
+
+.layer-keyframes:nth-child(odd) {
+    background-color: var(--layer-bg-color);
+}
+
+.layer-keyframes:nth-child(even) {
+    background-color: var(--layer-alt-bg-color);
+}
+
+.keyframe {
+    position: absolute;
+    width: var(--keyframe-size);
+    height: var(--keyframe-size);
+    background-color: var(--keyframe-color);
+    border-radius: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    cursor: grab;
+    z-index: 10;
+}
+
+.keyframe.selected {
+    background-color: var(--keyframe-selected-color);
+    box-shadow: 0 0 0 2px white;
+}
+
+.keyframe:active {
+    cursor: grabbing;
+}
+
+.keyframe-cursor-indicator {
+    position: absolute;
+    width: 1px;
+    top: 0;
+    background-color: var(--timeline-accent-color);
+    z-index: 5;
+    pointer-events: none;
+}
+
+.keyframe-time-tooltip {
+    position: absolute;
+    top: -20px;
+    transform: translateX(-50%);
+    background-color: var(--toolbar-bg-color);
+    color: var(--timeline-text-color);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 20;
+}
+
+/* Group Components */
+.group-item {
+    border-bottom: 1px solid var(--timeline-border-color);
+    user-select: none;
+}
+
+.group-header {
+    display: flex;
+    align-items: center;
+    height: var(--layer-item-height);
+    padding: 0 10px;
+    background-color: var(--timeline-accent-color);
+    color: white;
+    cursor: pointer;
+}
+
+.expand-toggle {
+    margin-right: 5px;
+}
+
+.group-name {
+    flex: 1;
+    font-weight: bold;
+}
+
+.group-controls {
+    display: flex;
+    gap: 5px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.group-header:hover .group-controls {
+    opacity: 1;
+}
+
+.group-layers {
+    overflow: hidden;
+    transition: max-height 0.3s;
+}
+
+.group-layers.expanded {
+    max-height: 1000px; /* Arbitrary large value */
+}
+
+.group-layers.collapsed {
+    max-height: 0;
+}
+
+.group-layer {
+    display: flex;
+    align-items: center;
+    height: var(--layer-item-height);
+    padding: 0 10px 0 30px; /* Indented */
+    border-bottom: 1px solid var(--timeline-border-color);
+    background-color: var(--layer-bg-color);
+}
+
+/* Group Context Menu */
+.group-context-menu {
+    position: fixed;
+    background-color: var(--toolbar-bg-color);
+    border: 1px solid var(--timeline-border-color);
+    border-radius: 4px;
+    z-index: 1000;
+    min-width: 150px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+.menu-title {
+    padding: 8px 12px;
+    font-weight: bold;
+    border-bottom: 1px solid var(--timeline-border-color);
+}
+
+.menu-item {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.menu-item:hover {
+    background-color: var(--timeline-accent-color);
+    color: white;
+}
+
+/* Toolbar Components */
+.toolbar-button {
+    background: transparent;
+    border: 1px solid var(--timeline-border-color);
+    color: var(--timeline-text-color);
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 0 5px;
+}
+
+.toolbar-button:hover {
+    background-color: var(--timeline-accent-color);
+    color: white;
+}
+
+.toolbar-separator {
+    height: 20px;
+    width: 1px;
+    background-color: var(--timeline-border-color);
+    margin: 0 10px;
+}
+
+.timeline-zoom-control {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.zoom-value {
+    width: 40px;
+    text-align: center;
+}
