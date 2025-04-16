@@ -37,6 +37,7 @@ public render(): string {
             <div class="layer-manager">
                 <div class="layer-tools">
                     <div class="layer-tools-header">Layers</div>
+                    
                 </div>
                 <div class="layer-list">
                     ${this.renderLayers()}
@@ -134,8 +135,7 @@ public render(): string {
         // Layer reordering using drag and drop
         this.setupDragAndDrop();
     }
-    
-    private addLayer(): void {
+      public addLayer(): void {
         const layerId = 'layer_' + Date.now();
         const layerName = `Layer ${this.layers.length + 1}`;
         
@@ -153,7 +153,7 @@ public render(): string {
         this.selectLayer(layerId);
     }
     
-    private deleteLayer(layerId: string): void {
+    public deleteLayer(layerId: string): void {
         this.layers = this.layers.filter(layer => layer.id !== layerId);
         this.eventEmitter.emit(EVENT_TYPES.LAYER_REMOVED, { layerId });
         this.render();
@@ -198,11 +198,13 @@ public render(): string {
     public getSelectedLayerId(): string | null {
         return this.selectedLayerId;
     }
-    
-    private handleLayerAdded(data: { layer: Layer }): void {
+      private handleLayerAdded(data: { layer: Layer }): void {
+        console.log('LayerManager: handleLayerAdded called', data);
         if (!this.layers.some(l => l.id === data.layer.id)) {
             this.layers.push(data.layer);
             this.render();
+            // Select the newly added layer
+            this.selectLayer(data.layer.id);
         }
     }
     

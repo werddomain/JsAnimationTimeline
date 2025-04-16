@@ -55,9 +55,13 @@ export class TimelineControl {
         // Set up scroll synchronization
         this.setupScrollSynchronization();
     }
-    
-    private setupDomStructure(): void {
+      private setupDomStructure(): void {
+        console.log('Setting up DOM structure...');
+        console.log('Main container:', this.mainContainer);
+        
         this.toolbarEl = this.mainContainer.querySelector('#timeline-toolbar') as HTMLElement;
+        console.log('Toolbar element found:', this.toolbarEl);
+        
         this.contentEl = this.mainContainer.querySelector('#timeline-content') as HTMLElement;
         this.contentContainerEl = this.mainContainer.querySelector('#timeline-content-container') as HTMLElement;
         this.layersContainerEl = this.mainContainer.querySelector('#timeline-layers-container') as HTMLElement;
@@ -69,6 +73,16 @@ export class TimelineControl {
         if (!this.toolbarEl || !this.contentEl || !this.contentContainerEl || 
             !this.layersContainerEl || !this.keyframesAreaEl || !this.rulerEl || 
             !this.keyframesContainerEl || !this.objectToolbarEl) {
+            console.error('Missing DOM elements:', {
+                toolbar: !this.toolbarEl,
+                content: !this.contentEl,
+                contentContainer: !this.contentContainerEl,
+                layersContainer: !this.layersContainerEl,
+                keyframesArea: !this.keyframesAreaEl,
+                ruler: !this.rulerEl,
+                keyframesContainer: !this.keyframesContainerEl,
+                objectToolbar: !this.objectToolbarEl
+            });
             throw new Error('Timeline DOM structure is incomplete. Check your HTML.');
         }
     }
@@ -115,17 +129,30 @@ export class TimelineControl {
         this.keyframeManager = this.pluginManager.getPlugin('keyframeManager') as KeyframeManager;
         this.groupManager = this.pluginManager.getPlugin('groupManager') as GroupManager;
     }
-    
-    private setupEventListeners(): void {
+      private setupEventListeners(): void {
         // Set up toolbar button event listeners
+        this.toolbarEl = this.mainContainer.querySelector('#timeline-toolbar') as HTMLElement;
+        
+        if (!this.toolbarEl) {
+            console.error('Toolbar element not found');
+            return;
+        }
+        
+        console.log('Setting up event listeners for toolbar buttons');
+        
         const addLayerBtn = this.toolbarEl.querySelector('#add-layer-btn');
         if (addLayerBtn) {
+            console.log('Found add-layer-btn, attaching event listener');
             addLayerBtn.addEventListener('click', this.handleAddLayer.bind(this));
+        } else {
+            console.error('Add layer button not found in toolbar');
         }
         
         const addKeyframeBtn = this.toolbarEl.querySelector('#add-keyframe-btn');
         if (addKeyframeBtn) {
             addKeyframeBtn.addEventListener('click', this.handleAddKeyframe.bind(this));
+        } else {
+            console.error('Add keyframe button not found in toolbar');
         }
         
         const zoomInBtn = this.toolbarEl.querySelector('#zoom-in-btn');
@@ -167,20 +194,22 @@ export class TimelineControl {
                     `translateX(-${this.keyframesContainerEl.scrollLeft}px)`;
             }
         });
-    }
-    
-    private handleAddLayer(): void {
-        const layerId = 'layer_' + Date.now();
-        const layerName = `Layer ${this.layerManager?.getLayers().length || 0 + 1}`;
+    }    private handleAddLayer(): void {
+        console.log('TimelineControl: handleAddLayer called');
+        console.log('layerManager instance:', this.layerManager);
         
-        // Emit event to create a new layer
-        this.eventEmitter.emit(EVENT_TYPES.LAYER_ADDED, {
-            layer: {
-                id: layerId,
-                name: layerName,
-                keyframes: []
+        try {
+            // Directly call the LayerManager's addLayer method
+            if (this.layerManager) {
+                console.log('Calling layerManager.addLayer()');
+                this.layerManager.addLayer();
+                console.log('TimelineControl: Layer added via LayerManager');
+            } else {
+                console.error('LayerManager not initialized');
             }
-        });
+        } catch (error) {
+            console.error('Error in handleAddLayer:', error);
+        }
     }
     
     private handleAddKeyframe(): void {
