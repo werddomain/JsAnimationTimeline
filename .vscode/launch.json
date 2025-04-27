@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {      "name": "Debug (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "sourceMaps": true,
+      "url": "http://localhost:9000",      
+      "webRoot": "${workspaceFolder}",
+      
+    
+      "preLaunchTask": "npm: dev",
+      "trace": true,
+      "presentation": {
+        "hidden": false,
+        "group": "main",
+        "order": 1
+      }
+    }
+  ]
+}
