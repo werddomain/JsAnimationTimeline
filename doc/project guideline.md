@@ -235,3 +235,58 @@ Verify that:
 4. Include sections for: Added, Changed, Fixed, and Next Steps
 5. Document all major component additions and modifications
 6. Track technical details and implementation changes
+
+## Timeline Grid System and Interaction Model
+
+### Grid System (Layers & Frames)
+
+#### Vertical Axis (Rows) = Layers
+- Each row in the timeline grid represents a distinct layer, like transparent sheets stacked on top of each other
+- Objects on higher layers appear in front of objects on lower layers on the main viewing area (the "Stage")
+- Designers use layers to organize content (backgrounds on bottom layers, main characters on middle layers, foreground elements or UI on top layers)
+- Each layer has its own row of frames running horizontally across the timeline
+
+#### Horizontal Axis (Columns) = Frames (Time)
+- Represents the progression of time from left to right
+- Each small rectangle in the grid along a layer row represents a single frame – a slice of time in the animation
+- Numbers along the top ruler (Time Ruler) indicate the frame number or timestamp
+
+#### Visual Representation of Frames
+- **Empty Gray Rectangles**: Standard frames where content from the previous keyframe is displayed statically
+- **White Rectangles**: Frames after an empty keyframe, signifying nothing exists on that layer at that time
+- **Frames with Dots (Keyframes)**:
+  - **Solid Dot**: A Keyframe marking a frame where properties of an object are explicitly defined
+  - **Hollow Dot**: An Empty Keyframe signifying the end of content from a previous keyframe
+- **Colored Span with Arrow (Tween)**: A sequence of frames with a colored background connecting two keyframes where animation is automatically generated
+
+### Element Selection & Timeline Interaction
+
+#### Selecting on Stage
+- When clicking an object on the main Stage:
+  - The object itself is highlighted (usually with a bounding box)
+  - The corresponding layer in the timeline panel is highlighted
+  - If the Playhead is on a frame containing that object, that frame may also get a selection indicator
+
+#### Selecting on Timeline
+- Clicking a specific frame or keyframe on the timeline:
+  - Moves the Playhead to that frame
+  - Selects the content on that specific layer at that frame for modification
+
+### The Playhead (Time Ruler Cursor)
+
+- Represented as a red vertical line spanning across all layers, with a red rectangle handle on the Time Ruler
+- Indicates the currently displayed frame on the Stage
+- Dragging the Playhead left and right along the Time Ruler updates the Stage view in real-time
+- Clicking anywhere on the Time Ruler instantly jumps the Playhead to that frame
+
+### Designer Workflow Example
+
+1. Click on a specific layer in the timeline grid
+2. Drag the Playhead to a specific frame position
+3. Create content on the Stage, generating a Keyframe (Solid Dot) at that position
+4. Move the Playhead to a later frame
+5. Create another Keyframe and modify the content (e.g., move an object)
+6. Create a Tween between the two Keyframes
+7. Scrub the Playhead to preview the animation
+
+This grid system of layers, frames, keyframes, tweens, and the playhead provides a powerful visual interface for controlling complex animations over time in an organized way.

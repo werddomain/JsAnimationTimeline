@@ -7,34 +7,608 @@
     border-bottom: 1px solid var(--timeline-border-color);
     position: relative;
     box-sizing: border-box; /* Ensure border doesn't affect height */
+    transition: background-color 0.15s ease; /* Smooth transition for hover */
     
     &.selected {
         background-color: rgba(0, 120, 215, 0.2);
+        border-bottom: 1px solid rgba(0, 120, 215, 0.5);
+    }
+    
+    /* Add alternating row backgrounds for better readability */
+    &:nth-child(even) {
+        background-color: rgba(0, 0, 0, 0.03);
+    }
+    
+    /* Add hover effect for rows with enhanced visibility */
+    &:hover {
+        background-color: rgba(0, 0, 0, 0.08);
+    }
+    
+    /* Show selection highlight when a layer is active */
+    &.active {
+        border-left: 3px solid var(--timeline-selection-color, #0078D7);
     }
 }
 
+/* Grid visualization with enhanced visibility */
+.timeline-keyframe-row {
+    background-image: 
+        /* Horizontal lines - bottom border of each row */
+        linear-gradient(0deg, 
+            var(--timeline-grid-color, rgba(180, 180, 180, 0.25)) 1px, 
+            transparent 1px
+        ),
+        /* Vertical lines - frame separators */
+        linear-gradient(90deg, 
+            var(--timeline-grid-color, rgba(180, 180, 180, 0.25)) 1px, 
+            transparent 1px
+        );
+    background-size: 100% 100%, var(--timeline-frame-width, 20px) 100%;
+    background-position: 0 0;
+    
+    /* Add smaller minor grid lines for subdivisions */
+    &.detailed-grid {
+        background-image: 
+            /* Horizontal lines - bottom border */
+            linear-gradient(0deg, 
+                var(--timeline-grid-color, rgba(180, 180, 180, 0.25)) 1px, 
+                transparent 1px
+            ),
+            /* Minor vertical lines - subdivision markers */
+            linear-gradient(90deg, 
+                var(--timeline-grid-minor-color, rgba(200, 200, 200, 0.15)) 1px, 
+                transparent 1px
+            ),
+            /* Major vertical lines - frame separators */
+            linear-gradient(90deg, 
+                var(--timeline-grid-color, rgba(180, 180, 180, 0.25)) 1px, 
+                transparent 1px
+            );
+        background-size: 
+            100% 100%, 
+            calc(var(--timeline-frame-width, 20px) / 5) 100%,
+            var(--timeline-frame-width, 20px) 100%;
+        background-position: 0 0;
+    }
+}
+
+// Frame grid styles with enhanced visuals
+.timeline-frame-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    
+    /* Common frame styles */
+    .frame {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        border-radius: 2px;
+        box-sizing: border-box;
+        transition: all 0.15s ease-out;
+        cursor: pointer;
+    }
+    
+    /* Standard frame (with content) */
+    .standard-frame {
+        .frame();
+        background-color: #999;
+        border: 1px solid #777;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        opacity: 0.6;
+        
+        /* Hover effect for better interaction */
+        &:hover {
+            opacity: 0.9;
+            transform: translate(-50%, -50%) scale(1.15);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* Active/clicked state */
+        &:active {
+            transform: translate(-50%, -50%) scale(0.95);
+            opacity: 1;
+        }
+        
+        /* Selected state */
+        &.selected {
+            background-color: #666;
+            border-color: #444;
+            opacity: 0.8;
+            box-shadow: 0 0 0 2px rgba(0, 120, 215, 0.5);
+        }
+    }
+    
+    /* Empty frame (placeholder) */
+    .empty-frame {
+        .frame();
+        background-color: #fff;
+        border: 1px solid #bbb;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        opacity: 0.7;
+        
+        /* Hover effect for better interaction */
+        &:hover {
+            opacity: 0.95;
+            transform: translate(-50%, -50%) scale(1.15);
+            border-color: #999;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Active/clicked state */
+        &:active {
+            transform: translate(-50%, -50%) scale(0.95);
+            opacity: 1;
+        }
+        
+        /* Selected state */
+        &.selected {
+            border-color: #777;
+            opacity: 0.9;
+            box-shadow: 0 0 0 2px rgba(0, 120, 215, 0.5);
+        }
+    }
+    
+    /* Frame type indicators */
+    .frame-indicator {
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        bottom: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        
+        &.content {
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>') no-repeat center;
+        }
+        
+        &.empty {
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>') no-repeat center;
+        }
+    }
+    
+    /* Show indicator on hover */
+    .standard-frame:hover .frame-indicator,
+    .empty-frame:hover .frame-indicator {
+        opacity: 0.7;
+    }
+}
+
+// Keyframe styles with enhanced visuals
 .timeline-keyframe {
     position: absolute;
-    width: var(--timeline-keyframe-size);
-    height: var(--timeline-keyframe-size);
-    background-color: var(--timeline-keyframe-color);
+    width: var(--timeline-keyframe-size, 12px);
+    height: var(--timeline-keyframe-size, 12px);
     border-radius: 50%;
     transform: translate(-50%, -50%);
     top: 50%;
     cursor: pointer;
-    z-index: 1;
+    z-index: 2;
+    transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Elastic bounce effect */
     
+    // Solid keyframe (with content)
+    &.solid {
+        background-color: var(--timeline-keyframe-color, #0078D7);
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1);
+        
+        // Diamond indicator for content keyframe
+        &:before {
+            content: "";
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            width: 6px;
+            height: 6px;
+            background-color: #ffcc00;
+            border-radius: 50%;
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        &:hover:before {
+            opacity: 1;
+        }
+    }
+    
+    // Hollow keyframe (empty)
+    &.hollow {
+        background-color: #fff;
+        border: 2px solid var(--timeline-keyframe-color, #0078D7);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    // Selected state
     &.selected {
-        box-shadow: 0 0 0 2px var(--timeline-selection-color);
-        z-index: 2;
+        box-shadow: 0 0 0 2px var(--timeline-selection-color, #f44336), 
+                   0 0 8px rgba(244, 67, 54, 0.4);
+        z-index: 3;
+        
+        // Make solid keyframes slightly larger when selected
+        &.solid {
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+    }
+    
+    // Hover effect with slight glow
+    &:hover {
+        transform: translate(-50%, -50%) scale(1.25);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2), 
+                   0 2px 8px rgba(0, 120, 215, 0.3);
+    }
+    
+    // Active effect
+    &:active {
+        transform: translate(-50%, -50%) scale(0.9);
+    }
+    
+    // Show type indicator on hover
+    &:after {
+        content: attr(data-type);
+        position: absolute;
+        bottom: -20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(0, 0, 0, 0.7);
+        color: #fff;
+        font-size: 10px;
+        padding: 2px 4px;
+        border-radius: 2px;
+        white-space: nowrap;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+    }
+    
+    &:hover:after {
+        opacity: 1;
+    }
+    
+    // Stage-selected state (for bidirectional selection highlighting)
+    &.stage-selected {
+        box-shadow: 0 0 0 2px #ff9800, 0 0 8px rgba(255, 152, 0, 0.4);
+        z-index: 4;
     }
 }
 
+// Tween styles with enhanced visuals
 .timeline-tween {
     position: absolute;
-    height: 2px;
-    background-color: var(--timeline-keyframe-color);
+    height: 3px;
     top: 50%;
     transform: translateY(-50%);
+    z-index: 1;
+    transition: height 0.15s ease, transform 0.15s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    
+    // Arrow indicator at end of tween
+    &:after {
+        content: "";
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 0;
+        height: 0;
+        border-style: solid;
+        border-width: 5px 0 5px 7px;
+        transition: transform 0.15s ease;
+    }
+    
+    // Small dot indicator at start of tween
+    &:before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background-color: inherit;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    }
+    
+    // Motion tween (blue with dotted pattern)
+    &.motion {
+        background-color: #4a90e2;
+        background-image: linear-gradient(90deg, 
+            #4a90e2 70%, transparent 30%);
+        background-size: 12px 100%;
+        
+        &:after {
+            border-color: transparent transparent transparent #4a90e2;
+        }
+    }
+    
+    // Shape tween (green with diagonal pattern)
+    &.shape {
+        background-color: #7ed321;
+        background-image: repeating-linear-gradient(
+            45deg,
+            #7ed321,
+            #7ed321 8px,
+            rgba(126, 211, 33, 0.7) 8px,
+            rgba(126, 211, 33, 0.7) 16px
+        );
+        
+        &:after {
+            border-color: transparent transparent transparent #7ed321;
+        }
+    }
+    
+    // Custom tween (purple with dotted pattern)
+    &.custom {
+        background-color: #9c27b0;
+        background-image: repeating-linear-gradient(
+            -45deg,
+            #9c27b0,
+            #9c27b0 8px,
+            rgba(156, 39, 176, 0.7) 8px,
+            rgba(156, 39, 176, 0.7) 16px
+        );
+        
+        &:after {
+            border-color: transparent transparent transparent #9c27b0;
+        }
+    }
+    
+    // Hover effect with enhanced visibility
+    &:hover {
+        height: 5px;
+        cursor: pointer;
+        transform: translateY(-50%) scaleY(1.2);
+        z-index: 2;
+        
+        &:after {
+            transform: translateY(-50%) scale(1.2);
+        }
+    }
+    
+    // Selected state
+    &.selected {
+        height: 5px;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5), 0 1px 4px rgba(0, 0, 0, 0.2);
+        z-index: 3;
+        
+        &:after, &:before {
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5), 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+    }
+}
+
+// Global playhead line that spans all layers with enhanced visibility
+.timeline-playhead-line {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 2px;
+    background-color: var(--timeline-selection-color, #f44336);
+    z-index: 10;
+    pointer-events: none;
+    box-shadow: 0 0 4px rgba(244, 67, 54, 0.5);
+    
+    // Add subtle animation for playback
+    &.playing {
+        &:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -2px;
+            width: 6px;
+            height: 100%;
+            background-color: rgba(244, 67, 54, 0.1);
+            animation: playhead-pulse 1s infinite alternate ease-in-out;
+        }
+    }
+}
+
+// Playhead handle for better interaction
+.timeline-playhead-handle {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14px;
+    height: 14px;
+    background-color: var(--timeline-selection-color, #f44336);
+    border: 2px solid white;
+    border-radius: 50%;
+    cursor: ew-resize;
+    z-index: 11;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    transition: transform 0.1s ease;
+    
+    &:hover {
+        transform: translateX(-50%) scale(1.2);
+    }
+    
+    &:active {
+        transform: translateX(-50%) scale(0.95);
+    }
+    
+    // Add current time tooltip on hover
+    &:after {
+        content: attr(data-time);
+        position: absolute;
+        top: -24px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        white-space: nowrap;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+    }
+    
+    &:hover:after {
+        opacity: 1;
+    }
+}
+
+// Add cursor indicators for different interaction modes
+.timeline-keyframe-row {
+    cursor: default;
+    
+    &.dragging {
+        cursor: grabbing;
+    }
+    
+    &.scrubbing {
+        cursor: ew-resize;
+    }
+}
+
+// Add stage selection indicator with enhanced visibility
+.timeline-keyframe.stage-selected {
+    box-shadow: 0 0 0 2px #ff9800, 0 0 8px rgba(255, 152, 0, 0.4);
+    z-index: 4;
+    
+    // Add pulsing animation for better visibility
+    animation: pulse-stage-selection 1.5s infinite alternate ease-in-out;
+    
+    @keyframes pulse-stage-selection {
+        0% { box-shadow: 0 0 0 2px #ff9800, 0 0 5px rgba(255, 152, 0, 0.4); }
+        100% { box-shadow: 0 0 0 2px #ff9800, 0 0 10px rgba(255, 152, 0, 0.6); }
+    }
+}
+
+// Add animation for playhead pulse
+@keyframes playhead-pulse {
+    0% { opacity: 0.3; width: 6px; }
+    100% { opacity: 0.7; width: 10px; }
+}
+
+// Add styles for different interaction modes with better visual indicators
+.timeline-control {
+    &.mode-select {
+        .timeline-keyframe-row { 
+            cursor: pointer; 
+            
+            &:before {
+                content: "";
+                position: absolute;
+                top: 5px;
+                left: 5px;
+                width: 12px;
+                height: 12px;
+                background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><path d="M12 3v18"/></svg>') no-repeat center;
+                opacity: 0;
+                transition: opacity 0.2s ease;
+                pointer-events: none;
+            }
+            
+            &:hover:before {
+                opacity: 0.5;
+            }
+        }
+    }
+    
+    &.mode-add-keyframe {
+        .timeline-keyframe-row { 
+            cursor: cell; 
+            
+            &:before {
+                content: "";
+                position: absolute;
+                top: 5px;
+                left: 5px;
+                width: 12px;
+                height: 12px;
+                background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>') no-repeat center;
+                opacity: 0;
+                transition: opacity 0.2s ease;
+                pointer-events: none;
+            }
+            
+            &:hover:before {
+                opacity: 0.5;
+            }
+        }
+    }
+    
+    &.mode-delete {
+        .timeline-keyframe-row { 
+            cursor: not-allowed; 
+            
+            &:before {
+                content: "";
+                position: absolute;
+                top: 5px;
+                left: 5px;
+                width: 12px;
+                height: 12px;
+                background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>') no-repeat center;
+                opacity: 0;
+                transition: opacity 0.2s ease;
+                pointer-events: none;
+            }
+            
+            &:hover:before {
+                opacity: 0.5;
+            }
+        }
+        
+        .timeline-keyframe { 
+            cursor: no-drop; 
+        }
+    }
+    
+    &.mode-tween {
+        .timeline-keyframe-row {
+            cursor: crosshair;
+        }
+    }
+}
+
+// Add visual feedback for frame selection with enhanced visibility
+.timeline-frame-selected {
+    background-color: rgba(0, 120, 215, 0.1);
+    position: absolute;
+    height: 100%;
+    top: 0;
     z-index: 0;
+    border-left: 1px solid rgba(0, 120, 215, 0.4);
+    border-right: 1px solid rgba(0, 120, 215, 0.4);
+    transition: background-color 0.2s ease;
+    
+    // Add subtle pulsing animation for better visibility
+    animation: pulse-frame-selection 2s infinite alternate ease-in-out;
+    
+    @keyframes pulse-frame-selection {
+        0% { background-color: rgba(0, 120, 215, 0.08); }
+        100% { background-color: rgba(0, 120, 215, 0.15); }
+    }
+}
+
+// Focus state for keyboard navigation
+.timeline-keyframe-row, .timeline-keyframe, .timeline-tween {
+    &:focus {
+        outline: none;
+        
+        &:after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            box-shadow: 0 0 0 2px var(--timeline-selection-color, #f44336);
+            border-radius: inherit;
+            z-index: 5;
+            pointer-events: none;
+        }
+    }
 }

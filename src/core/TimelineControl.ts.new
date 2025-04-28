@@ -8,6 +8,7 @@ import { EventEmitter } from '../core/EventEmitter';
 import { DataModel, ITimelineOptions } from '../core/DataModel';
 import { PluginManager } from '../core/PluginManager';
 import { Events, CssClasses } from '../constants/Constants';
+import { KeyboardHandler } from '../utils/KeyboardHandler';
 
 // Timeline control options
 export interface ITimelineControlOptions {
@@ -23,6 +24,7 @@ export class TimelineControl extends BaseComponent {
     private eventEmitter: EventEmitter;
     private dataModel: DataModel;
     private pluginManager: PluginManager;
+    private keyboardHandler: KeyboardHandler | null = null;
     
     // DOM elements
     private toolbarEl: HTMLElement | null = null;
@@ -72,6 +74,9 @@ export class TimelineControl extends BaseComponent {
         
         // Set up scroll synchronization
         this.setupScrollSynchronization();
+        
+        // Initialize keyboard shortcuts
+        this.setupKeyboardShortcuts();
         
         // Initialize plugins
         this.pluginManager.initializeAll();
@@ -263,6 +268,20 @@ export class TimelineControl extends BaseComponent {
                 return this.objectToolbarEl;
             default:
                 return this.element ? this.element.querySelector(`.${elementClass}`) : null;
+        }
+    }
+    
+    /**
+     * Set up keyboard shortcuts for common timeline operations
+     */
+    private setupKeyboardShortcuts(): void {
+        // Initialize the KeyboardHandler if it doesn't exist
+        if (!this.keyboardHandler && this.element) {
+            this.keyboardHandler = new KeyboardHandler({
+                eventEmitter: this.eventEmitter,
+                dataModel: this.dataModel,
+                timelineElement: this.element
+            });
         }
     }
 }

@@ -18,6 +18,8 @@ export class TimeRuler extends BaseComponent {
     private dataModel: DataModel;
     private eventEmitter: EventEmitter;
     private rulerContentEl: HTMLElement | null = null;
+    private playheadEl: HTMLElement | null = null;
+    private isDraggingPlayhead: boolean = false;
     private duration: number;
     private timeScale: number;
     
@@ -33,8 +35,7 @@ export class TimeRuler extends BaseComponent {
         
         this.duration = this.dataModel.getDuration();
         this.timeScale = this.dataModel.getTimeScale();
-    }
-      /**
+    }    /**
      * Initialize the TimeRuler component
      */
     public initialize(): void {
@@ -51,6 +52,8 @@ export class TimeRuler extends BaseComponent {
         // Set up event listeners
         this.eventEmitter.on(Events.DURATION_CHANGED, this.handleDurationChanged.bind(this));
         this.eventEmitter.on(Events.SCALE_CHANGED, this.handleScaleChanged.bind(this));
+        this.eventEmitter.on(Events.TIME_CHANGED, this.handleTimeChanged.bind(this));
+        this.eventEmitter.on(Events.PLAYHEAD_MOVED, this.handlePlayheadMoved.bind(this));
         
         // Add click handler for seeking
         this.element.addEventListener('click', this.handleRulerClick.bind(this));
@@ -61,24 +64,36 @@ export class TimeRuler extends BaseComponent {
             throw new Error('TimeRuler content element not found. Check if the HTML structure is correct.');
         }
         
+        // Get the playhead element
+        this.playheadEl = this.rulerContentEl.querySelector(`.${CssClasses.PLAYHEAD}`);
+        if (!this.playheadEl) {
+            throw new Error('Playhead element not found. Check if the HTML structure is correct.');
+        }
+        
+        // Set up playhead dragging
+        this.setupPlayheadDrag();
+        
         console.log('TimeRuler initialized successfully');
     }
-    
-    /**
+      /**
      * Render the TimeRuler component
      * @returns HTML string representation
      */
     public render(): string {
         const width = this.calculateRulerWidth();
+        const currentTime = this.dataModel.getCurrentTime();
+        const playheadPosition = currentTime * this.timeScale;
         
         return `
             <div class="${CssClasses.RULER_CONTENT}" style="width: ${width}px">
                 ${this.generateTimeMarkers()}
+                <div class="${CssClasses.PLAYHEAD}" style="left: ${playheadPosition}px">
+                    <div class="${CssClasses.PLAYHEAD_HANDLE}"></div>
+                </div>
             </div>
         `;
     }
-    
-    /**
+      /**
      * Update the TimeRuler component
      * @param data - New data for the component
      */
@@ -87,19 +102,73 @@ export class TimeRuler extends BaseComponent {
         
         const width = this.calculateRulerWidth();
         this.rulerContentEl.style.width = `${width}px`;
-        this.rulerContentEl.innerHTML = this.generateTimeMarkers();
+        
+        // Update time markers
+        const markersContent = this.generateTimeMarkers();
+        
+        // Create a temp container to hold the markers
+        const tempContainer = document.createElement('div');
+        tempContainer.innerHTML = markersContent;
+        
+        // Clear old markers except the playhead
+        if (this.rulerContentEl) {
+            const children = Array.from(this.rulerContentEl.children);
+            children.forEach(child => {
+                if (!child.classList.contains(CssClasses.PLAYHEAD)) {
+                    this.rulerContentEl?.removeChild(child);
+                }
+            });
+        }
+          // Add new markers before the playhead
+        while (tempContainer.firstChild) {
+            if (this.playheadEl && tempContainer.firstChild) {
+                this.rulerContentEl.insertBefore(tempContainer.firstChild, this.playheadEl);
+            } else if (tempContainer.firstChild) {
+                this.rulerContentEl.appendChild(tempContainer.firstChild);
+            }
+        }
+        
+        // If no playhead exists, create it
+        if (!this.playheadEl) {
+            const currentTime = this.dataModel.getCurrentTime();
+            const playheadPosition = currentTime * this.timeScale;
+            
+            const playheadEl = document.createElement('div');
+            playheadEl.className = CssClasses.PLAYHEAD;
+            playheadEl.style.left = `${playheadPosition}px`;
+            
+            const handleEl = document.createElement('div');
+            handleEl.className = CssClasses.PLAYHEAD_HANDLE;
+            playheadEl.appendChild(handleEl);
+            
+            this.rulerContentEl.appendChild(playheadEl);
+            this.playheadEl = playheadEl;
+            
+            // Set up playhead drag functionality
+            this.setupPlayheadDrag();
+        }
     }
-    
-    /**
+      /**
      * Destroy the TimeRuler component and clean up resources
      */
     public destroy(): void {
         // Remove event listeners
         this.eventEmitter.off(Events.DURATION_CHANGED, this.handleDurationChanged.bind(this));
         this.eventEmitter.off(Events.SCALE_CHANGED, this.handleScaleChanged.bind(this));
+        this.eventEmitter.off(Events.TIME_CHANGED, this.handleTimeChanged.bind(this));
+        this.eventEmitter.off(Events.PLAYHEAD_MOVED, this.handlePlayheadMoved.bind(this));
         
         if (this.element) {
             this.element.removeEventListener('click', this.handleRulerClick.bind(this));
+        }
+        
+        // Clean up playhead event listeners
+        if (this.playheadEl) {
+            const newPlayhead = this.playheadEl.cloneNode(true);
+            if (this.playheadEl.parentNode) {
+                this.playheadEl.parentNode.replaceChild(newPlayhead, this.playheadEl);
+            }
+            this.playheadEl = null;
         }
     }
     
@@ -222,5 +291,80 @@ export class TimeRuler extends BaseComponent {
     private handleScaleChanged(event: any): void {
         this.timeScale = event.data.scale;
         this.update();
+    }
+    
+    /**
+     * Handle time changed event
+     * @param event - Time changed event
+     */
+    private handleTimeChanged(event: any): void {
+        if (!this.playheadEl || this.isDraggingPlayhead) return;
+        
+        const time = event.data.time;
+        const position = time * this.timeScale;
+        this.updatePlayheadPosition(position);
+    }
+    
+    /**
+     * Handle playhead moved event
+     * @param event - Playhead moved event
+     */
+    private handlePlayheadMoved(event: any): void {
+        if (!this.playheadEl || this.isDraggingPlayhead) return;
+        
+        const position = event.data.position;
+        this.updatePlayheadPosition(position);
+    }
+    
+    /**
+     * Update the playhead position
+     * @param position - Position in pixels
+     */
+    private updatePlayheadPosition(position: number): void {
+        if (!this.playheadEl) return;
+        
+        this.playheadEl.style.left = `${position}px`;
+    }
+    
+    /**
+     * Set up playhead drag functionality
+     */
+    private setupPlayheadDrag(): void {
+        if (!this.playheadEl) return;
+        
+        this.playheadEl.addEventListener('mousedown', (event: MouseEvent) => {
+            event.preventDefault();
+            this.isDraggingPlayhead = true;
+            
+            const onMouseMove = (moveEvent: MouseEvent) => {
+                if (!this.rulerContentEl) return;
+                
+                const rect = this.rulerContentEl.getBoundingClientRect();
+                const scrollLeft = this.element?.parentElement?.scrollLeft || 0;
+                const mouseX = moveEvent.clientX - rect.left + scrollLeft;
+                
+                // Constrain to ruler boundaries
+                const position = Math.max(0, Math.min(mouseX, this.calculateRulerWidth()));
+                
+                // Update playhead position
+                this.updatePlayheadPosition(position);
+                
+                // Calculate time from position
+                const time = position / this.timeScale;
+                
+                // Update the data model
+                this.dataModel.setCurrentTime(time);
+                this.eventEmitter.emit(Events.SEEK, { time }, this);
+            };
+            
+            const onMouseUp = () => {
+                this.isDraggingPlayhead = false;
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+            
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
     }
 }

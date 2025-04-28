@@ -14,12 +14,15 @@ export const Events = {
     SCENE_REMOVED: 'scene:removed',
     SCENE_SELECTED: 'scene:selected',
     SCENE_RENAMED: 'scene:renamed',
-    
-    // Time events
+      // Time events
     TIME_CHANGED: 'time:changed',
     DURATION_CHANGED: 'duration:changed',
     SCALE_CHANGED: 'scale:changed',
     SEEK: 'time:seek',
+    PLAYHEAD_MOVED: 'playhead:moved',
+    TOGGLE_PLAYBACK: 'playback:toggle',
+    STEP_FORWARD: 'playback:step-forward',
+    STEP_BACKWARD: 'playback:step-backward',
     
     // Layer events
     LAYER_ADDED: 'layer:added',
@@ -37,6 +40,17 @@ export const Events = {
     KEYFRAME_SELECTED: 'keyframe:selected',
     KEYFRAME_DESELECTED: 'keyframe:deselected',
     KEYFRAME_MOVED: 'keyframe:moved',
+      // Tween events
+    TWEEN_ADDED: 'tween:added',
+    TWEEN_REMOVED: 'tween:removed',
+    TWEEN_UPDATED: 'tween:updated',
+    TWEEN_CREATED: 'tween:created',
+    
+    // Keyframes multiple selection event
+    KEYFRAMES_DELETED: 'keyframes:deleted',
+    
+    // Stage events
+    STAGE_ELEMENT_SELECTED: 'stage:element-selected',
     
     // Group events
     GROUP_CREATED: 'group:created',
@@ -76,12 +90,20 @@ export const CssClasses = {
     LAYER_NAME: 'layer-name',
     LAYER_ICON: 'layer-icon',
     LAYER_CONTROLS: 'layer-controls',
-    
-    // Keyframe classes
+      // Keyframe classes
     KEYFRAME_ROW: 'timeline-keyframe-row',
     KEYFRAME: 'timeline-keyframe',
     KEYFRAME_SELECTED: 'selected',
+    KEYFRAME_SOLID: 'solid',
+    KEYFRAME_HOLLOW: 'hollow',
+    FRAME_STANDARD: 'standard-frame',
+    FRAME_EMPTY: 'empty-frame',
     TWEEN: 'timeline-tween',
+    TWEEN_MOTION: 'motion',
+    TWEEN_SHAPE: 'shape',
+    FRAME_GRID: 'timeline-frame-grid',
+    PLAYHEAD: 'timeline-playhead',
+    PLAYHEAD_HANDLE: 'timeline-playhead-handle',
     
     // Ruler classes
     RULER_CONTENT: 'timeline-ruler-content',

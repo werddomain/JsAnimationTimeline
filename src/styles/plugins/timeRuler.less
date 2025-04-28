@@ -1,7 +1,3 @@
-/**
- * Styles for the TimeRuler plugin
- */
-
 .timeline-ruler-content {
     position: relative;
     height: 100%;
@@ -28,4 +24,47 @@
         transform: translateX(-50%);
         user-select: none;
     }
+}
+
+.timeline-playhead {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 2px;
+    background-color: var(--timeline-selection-color, #f44336);
+    z-index: 10;
+    cursor: ew-resize;
+    
+    // Playhead handle
+    .timeline-playhead-handle {
+        position: absolute;
+        top: 0;
+        left: -5px;
+        width: 12px;
+        height: 12px;
+        background-color: var(--timeline-selection-color, #f44336);
+        border-radius: 6px;
+        cursor: ew-resize;
+        
+        /* Add hover effect for better UX */
+        &:hover {
+            transform: scale(1.2);
+            transition: transform 0.1s ease-out;
+        }
+        
+        /* Active state for when dragging */
+        &:active {
+            transform: scale(0.9);
+        }
+    }
+}
+
+/* Grid visualization for ruler */
+.timeline-ruler {
+    background-image: linear-gradient(90deg, 
+        var(--timeline-grid-color, rgba(255, 255, 255, 0.1)) 1px, 
+        transparent 1px
+    );
+    background-size: var(--timeline-frame-width, 20px) 100%;
+    background-position: 0 0;
 }

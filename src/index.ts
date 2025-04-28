@@ -3,6 +3,7 @@
  */
 import './styles/main.less';
 import { TimelineControl, ITimelineControlOptions } from './core/TimelineControl';
+import { KeyframeType } from './core/DataModel';
 import { TimeRuler } from './plugins/TimeRuler';
 import { LayerManager } from './plugins/LayerManager';
 import { KeyframeManager } from './plugins/KeyframeManager';
@@ -140,12 +141,14 @@ document.addEventListener('DOMContentLoaded', () => {
             'keyframe-1': {
                 id: 'keyframe-1',
                 time: 1,
-                value: { x: 0, y: 0 }
+                value: { x: 0, y: 0 },
+                type: 'solid' as KeyframeType
             },
             'keyframe-2': {
                 id: 'keyframe-2',
                 time: 5,
-                value: { x: 100, y: 50 }
+                value: { x: 100, y: 50 },
+                type: 'solid' as KeyframeType
             }
         }
     };
@@ -160,12 +163,14 @@ document.addEventListener('DOMContentLoaded', () => {
             'keyframe-3': {
                 id: 'keyframe-3',
                 time: 2,
-                value: { rotation: 0 }
+                value: { rotation: 0 },
+                type: 'solid' as KeyframeType
             },
             'keyframe-4': {
                 id: 'keyframe-4',
                 time: 8,
-                value: { rotation: 180 }
+                value: { rotation: 180 },
+                type: 'solid' as KeyframeType
             }
         }
     };

@@ -28,12 +28,35 @@ export interface ILayer {
     parent?: string | null;
 }
 
+// Keyframe types enum
+export enum KeyframeType {
+    SOLID = 'solid',    // Keyframe with content
+    HOLLOW = 'hollow'   // Empty keyframe
+}
+
+// Tween types enum
+export enum TweenType {
+    MOTION = 'motion',  // Motion tween (position, rotation, etc.)
+    SHAPE = 'shape'     // Shape tween (morphing)
+}
+
 // Keyframe interface
 export interface IKeyframe {
     id: string;
     time: number;
     value: any; // The actual value at this keyframe (could be position, scale, color, etc.)
+    type: KeyframeType;
     easing?: string; // Optional easing function for tweens
+    nextTween?: ITween; // Optional reference to a tween that starts at this keyframe
+}
+
+// Tween interface
+export interface ITween {
+    id: string;
+    type: TweenType;
+    startKeyframeId: string;
+    endKeyframeId: string;
+    properties: string[]; // Properties being tweened
 }
 
 // Timeline options interface
@@ -55,6 +78,9 @@ export interface ITimelineState {
     layers: Record<string, ILayer>;
     selectedLayerIds: string[];
     selectedKeyframeIds: Record<string, string[]>; // layer ID -> keyframe IDs
+    tweens: Record<string, ITween>; // tween ID -> tween
+    playheadPosition: number; // Current playhead position in pixels
+    selectedStageElementIds: string[]; // IDs of selected elements on the stage
 }
 
 export class DataModel extends EventEmitter {
@@ -63,8 +89,7 @@ export class DataModel extends EventEmitter {
     /**
      * Constructor for DataModel
      * @param options - Configuration options for the timeline
-     */
-    constructor(options?: Partial<ITimelineOptions>) {
+     */    constructor(options?: Partial<ITimelineOptions>) {
         super();        // Initialize with default state
         this.state = {
             currentTime: options?.startTime || 0,
@@ -75,7 +100,10 @@ export class DataModel extends EventEmitter {
             currentSceneId: null,
             layers: {},
             selectedLayerIds: [],
-            selectedKeyframeIds: {}
+            selectedKeyframeIds: {},
+            tweens: {},
+            playheadPosition: 0,
+            selectedStageElementIds: []
         };
           // Create default scene
         const defaultSceneId = 'scene-1';
@@ -154,6 +182,22 @@ export class DataModel extends EventEmitter {
             scale: this.state.timeScale,
             previousScale
         });
+    }
+    
+    /**
+     * Get the current frame rate
+     * @returns Frame rate in frames per second
+     */
+    public getFps(): number {
+        return this.state.fps;
+    }
+    
+    /**
+     * Set the frame rate
+     * @param fps - Frame rate in frames per second
+     */
+    public setFps(fps: number): void {
+        this.state.fps = Math.max(1, Math.min(fps, 120)); // Limit to 1-120 FPS
     }
     
     /**
@@ -311,8 +355,7 @@ export class DataModel extends EventEmitter {
         const layer = this.state.layers[layerId];
         return layer ? layer.keyframes[keyframeId] : undefined;
     }
-    
-    /**
+      /**
      * Add a keyframe to a layer and emit KEYFRAME_ADDED event
      * @param layerId - Layer ID
      * @param keyframe - Keyframe to add
@@ -329,6 +372,11 @@ export class DataModel extends EventEmitter {
             throw new Error(`Keyframe with ID ${keyframe.id} already exists in layer ${layerId}`);
         }
         
+        // Set default keyframe type if not provided
+        if (!keyframe.type) {
+            keyframe.type = keyframe.value ? KeyframeType.SOLID : KeyframeType.HOLLOW;
+        }
+        
         // Add the keyframe
         layer.keyframes[keyframe.id] = keyframe;
         
@@ -336,11 +384,11 @@ export class DataModel extends EventEmitter {
             layerId,
             keyframeId: keyframe.id,
             time: keyframe.time,
-            value: keyframe.value
+            value: keyframe.value,
+            type: keyframe.type
         });
     }
-    
-    /**
+      /**
      * Update a keyframe and emit KEYFRAME_UPDATED event
      * @param layerId - Layer ID
      * @param keyframeId - Keyframe ID
@@ -365,11 +413,17 @@ export class DataModel extends EventEmitter {
             ...updates
         };
         
+        // Update keyframe type if value changes
+        if (updates.value !== undefined && updates.type === undefined) {
+            layer.keyframes[keyframeId].type = updates.value ? KeyframeType.SOLID : KeyframeType.HOLLOW;
+        }
+        
         this.emit(Events.KEYFRAME_UPDATED, {
             layerId,
             keyframeId,
             time: layer.keyframes[keyframeId].time,
-            value: layer.keyframes[keyframeId].value
+            value: layer.keyframes[keyframeId].value,
+            type: layer.keyframes[keyframeId].type
         });
     }
     
@@ -760,14 +814,7 @@ export class DataModel extends EventEmitter {
      */
     public clearLayerSelection(): void {
         const selectedLayers = [...this.state.selectedLayerIds];
-        this.state.selectedLayerIds = [];
-        
-        selectedLayers.forEach(layerId => {
-            const layer = this.state.layers[layerId];
-            if (layer) {
-                this.emit(Events.LAYER_DESELECTED, { layerId, layer });
-            }
-        });
+        selectedLayers.forEach(layerId => this.deselectLayer(layerId));
     }
     
     /**
@@ -801,5 +848,175 @@ export class DataModel extends EventEmitter {
             newTime,
             value: keyframe.value
         });
+    }
+    
+    /**
+     * Get playhead position
+     * @returns Playhead position in pixels
+     */
+    public getPlayheadPosition(): number {
+        return this.state.playheadPosition;
+    }
+    
+    /**
+     * Set playhead position and emit PLAYHEAD_MOVED event
+     * @param position - New playhead position in pixels
+     */
+    public setPlayheadPosition(position: number): void {
+        const previousPosition = this.state.playheadPosition;
+        this.state.playheadPosition = Math.max(0, position);
+        
+        // Calculate the time based on position and timeScale
+        const time = this.state.playheadPosition / this.state.timeScale;
+        this.setCurrentTime(time);
+        
+        this.emit(Events.PLAYHEAD_MOVED, {
+            position: this.state.playheadPosition,
+            previousPosition,
+            time
+        });
+    }
+    
+    /**
+     * Get all tweens
+     * @returns Record of tween IDs to tween objects
+     */
+    public getTweens(): Record<string, ITween> {
+        return this.state.tweens;
+    }
+    
+    /**
+     * Get a specific tween
+     * @param id - Tween ID
+     * @returns Tween object if found, undefined otherwise
+     */
+    public getTween(id: string): ITween | undefined {
+        return this.state.tweens[id];
+    }
+    
+    /**
+     * Add a tween and emit TWEEN_ADDED event
+     * @param tween - Tween to add
+     */
+    public addTween(tween: ITween): void {
+        // Ensure the tween has a unique ID
+        if (this.state.tweens[tween.id]) {
+            throw new Error(`Tween with ID ${tween.id} already exists`);
+        }
+        
+        // Add the tween
+        this.state.tweens[tween.id] = tween;
+        
+        // Update the start keyframe to reference this tween
+        const startKeyframe = this.findKeyframeById(tween.startKeyframeId);
+        if (startKeyframe) {
+            startKeyframe.nextTween = tween;
+        }
+        
+        this.emit(Events.TWEEN_ADDED, {
+            tweenId: tween.id,
+            type: tween.type,
+            startKeyframeId: tween.startKeyframeId,
+            endKeyframeId: tween.endKeyframeId
+        });
+    }
+    
+    /**
+     * Update a tween and emit TWEEN_UPDATED event
+     * @param id - Tween ID
+     * @param updates - Tween updates
+     */
+    public updateTween(id: string, updates: Partial<ITween>): void {
+        const tween = this.state.tweens[id];
+        
+        if (!tween) {
+            throw new Error(`Tween with ID ${id} not found`);
+        }
+        
+        // Update the tween
+        this.state.tweens[id] = {
+            ...tween,
+            ...updates
+        };
+        
+        this.emit(Events.TWEEN_UPDATED, {
+            tweenId: id,
+            type: this.state.tweens[id].type,
+            startKeyframeId: this.state.tweens[id].startKeyframeId,
+            endKeyframeId: this.state.tweens[id].endKeyframeId
+        });
+    }
+    
+    /**
+     * Remove a tween and emit TWEEN_REMOVED event
+     * @param id - Tween ID
+     */
+    public removeTween(id: string): void {
+        const tween = this.state.tweens[id];
+        
+        if (!tween) {
+            return; // Nothing to remove
+        }
+        
+        // Remove tween reference from the start keyframe
+        const startKeyframe = this.findKeyframeById(tween.startKeyframeId);
+        if (startKeyframe && startKeyframe.nextTween?.id === id) {
+            startKeyframe.nextTween = undefined;
+        }
+        
+        // Remove the tween
+        delete this.state.tweens[id];
+        
+        this.emit(Events.TWEEN_REMOVED, {
+            tweenId: id,
+            startKeyframeId: tween.startKeyframeId,
+            endKeyframeId: tween.endKeyframeId
+        });
+    }
+    
+    /**
+     * Helper method to find a keyframe by ID across all layers
+     * @param keyframeId - Keyframe ID to find
+     * @returns Keyframe object if found, undefined otherwise
+     * @private
+     */
+    private findKeyframeById(keyframeId: string): IKeyframe | undefined {
+        for (const layerId in this.state.layers) {
+            const keyframe = this.state.layers[layerId].keyframes[keyframeId];
+            if (keyframe) {
+                return keyframe;
+            }
+        }
+        return undefined;
+    }
+    
+    /**
+     * Get selected stage element IDs
+     * @returns Array of selected stage element IDs
+     */
+    public getSelectedStageElementIds(): string[] {
+        return this.state.selectedStageElementIds;
+    }
+    
+    /**
+     * Select a stage element and emit STAGE_ELEMENT_SELECTED event
+     * @param id - Stage element ID
+     */
+    public selectStageElement(id: string): void {
+        if (!this.state.selectedStageElementIds.includes(id)) {
+            this.state.selectedStageElementIds.push(id);
+            this.emit(Events.STAGE_ELEMENT_SELECTED, { elementId: id });
+        }
+    }
+    
+    /**
+     * Deselect a stage element
+     * @param id - Stage element ID
+     */
+    public deselectStageElement(id: string): void {
+        const index = this.state.selectedStageElementIds.indexOf(id);
+        if (index !== -1) {
+            this.state.selectedStageElementIds.splice(index, 1);
+        }
     }
 }
