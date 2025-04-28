@@ -1,0 +1,44 @@
+/**
+ * Base styles for the timeline animation editor
+ */
+
+// Reset and base styles
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--timeline-font-family);
+    font-size: var(--timeline-font-size);
+    color: var(--timeline-text-color);
+    background-color: var(--timeline-bg-color);
+}
+
+.timeline-editor {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+// Scrollbars styling
+::-webkit-scrollbar {
+    width: var(--timeline-scrollbar-size);
+    height: var(--timeline-scrollbar-size);
+}
+
+::-webkit-scrollbar-track {
+    background-color: var(--timeline-bg-color);
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--timeline-border-color);
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--timeline-selection-color);
+}

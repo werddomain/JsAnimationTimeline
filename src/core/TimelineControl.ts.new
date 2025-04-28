@@ -1,0 +1,268 @@
+/**
+ * TimelineControl class
+ * Main control that coordinates plugins and manages the timeline interface
+ */
+
+import { BaseComponent } from '../components/BaseComponent';
+import { EventEmitter } from '../core/EventEmitter';
+import { DataModel, ITimelineOptions } from '../core/DataModel';
+import { PluginManager } from '../core/PluginManager';
+import { Events, CssClasses } from '../constants/Constants';
+
+// Timeline control options
+export interface ITimelineControlOptions {
+    // Container element or ID
+    container: HTMLElement | string;
+    // Timeline options
+    timeline?: Partial<ITimelineOptions>;
+    // Plugins to load
+    plugins?: Record<string, any>;
+}
+
+export class TimelineControl extends BaseComponent {
+    private eventEmitter: EventEmitter;
+    private dataModel: DataModel;
+    private pluginManager: PluginManager;
+    
+    // DOM elements
+    private toolbarEl: HTMLElement | null = null;
+    private contentEl: HTMLElement | null = null;
+    private contentContainerEl: HTMLElement | null = null;
+    private layersContainerEl: HTMLElement | null = null;
+    private keyframesAreaEl: HTMLElement | null = null;
+    private timeRulerEl: HTMLElement | null = null;
+    private keyframesContainerEl: HTMLElement | null = null;
+    private objectToolbarEl: HTMLElement | null = null;
+    
+    /**
+     * Constructor for TimelineControl
+     * @param options - Configuration options
+     */
+    constructor(options: ITimelineControlOptions) {
+        super(options.container, 'timeline-control');
+        
+        // Create event emitter
+        this.eventEmitter = new EventEmitter();
+        
+        // Create data model with timeline options
+        this.dataModel = new DataModel(options.timeline);
+        
+        // Create plugin manager
+        this.pluginManager = new PluginManager(this.eventEmitter);
+        
+        // Register plugins if provided
+        if (options.plugins) {
+            Object.entries(options.plugins).forEach(([id, plugin]) => {
+                this.pluginManager.register(id, plugin);
+            });
+        }
+    }
+    
+    /**
+     * Initialize the timeline control
+     */
+    public initialize(): void {
+        // Create DOM structure if it doesn't exist
+        if (!this.element) {
+            // First mount the component to create the main element
+            this.mount();
+            // Then create the inner DOM structure
+            this.createDomStructure();
+        }
+        
+        // Set up scroll synchronization
+        this.setupScrollSynchronization();
+        
+        // Initialize plugins
+        this.pluginManager.initializeAll();
+        
+        // Set up event listeners
+        this.eventEmitter.on(Events.TIMELINE_RESIZED, this.handleResize.bind(this));
+        
+        // Emit init event
+        this.eventEmitter.emit(Events.TIMELINE_INIT, this.dataModel.getState(), this);
+    }
+    
+    /**
+     * Render the timeline control
+     * @returns HTML string representation
+     */
+    public render(): string {
+        return `
+            <div class="${CssClasses.TIMELINE_CONTROL}" id="${this.id}">
+                <div class="${CssClasses.TIMELINE_TOOLBAR}"></div>
+                <div class="${CssClasses.TIMELINE_CONTENT}">
+                    <div class="${CssClasses.TIMELINE_CONTENT_CONTAINER}">
+                        <div class="${CssClasses.TIMELINE_LAYERS_CONTAINER}"></div>
+                        <div class="${CssClasses.TIMELINE_KEYFRAMES_AREA}">
+                            <div class="${CssClasses.TIMELINE_RULER}"></div>
+                            <div class="${CssClasses.TIMELINE_KEYFRAMES_CONTAINER}"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="${CssClasses.TIMELINE_OBJECT_TOOLBAR}"></div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Update the timeline control
+     * @param data - New data for the timeline
+     */
+    public update(data?: any): void {
+        if (data) {
+            this.dataModel.setState(data);
+        }
+    }
+    
+    /**
+     * Destroy the timeline control and clean up resources
+     */
+    public destroy(): void {
+        // Destroy all plugins
+        this.pluginManager.destroyAll();
+        
+        // Remove event listeners
+        this.eventEmitter.clear();
+        
+        // Emit destroyed event
+        this.eventEmitter.emit(Events.TIMELINE_DESTROYED, {}, this);
+    }
+    
+    /**
+     * Create the DOM structure for the timeline control
+     */
+    private createDomStructure(): void {
+        // Check if element already exists
+        if (!this.element) {
+            // Render without initializing to avoid recursion
+            const html = this.render();
+            this.container.innerHTML = html;
+            this.element = this.container.firstElementChild as HTMLElement;
+        }
+        
+        // Get the DOM elements
+        if (!this.element) {
+            throw new Error('Failed to create timeline control element');
+        }
+        
+        this.toolbarEl = this.element.querySelector(`.${CssClasses.TIMELINE_TOOLBAR}`);
+        this.contentEl = this.element.querySelector(`.${CssClasses.TIMELINE_CONTENT}`);
+        this.contentContainerEl = this.element.querySelector(`.${CssClasses.TIMELINE_CONTENT_CONTAINER}`);
+        this.layersContainerEl = this.element.querySelector(`.${CssClasses.TIMELINE_LAYERS_CONTAINER}`);
+        this.keyframesAreaEl = this.element.querySelector(`.${CssClasses.TIMELINE_KEYFRAMES_AREA}`);
+        this.timeRulerEl = this.element.querySelector(`.${CssClasses.TIMELINE_RULER}`);
+        this.keyframesContainerEl = this.element.querySelector(`.${CssClasses.TIMELINE_KEYFRAMES_CONTAINER}`);
+        this.objectToolbarEl = this.element.querySelector(`.${CssClasses.TIMELINE_OBJECT_TOOLBAR}`);
+        
+        if (!this.toolbarEl || !this.contentEl || !this.contentContainerEl || !this.layersContainerEl ||
+            !this.keyframesAreaEl || !this.timeRulerEl || !this.keyframesContainerEl || !this.objectToolbarEl) {
+            throw new Error('Failed to get all timeline control elements');
+        }
+    }
+    
+    /**
+     * Set up scroll synchronization between layers and keyframes
+     */
+    private setupScrollSynchronization(): void {
+        if (!this.layersContainerEl || !this.keyframesContainerEl || !this.timeRulerEl) {
+            return;
+        }
+        
+        // Sync vertical scrolling
+        this.keyframesContainerEl.addEventListener('scroll', () => {
+            if (this.layersContainerEl) {
+                this.layersContainerEl.scrollTop = this.keyframesContainerEl!.scrollTop;
+            }
+        });
+        
+        this.layersContainerEl.addEventListener('scroll', () => {
+            if (this.keyframesContainerEl) {
+                this.keyframesContainerEl.scrollTop = this.layersContainerEl!.scrollTop;
+            }
+        });
+        
+        // Sync horizontal scrolling between ruler and keyframes
+        this.keyframesContainerEl.addEventListener('scroll', () => {
+            const rulerContent = this.timeRulerEl!.querySelector('.timeline-ruler-content');
+            if (rulerContent) {
+                (rulerContent as HTMLElement).style.transform = 
+                    `translateX(-${this.keyframesContainerEl!.scrollLeft}px)`;
+            }
+            
+            // Emit scroll event
+            this.eventEmitter.emit(Events.SCROLL_HORIZONTAL, {
+                position: this.keyframesContainerEl!.scrollLeft
+            }, this);
+        });
+    }
+    
+    /**
+     * Handle resize event
+     */
+    private handleResize(): void {
+        // Update the timeline display
+        // This would be implemented to handle responsive adjustments
+    }
+    
+    /**
+     * Get the event emitter instance
+     * @returns EventEmitter instance
+     */
+    public getEventEmitter(): EventEmitter {
+        return this.eventEmitter;
+    }
+    
+    /**
+     * Get the data model instance
+     * @returns DataModel instance
+     */
+    public getDataModel(): DataModel {
+        return this.dataModel;
+    }
+    
+    /**
+     * Get the plugin manager instance
+     * @returns PluginManager instance
+     */
+    public getPluginManager(): PluginManager {
+        return this.pluginManager;
+    }
+    
+    /**
+     * Get a specific DOM element
+     * @param elementClass - CSS class of the element to get
+     * @returns The DOM element if found, null otherwise
+     */
+    public getDomElement(elementClass: string): HTMLElement | null {
+        // Map the element class to actual DOM elements using switch statement
+        switch (elementClass) {
+            case 'timeline-toolbar':
+            case CssClasses.TIMELINE_TOOLBAR:
+                return this.toolbarEl;
+            case 'timeline-content':
+            case CssClasses.TIMELINE_CONTENT:
+                return this.contentEl;
+            case 'timeline-content-container':
+            case CssClasses.TIMELINE_CONTENT_CONTAINER:
+                return this.contentContainerEl;
+            case 'timeline-layers-container':
+            case CssClasses.TIMELINE_LAYERS_CONTAINER:
+                return this.layersContainerEl;
+            case 'timeline-keyframes-area':
+            case CssClasses.TIMELINE_KEYFRAMES_AREA:
+                return this.keyframesAreaEl;
+            case 'timeline-ruler':
+            case CssClasses.TIMELINE_RULER:
+                return this.timeRulerEl;
+            case 'timeline-keyframes-container':
+            case CssClasses.TIMELINE_KEYFRAMES_CONTAINER:
+                return this.keyframesContainerEl;
+            case 'timeline-object-toolbar':
+            case CssClasses.TIMELINE_OBJECT_TOOLBAR:
+                return this.objectToolbarEl;
+            default:
+                return this.element ? this.element.querySelector(`.${elementClass}`) : null;
+        }
+    }
+}
