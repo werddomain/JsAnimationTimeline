@@ -210,10 +210,13 @@ export class LayerManager extends BaseComponent {
         // Add click handler for layers (selection)        
         const layerRows = this.element.querySelectorAll(`.${CssClasses.LAYER_ROW}`);
         layerRows.forEach(row => {
-            row.addEventListener('click', this.handleLayerClick);
+            row.addEventListener('click', this.handleLayerClick.bind(this));
             
             // Double click for rename
-            row.addEventListener('dblclick', this.handleLayerDoubleClick);
+            row.addEventListener('dblclick', this.handleLayerDoubleClick.bind(this));
+            
+            // Right click for context menu
+            row.addEventListener('contextmenu', this.handleLayerContextMenu.bind(this));
             
             // Visibility toggle
             const visibilityToggle = row.querySelector('.layer-visibility-toggle');
@@ -233,6 +236,15 @@ export class LayerManager extends BaseComponent {
                 });
             }
             
+            // Color swatch click
+            const colorSwatch = row.querySelector('.layer-color');
+            if (colorSwatch) {
+                colorSwatch.addEventListener('click', (e: Event) => {
+                    e.stopPropagation();
+                    this.handleColorSwatchClick(e as MouseEvent);
+                });
+            }
+            
             // Drag handle
             const dragHandle = row.querySelector('.layer-drag-handle');
             if (dragHandle) {
@@ -244,8 +256,8 @@ export class LayerManager extends BaseComponent {
         });
         
         // Global mouse events for drag and drop
-        document.addEventListener('mousemove', this.handleMouseMove);
-        document.addEventListener('mouseup', this.handleMouseUp);
+        document.addEventListener('mousemove', this.handleMouseMove.bind(this));
+        document.addEventListener('mouseup', this.handleMouseUp.bind(this));
     }
       /**
      * Handle click on add layer button
@@ -528,12 +540,12 @@ export class LayerManager extends BaseComponent {
     }
     
     /**
-     * Handle click on visibility toggle
+     * Handle right click on layer (context menu)
      */
-    private handleVisibilityToggleClick = (event: MouseEvent): void => {
-        const toggle = event.currentTarget as HTMLElement;
-        const layerRow = toggle.closest(`.${CssClasses.LAYER_ROW}`);
-        
+    private handleLayerContextMenu = (event: Event): void => {
+        event.preventDefault();
+        const mouseEvent = event as MouseEvent;
+        const layerRow = mouseEvent.currentTarget as HTMLElement;
         if (!layerRow) return;
         
         const layerId = layerRow.getAttribute('data-layer-id');
@@ -542,27 +554,443 @@ export class LayerManager extends BaseComponent {
         const layer = this.dataModel.getLayer(layerId);
         if (!layer) return;
         
-        // Toggle visibility
-        this.dataModel.setLayerVisibility(layerId, !layer.visible);
+        // If layer not selected, select it
+        if (!this.dataModel.isLayerSelected(layerId)) {
+            this.dataModel.clearLayerSelection();
+            this.dataModel.selectLayer(layerId);
+        }
+        
+        // Create context menu
+        this.showLayerContextMenu(mouseEvent, layerId);
+    }
+    private showLayerContextMenu(event: MouseEvent, layerId: string): void {
+    // Remove any existing context menus
+    this.removeContextMenu();
+    
+    const layer = this.dataModel.getLayer(layerId);
+    if (!layer) return;
+    
+    // Create menu element
+    const menuEl = document.createElement('div');
+    menuEl.className = 'timeline-layer-context-menu';
+    
+    // Set position near cursor
+    menuEl.style.left = `${event.clientX}px`;
+    menuEl.style.top = `${event.clientY}px`;
+    
+    // Create menu items
+    const menuItems: MenuItemType[] = [
+        { 
+            label: 'Rename', 
+            icon: '✏️', 
+            handler: () => this.startRenameLayer(layerId)
+        },
+        { 
+            label: 'Change Color', 
+            icon: '🎨', 
+            handler: () => this.showColorPicker(event, layerId)
+        },
+        { 
+            type: 'separator' 
+        },
+        { 
+            label: layer.visible ? 'Hide Layer' : 'Show Layer', 
+            icon: layer.visible ? '👁️‍🗨️' : '👁️', 
+            handler: () => this.toggleLayerVisibility(layerId)
+        },
+        { 
+            label: layer.locked ? 'Unlock Layer' : 'Lock Layer', 
+            icon: layer.locked ? '🔓' : '🔒', 
+            handler: () => this.toggleLayerLock(layerId)
+        },
+        { 
+            type: 'separator' 
+        },
+        { 
+            label: 'Duplicate Layer', 
+            icon: '📋', 
+            handler: () => this.duplicateLayer(layerId)
+        },
+        { 
+            label: 'Delete Layer', 
+            icon: '🗑️', 
+            handler: () => this.deleteLayer(layerId)
+        }
+    ];
+    
+    // Create menu item elements
+    menuItems.forEach(item => {
+        if (item.type === 'separator') {
+            const separatorEl = document.createElement('div');
+            separatorEl.className = 'menu-item separator';
+            menuEl.appendChild(separatorEl);
+        } else {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'menu-item';
+            
+            // Icon
+            const iconEl = document.createElement('span');
+            iconEl.className = 'menu-icon';
+            iconEl.textContent = item.icon;
+            itemEl.appendChild(iconEl);
+            
+            // Label
+            const labelEl = document.createElement('span');
+            labelEl.textContent = item.label;
+            itemEl.appendChild(labelEl);
+            
+            // Event handler
+            itemEl.addEventListener('click', () => {
+                item.handler();
+                this.removeContextMenu();
+            });
+            
+            menuEl.appendChild(itemEl);
+        }
+    });
+        
+        // Add to DOM
+        document.body.appendChild(menuEl);
+        
+        // Adjust position if off-screen
+        const menuRect = menuEl.getBoundingClientRect();
+        if (menuRect.right > window.innerWidth) {
+            menuEl.style.left = `${window.innerWidth - menuRect.width - 5}px`;
+        }
+        if (menuRect.bottom > window.innerHeight) {
+            menuEl.style.top = `${window.innerHeight - menuRect.height - 5}px`;
+        }
+        
+        // Click outside to close
+        const handleOutsideClick = (e: MouseEvent) => {
+            if (!menuEl.contains(e.target as Node)) {
+                this.removeContextMenu();
+                document.removeEventListener('click', handleOutsideClick);
+            }
+        };
+        
+        // Small delay to avoid the menu being closed immediately
+        setTimeout(() => {
+            document.addEventListener('click', handleOutsideClick);
+        }, 10);
+    }
+    
+    /**
+     * Remove context menu from DOM
+     */
+    private removeContextMenu(): void {
+        const existingMenu = document.querySelector('.timeline-layer-context-menu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+    }
+    
+    /**
+     * Show color picker for layer
+     */
+    private showColorPicker(event: MouseEvent, layerId: string): void {
+        // Remove any existing color pickers
+        this.removeColorPicker();
+        
+        const layer = this.dataModel.getLayer(layerId);
+        if (!layer) return;
+        
+        // Create color picker element
+        const pickerEl = document.createElement('div');
+        pickerEl.className = 'timeline-color-picker';
+        
+        // Set position near cursor
+        pickerEl.style.left = `${event.clientX}px`;
+        pickerEl.style.top = `${event.clientY}px`;
+        
+        // Default color palette
+        const colors = [
+            '#FF5252', '#FF4081', '#E040FB', '#7C4DFF', '#536DFE',
+            '#448AFF', '#40C4FF', '#18FFFF', '#64FFDA', '#69F0AE',
+            '#B2FF59', '#EEFF41', '#FFFF00', '#FFD740', '#FFAB40',
+            '#FF6E40', '#FFFFFF', '#E0E0E0', '#9E9E9E', '#616161'
+        ];
+        
+        // Create color options grid
+        const colorOptionsEl = document.createElement('div');
+        colorOptionsEl.className = 'color-options';
+        
+        colors.forEach(color => {
+            const colorOptionEl = document.createElement('div');
+            colorOptionEl.className = 'color-option';
+            colorOptionEl.style.backgroundColor = color;
+            if (layer.color === color) {
+                colorOptionEl.classList.add('selected');
+            }
+            
+            colorOptionEl.addEventListener('click', () => {
+                this.updateLayerColor(layerId, color);
+                this.removeColorPicker();
+            });
+            
+            colorOptionsEl.appendChild(colorOptionEl);
+        });
+        
+        pickerEl.appendChild(colorOptionsEl);
+        
+        // Custom color input
+        const customColorContainer = document.createElement('div');
+        customColorContainer.className = 'custom-color';
+        
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.value = layer.color || '#FFFFFF';
+        
+        colorInput.addEventListener('change', () => {
+            this.updateLayerColor(layerId, colorInput.value);
+        });
+        
+        customColorContainer.appendChild(colorInput);
+        pickerEl.appendChild(customColorContainer);
+        
+        // Add to DOM
+        document.body.appendChild(pickerEl);
+        
+        // Adjust position if off-screen
+        const pickerRect = pickerEl.getBoundingClientRect();
+        if (pickerRect.right > window.innerWidth) {
+            pickerEl.style.left = `${window.innerWidth - pickerRect.width - 5}px`;
+        }
+        if (pickerRect.bottom > window.innerHeight) {
+            pickerEl.style.top = `${window.innerHeight - pickerRect.height - 5}px`;
+        }
+        
+        // Click outside to close
+        const handleOutsideClick = (e: MouseEvent) => {
+            if (!pickerEl.contains(e.target as Node)) {
+                this.removeColorPicker();
+                document.removeEventListener('click', handleOutsideClick);
+            }
+        };
+        
+        // Small delay to avoid the picker being closed immediately
+        setTimeout(() => {
+            document.addEventListener('click', handleOutsideClick);
+        }, 10);
+    }
+    
+    /**
+     * Remove color picker from DOM
+     */
+    private removeColorPicker(): void {
+        const existingPicker = document.querySelector('.timeline-color-picker');
+        if (existingPicker) {
+            existingPicker.remove();
+        }
+    }
+    
+    /**
+     * Handle click on color swatch
+     */
+    private handleColorSwatchClick = (event: MouseEvent): void => {
+        const target = event.target as HTMLElement;
+        const layerRow = target.closest(`.${CssClasses.LAYER_ROW}`);
+        if (!layerRow) return;
+        
+        const layerId = layerRow.getAttribute('data-layer-id');
+        if (!layerId) return;
+        
+        // Show color picker
+        this.showColorPicker(event, layerId);
+    }
+    
+    /**
+     * Start layer rename operation
+     */
+    private startRenameLayer(layerId: string): void {
+        const layer = this.dataModel.getLayer(layerId);
+        if (!layer) return;
+        
+        const layerRow = this.element?.querySelector(`[data-layer-id="${layerId}"]`);
+        if (!layerRow) return;
+        
+        const layerNameEl = layerRow.querySelector('.layer-name');
+        if (!layerNameEl) return;
+        
+        // Replace the name element with an input field
+        const currentName = layer.name;
+        const inputEl = document.createElement('input');
+        inputEl.type = 'text';
+        inputEl.value = currentName;
+        inputEl.className = 'layer-name-input';
+        
+        // Replace the name element with the input
+        layerNameEl.replaceWith(inputEl);
+        
+        // Focus the input
+        inputEl.focus();
+        inputEl.select();
+        
+        // Handle blur and enter key events to save the name
+        const saveLayerName = () => {
+            const newName = inputEl.value.trim() || currentName;
+            this.dataModel.renameLayer(layerId, newName);
+            this.update();
+        };
+        
+        inputEl.addEventListener('blur', saveLayerName);
+        inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                saveLayerName();
+                e.preventDefault();
+            } else if (e.key === 'Escape') {
+                this.update(); // Revert without saving
+                e.preventDefault();
+            }
+        });
+    }
+    
+    /**
+     * Toggle layer visibility
+     */
+    private toggleLayerVisibility(layerId: string): void {
+        const layer = this.dataModel.getLayer(layerId);
+        if (!layer) return;
+        
+        // Use the timelineControl if available
+        if (this.timelineControl && typeof this.timelineControl.setLayerVisibility === 'function') {
+            this.timelineControl.setLayerVisibility(layerId, !layer.visible);
+        } else {
+            // Update the data model directly
+            this.dataModel.updateLayer(layerId, { visible: !layer.visible });
+        }
+        
+        this.update();
+    }
+    
+    /**
+     * Toggle layer lock
+     */
+    private toggleLayerLock(layerId: string): void {
+        const layer = this.dataModel.getLayer(layerId);
+        if (!layer) return;
+        
+        // Use the timelineControl if available
+        if (this.timelineControl && typeof this.timelineControl.setLayerLock === 'function') {
+            this.timelineControl.setLayerLock(layerId, !layer.locked);
+        } else {
+            // Update the data model directly
+            this.dataModel.updateLayer(layerId, { locked: !layer.locked });
+        }
+        
+        this.update();
+    }
+    
+    /**
+     * Duplicate a layer
+     */
+    private duplicateLayer(layerId: string): void {
+        const layer = this.dataModel.getLayer(layerId);
+        if (!layer) return;
+        
+        // Use the timelineControl if available
+        if (this.timelineControl && typeof this.timelineControl.duplicateLayer === 'function') {
+            this.timelineControl.duplicateLayer(layerId);
+        } else {
+            // Manual duplication
+            const timestamp = Date.now();
+            const randomNum = Math.floor(Math.random() * 10000);
+            const newLayerId = `layer-${timestamp}-${randomNum}`;
+            
+            // Create a deep copy of the layer
+            const newLayer: ILayer = {
+                ...layer,
+                id: newLayerId,
+                name: `${layer.name} (Copy)`,
+                keyframes: { ...layer.keyframes },
+                // Adjust order to place it just after the original
+                order: layer.order + 1
+            };
+            
+            // Add the new layer
+            this.dataModel.addLayer(newLayer);
+            
+            // Reorder other layers to make room for this one
+            const layers = this.dataModel.getLayers();
+            Object.values(layers).forEach(l => {
+                if (l.id !== newLayerId && l.order >= newLayer.order) {
+                    this.dataModel.updateLayer(l.id, { order: l.order + 1 });
+                }
+            });
+            
+            // Select the new layer
+            this.dataModel.clearLayerSelection();
+            this.dataModel.selectLayer(newLayerId);
+        }
+        
+        this.update();
+    }
+    
+    /**
+     * Delete a layer
+     */
+    private deleteLayer(layerId: string): void {
+        // Use the timelineControl if available
+        if (this.timelineControl && typeof this.timelineControl.removeLayer === 'function') {
+            this.timelineControl.removeLayer(layerId);
+        } else {
+            // Remove the layer directly
+            this.dataModel.removeLayer(layerId);
+        }
+        
+        this.update();
+    }
+    
+    /**
+     * Update a layer's color
+     */
+    private updateLayerColor(layerId: string, color: string): void {
+        const layer = this.dataModel.getLayer(layerId);
+        if (!layer) return;
+        
+        // Use the timelineControl if available
+        if (this.timelineControl && typeof this.timelineControl.updateLayerColor === 'function') {
+            this.timelineControl.updateLayerColor(layerId, color);
+        } else {
+            // Update the data model directly
+            this.dataModel.updateLayer(layerId, { color });
+        }
+        
+        this.update();
+    }
+    
+    /**
+     * Handle click on visibility toggle
+     */
+    private handleVisibilityToggleClick = (event: MouseEvent): void => {
+        const target = event.target as HTMLElement;
+        const toggleEl = target.closest('.layer-visibility-toggle');
+        if (!toggleEl) return;
+        
+        const layerRow = toggleEl.closest(`.${CssClasses.LAYER_ROW}`);
+        if (!layerRow) return;
+        
+        const layerId = layerRow.getAttribute('data-layer-id');
+        if (!layerId) return;
+        
+        this.toggleLayerVisibility(layerId);
     }
     
     /**
      * Handle click on lock toggle
      */
     private handleLockToggleClick = (event: MouseEvent): void => {
-        const toggle = event.currentTarget as HTMLElement;
-        const layerRow = toggle.closest(`.${CssClasses.LAYER_ROW}`);
+        const target = event.target as HTMLElement;
+        const toggleEl = target.closest('.layer-lock-toggle');
+        if (!toggleEl) return;
         
+        const layerRow = toggleEl.closest(`.${CssClasses.LAYER_ROW}`);
         if (!layerRow) return;
         
         const layerId = layerRow.getAttribute('data-layer-id');
         if (!layerId) return;
         
-        const layer = this.dataModel.getLayer(layerId);
-        if (!layer) return;
-        
-        // Toggle lock
-        this.dataModel.setLayerLocked(layerId, !layer.locked);
+        this.toggleLayerLock(layerId);
     }
     
     /**
@@ -759,4 +1187,24 @@ export class LayerManager extends BaseComponent {
         
         console.log(`LayerManager ${this.id} mounted successfully`, this.element);
     }
+
 }
+
+    /**
+     * Show context menu for layer
+     */
+    // Define our menu item types
+interface MenuSeparator {
+    type: 'separator';
+}
+
+interface MenuItem {
+    type?: undefined;
+    label: string;
+    icon: string;
+    handler: () => void;
+}
+
+type MenuItemType = MenuItem | MenuSeparator;
+
+
