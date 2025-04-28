@@ -504,7 +504,22 @@ export class KeyframeManager extends BaseComponent {
      * @param event - Layer added event
      */
     private handleLayerAdded(event: any): void {
+        console.log('KeyframeManager: Layer added event received:', event.data);
+        
+        // Force a complete re-render of the keyframes area
         this.update();
+        
+        // Additional measure - explicitly check if the DOM was updated to include the new layer
+        if (this.element) {
+            const layerId = event.data.id;
+            const existingRow = this.element.querySelector(`.${CssClasses.KEYFRAME_ROW}[data-layer-id="${layerId}"]`);
+            
+            if (!existingRow) {
+                console.warn(`KeyframeManager: Row for new layer ${layerId} not found in DOM after update, forcing second update`);
+                // If the DOM wasn't updated for some reason, force another update
+                setTimeout(() => this.update(), 0);
+            }
+        }
     }
     
     /**
@@ -534,32 +549,13 @@ export class KeyframeManager extends BaseComponent {
         const layer = this.dataModel.getLayer(layerId);
         const keyframe = this.dataModel.getKeyframe(layerId, event.data.keyframeId);
         
-        if (layer && keyframe) {
-            const keyframeRow = this.element?.querySelector(`.${CssClasses.KEYFRAME_ROW}[data-layer-id="${layerId}"]`);
-            
-            if (keyframeRow) {
-                // Create new keyframe element
-                const position = keyframe.time * this.timeScale;
-                const keyframeEl = document.createElement('div');
-                keyframeEl.className = CssClasses.KEYFRAME;
-                
-                // Use setAttribute instead of dataset for TypeScript compatibility
-                keyframeEl.setAttribute('data-layer-id', layerId);
-                keyframeEl.setAttribute('data-keyframe-id', keyframe.id);
-                keyframeEl.setAttribute('data-time', `${keyframe.time}`);
-                
-                keyframeEl.style.left = `${position}px`;
-                
-                keyframeRow.appendChild(keyframeEl);
-                
-                // Add event listeners
-                keyframeEl.addEventListener('click', this.handleKeyframeClick);
-                keyframeEl.addEventListener('mousedown', this.handleKeyframeMouseDown);
-                
-                // Update tweens
-                this.updateTweensForLayer(layerId);
-            }
+        if (!layer || !keyframe) {
+            console.error(`Could not find layer or keyframe for event: ${JSON.stringify(event.data)}`);
+            return;
         }
+        
+        // Do a full update to ensure the keyframe display is complete and accurate
+        this.update();
     }
     
     /**

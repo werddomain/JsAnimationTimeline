@@ -94,6 +94,10 @@ export class TimelineControl extends BaseComponent {
             console.log('Setting up scroll synchronization...');
             this.setupScrollSynchronization();
             
+            // Set up resizing capability for layers container
+            console.log('Setting up layers container resize...');
+            this.setupLayersResize();
+            
             // Verify and adjust alignment
             console.log('Verifying layer-keyframe alignment...');
             this.verifyAlignment();              // Set up the toolbar components
@@ -305,6 +309,9 @@ export class TimelineControl extends BaseComponent {
         addKeyframeBtn.addEventListener('click', this.handleAddKeyframeClick.bind(this));
         
         this.toolbarEl.appendChild(addKeyframeBtn);
+        
+        // Set up the layers container resize functionality
+        this.setupLayersResize();
     }
     
     /**
@@ -539,5 +546,63 @@ export class TimelineControl extends BaseComponent {
         console.log('Added new layer:', newLayer);
         
         return newLayer;
+    }
+    
+    /**
+     * Set up resizing functionality for the layers container
+     */
+    private setupLayersResize(): void {
+        if (!this.layersContainerEl || !this.keyframesAreaEl) {
+            console.error('Cannot set up resize - required elements not found');
+            return;
+        }
+        
+        let isResizing = false;
+        let startX = 0;
+        let startWidth = 0;
+        
+        // Resize handle is pseudo-element ::after on layersContainerEl
+        this.layersContainerEl.addEventListener('mousedown', (e) => {
+            // Check if click is near the right edge (resize handle area)
+            const rect = this.layersContainerEl!.getBoundingClientRect();
+            if (e.clientX >= rect.right - 6 && e.clientX <= rect.right) {
+                isResizing = true;
+                startX = e.clientX;
+                startWidth = rect.width;
+                
+                // Add resize cursor to body during resize
+                document.body.style.cursor = 'col-resize';
+                // Prevent text selection during resize
+                document.body.style.userSelect = 'none';
+                
+                e.preventDefault();
+            }
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            
+            const dx = e.clientX - startX;
+            const newWidth = Math.max(200, startWidth + dx); // Minimum width of 200px
+            
+            this.layersContainerEl!.style.width = `${newWidth}px`;
+            
+            // Emit resize event
+            this.eventEmitter.emit(Events.TIMELINE_RESIZED, {
+                width: this.element?.clientWidth,
+                height: this.element?.clientHeight
+            }, this);
+        });
+        
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                
+                // Update KeyframeManager to reflect the new layout
+                this.pluginManager.getPlugin(PluginIds.KEYFRAME_MANAGER)?.update();
+            }
+        });
     }
 }

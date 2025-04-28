@@ -111,12 +111,26 @@
 
 // Layers container (left panel)
 .timeline-layers-container {
-    width: 200px;
+    width: 325px; /* Increased by 125px from 200px */
     height: 100%;
     display: flex;
     flex-direction: column;
     border-right: 1px solid var(--timeline-border-color);
     background-color: var(--timeline-bg-alt-color);
+    position: relative;
+    
+    // Resizer handle
+    &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 6px;
+        height: 100%;
+        cursor: col-resize;
+        background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1));
+        z-index: 10;
+    }
     
     // Layers header
     .timeline-layers-header {

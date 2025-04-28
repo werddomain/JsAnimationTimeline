@@ -6,7 +6,7 @@
 import { BaseComponent } from '../components/BaseComponent';
 import { EventEmitter } from '../core/EventEmitter';
 import { DataModel, ILayer } from '../core/DataModel';
-import { Events, CssClasses } from '../constants/Constants';
+import { Events, CssClasses, PluginIds } from '../constants/Constants';
 
 export interface ILayerManagerOptions {
     container: HTMLElement;
@@ -106,6 +106,15 @@ export class LayerManager extends BaseComponent {
         this.setupLayerEventListeners();
         
         console.log('LayerManager update completed. DOM updated with layers.');
+        
+        // Ensure that other components like KeyframeManager get updated when the LayerManager updates
+        if (this.timelineControl && this.timelineControl.getPluginManager) {
+            const keyframeManager = this.timelineControl.getPluginManager().getPlugin(PluginIds.KEYFRAME_MANAGER);
+            if (keyframeManager) {
+                console.log('Triggering KeyframeManager update after LayerManager update');
+                keyframeManager.update();
+            }
+        }
     }
     
     /**
@@ -302,6 +311,14 @@ export class LayerManager extends BaseComponent {
             this.dataModel.selectLayer(layerId);
             
             console.log('Added new layer:', newLayer);
+            
+            // Force update the KeyframeManager plugin through timelineControl
+            if (this.timelineControl && this.timelineControl.getPluginManager) {
+                const keyframeManager = this.timelineControl.getPluginManager().getPlugin(PluginIds.KEYFRAME_MANAGER);
+                if (keyframeManager) {
+                    keyframeManager.update();
+                }
+            }
         }
     }
       /**
@@ -1094,14 +1111,22 @@ export class LayerManager extends BaseComponent {
     /**
      * Handle layer added event
      * @param event - Layer added event
-     */    /**
-     * Handle layer added event
-     * @param event - Layer added event
      */
     private handleLayerAdded(event: any): void {
         console.log('Layer added event received:', event.data);
         console.log('Current layers:', this.dataModel.getLayers());
+        
+        // Update the LayerManager UI
         this.update();
+        
+        // Explicitly update the KeyframeManager through TimelineControl to ensure keyframe area is updated
+        if (this.timelineControl && this.timelineControl.getPluginManager) {
+            const keyframeManager = this.timelineControl.getPluginManager().getPlugin(PluginIds.KEYFRAME_MANAGER);
+            if (keyframeManager) {
+                console.log('Triggering KeyframeManager update after layer added');
+                keyframeManager.update();
+            }
+        }
     }
     
     /**
