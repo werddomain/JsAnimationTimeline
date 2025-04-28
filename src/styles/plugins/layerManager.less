@@ -2,6 +2,66 @@
  * Styles for the LayerManager plugin
  */
 
+.timeline-layer-row {
+    height: var(--timeline-layer-height);
+    display: flex;
+    align-items: center;
+    padding: 0 var(--timeline-padding);
+    border-bottom: 1px solid var(--timeline-border-color);
+    user-select: none;
+    position: relative;
+    box-sizing: border-box; /* Ensure padding doesn't affect height */
+    
+    &.selected {
+        background-color: var(--timeline-selection-color);
+        color: white;
+    }
+
+    .layer-visibility-toggle,
+    .layer-lock-toggle,
+    .layer-drag-handle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+    }
+    .layer-drag-handle{
+        cursor: move;
+    }
+    .layer-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        margin: 0 8px;
+    }
+    
+    .layer-name {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding: 0 8px;
+    }
+    
+    .layer-name-input {
+        flex: 1;
+        background-color: var(--timeline-bg-color);
+        color: var(--timeline-text-color);
+        border: 1px solid var(--timeline-selection-color);
+        border-radius: 3px;
+        padding: 2px 5px;
+        margin: 0 4px;
+    }
+}
+
+// Keep the existing .timeline-layer style for backward compatibility
 .timeline-layer {
     height: var(--timeline-layer-height);
     display: flex;

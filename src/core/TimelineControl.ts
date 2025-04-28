@@ -197,7 +197,19 @@ export class TimelineControl extends BaseComponent {
         this.keyframesContainerEl = this.element.querySelector(`.${CssClasses.TIMELINE_KEYFRAMES_CONTAINER}`);
         this.playbackToolbarEl = this.element.querySelector(`.${CssClasses.TIMELINE_PLAYBACK_TOOLBAR}`);
         this.objectToolbarEl = this.element.querySelector(`.${CssClasses.TIMELINE_OBJECT_TOOLBAR}`);
-          if (!this.toolbarEl || !this.contentEl || !this.contentContainerEl || !this.layersContainerEl ||
+        
+        // Initialize the layers header with column titles
+        if (this.layersHeaderEl) {
+            this.layersHeaderEl.innerHTML = `
+                <div class="layers-header-title">Layers</div>
+                <div class="layers-header-actions">
+                    <span class="header-icon" title="Toggle visibility of all layers">👁️</span>
+                    <span class="header-icon" title="Toggle lock of all layers">🔓</span>
+                </div>
+            `;
+        }
+          
+        if (!this.toolbarEl || !this.contentEl || !this.contentContainerEl || !this.layersContainerEl ||
             !this.keyframesAreaEl || !this.timeRulerEl || !this.keyframesContainerEl || !this.objectToolbarEl ||
             !this.layersHeaderEl || !this.layersListEl || !this.layersToolbarEl || !this.playbackToolbarEl) {
             throw new Error('Failed to get all timeline control elements');

@@ -157,17 +157,21 @@ export class LayerManager extends BaseComponent {
             <div class="${CssClasses.LAYER_ROW} ${selectedClass} ${visibleClass} ${lockedClass}"
                 data-layer-id="${layer.id}" 
                 data-layer-index="${layer.order}">
-                <div class="layer-visibility-toggle" title="Toggle Visibility">
-                    <span class="timeline-icon">${layer.visible ? '👁️' : '👁️‍🗨️'}</span>
-                </div>
-                <div class="layer-lock-toggle" title="Toggle Lock">
-                    <span class="timeline-icon">${layer.locked ? '🔒' : '🔓'}</span>
-                </div>
-                <div class="layer-color" style="background-color: ${layer.color}"></div>
-                <div class="layer-name">${layer.name}</div>
                 <div class="layer-drag-handle" title="Drag to Reorder">
                     <span class="timeline-icon">⋮⋮</span>
                 </div>
+                 <div class="layer-name">${layer.name}</div>
+ <div class="layer-color" style="background-color: ${layer.color}"></div>
+
+                <div class="layer-visibility-toggle" title="Toggle Visibility">
+                    <span class="timeline-icon">${layer.visible ? '👁️' : '👁️‍🗨️'}</span>
+                </div>
+<div class="layer-lock-toggle" title="Toggle Lock">
+                    <span class="timeline-icon">${layer.locked ? '🔒' : '🔓'}</span>
+                </div>                
+               
+               
+                
             </div>
         `;
     }
