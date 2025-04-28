@@ -5,10 +5,11 @@
 
 import { BaseComponent } from '../components/BaseComponent';
 import { EventEmitter } from '../core/EventEmitter';
-import { DataModel, ITimelineOptions, ILayer } from '../core/DataModel';
+import { DataModel, ITimelineOptions, ILayer, KeyframeType, TweenType } from '../core/DataModel';
 import { PluginManager } from '../core/PluginManager';
 import { Events, CssClasses } from '../constants/Constants';
 import { KeyboardHandler } from '../utils/KeyboardHandler';
+import { SceneSelector } from '../components/SceneSelector';
 
 // Timeline control options
 export interface ITimelineControlOptions {
@@ -24,17 +25,19 @@ export class TimelineControl extends BaseComponent {
     private eventEmitter: EventEmitter;
     private dataModel: DataModel;
     private pluginManager: PluginManager;
-    private keyboardHandler: KeyboardHandler | null = null;
-    
-    // DOM elements
+    private keyboardHandler: KeyboardHandler | null = null;    // DOM elements
     private toolbarEl: HTMLElement | null = null;
     private contentEl: HTMLElement | null = null;
     private contentContainerEl: HTMLElement | null = null;
     private layersContainerEl: HTMLElement | null = null;
+    private layersHeaderEl: HTMLElement | null = null;
+    private layersListEl: HTMLElement | null = null;
+    private layersToolbarEl: HTMLElement | null = null;
     private keyframesAreaEl: HTMLElement | null = null;
     private timeRulerEl: HTMLElement | null = null;
     private keyframesContainerEl: HTMLElement | null = null;
     private objectToolbarEl: HTMLElement | null = null;
+    private sceneSelector: SceneSelector | null = null;
     
     /**
      * Constructor for TimelineControl
@@ -71,9 +74,11 @@ export class TimelineControl extends BaseComponent {
             // Then create the inner DOM structure
             this.createDomStructure();
         }
-        
-        // Set up scroll synchronization
+          // Set up scroll synchronization
         this.setupScrollSynchronization();
+        
+        // Set up the toolbar components
+        this.setupToolbar();
         
         // Set up layers resize functionality
         this.setupLayersResize();
@@ -95,6 +100,9 @@ export class TimelineControl extends BaseComponent {
         
         // Emit init event
         this.eventEmitter.emit(Events.TIMELINE_INIT, this.dataModel.getState(), this);
+        
+        // Set up the toolbar components
+        this.setupToolbar();
     }
     
     /**
@@ -107,7 +115,11 @@ export class TimelineControl extends BaseComponent {
                 <div class="${CssClasses.TIMELINE_TOOLBAR}"></div>
                 <div class="${CssClasses.TIMELINE_CONTENT}">
                     <div class="${CssClasses.TIMELINE_CONTENT_CONTAINER}">
-                        <div class="${CssClasses.TIMELINE_LAYERS_CONTAINER}"></div>
+                        <div class="${CssClasses.TIMELINE_LAYERS_CONTAINER}">
+                            <div class="${CssClasses.TIMELINE_LAYERS_HEADER}"></div>
+                            <div class="${CssClasses.LAYER_LIST}"></div>
+                            <div class="${CssClasses.TIMELINE_LAYERS_TOOLBAR}"></div>
+                        </div>
                         <div class="${CssClasses.TIMELINE_KEYFRAMES_AREA}">
                             <div class="${CssClasses.TIMELINE_RULER}"></div>
                             <div class="${CssClasses.TIMELINE_KEYFRAMES_CONTAINER}"></div>
@@ -164,35 +176,115 @@ export class TimelineControl extends BaseComponent {
         this.contentEl = this.element.querySelector(`.${CssClasses.TIMELINE_CONTENT}`);
         this.contentContainerEl = this.element.querySelector(`.${CssClasses.TIMELINE_CONTENT_CONTAINER}`);
         this.layersContainerEl = this.element.querySelector(`.${CssClasses.TIMELINE_LAYERS_CONTAINER}`);
+        this.layersHeaderEl = this.element.querySelector(`.${CssClasses.TIMELINE_LAYERS_HEADER}`);
+        this.layersListEl = this.element.querySelector(`.${CssClasses.LAYER_LIST}`);
+        this.layersToolbarEl = this.element.querySelector(`.${CssClasses.TIMELINE_LAYERS_TOOLBAR}`);
         this.keyframesAreaEl = this.element.querySelector(`.${CssClasses.TIMELINE_KEYFRAMES_AREA}`);
         this.timeRulerEl = this.element.querySelector(`.${CssClasses.TIMELINE_RULER}`);
         this.keyframesContainerEl = this.element.querySelector(`.${CssClasses.TIMELINE_KEYFRAMES_CONTAINER}`);
         this.objectToolbarEl = this.element.querySelector(`.${CssClasses.TIMELINE_OBJECT_TOOLBAR}`);
         
+        // Initialize the layers header with column titles
+        if (this.layersHeaderEl) {
+            this.layersHeaderEl.innerHTML = `
+                <div class="layers-header-title">Layers</div>
+                <div class="layers-header-actions">
+                    <span class="header-icon" title="Toggle visibility of all layers">👁️</span>
+                    <span class="header-icon" title="Toggle lock of all layers">🔓</span>
+                </div>
+            `;
+        }
+        
         if (!this.toolbarEl || !this.contentEl || !this.contentContainerEl || !this.layersContainerEl ||
+            !this.layersHeaderEl || !this.layersListEl || !this.layersToolbarEl || 
             !this.keyframesAreaEl || !this.timeRulerEl || !this.keyframesContainerEl || !this.objectToolbarEl) {
             throw new Error('Failed to get all timeline control elements');
         }
     }
     
     /**
-     * Set up scroll synchronization between layers and keyframes
+     * Set up the toolbar components
      */
-    private setupScrollSynchronization(): void {
-        if (!this.layersContainerEl || !this.keyframesContainerEl || !this.timeRulerEl) {
+    private setupToolbar(): void {
+        if (!this.toolbarEl) {
+            throw new Error('Toolbar element not found');
+        }
+        
+        console.log('Setting up toolbar components...');
+        
+        // Create scene selector
+        this.sceneSelector = new SceneSelector({
+            container: this.toolbarEl,
+            dataModel: this.dataModel,
+            eventEmitter: this.eventEmitter
+        });
+        
+        this.sceneSelector.mount();
+        this.sceneSelector.initialize();
+        
+        // Add keyframe button
+        const addKeyframeBtn = document.createElement('button');
+        addKeyframeBtn.className = CssClasses.ADD_KEYFRAME_BUTTON;
+        addKeyframeBtn.textContent = 'Add Keyframe';
+        addKeyframeBtn.title = 'Add a keyframe at the current time';
+        addKeyframeBtn.addEventListener('click', this.handleAddKeyframeClick.bind(this));
+        
+        this.toolbarEl.appendChild(addKeyframeBtn);
+    }
+    
+    /**
+     * Handle adding a keyframe at the current playhead position
+     */
+    private handleAddKeyframeClick(): void {
+        const selectedLayerIds = this.dataModel.getSelectedLayerIds();
+        const currentTime = this.dataModel.getCurrentTime();
+        
+        if (selectedLayerIds.length === 0) {
+            console.warn('No layer selected for keyframe addition');
             return;
         }
         
-        // Sync vertical scrolling
+        // Add a keyframe to each selected layer
+        selectedLayerIds.forEach(layerId => {
+            const keyframeId = `keyframe-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+            const keyframe = {
+                id: keyframeId,
+                time: currentTime,
+                value: {}, // Default value
+                type: KeyframeType.SOLID
+            };
+            
+            this.dataModel.addKeyframe(layerId, keyframe);
+        });
+    }
+    
+    /**
+     * Set up scroll synchronization between layers and keyframes
+     */
+    private setupScrollSynchronization(): void {
+        if (!this.layersContainerEl || !this.layersListEl || !this.keyframesContainerEl || !this.timeRulerEl) {
+            return;
+        }
+        
+        // Sync vertical scrolling with debouncing to prevent loops
+        let isScrollingKeyframes = false;
+        let isScrollingLayers = false;
+        
+        // Keyframes to Layers sync
         this.keyframesContainerEl.addEventListener('scroll', () => {
-            if (this.layersContainerEl) {
-                this.layersContainerEl.scrollTop = this.keyframesContainerEl!.scrollTop;
+            if (!isScrollingLayers && this.layersListEl) {
+                isScrollingKeyframes = true;
+                this.layersListEl.scrollTop = this.keyframesContainerEl!.scrollTop;
+                setTimeout(() => { isScrollingKeyframes = false; }, 10);
             }
         });
         
-        this.layersContainerEl.addEventListener('scroll', () => {
-            if (this.keyframesContainerEl) {
-                this.keyframesContainerEl.scrollTop = this.layersContainerEl!.scrollTop;
+        // Layers to Keyframes sync
+        this.layersListEl.addEventListener('scroll', () => {
+            if (!isScrollingKeyframes && this.keyframesContainerEl) {
+                isScrollingLayers = true;
+                this.keyframesContainerEl.scrollTop = this.layersListEl!.scrollTop;
+                setTimeout(() => { isScrollingLayers = false; }, 10);
             }
         });
         
@@ -215,8 +307,14 @@ export class TimelineControl extends BaseComponent {
      * Handle resize event
      */
     private handleResize(): void {
-        // Update the timeline display
-        // This would be implemented to handle responsive adjustments
+        // Update the timeline display and verify alignment
+        this.verifyAlignment();
+        
+        // Emit resize event
+        this.eventEmitter.emit(Events.TIMELINE_RESIZED, {
+            width: this.element?.clientWidth,
+            height: this.element?.clientHeight
+        }, this);
     }
     
     /**
@@ -263,6 +361,15 @@ export class TimelineControl extends BaseComponent {
             case 'timeline-layers-container':
             case CssClasses.TIMELINE_LAYERS_CONTAINER:
                 return this.layersContainerEl;
+            case 'timeline-layers-header':
+            case CssClasses.TIMELINE_LAYERS_HEADER:
+                return this.layersHeaderEl;
+            case 'timeline-layer-list':
+            case CssClasses.LAYER_LIST:
+                return this.layersListEl;
+            case 'timeline-layers-toolbar':
+            case CssClasses.TIMELINE_LAYERS_TOOLBAR:
+                return this.layersToolbarEl;
             case 'timeline-keyframes-area':
             case CssClasses.TIMELINE_KEYFRAMES_AREA:
                 return this.keyframesAreaEl;
@@ -300,7 +407,9 @@ export class TimelineControl extends BaseComponent {
      */
     public ensureDefaultLayer(): string {
         return this.verifyDefaultLayer();
-    }    /**
+    }
+    
+    /**
      * Add a new layer to the timeline
      * @param nameOrLayer - Name of the layer or complete layer object
      * @param options - Additional layer options (when first param is a string)
@@ -379,8 +488,8 @@ export class TimelineControl extends BaseComponent {
         document.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
             
-            const delta = e.clientX - startX;
-            const newWidth = Math.max(100, startWidth + delta); // Minimum width of 100px
+            const dx = e.clientX - startX;
+            const newWidth = Math.max(100, startWidth + dx); // Minimum width of 100px
             
             this.layersContainerEl!.style.width = `${newWidth}px`;
             this.keyframesAreaEl!.style.left = `${newWidth}px`;
@@ -426,7 +535,9 @@ export class TimelineControl extends BaseComponent {
                 this.keyframesContainerEl.appendChild(spacer);
             }
         }
-    }    /**
+    }
+    
+    /**
      * Verify that at least one layer exists in the timeline, creating one if needed
      * @returns ID of the default layer (first layer)
      */
