@@ -15,6 +15,8 @@ export class TimelineGrid3D {
   private playInterval: any = null;
   private suppressSync: boolean = false;
   private rowHeight = 22;
+  private scrollTimeout: any = null;
+  private scrollHandler: any = null;
 
   constructor(container: HTMLElement, stateManager: StateManager, eventManager: EventManager) {
     this.container = container;
@@ -59,6 +61,7 @@ export class TimelineGrid3D {
     this.rulerEl = this.container.querySelector('.timeline-grid__ruler');
     this.tracksEl = this.container.querySelector('.timeline-grid__tracks');
     this.syncRulerAndTracks();
+    this.attachScrollHandler(); // Always re-attach after render
     this.attachFrameSelection();
     this.attachGotoFrame();
     this.attachFpsInput();
@@ -118,14 +121,31 @@ export class TimelineGrid3D {
 
   attachScrollHandler() {
     if (!this.scrollContainer) return;
-    this.scrollContainer.addEventListener('scroll', () => {
+    if (this.scrollHandler) this.scrollContainer.removeEventListener('scroll', this.scrollHandler);
+    this.scrollHandler = () => {
       if (!this.scrollContainer) return;
-      if (this.isPlaying) return; // Prevent extension in play mode
-      const { scrollLeft, scrollWidth, clientWidth } = this.scrollContainer;
-      if (scrollLeft + clientWidth > scrollWidth - 200) {
-        this.extendFrames(30);
-      }
-    });
+      if (this.isPlaying) return;
+      if (this.scrollTimeout) clearTimeout(this.scrollTimeout);
+      this.scrollTimeout = setTimeout(() => {
+        const { scrollLeft, scrollWidth, clientWidth } = this.scrollContainer!;
+        if (scrollLeft + clientWidth > scrollWidth - 200) {
+          const rightVisibleFrame = Math.ceil((scrollLeft + clientWidth) / this.frameWidth);
+          this.extendFramesAndRestoreScroll(rightVisibleFrame, clientWidth);
+        }
+      }, 150);
+    };
+    this.scrollContainer.addEventListener('scroll', this.scrollHandler);
+  }
+
+  extendFramesAndRestoreScroll(rightVisibleFrame: number, clientWidth: number) {
+    // Calculate the offset from the right edge
+    const offsetFromRight = clientWidth - ((rightVisibleFrame) * this.frameWidth - (this.scrollContainer ? this.scrollContainer.scrollLeft : 0));
+    this.frameCount += 30;
+    this.render();
+    // After render, restore scroll so the rightmost visible frame is still at the same position
+    if (this.scrollContainer) {
+      this.scrollContainer.scrollLeft = rightVisibleFrame * this.frameWidth - clientWidth + offsetFromRight;
+    }
   }
 
   attachFrameSelection() {

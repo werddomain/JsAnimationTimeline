@@ -83,7 +83,6 @@
     - [x] importTimeline(data)
     - [x] exportTimeline()
 - [ ] Final LESS refinements for pixel-perfect match to attached image.
-  - [ ] Black fill for active layer frames in timeline grid
   - [ ] Compact, pixel-aligned control bar and ruler
   - [ ] Icon-only buttons: spacing, font, and size tweaks
   - [ ] Control bar: icon-only, compact, subtle border, left-aligned
