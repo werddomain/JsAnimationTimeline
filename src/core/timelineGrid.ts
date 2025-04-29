@@ -14,6 +14,7 @@ export class TimelineGrid3D {
   private isPlaying: boolean = false;
   private playInterval: any = null;
   private suppressSync: boolean = false;
+  private rowHeight = 22;
 
   constructor(container: HTMLElement, stateManager: StateManager, eventManager: EventManager) {
     this.container = container;
@@ -31,7 +32,7 @@ export class TimelineGrid3D {
     const playheadTime = ((playheadFrame - 1) / state.fps).toFixed(2);
     this.container.innerHTML = `
       <div class="timeline-grid__scroll-container">
-        <div class="timeline-grid__ruler" style="height:${this.rulerHeight}px">
+        <div class="timeline-grid__ruler" style="height:27px">
           ${this.renderRuler(playheadFrame)}
         </div>
         <div class="timeline-grid__tracks">
@@ -93,7 +94,7 @@ export class TimelineGrid3D {
     return state.layers.map((layer, idx) => {
       const isActive = state.playhead && state.playhead.layerIdx === idx;
       return `
-        <div class="timeline-grid__track-row${isActive ? ' active' : ''}" data-layer="${layer.name}" style="top:${idx*22}px">
+        <div class="timeline-grid__track-row${isActive ? ' active' : ''}" data-layer="${layer.name}" style="top:${idx*this.rowHeight}px">
           <span class="timeline-grid__track-color-dot" style="background:${layer.color}"></span>
           ${this.renderTrackFrames(idx)}
         </div>
