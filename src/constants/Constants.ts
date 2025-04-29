@@ -18,6 +18,7 @@ export const Events = {
     TIME_CHANGED: 'time:changed',
     DURATION_CHANGED: 'duration:changed',
     SCALE_CHANGED: 'scale:changed',
+    RESOLUTION_CHANGED: 'resolution:changed',
     SEEK: 'time:seek',
     PLAYHEAD_MOVED: 'playhead:moved',
     TOGGLE_PLAYBACK: 'playback:toggle',
@@ -70,6 +71,7 @@ export const CssClasses = {
     TIMELINE_TOOLBAR: 'timeline-toolbar',
     SCENE_SELECTOR: 'timeline-scene-selector',
     ADD_KEYFRAME_BUTTON: 'timeline-add-keyframe-button',
+    TIME_RESOLUTION_CONTROL: 'timeline-time-resolution-control',
     TIMELINE_CONTENT: 'timeline-content',
     TIMELINE_CONTENT_CONTAINER: 'timeline-content-container',
     TIMELINE_LAYERS_CONTAINER: 'timeline-layers-container',
@@ -133,6 +135,18 @@ export const PluginIds = {
     LAYER_MANAGER: 'layerManager',
     KEYFRAME_MANAGER: 'keyframeManager',
     GROUP_MANAGER: 'groupManager',
+};
+
+// Time Resolution presets in seconds
+export const TimeResolutions = {
+    MILLISECOND: 0.001,   // 1/1000 second
+    CENTISECOND: 0.01,    // 1/100 second
+    DECISECOND: 0.1,      // 1/10 second
+    SECOND: 1,            // 1 second
+    FIVE_SECONDS: 5,      // 5 seconds
+    TEN_SECONDS: 10,      // 10 seconds
+    THIRTY_SECONDS: 30,   // 30 seconds
+    MINUTE: 60,           // 1 minute
 };
 
 // Plugin Dependencies

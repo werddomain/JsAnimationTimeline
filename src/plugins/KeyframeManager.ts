@@ -7,16 +7,17 @@ import { BaseComponent } from '../components/BaseComponent';
 import { EventEmitter } from '../core/EventEmitter';
 import { DataModel, ILayer, IKeyframe, KeyframeType, TweenType } from '../core/DataModel';
 import { Events, CssClasses } from '../constants/Constants';
+import { IExtendedDataModel } from '../utils/ExtendedDataModel';
 
 export interface IKeyframeManagerOptions {
     container: HTMLElement;
-    dataModel: DataModel;
+    dataModel: IExtendedDataModel;
     eventEmitter: EventEmitter;
     timelineControl?: any; // Reference to TimelineControl
 }
 
 export class KeyframeManager extends BaseComponent {
-    private dataModel: DataModel;
+    private dataModel: IExtendedDataModel;
     private eventEmitter: EventEmitter;
     private timelineControl: any; // Reference to TimelineControl
     private dragKeyframe: {
@@ -26,6 +27,7 @@ export class KeyframeManager extends BaseComponent {
         startTime: number;
     } | null = null;
     private timeScale: number;
+    private resolution: number = 1; // Default resolution is 1 second
     
     /**
      * Constructor for KeyframeManager
@@ -37,6 +39,11 @@ export class KeyframeManager extends BaseComponent {
         this.eventEmitter = options.eventEmitter;
         this.timelineControl = options.timelineControl;
         this.timeScale = this.dataModel.getTimeScale();
+        
+        // Initialize time resolution if available
+        if (typeof (this.dataModel as any).getTimeResolution === 'function') {
+            this.resolution = (this.dataModel as any).getTimeResolution();
+        }
     }
     
     /**
@@ -51,9 +58,9 @@ export class KeyframeManager extends BaseComponent {
         this.eventEmitter.on(Events.KEYFRAME_REMOVED, this.handleKeyframeRemoved.bind(this));
         this.eventEmitter.on(Events.KEYFRAME_UPDATED, this.handleKeyframeUpdated.bind(this));
         this.eventEmitter.on(Events.KEYFRAME_MOVED, this.handleKeyframeMoved.bind(this));
-        this.eventEmitter.on(Events.KEYFRAME_SELECTED, this.handleKeyframeSelected.bind(this));
-        this.eventEmitter.on(Events.KEYFRAME_DESELECTED, this.handleKeyframeDeselected.bind(this));
+        this.eventEmitter.on(Events.KEYFRAME_SELECTED, this.handleKeyframeSelected.bind(this));        this.eventEmitter.on(Events.KEYFRAME_DESELECTED, this.handleKeyframeDeselected.bind(this));
         this.eventEmitter.on(Events.SCALE_CHANGED, this.handleScaleChanged.bind(this));
+        this.eventEmitter.on(Events.RESOLUTION_CHANGED, this.handleResolutionChanged.bind(this));
         
         // Set up stage synchronization
         this.setupStageSynchronization();
@@ -100,9 +107,9 @@ export class KeyframeManager extends BaseComponent {
         this.eventEmitter.off(Events.KEYFRAME_REMOVED, this.handleKeyframeRemoved.bind(this));
         this.eventEmitter.off(Events.KEYFRAME_UPDATED, this.handleKeyframeUpdated.bind(this));
         this.eventEmitter.off(Events.KEYFRAME_MOVED, this.handleKeyframeMoved.bind(this));
-        this.eventEmitter.off(Events.KEYFRAME_SELECTED, this.handleKeyframeSelected.bind(this));
-        this.eventEmitter.off(Events.KEYFRAME_DESELECTED, this.handleKeyframeDeselected.bind(this));
+        this.eventEmitter.off(Events.KEYFRAME_SELECTED, this.handleKeyframeSelected.bind(this));        this.eventEmitter.off(Events.KEYFRAME_DESELECTED, this.handleKeyframeDeselected.bind(this));
         this.eventEmitter.off(Events.SCALE_CHANGED, this.handleScaleChanged.bind(this));
+        this.eventEmitter.off(Events.RESOLUTION_CHANGED, this.handleResolutionChanged.bind(this));
     }
     
     /**
@@ -120,8 +127,7 @@ export class KeyframeManager extends BaseComponent {
                 ${this.renderTweens(layer)}
             </div>
         `;
-    }
-      /**
+    }    /**
      * Render keyframes for a layer
      * @param layer - Layer to render keyframes for
      * @returns HTML string representation of keyframes
@@ -133,8 +139,10 @@ export class KeyframeManager extends BaseComponent {
         const frameGrid = this.renderFrameGrid(layer);
         
         // Then render the keyframes
+        const frameWidth = 20; // Default frame width in pixels
         const keyframeElements = keyframes.map(keyframe => {
-            const position = keyframe.time * this.timeScale;
+            // Center keyframe in its grid cell
+            const cellCenterPosition = (keyframe.time * this.timeScale) + (frameWidth / 2);
             const selected = this.isKeyframeSelected(layer.id, keyframe.id);
             
             // Determine CSS classes based on keyframe type and selection
@@ -147,46 +155,46 @@ export class KeyframeManager extends BaseComponent {
             } else if (keyframe.type === KeyframeType.HOLLOW) {
                 cssClasses += ` ${CssClasses.KEYFRAME_HOLLOW}`;
             }
-            
-            return `
+              return `
                 <div class="${cssClasses}" 
                     data-layer-id="${layer.id}" 
                     data-keyframe-id="${keyframe.id}" 
                     data-time="${keyframe.time}"
                     data-type="${keyframe.type}"
-                    style="left: ${position}px;">
+                    style="left: ${cellCenterPosition}px;">
                 </div>
             `;
         }).join('');
         
         return frameGrid + keyframeElements;
-    }
-    
-    /**
+    }    /**
      * Render the frame grid for a layer
      * @param layer - Layer to render frame grid for
      * @returns HTML string representation of the frame grid
      */
     private renderFrameGrid(layer: ILayer): string {
         const duration = this.dataModel.getDuration();
-        const fps = this.dataModel.getFps();
-        const totalFrames = Math.ceil(duration * fps);
         
         // Sort keyframes by time
         const keyframes = Object.values(layer.keyframes).sort((a, b) => a.time - b.time);
         
         let gridHTML = '<div class="' + CssClasses.FRAME_GRID + '">';
         
-        // Create frame placeholders for each frame
-        for (let i = 0; i < totalFrames; i++) {
-            const frameTime = i / fps;
-            const position = frameTime * this.timeScale;
+        // Create frame placeholders aligned to time resolution
+        // Each time resolution unit gets a frame centered in its grid cell
+        const totalCells = Math.ceil(duration / this.resolution);
+        const frameWidth = 20; // Default frame width in pixels (matching CSS var(--timeline-frame-width, 20px))
+        
+        for (let i = 0; i < totalCells; i++) {
+            const time = i * this.resolution;
+            // Center the position within the grid cell
+            const cellCenterPosition = (time * this.timeScale) + (frameWidth / 2);
             
             // Determine if this is a standard frame or an empty frame
             let frameClass = CssClasses.FRAME_STANDARD;
             
             // Find the keyframe that affects this frame
-            const activeKeyframe = this.findActiveKeyframeForTime(keyframes, frameTime);
+            const activeKeyframe = this.findActiveKeyframeForTime(keyframes, time);
             if (!activeKeyframe) {
                 frameClass = CssClasses.FRAME_EMPTY;
             }
@@ -194,9 +202,8 @@ export class KeyframeManager extends BaseComponent {
             gridHTML += `
                 <div class="${frameClass}" 
                     data-layer-id="${layer.id}" 
-                    data-frame="${i}"
-                    data-time="${frameTime}"
-                    style="left: ${position}px;">
+                    data-time="${time}"
+                    style="left: ${cellCenterPosition}px;">
                 </div>
             `;
         }
@@ -234,10 +241,11 @@ export class KeyframeManager extends BaseComponent {
             if (keyframe.nextTween) {
                 const tween = keyframe.nextTween;
                 const endKeyframe = this.findKeyframeById(tween.endKeyframeId);
-                
-                if (endKeyframe) {
-                    const startPosition = keyframe.time * this.timeScale;
-                    const endPosition = endKeyframe.time * this.timeScale;
+                  if (endKeyframe) {
+                    const frameWidth = 20; // Default frame width in pixels
+                    // Calculate positions with the keyframes centered in their grid cells
+                    const startPosition = (keyframe.time * this.timeScale) + (frameWidth / 2);
+                    const endPosition = (endKeyframe.time * this.timeScale) + (frameWidth / 2);
                     const width = endPosition - startPosition;
                     
                     // Add tween type as a CSS class
@@ -324,8 +332,7 @@ export class KeyframeManager extends BaseComponent {
     }
       /**
      * Handle click on keyframe row
-     */
-    private handleRowClick = (event: Event): void => {
+     */    private handleRowClick = (event: Event): void => {
         // Ignore if clicking on a keyframe, frame, or tween
         const target = event.target as HTMLElement;
         if (target.classList.contains(CssClasses.KEYFRAME) || 
@@ -351,14 +358,14 @@ export class KeyframeManager extends BaseComponent {
         const clickX = (event as MouseEvent).clientX - rect.left + scrollLeft;
         
         // Convert position to time
-        const time = clickX / this.timeScale;
+        const clickTime = clickX / this.timeScale;
         
         // Check if Alt/Option key is pressed to create an empty keyframe
         const isAltPressed = (event as MouseEvent).altKey;
         const keyframeType = isAltPressed ? KeyframeType.HOLLOW : KeyframeType.SOLID;
         
         // Create keyframe at this time with the appropriate type
-        this.createKeyframe(layerId, time, keyframeType);
+        this.createKeyframe(layerId, clickTime, keyframeType);
         
         // Stop event propagation
         event.stopPropagation();
@@ -460,35 +467,36 @@ export class KeyframeManager extends BaseComponent {
                 if (keyframe && keyframeId !== this.dragKeyframe!.keyframeId) {
                     const originalTime = keyframe.time;
                     const newKeyframeTime = Math.max(0, originalTime + deltaTime);
-                    
-                    // Update the keyframe element's position
+                      // Update the keyframe element's position
                     const keyframeEl = this.element?.querySelector(
                         `.${CssClasses.KEYFRAME}[data-layer-id="${this.dragKeyframe!.layerId}"][data-keyframe-id="${keyframeId}"]`
                     ) as HTMLElement;
                     
                     if (keyframeEl) {
-                        const newPosition = newKeyframeTime * this.timeScale;
+                        const frameWidth = 20; // Default frame width in pixels
+                        // Center in grid cell
+                        const newPosition = (newKeyframeTime * this.timeScale) + (frameWidth / 2);
                         keyframeEl.style.left = `${newPosition}px`;
                     }
                 }
             });
         }
-        
-        // Update the dragged keyframe's position
+          // Update the dragged keyframe's position
         const keyframeEl = this.element?.querySelector(
             `.${CssClasses.KEYFRAME}[data-layer-id="${this.dragKeyframe.layerId}"][data-keyframe-id="${this.dragKeyframe.keyframeId}"]`
         ) as HTMLElement;
         
         if (keyframeEl) {
-            const newPosition = newTime * this.timeScale;
+            const frameWidth = 20; // Default frame width in pixels
+            // Center in grid cell
+            const newPosition = (newTime * this.timeScale) + (frameWidth / 2);
             keyframeEl.style.left = `${newPosition}px`;
         }
         
         // Update tweens
         this.updateTweensForLayer(this.dragKeyframe.layerId);
     }
-    
-    /**
+      /**
      * Handle mouse up after keyframe drag
      */
     private handleMouseUp = (event: Event): void => {
@@ -502,7 +510,17 @@ export class KeyframeManager extends BaseComponent {
         const deltaTime = deltaX / this.timeScale;
         
         // Calculate final time
-        const finalTime = Math.max(0, this.dragKeyframe.startTime + deltaTime);
+        let finalTime = Math.max(0, this.dragKeyframe.startTime + deltaTime);
+        
+        // Snap to time resolution if available
+        if (typeof this.dataModel.snapToResolution === 'function') {
+            finalTime = this.dataModel.snapToResolution(finalTime);
+            
+            // Update resolution if it has changed
+            if (typeof this.dataModel.getTimeResolution === 'function') {
+                this.resolution = this.dataModel.getTimeResolution();
+            }
+        }
         
         // If we're dragging multiple keyframes, move them all
         const selectedKeyframes = this.getSelectedKeyframesForLayer(this.dragKeyframe.layerId);
@@ -530,16 +548,28 @@ export class KeyframeManager extends BaseComponent {
         
         this.dragKeyframe = null;
     }
-    
-    /**
+      /**
      * Create a new keyframe at the specified time
      * @param layerId - Layer ID
      * @param time - Time for the new keyframe
      */    private createKeyframe(layerId: string, time: number, type: KeyframeType = KeyframeType.SOLID): void {
+        // Snap to grid if needed
+        const frameWidth = 20; // Default frame width in pixels
+        const gridStep = frameWidth / this.timeScale; // Time interval between grid lines
+        
+        // Calculate the nearest grid position
+        const gridPosition = Math.round(time / gridStep) * gridStep;
+        
+        // If we have a resolution snapping function, prioritize that
+        let snappedTime = gridPosition;
+        if (typeof this.dataModel.snapToResolution === 'function') {
+            snappedTime = this.dataModel.snapToResolution(time);
+        }
+        
         const keyframeId = `keyframe-${Date.now()}`;
-          const newKeyframe: IKeyframe = {
+        const newKeyframe: IKeyframe = {
             id: keyframeId,
-            time,
+            time: snappedTime,
             value: {}, // Default value
             type: type
         };
@@ -604,13 +634,14 @@ export class KeyframeManager extends BaseComponent {
         // Create new tweens
         const keyframeRow = this.element.querySelector(`.${CssClasses.KEYFRAME_ROW}[data-layer-id="${layerId}"]`);
         if (!keyframeRow) return;
-        
-        for (let i = 0; i < keyframes.length - 1; i++) {
+          for (let i = 0; i < keyframes.length - 1; i++) {
             const startKeyframe = keyframes[i];
             const endKeyframe = keyframes[i + 1];
             
-            const startPosition = startKeyframe.time * this.timeScale;
-            const endPosition = endKeyframe.time * this.timeScale;
+            const frameWidth = 20; // Default frame width in pixels
+            // Calculate positions with the keyframes centered in their grid cells
+            const startPosition = (startKeyframe.time * this.timeScale) + (frameWidth / 2);
+            const endPosition = (endKeyframe.time * this.timeScale) + (frameWidth / 2);
             const width = endPosition - startPosition;
             
             const tweenEl = document.createElement('div');
@@ -1069,5 +1100,22 @@ export class KeyframeManager extends BaseComponent {
         
         // Force a re-render to show the updated keyframe
         this.update();
+    }
+      /**
+     * Handle resolution changed event
+     * @param event - Resolution changed event
+     */
+    private handleResolutionChanged(event: any): void {
+        // Update the resolution value
+        if (typeof this.dataModel.getTimeResolution === 'function') {
+            this.resolution = this.dataModel.getTimeResolution();
+        } else if (event.data.newResolution) {
+            this.resolution = event.data.newResolution;
+        }
+        
+        // Update the UI to ensure frame grid aligns with the new resolution
+        this.update();
+        
+        console.log(`KeyframeManager: Time resolution changed to ${this.resolution} seconds`);
     }
 }

@@ -65,6 +65,7 @@ export interface ITimelineOptions {
     timeScale: number;
     startTime: number;
     fps: number;
+    timeResolution?: number; // Time resolution in seconds (keyframe step value)
 }
 
 // Timeline state interface
@@ -73,6 +74,7 @@ export interface ITimelineState {
     duration: number;
     timeScale: number;
     fps: number;
+    timeResolution: number; // Time resolution in seconds (keyframe step value)
     scenes: Record<string, IScene>;
     currentSceneId: string | null;
     layers: Record<string, ILayer>;
@@ -90,12 +92,13 @@ export class DataModel extends EventEmitter {
      * Constructor for DataModel
      * @param options - Configuration options for the timeline
      */    constructor(options?: Partial<ITimelineOptions>) {
-        super();        // Initialize with default state
-        this.state = {
-            currentTime: options?.startTime || 0,
+        super();        // Initialize with default state        this.state = {
+        this.state = {    
+        currentTime: options?.startTime || 0,
             duration: options?.duration || 10,
             timeScale: options?.timeScale || 100, // pixels per second
             fps: options?.fps || 30,
+            timeResolution: options?.timeResolution || 1, // Default to 1 second resolution
             scenes: {},
             currentSceneId: null,
             layers: {},

@@ -10,6 +10,9 @@ import { PluginManager } from '../core/PluginManager';
 import { Events, CssClasses } from '../constants/Constants';
 import { KeyboardHandler } from '../utils/KeyboardHandler';
 import { SceneSelector } from '../components/SceneSelector';
+import { TimeResolutionControl } from '../components/TimeResolutionControl';
+import { extendDataModelWithTimeResolution } from '../utils/TimeResolutionMethods';
+import { IExtendedDataModel } from '../utils/ExtendedDataModel';
 
 // Timeline control options
 export interface ITimelineControlOptions {
@@ -23,7 +26,7 @@ export interface ITimelineControlOptions {
 
 export class TimelineControl extends BaseComponent {
     private eventEmitter: EventEmitter;
-    private dataModel: DataModel;
+    private dataModel: IExtendedDataModel;
     private pluginManager: PluginManager;
     private keyboardHandler: KeyboardHandler | null = null;    // DOM elements
     private toolbarEl: HTMLElement | null = null;
@@ -38,19 +41,23 @@ export class TimelineControl extends BaseComponent {
     private keyframesContainerEl: HTMLElement | null = null;
     private objectToolbarEl: HTMLElement | null = null;
     private sceneSelector: SceneSelector | null = null;
+    private timeResolutionControl: TimeResolutionControl | null = null;
     
     /**
      * Constructor for TimelineControl
      * @param options - Configuration options
-     */
-    constructor(options: ITimelineControlOptions) {
+     */    constructor(options: ITimelineControlOptions) {
         super(options.container, 'timeline-control');
         
         // Create event emitter
-        this.eventEmitter = new EventEmitter();
+        this.eventEmitter = new EventEmitter();        // Create data model with timeline options
+        const dataModel = new DataModel(options.timeline);
         
-        // Create data model with timeline options
-        this.dataModel = new DataModel(options.timeline);
+        // Extend the data model with time resolution methods
+        extendDataModelWithTimeResolution(dataModel);
+        
+        // Assign to class property with extended interface
+        this.dataModel = dataModel as IExtendedDataModel;
         
         // Create plugin manager
         this.pluginManager = new PluginManager(this.eventEmitter);
@@ -204,8 +211,7 @@ export class TimelineControl extends BaseComponent {
     
     /**
      * Set up the toolbar components
-     */
-    private setupToolbar(): void {
+     */    private setupToolbar(): void {
         if (!this.toolbarEl) {
             throw new Error('Toolbar element not found');
         }
@@ -230,12 +236,30 @@ export class TimelineControl extends BaseComponent {
         addKeyframeBtn.addEventListener('click', this.handleAddKeyframeClick.bind(this));
         
         this.toolbarEl.appendChild(addKeyframeBtn);
+        
+        // Create a toolbar right section for the time resolution control
+        const toolbarRightSection = document.createElement('div');
+        toolbarRightSection.className = 'timeline-toolbar-right';
+        toolbarRightSection.style.marginLeft = 'auto'; // Push to the right
+        toolbarRightSection.style.display = 'flex';
+        toolbarRightSection.style.alignItems = 'center';
+        
+        this.toolbarEl.appendChild(toolbarRightSection);
+        
+        // Create time resolution control
+        this.timeResolutionControl = new TimeResolutionControl({
+            container: toolbarRightSection,
+            dataModel: this.dataModel,
+            eventEmitter: this.eventEmitter
+        });
+        
+        this.timeResolutionControl.mount();
+        this.timeResolutionControl.initialize();
     }
     
     /**
      * Handle adding a keyframe at the current playhead position
-     */
-    private handleAddKeyframeClick(): void {
+     */    private handleAddKeyframeClick(): void {
         const selectedLayerIds = this.dataModel.getSelectedLayerIds();
         const currentTime = this.dataModel.getCurrentTime();
         
@@ -245,11 +269,18 @@ export class TimelineControl extends BaseComponent {
         }
         
         // Add a keyframe to each selected layer
-        selectedLayerIds.forEach(layerId => {
+        selectedLayerIds.forEach((layerId: string) => {
             const keyframeId = `keyframe-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+            
+            // If time resolution is enabled, snap the time to the resolution grid
+            let snapTime = currentTime;
+            if (typeof this.dataModel.snapToResolution === 'function') {
+                snapTime = this.dataModel.snapToResolution(currentTime);
+            }
+            
             const keyframe = {
                 id: keyframeId,
-                time: currentTime,
+                time: snapTime,
                 value: {}, // Default value
                 type: KeyframeType.SOLID
             };
@@ -324,12 +355,11 @@ export class TimelineControl extends BaseComponent {
     public getEventEmitter(): EventEmitter {
         return this.eventEmitter;
     }
-    
-    /**
+      /**
      * Get the data model instance
-     * @returns DataModel instance
+     * @returns Extended DataModel instance
      */
-    public getDataModel(): DataModel {
+    public getDataModel(): IExtendedDataModel {
         return this.dataModel;
     }
     
@@ -446,15 +476,14 @@ export class TimelineControl extends BaseComponent {
     /**
      * Get the next available layer order value
      * @returns Next layer order number
-     */
-    private getNextLayerOrder(): number {
+     */    private getNextLayerOrder(): number {
         const layers = Object.values(this.dataModel.getLayers());
         if (layers.length === 0) {
             return 0;
         }
         
         // Find the highest order value and add 1
-        return Math.max(...layers.map(layer => layer.order)) + 1;
+        return Math.max(...layers.map((layer: ILayer) => layer.order)) + 1;
     }
 
     /**
@@ -540,8 +569,7 @@ export class TimelineControl extends BaseComponent {
     /**
      * Verify that at least one layer exists in the timeline, creating one if needed
      * @returns ID of the default layer (first layer)
-     */
-    private verifyDefaultLayer(): string {
+     */    private verifyDefaultLayer(): string {
         const layers = Object.values(this.dataModel.getLayers());
         
         // If no layers exist, create a default one
@@ -550,6 +578,6 @@ export class TimelineControl extends BaseComponent {
         }
         
         // Use the first layer as the default
-        return layers[0].id;
+        return (layers[0] as ILayer).id;
     }
 }

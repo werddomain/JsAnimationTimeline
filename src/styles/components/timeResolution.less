@@ -1,0 +1,44 @@
+/**
+ * Styles for the time resolution control component
+ */
+
+.timeline-time-resolution-control {
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    
+    .resolution-control-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        
+        label {
+            font-size: var(--timeline-font-size);
+            color: var(--timeline-text-color);
+            white-space: nowrap;
+        }
+        
+        select {
+            background-color: var(--timeline-bg-color);
+            color: var(--timeline-text-color);
+            border: 1px solid var(--timeline-border-color);
+            font-size: var(--timeline-font-size);
+            padding: 4px 8px;
+            border-radius: 3px;
+            min-width: 120px;
+            
+            &:focus {
+                outline: none;
+                border-color: var(--timeline-accent-color);
+            }
+        }
+    }
+}
+
+// For right-aligned toolbar items
+.timeline-toolbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
