@@ -1,0 +1,357 @@
+@import (optional) "./variables.less";
+
+#timeline-container {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  height: 220px;
+  background: #f4f4f4;
+  border: 1px solid #b0b0b0;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.timeline__layer-panel {
+  width: 240px; // Increased width for better usability (3x original)
+  min-width: 200px;
+  background: #eaeaea;
+  border-right: 1px solid #b0b0b0;
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline__grid {
+  flex: 1;
+  background: #fff;
+  overflow-x: auto;
+  position: relative;
+}
+
+.layer-panel__header {
+  height: 27px;
+  min-height: 27px;
+  max-height: 27px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: bold;
+  padding: 0 8px;
+  border-bottom: 1px solid #b0b0b0;
+  background: #e0e0e0;
+}
+
+.layer-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.layer-panel__item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 0 8px; // More padding for even spacing
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f8f8;
+  height: 22px; // Match image: taller rows
+  font-size: 12px; // Slightly larger for clarity
+  position: relative;
+  min-height: 22px;
+  max-height: 22px;
+  box-sizing: border-box;
+  margin-bottom: 0; // Remove extra spacing
+}
+
+.layer-panel__item.active {
+  background: #bcdcff;
+  border-left: 3px solid #1976d2;
+  color: #222;
+}
+
+.layer-panel__color {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  margin-right: 3px;
+  border: 1px solid #b0b0b0;
+}
+
+.layer-panel__name {
+  flex: 1;
+  font-size: 11px;
+  margin-right: 3px;
+  background: transparent;
+  outline: none;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.layer-panel__visible, .layer-panel__lock {
+  width: 24px;
+  text-align: center;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.layer-panel__add-btn {
+  margin-left: 8px;
+  background: #d0eaff;
+  border: 1px solid #b0b0b0;
+  border-radius: 3px;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 6px;
+  height: 22px;
+}
+
+.layer-panel__remove-btn,
+.layer-panel__up-btn,
+.layer-panel__down-btn {
+  margin-left: 4px;
+  background: #fff;
+  border: 1px solid #b0b0b0;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 4px;
+  height: 20px;
+}
+
+.layer-panel__item:focus-within {
+  background: #e0f7fa;
+}
+
+.layer-panel__icon-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  margin: 0 1px;
+  cursor: pointer;
+  padding: 0 1px;
+  color: #444;
+  display: flex;
+  align-items: center;
+  min-width: 16px;
+  min-height: 16px;
+  justify-content: center;
+}
+
+.layer-panel__icon-btn svg {
+  vertical-align: middle;
+  margin-top: -2px;
+}
+
+.layer-panel__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 16px;
+  background: #eaeaea;
+  border-top: 1px solid #b0b0b0;
+  padding-right: 1px;
+}
+
+.timeline-grid__ruler {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f6f6e7;
+  border-bottom: 1px solid #b0b0b0;
+  display: flex;
+  align-items: flex-end;
+  min-width: 100%;
+  height: 27px;
+  font-size: 10px;
+}
+
+.timeline-grid__ruler-frame {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-right: 1px solid #b0b0b0;
+  box-sizing: border-box;
+  text-align: center;
+  color: #444;
+}
+
+.timeline-grid__ruler-label {
+  font-size: 10px;
+  color: #444;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  text-align: center;
+}
+
+.timeline-grid__scroll-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-grid__tracks {
+  position: relative;
+  width: 100%;
+  min-width: 100%;
+  height: calc(100% - 28px);
+}
+
+.timeline-grid__track-row {
+  position: absolute;
+  left: 0;
+  height: 22px; // Match layer panel row height
+  width: 100%;
+  display: flex;
+  align-items: center;
+  background: #f8f8f8;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 11px;
+  box-sizing: border-box;
+  padding-left: 8px; // Match layer panel row padding
+  top: unset;
+}
+
+.timeline-grid__track-row:nth-child(odd) {
+  background: #eaeaea;
+}
+
+.timeline-grid__track-row.active {
+  background: #000;
+}
+
+.timeline-grid__track-row.active .timeline-grid__frame-cell {
+  background: #000;
+}
+
+.timeline-grid__track-row.active .timeline-grid__frame-cell.selected {
+  background: #b3d4fc;
+}
+
+.timeline-grid__track-color-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin: 0 3px 0 1px;
+  vertical-align: middle;
+  border: 1px solid #fff;
+}
+
+.timeline-grid__frame-cell {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-right: 1px solid #d0d0d0;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.timeline-grid__frame-cell.selected {
+  background: #b3d4fc;
+  border: 1px solid #1976d2;
+  z-index: 1;
+}
+
+.timeline-grid__playhead {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: #e22;
+  z-index: 10;
+  cursor: ew-resize;
+  pointer-events: auto;
+  transition: background 0.1s;
+}
+
+.timeline-grid__playhead:active {
+  background: #b00;
+}
+
+.timeline-grid__frame-cell.keyframe {
+  background: #fffbe6;
+  border-bottom: 2px solid #fc0;
+}
+
+.timeline-grid__keyframe-dot {
+  display: block;
+  margin: 0 auto;
+  margin-top: 3px;
+  width: 5px;
+  height: 5px;
+  background: #fc0;
+  border-radius: 50%;
+  border: 1px solid #b0b000;
+}
+
+.timeline-grid__goto-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0 0;
+  padding: 4px 8px;
+  background: #f6f6e7;
+  border-top: 1px solid #b0b0b0;
+  font-size: 13px;
+}
+.timeline-grid__goto-input {
+  width: 20px;
+  font-size: 10px;
+  padding: 0 1px;
+  border: 1px solid #b0b0b0;
+  border-radius: 2px;
+  margin-right: 1px;
+  height: 12px;
+}
+.timeline-grid__fps-input {
+  width: 20px;
+  font-size: 10px;
+  padding: 0 1px;
+  border: 1px solid #b0b0b0;
+  border-radius: 2px;
+  margin-right: 1px;
+  height: 12px;
+}
+.timeline-grid__goto-btn {
+  background: #d0eaff;
+  border: 1px solid #b0b0b0;
+  border-radius: 2px;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0 2px;
+  height: 14px;
+}
+
+.timeline-grid__control-bar {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin: 1px 0 0 0;
+  padding: 0 2px;
+  background: #f6f6e7;
+  border-top: 1px solid #b0b0b0;
+  font-size: 10px;
+  height: 16px;
+}
+.timeline-grid__ctrl-btn {
+  background: #fff;
+  border: 1px solid #b0b0b0;
+  border-radius: 2px;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0 1px;
+  height: 14px;
+  min-width: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

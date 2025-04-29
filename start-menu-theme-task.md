@@ -1,0 +1,96 @@
+# Timeline Control Task List
+
+- [x] Create the `Timeline` main container to orchestrate all subcomponents.
+  - [x] Define the Timeline container structure in HTML.
+  - [x] Create a Timeline class/component in TypeScript.
+  - [x] Set up initial LESS/CSS for Timeline layout.
+  - [x] Integrate placeholder subcomponents for LayerPanel and TimelineGrid.
+- [x] Implement the `LayerPanel` on the left, with:
+  - [x] Define LayerPanel structure and placeholder in Timeline.
+  - [x] Create LayerPanel class/component in TypeScript.
+  - [x] Render a list of layers with name, color, visibility, and lock toggles.
+  - [x] Provide static sample data for initial UI.
+  - [x] Prepare LESS for LayerPanel look and feel (matching attached image).
+  - [x] Layer add, remove, rename, and reorder functionality.
+    - [x] Add button and logic for adding a new layer.
+    - [x] Remove button and logic for deleting a layer.
+    - [x] Inline editing for renaming a layer.
+    - [x] Up/down buttons for reordering layers.
+    - [x] Update LayerPanel state and re-render on changes.
+    - [x] Emit events for state changes.
+      - [x] Emit 'layerAdded' event on add.
+      - [x] Emit 'layerRemoved' event on remove.
+      - [x] Emit 'layerRenamed' event on rename.
+      - [x] Emit 'layerReordered' event on reorder.
+      - [x] Emit 'layerVisibilityChanged' event on toggle visibility.
+      - [x] Emit 'layerLockChanged' event on toggle lock.
+- [x] Implement the `TimelineGrid` on the right, with:
+  - [x] Frame ruler at the top (showing the timeStamp at this position).
+    - [x] Create TimelineGrid class/component in TypeScript.
+    - [x] Render frame ruler with numbers and tick marks, styled as in the image.
+    - [x] Make ruler scrollable and extendable.
+      - [x] Refactor TimelineGrid to render a scrollable grid area.
+      - [x] Dynamically add frames as user scrolls near the end.
+      - [x] Sync ruler and tracks horizontally.
+    - [x] Sync ruler with frame slots and playhead.
+      - [x] Ensure playhead is always visible and ruler/frames scroll together.
+      - [x] Emit 'playheadMove' event on playhead drag or programmatic move.
+  - [x] Layer tracks aligned with the layer panel.
+    - [x] Render a row for each layer.
+    - [x] Ensure vertical alignment with LayerPanel.
+    - [x] Style tracks to match attached image (alternating backgrounds, black fill, etc.).
+  - [x] Selectable frame slots for each layer and frame.
+    - [x] Render frame cells for each layer.
+    - [x] Support frame selection (single/multi).
+    - [x] Style selected frame(s) to match image.
+  - [x] Keyframe markers within frames.
+    - [x] Render keyframe icons/markers in frame cells.
+    - [x] Support adding/removing keyframes (click to add/remove).
+    - [x] Highlight keyframe cells as in image.
+    - [x] Emit 'keyframeAdded' and 'keyframeRemoved' events.
+  - [x] Add playback controls (play, stop, step forward/back) to the control bar.
+    - [x] Render playback control buttons in the control bar (below grid, left of FPS/time/frame inputs).
+    - [x] Implement play/pause logic (move playhead at FPS rate).
+    - [x] Implement stop logic (reset playhead to frame 1).
+    - [x] Implement step forward/back logic (move playhead by 1 frame).
+    - [x] Disable infinite scroll extension while playing.
+    - [x] Update playhead and UI in real time during playback.
+    - [x] Emit 'play', 'pause', 'stop', 'step' events as appropriate.
+- [x] Implement play/pause logic (move playhead at FPS rate).
+  - [x] Update playhead position based on FPS and time.
+  - [x] Emit 'fpsChange' event on FPS update.
+- [x] Implement the `EventManager` for internal event-driven communication.
+  - [x] Create a simple pub/sub event bus class (subscribe, unsubscribe, emit).
+  - [x] Use events for playhead move, FPS change, layer changes, etc.
+  - [x] Refactor LayerPanel and TimelineGrid to emit/listen for events instead of direct state changes.
+- [x] Implement the `StateManager` for managing layers, keyframes, and playhead state.
+  - [x] Centralize state for Timeline, LayerPanel, TimelineGrid.
+  - [x] Ensure all UI updates are state-driven.
+  - [x] Refactor LayerPanel and TimelineGrid to use StateManager for all state changes.
+- [x] Expose a public API for programmatic control and data import/export.
+  - [x] Methods for adding/removing layers, keyframes, setting playhead, etc.
+    - [x] addLayer(name, color)
+    - [x] removeLayer(idx)
+    - [x] renameLayer(idx, name)
+    - [x] reorderLayer(fromIdx, toIdx)
+    - [x] setLayerVisibility(idx, visible)
+    - [x] setLayerLock(idx, locked)
+    - [x] addKeyframe(layerIdx, frame)
+    - [x] removeKeyframe(layerIdx, frame)
+    - [x] setPlayhead(layerIdx, frame)
+    - [x] setFps(fps)
+  - [x] Methods for loading/exporting timeline data.
+    - [x] importTimeline(data)
+    - [x] exportTimeline()
+- [ ] Final LESS refinements for pixel-perfect match to attached image.
+  - [ ] Black fill for active layer frames in timeline grid
+  - [ ] Compact, pixel-aligned control bar and ruler
+  - [ ] Icon-only buttons: spacing, font, and size tweaks
+  - [ ] Control bar: icon-only, compact, subtle border, left-aligned
+  - [ ] Ruler: font, tick marks, spacing, color
+  - [ ] Layer color dots: size, margin, border
+  - [ ] Keyframe dot: size, color, margin
+  - [ ] Playhead: width, color, z-index
+  - [ ] Inputs: size, border, font, alignment
+  - [ ] Folder icon row: size, alignment, background
+  - [ ] Scrollbar: minimal, alwais visible

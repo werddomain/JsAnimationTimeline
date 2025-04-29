@@ -1,4 +1,4 @@
-
+import { Timeline } from './timeline';
 
 export class App {
     constructor() {
@@ -12,3 +12,8 @@ export class App {
     }
 
 }
+
+window.addEventListener('DOMContentLoaded', () => {
+  new Timeline('timeline-container');
+  // No need to manually create LayerPanel or TimelineGrid here; Timeline handles it.
+});
