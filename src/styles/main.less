@@ -164,6 +164,8 @@
   min-width: 100%;
   height: 27px;
   font-size: 10px;
+  overflow: visible; /* Allow ruler frames to extend beyond container */
+  position: relative; /* Ensure proper positioning context */
 }
 
 .timeline-grid__ruler-frame {
@@ -199,9 +201,19 @@
 
 .timeline-grid__tracks {
   position: relative;
-  width: 100%;
+  /* Width is now set dynamically based on frame count */
   min-width: 100%;
-  height: calc(100% - 28px);
+  height: calc(100% - 44px); /* 28px for ruler + 16px for control bar */
+  overflow: visible; /* Ensure content extends beyond container */
+}
+
+/* Ensure playhead is properly positioned within scroll container */
+.timeline-grid__scroll-container .timeline-grid__playhead {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  /* Allow clicks to pass through to frames when not directly on the center line */
+  pointer-events: auto;
 }
 
 .timeline-grid__track-row {
@@ -224,16 +236,17 @@
 }
 
 .timeline-grid__track-row.active {
-  background: #000;
+  background: #bcdcff; /* Light blue background similar to the selected layer */
+  border-left: 3px solid #1976d2; /* Left border matching the active layer panel item */
 }
 
 .timeline-grid__track-row.active .timeline-grid__frame-cell {
-  background: #000;
-  border-color: #222;
+  background: #bcdcff;
+  border-color: #1976d2;
 }
 
 .timeline-grid__track-row.active .timeline-grid__frame-cell.selected {
-  background: #b3d4fc;
+  background: #8bb8f0; /* Slightly darker blue for selected cells in active rows */
   border: 1px solid #1976d2;
 }
 
@@ -243,7 +256,7 @@
 }
 
 .timeline-grid__track-row.active .timeline-grid__track-color-dot {
-  border: 1px solid #000;
+  border: 1px solid #1976d2; /* Match border color with the active row theme */
 }
 
 .timeline-grid__track-color-dot {
@@ -262,30 +275,51 @@
   height: 100%;
   border-right: 1px solid #d0d0d0;
   background: transparent;
+  z-index: 5; /* Higher than background but lower than playhead */
   cursor: pointer;
   transition: background 0.1s;
 }
 
-.timeline-grid__frame-cell.selected {
-  background: #b3d4fc;
-  border: 1px solid #1976d2;
-  z-index: 1;
+.timeline-grid__frame-cell:hover {
+  background-color: rgba(200, 220, 255, 0.3);
+}
+
+.timeline-grid__frame-cell:active {
+  background-color: rgba(200, 220, 255, 0.5);
 }
 
 .timeline-grid__playhead {
   position: absolute;
   top: 0;
-  width: 2px;
+  width: 2px; /* Make much narrower for better frame clicking */
   height: 100%;
-  background: #e22;
-  z-index: 10;
+  background-color: #e22;
+  z-index: 1000;
   cursor: ew-resize;
-  pointer-events: auto;
-  transition: background 0.1s;
+  transition: width 0.1s, background-color 0.1s;
 }
 
-.timeline-grid__playhead:active {
-  background: #b00;
+/* Add a semi-transparent hitbox around the playhead for easier grabbing */
+.timeline-grid__playhead::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -4px;
+  width: 10px;
+  height: 100%;
+  background: transparent;
+  cursor: ew-resize;
+}
+
+.timeline-grid__playhead.draggable {
+  /* Add visual feedback for draggable state */
+  box-shadow: 0 0 3px rgba(0,0,0,0.5);
+}
+
+.timeline-grid__playhead.dragging,
+.timeline-grid__playhead:hover {
+  width: 4px;
+  background-color: #f00;
 }
 
 .timeline-grid__frame-cell.keyframe {
@@ -346,12 +380,17 @@
   display: flex;
   align-items: center;
   gap: 1px;
-  margin: 1px 0 0 0;
+  margin: 0;
   padding: 0 2px;
   background: #f6f6e7;
   border-top: 1px solid #b0b0b0;
   font-size: 10px;
   height: 16px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
 }
 .timeline-grid__ctrl-btn {
   background: #fff;
@@ -365,4 +404,41 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Custom scrollbar styles */
+.timeline-grid__scroll-container::-webkit-scrollbar {
+  height: 0; /* Hide default scrollbar */
+}
+
+/* Virtual scrollbar styles */
+.timeline-grid__virtual-scrollbar {
+  position: absolute;
+  bottom: 16px; /* Positioned right above the control bar */
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: #e0e0e0;
+  z-index: 10;
+  cursor: pointer;
+}
+
+.timeline-grid__scrollbar-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: #aaa;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.timeline-grid__scrollbar-thumb:hover,
+.timeline-grid__scrollbar-thumb:active {
+  background: #888;
+}
+
+/* Ensure proper spacing for the scrollbar */
+.timeline-grid__tracks {
+  padding-bottom: 6px;
 }

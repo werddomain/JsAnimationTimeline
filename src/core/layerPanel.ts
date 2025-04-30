@@ -43,7 +43,10 @@ export class LayerPanel {
   }
 
   render() {
-    const layers = this.stateManager.getState().layers;
+    const state = this.stateManager.getState();
+    const layers = state.layers;
+    const activeLayerIdx = state.playhead ? state.playhead.layerIdx : 0;
+    
     this.container.innerHTML = `
       <div class="layer-panel__header">
         <span></span>
@@ -52,7 +55,7 @@ export class LayerPanel {
       </div>
       <div class="layer-panel__list">
         ${layers.map((layer, idx) => `
-          <div class="layer-panel__item${idx === 0 ? ' active' : ''}" data-idx="${idx}">
+          <div class="layer-panel__item${idx === activeLayerIdx ? ' active' : ''}" data-idx="${idx}">
             <span class="layer-panel__color" style="background:${layer.color}"></span>
             <span class="layer-panel__name" contenteditable="true" spellcheck="false">${layer.name}</span>
             <button class="layer-panel__icon-btn layer-panel__visible-btn" title="Toggle Visibility">${layer.visible ? '👁' : '<svg width=14 height=14><line x1=2 y1=2 x2=12 y2=12 stroke=gray stroke-width=2/><line x1=12 y1=2 x2=2 y2=12 stroke=gray stroke-width=2/></svg>'}</button>
@@ -75,6 +78,30 @@ export class LayerPanel {
     const items = this.container.querySelectorAll('.layer-panel__item');
     items.forEach(item => {
       const idx = parseInt(item.getAttribute('data-idx') || '0', 10);
+      
+      // Layer selection
+      item.addEventListener('click', (e) => {
+        // Skip if the click was on a button
+        if ((e.target as HTMLElement).tagName === 'BUTTON') {
+          return;
+        }
+        
+        // Update active class
+        const allItems = this.container.querySelectorAll('.layer-panel__item');
+        allItems.forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        
+        // Update playhead layer index
+        const state = this.stateManager.getState();
+        this.stateManager.updatePlayhead({ 
+          layerIdx: idx, 
+          frame: state.playhead ? state.playhead.frame : 1 
+        });
+        
+        // Emit layer selection event
+        this.eventManager.emit('layerSelected', idx);
+      });
+      
       // Remove
       const removeBtn = item.querySelector('.layer-panel__remove-btn') as HTMLButtonElement;
       if (removeBtn) removeBtn.onclick = () => {

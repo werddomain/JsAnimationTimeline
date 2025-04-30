@@ -10,7 +10,8 @@ export type TimelineEvent =
   | 'layerRenamed'
   | 'layerReordered'
   | 'layerVisibilityChanged'
-  | 'layerLockChanged';
+  | 'layerLockChanged'
+  | 'layerSelected';
 
 export class EventManager {
   private listeners: { [event: string]: Array<(payload?: any) => void> } = {};

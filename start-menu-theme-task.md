@@ -82,14 +82,15 @@
   - [x] Methods for loading/exporting timeline data.
     - [x] importTimeline(data)
     - [x] exportTimeline()
-- [ ] Final LESS refinements for pixel-perfect match to attached image.
-  - [ ] Compact, pixel-aligned control bar and ruler
-  - [ ] Icon-only buttons: spacing, font, and size tweaks
-  - [ ] Control bar: icon-only, compact, subtle border, left-aligned
-  - [ ] Ruler: font, tick marks, spacing, color
-  - [ ] Layer color dots: size, margin, border
-  - [ ] Keyframe dot: size, color, margin
-  - [ ] Playhead: width, color, z-index
-  - [ ] Inputs: size, border, font, alignment
-  - [ ] Folder icon row: size, alignment, background
-  - [ ] Scrollbar: minimal, alwais visible
+- [x] Final LESS refinements for pixel-perfect match to attached image.
+  - [x] Compact, pixel-aligned control bar and ruler
+  - [x] Icon-only buttons: spacing, font, and size tweaks
+  - [x] Control bar: icon-only, compact, subtle border, left-aligned
+  - [x] Ruler: font, tick marks, spacing, color
+  - [x] Layer color dots: size, margin, border
+  - [x] Keyframe dot: size, color, margin
+  - [x] Playhead: width, color, z-index
+  - [x] Inputs: size, border, font, alignment
+  - [x] Folder icon row: size, alignment, background
+  - [x] Scrollbar: minimal, always visible
+  - [x] Sync selection between layer panel and timeline grid
