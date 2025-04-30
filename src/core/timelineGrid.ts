@@ -1,5 +1,6 @@
 import { StateManager } from './stateManager';
 import { EventManager } from './eventManager';
+import { VirtualScrollbar } from './virtualScrollbar';
 
 export class TimelineGrid3D {
   private container: HTMLElement;
@@ -19,14 +20,7 @@ export class TimelineGrid3D {
   private scrollHandler: any = null;
   private mouseMoveHandler: (e: MouseEvent) => void = () => {};
   private mouseUpHandler: () => void = () => {};
-  // Virtual scrollbar properties
-  private scrollbarEl: HTMLElement | null = null;
-  private scrollbarThumbEl: HTMLElement | null = null;
-  private isDraggingScrollbar: boolean = false;
-  private scrollbarStartX: number = 0;
-  private scrollbarStartScrollLeft: number = 0;
-  private handleScrollbarDrag: (e: MouseEvent) => void = () => {};
-  private handleScrollbarDragEnd: () => void = () => {};
+  private virtualScrollbar: VirtualScrollbar | null = null;
   constructor(container: HTMLElement, stateManager: StateManager, eventManager: EventManager) {
     this.container = container;
     this.stateManager = stateManager;
@@ -52,11 +46,13 @@ export class TimelineGrid3D {
     this.render();
     this.attachScrollHandler();
   }  render() {
-    // Remove previous event listeners to prevent duplicates
+    // Clean up previous elements and event listeners
+    if (this.virtualScrollbar) {
+      this.virtualScrollbar.destroy();
+      this.virtualScrollbar = null;
+    }
     document.removeEventListener('mousemove', this.mouseMoveHandler);
     document.removeEventListener('mouseup', this.mouseUpHandler);
-    document.removeEventListener('mousemove', this.handleScrollbarDrag);
-    document.removeEventListener('mouseup', this.handleScrollbarDragEnd);
     
     const state = this.stateManager.getState();
     const playheadFrame = state.playhead ? state.playhead.frame : 1;
@@ -75,8 +71,6 @@ export class TimelineGrid3D {
         </div>
         <div class="timeline-grid__playhead" style="left:${(playheadFrame-1)*this.frameWidth}px"></div>
       </div>
-      <div class="timeline-grid__virtual-scrollbar">
-        <div class="timeline-grid__scrollbar-thumb"></div>
       </div>
       <div class="timeline-grid__control-bar">
         <button class="timeline-grid__ctrl-btn" id="play-btn" title="Play/Pause">${this.isPlaying ? '<svg width=16 height=16><rect x=3 y=3 width=3 height=10 fill=black/><rect x=10 y=3 width=3 height=10 fill=black/></svg>' : '<svg width=16 height=16><polygon points="3,3 13,8 3,13" fill="black"/></svg>'}</button>
@@ -93,32 +87,33 @@ export class TimelineGrid3D {
         <button id="goto-frame-btn" class="timeline-grid__goto-btn">Go</button>
       </div>
     `;
-    
-    this.scrollContainer = this.container.querySelector('.timeline-grid__scroll-container');
+      this.scrollContainer = this.container.querySelector('.timeline-grid__scroll-container');
     this.rulerEl = this.container.querySelector('.timeline-grid__ruler');
     this.tracksEl = this.container.querySelector('.timeline-grid__tracks');
-    this.scrollbarEl = this.container.querySelector('.timeline-grid__virtual-scrollbar');
-    this.scrollbarThumbEl = this.container.querySelector('.timeline-grid__scrollbar-thumb');
     
     // Ensure frameX is visible in scroll area
     if (this.scrollContainer) {
       this.ensureFrameVisible(playheadFrame);
+      
+      // Create the virtual scrollbar
+      this.virtualScrollbar = new VirtualScrollbar(this.container, this.eventManager);
+      
+      // Initialize with current scroll values
+      if (this.virtualScrollbar && this.scrollContainer) {
+        const { scrollLeft, scrollWidth, clientWidth } = this.scrollContainer;
+        this.virtualScrollbar.update(scrollWidth, clientWidth, scrollLeft);
+      }
     }
     
     this.syncRulerAndTracks();
     this.attachScrollHandler();
-    this.attachScrollbarHandlers();
     this.attachFrameSelection();
     this.attachGotoFrame();
     this.attachFpsInput();
     this.attachGotoTimeSync();
     this.attachPlaybackControls();
     this.attachPlayheadDrag();
-    
-    // Initialize the virtual scrollbar
-    this.updateVirtualScrollbar();
-  }
-  syncRulerAndTracks() {
+  }  syncRulerAndTracks() {
     if (!this.scrollContainer || !this.rulerEl || !this.tracksEl) return;
     
     // Create a named scroll handler function
@@ -128,7 +123,10 @@ export class TimelineGrid3D {
       this.tracksEl.scrollLeft = this.scrollContainer.scrollLeft;
       
       // Update the virtual scrollbar when scrolling
-      this.updateVirtualScrollbar();
+      if (this.virtualScrollbar && this.scrollContainer) {
+        const { scrollLeft, scrollWidth, clientWidth } = this.scrollContainer;
+        this.virtualScrollbar.update(scrollWidth, clientWidth, scrollLeft);
+      }
     };
     
     // Attach the scroll handler
@@ -174,13 +172,20 @@ export class TimelineGrid3D {
     }
     return html;
   }
-
   attachScrollHandler() {
     if (!this.scrollContainer) return;
     if (this.scrollHandler) this.scrollContainer.removeEventListener('scroll', this.scrollHandler);
     this.scrollHandler = () => {
       if (!this.scrollContainer) return;
       if (this.isPlaying) return;
+      
+      // Update virtual scrollbar when scrolling
+      if (this.virtualScrollbar && this.scrollContainer) {
+        const { scrollLeft, scrollWidth, clientWidth } = this.scrollContainer;
+        this.virtualScrollbar.update(scrollWidth, clientWidth, scrollLeft);
+        this.eventManager.emit('scrollPositionChange', { position: scrollLeft });
+      }
+      
       if (this.scrollTimeout) clearTimeout(this.scrollTimeout);
       this.scrollTimeout = setTimeout(() => {
         const { scrollLeft, scrollWidth, clientWidth } = this.scrollContainer!;
@@ -191,6 +196,13 @@ export class TimelineGrid3D {
       }, 150);
     };
     this.scrollContainer.addEventListener('scroll', this.scrollHandler);
+    
+    // Subscribe to scroll change events from the virtual scrollbar
+    this.eventManager.subscribe('scrollChange', (data) => {
+      if (this.scrollContainer) {
+        this.scrollContainer.scrollLeft = data.position;
+      }
+    });
   }
   extendFramesAndRestoreScroll(rightVisibleFrame: number, clientWidth: number) {
     // Calculate the offset from the right edge
@@ -526,25 +538,6 @@ export class TimelineGrid3D {
           }
         }
       }
-      
-      // If playing or dragging, ensure it stays in view
-      if (this.isPlaying || document.body.style.cursor === 'ew-resize') {
-        this.ensureFrameVisible(playheadFrame);
-      }
-      
-      // Also update frame counter in UI
-      const frameInput = this.container.querySelector('#goto-frame') as HTMLInputElement;
-      const timeInput = this.container.querySelector('#goto-time') as HTMLInputElement;
-      
-      if (frameInput) {
-        frameInput.value = playheadFrame.toString();
-      }
-      
-      if (timeInput && !this.suppressSync) {
-        this.suppressSync = true;
-        timeInput.value = ((playheadFrame - 1) / state.fps).toFixed(2);
-        this.suppressSync = false;
-      }
     }
   }
 
@@ -561,95 +554,5 @@ export class TimelineGrid3D {
         track.classList.remove('active');
       }
     });
-  }
-
-  updateVirtualScrollbar() {
-    if (!this.scrollContainer || !this.scrollbarEl || !this.scrollbarThumbEl) return;
-    
-    const { scrollLeft, scrollWidth, clientWidth } = this.scrollContainer;
-    
-    // Calculate the thumb size and position
-    const thumbWidth = Math.max(20, (clientWidth / scrollWidth) * this.scrollbarEl.offsetWidth);
-    const thumbLeft = (scrollLeft / (scrollWidth - clientWidth)) * (this.scrollbarEl.offsetWidth - thumbWidth);
-    
-    // Update the thumb element
-    this.scrollbarThumbEl.style.width = `${thumbWidth}px`;
-    this.scrollbarThumbEl.style.left = `${thumbLeft}px`;
-    
-    // Show/hide the scrollbar based on whether scrolling is possible
-    if (scrollWidth <= clientWidth) {
-      this.scrollbarEl.style.display = 'none';
-    } else {
-      this.scrollbarEl.style.display = 'block';
-    }
-  }
-
-  attachScrollbarHandlers() {
-    if (!this.scrollbarEl || !this.scrollbarThumbEl || !this.scrollContainer) return;
-
-    // Click on the scrollbar track to jump to that position
-    this.scrollbarEl.addEventListener('click', (e: MouseEvent) => {
-      if (e.target === this.scrollbarThumbEl) return; // Don't handle clicks on the thumb
-      
-      const scrollbarRect = this.scrollbarEl!.getBoundingClientRect();
-      const clickPosition = e.clientX - scrollbarRect.left;
-      const scrollbarWidth = scrollbarRect.width;
-      
-      // Calculate scroll position based on click position
-      if (this.scrollContainer) {
-        const { scrollWidth, clientWidth } = this.scrollContainer;
-        const scrollMax = scrollWidth - clientWidth;
-        const scrollPos = (clickPosition / scrollbarWidth) * scrollMax;
-        
-        this.scrollContainer.scrollLeft = scrollPos;
-      }
-    });
-
-    // Create and assign the drag handlers
-    const handleThumbDrag = (e: MouseEvent): void => {
-      if (!this.isDraggingScrollbar || !this.scrollContainer || !this.scrollbarEl) return;
-      
-      const dx = e.clientX - this.scrollbarStartX;
-      const { scrollWidth, clientWidth } = this.scrollContainer;
-      const scrollMax = scrollWidth - clientWidth;
-      
-      // Calculate the scroll movement ratio
-      const ratio = scrollMax / (this.scrollbarEl.offsetWidth - this.scrollbarThumbEl!.offsetWidth);
-      const newScrollLeft = this.scrollbarStartScrollLeft + dx * ratio;
-      
-      // Update the scroll position
-      this.scrollContainer.scrollLeft = Math.max(0, Math.min(scrollMax, newScrollLeft));
-    };
-    
-    const handleThumbDragEnd = (): void => {
-      if (this.isDraggingScrollbar) {
-        this.isDraggingScrollbar = false;
-        document.body.style.userSelect = '';
-        document.body.style.cursor = '';
-      }
-    };
-
-    // Handle thumb dragging
-    this.scrollbarThumbEl.addEventListener('mousedown', (e: MouseEvent) => {
-      if (!this.scrollContainer) return;
-      
-      this.isDraggingScrollbar = true;
-      this.scrollbarStartX = e.clientX;
-      this.scrollbarStartScrollLeft = this.scrollContainer.scrollLeft;
-      
-      document.body.style.userSelect = 'none';
-      document.body.style.cursor = 'grabbing';
-      
-      // Prevent event from bubbling to the scrollbar track
-      e.stopPropagation();
-    });
-    
-    // Attach global event listeners
-    document.addEventListener('mousemove', handleThumbDrag);
-    document.addEventListener('mouseup', handleThumbDragEnd);
-    
-    // Store references to the handlers so we can remove them later
-    this.handleScrollbarDrag = handleThumbDrag;
-    this.handleScrollbarDragEnd = handleThumbDragEnd;
   }
 }

@@ -11,7 +11,10 @@ export type TimelineEvent =
   | 'layerReordered'
   | 'layerVisibilityChanged'
   | 'layerLockChanged'
-  | 'layerSelected';
+  | 'layerSelected'
+  | 'scrollChange'
+  | 'scrollPositionChange'
+  | 'contentSizeChange';
 
 export class EventManager {
   private listeners: { [event: string]: Array<(payload?: any) => void> } = {};
