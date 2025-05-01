@@ -10,7 +10,6 @@ import { TracksRenderer } from './timeline-components/TracksRenderer';
 import { PlayheadController } from './timeline-components/PlayheadController';
 import { TimelineScrollController } from './timeline-components/TimelineScrollController';
 import { TimelineConfigManager } from './timeline-components/TimelineConfigManager';
-import { VirtualScrollbar } from './virtualScrollbar';
 
 /**
  * TimelineGrid3D Component
@@ -38,7 +37,6 @@ export class TimelineGrid3D {
   private playheadController: PlayheadController;
   private scrollController: TimelineScrollController;
   private configManager: TimelineConfigManager;
-  private virtualScrollbar: VirtualScrollbar | null = null;
 
   /**
    * Creates an instance of TimelineGrid3D.
@@ -181,43 +179,6 @@ export class TimelineGrid3D {
     this.eventManager.subscribe('playheadDragged', (data) => {
       this.frameNavigator.ensureFrameVisible(data.frame);
     });
-    
-    // Update virtual scrollbar when scrolling happens
-    this.eventManager.subscribe('scrollPositionChange', (data) => {
-      if (this.virtualScrollbar && this.scrollContainer) {
-        const { scrollWidth, clientWidth } = this.scrollContainer;
-        this.virtualScrollbar.update(scrollWidth, clientWidth, data.position);
-      }
-    });
-    
-    // Update virtual scrollbar when content size changes
-    this.eventManager.subscribe('contentSizeChange', (data) => {
-      if (this.virtualScrollbar) {
-        this.virtualScrollbar.update(data.totalWidth, data.viewportWidth, 
-          this.scrollContainer ? this.scrollContainer.scrollLeft : 0);
-      }
-    });
-    
-    // Handle window resize to ensure timeline always fills double the viewport width
-    let resizeTimeout: any = null;
-    window.addEventListener('resize', () => {
-      // Debounce the resize event
-      if (resizeTimeout) {
-        clearTimeout(resizeTimeout);
-      }
-      
-      resizeTimeout = setTimeout(() => {
-        const containerWidth = this.container.clientWidth;
-        const frameWidth = this.configManager.getFrameWidth();
-        const currentFrameCount = this.configManager.getFrameCount();
-        const minRequiredFrames = Math.ceil((containerWidth * 2) / frameWidth);
-        
-        // Only update if we need more frames than we currently have
-        if (currentFrameCount < minRequiredFrames) {
-          this.render(); // This will recalculate and update the frame count
-        }
-      }, 200); // 200ms debounce
-    });
   }
 
   /**
@@ -227,38 +188,12 @@ export class TimelineGrid3D {
     // Clean up previous event listeners
     this.playheadController.cleanup();
     
-    // Clean up previous virtual scrollbar if exists
-    if (this.virtualScrollbar) {
-      this.virtualScrollbar.destroy();
-      this.virtualScrollbar = null;
-    }
-    
     const state = this.stateManager.getState();
     const playheadFrame = state.playhead ? state.playhead.frame : 1;
     
     // Calculate total content width based on frame count
-    let frameCount = this.configManager.getFrameCount();
+    const frameCount = this.configManager.getFrameCount();
     const frameWidth = this.configManager.getFrameWidth();
-    
-    // Get the container width to ensure we have at least double the viewport width
-    const containerWidth = this.container.clientWidth;
-    const minRequiredFrames = Math.ceil((containerWidth * 2) / frameWidth);
-    
-    // Update the frameCount if it's less than what's needed to fill double the viewport
-    if (frameCount < minRequiredFrames) {
-      frameCount = minRequiredFrames;
-      // Update the frame count in the config manager
-      this.configManager.setFrameCount(frameCount);
-      // Also update other components that need to know about the frame count
-      this.playbackController.setFrameCount(frameCount);
-      this.frameNavigator.setFrameCount(frameCount);
-      // Notify other interested components about the frame count change
-      this.eventManager.emit('frameCountChanged', {
-        frameCount: frameCount,
-        previousFrameCount: this.configManager.getFrameCount()
-      });
-    }
-    
     const totalWidth = frameCount * frameWidth;
     
     // Render the main container HTML
@@ -301,15 +236,6 @@ export class TimelineGrid3D {
     this.tracksRenderer.setTracksElement(this.tracksEl);
     this.keyframeManager.setTracksElement(this.tracksEl);
     this.playheadController.setTracksElement(this.tracksEl);
-    
-    // Create virtual scrollbar
-    this.virtualScrollbar = new VirtualScrollbar(this.container, this.eventManager);
-    
-    // Update virtual scrollbar with initial values
-    if (this.virtualScrollbar && this.scrollContainer) {
-      const { scrollLeft, scrollWidth, clientWidth } = this.scrollContainer;
-      this.virtualScrollbar.update(scrollWidth, clientWidth, scrollLeft);
-    }
     
     // Ensure frame is visible in scroll area
     if (this.scrollContainer) {

@@ -14,7 +14,17 @@ export type TimelineEvent =
   | 'layerSelected'
   | 'scrollChange'
   | 'scrollPositionChange'
-  | 'contentSizeChange';
+  | 'contentSizeChange'
+  // Add new event types for component interactions
+  | 'playbackStarted'
+  | 'playbackStopped'
+  | 'frameStep'
+  | 'frameCountChanged'
+  | 'frameWidthChanged'
+  | 'playheadDragged'
+  | 'playheadDragEnd'
+  | 'rulerScrollChange'
+  | 'fpsChanged';
 
 export class EventManager {
   private listeners: { [event: string]: Array<(payload?: any) => void> } = {};

@@ -1,0 +1,44 @@
+// Playhead Controller Styles
+
+.timeline-grid__playhead {
+  position: absolute;
+  top: 0;
+  width: 2px; /* Make much narrower for better frame clicking */
+  height: 100%;
+  background-color: #e22;
+  z-index: 1000;
+  cursor: ew-resize;
+  transition: width 0.1s, background-color 0.1s;
+  
+  /* Add a semi-transparent hitbox around the playhead for easier grabbing */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -4px;
+    width: 10px;
+    height: 100%;
+    background: transparent;
+    cursor: ew-resize;
+  }
+  
+  &.draggable {
+    /* Add visual feedback for draggable state */
+    box-shadow: 0 0 3px rgba(0,0,0,0.5);
+  }
+  
+  &.dragging,
+  &:hover {
+    width: 4px;
+    background-color: #f00;
+  }
+}
+
+/* Ensure playhead is properly positioned within scroll container */
+.timeline-grid__scroll-container .timeline-grid__playhead {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  /* Allow clicks to pass through to frames when not directly on the center line */
+  pointer-events: auto;
+}

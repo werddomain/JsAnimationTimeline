@@ -1,0 +1,81 @@
+// Tracks Renderer Styles
+
+.timeline-grid__tracks {
+  position: relative;
+  /* Width is now set dynamically based on frame count */
+  min-width: 100%;
+  height: calc(100% - 44px); /* 28px for ruler + 16px for control bar */
+  overflow: visible; /* Ensure content extends beyond container */
+}
+
+.timeline-grid__track-row {
+  position: absolute;
+  left: 0;
+  height: 22px; // Match layer panel row height
+  width: 100%;
+  display: flex;
+  align-items: center;
+  background: #f8f8f8;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 11px;
+  box-sizing: border-box;
+  padding-left: 8px; // Match layer panel row padding
+  top: unset;
+
+  &:nth-child(odd) {
+    background: #eaeaea;
+  }
+
+  &.active {
+    background: #bcdcff; /* Light blue background similar to the selected layer */
+    border-left: 3px solid #1976d2; /* Left border matching the active layer panel item */
+  
+    .timeline-grid__frame-cell {
+      background: #bcdcff;
+      border-color: #1976d2;
+    
+      &.selected {
+        background: #8bb8f0; /* Slightly darker blue for selected cells in active rows */
+        border: 1px solid #1976d2;
+      }
+    }
+  
+    .timeline-grid__track-color-dot {
+      border: 1px solid #1976d2; /* Match border color with the active row theme */
+    }
+  }
+  
+  .timeline-grid__frame-cell {
+    border-top: 1px solid #b0b0b0;
+    border-bottom: 1px solid #b0b0b0;
+  }
+}
+
+.timeline-grid__track-color-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin: 0 3px 0 1px;
+  vertical-align: middle;
+  border: 1px solid #fff;
+}
+
+.timeline-grid__frame-cell {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-right: 1px solid #d0d0d0;
+  background: transparent;
+  z-index: 5; /* Higher than background but lower than playhead */
+  cursor: pointer;
+  transition: background 0.1s;
+
+  &:hover {
+    background-color: rgba(200, 220, 255, 0.3);
+  }
+
+  &:active {
+    background-color: rgba(200, 220, 255, 0.5);
+  }
+}
