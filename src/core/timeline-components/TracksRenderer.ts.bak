@@ -26,9 +26,6 @@ export class TracksRenderer {
     private rowHeight: number;
     private tracksEl: HTMLElement | null = null;
     private keyframeRenderer: (layerIdx: number, frameCount: number) => string;
-    private lastUpdatedLayer: number = -1;
-    private updateDebounceTimer: any = null;
-    parentContainer: HTMLElement | null = null;
 
     /**
      * Creates an instance of TracksRenderer
@@ -53,52 +50,24 @@ export class TracksRenderer {
         
         // Register events
         this.registerEvents();
-    }
-
-    /**
+    }    /**
      * Register events that this component needs to respond to
-     */
-    private registerEvents(): void {
+     */    private registerEvents(): void {
         // Listen for layer selection changes
         this.eventManager.subscribe('layerSelected', (layerIdx) => {
             console.log('TracksRenderer: Received layerSelected event for layer', layerIdx);
-            this.debouncedUpdateActiveTrackRow(layerIdx);
+            this.updateActiveTrackRow(layerIdx);
         });
         
         // Also listen to playhead move events to highlight active track row
         this.eventManager.subscribe('playheadMove', (data) => {
             if (data && typeof data.layerIdx !== 'undefined') {
                 console.log('TracksRenderer: Received playheadMove event for layer', data.layerIdx);
-                this.debouncedUpdateActiveTrackRow(data.layerIdx);
+                setTimeout(() => {
+                    this.updateActiveTrackRow(data.layerIdx);
+                }, 0);
             }
         });
-    }
-    
-    /**
-     * Debounces multiple calls to updateActiveTrackRow within a short time frame
-     */
-    private debouncedUpdateActiveTrackRow(layerIdx: number): void {
-        // Skip if we're already updating this layer
-        if (this.lastUpdatedLayer === layerIdx) {
-            console.log('TracksRenderer: Skipping duplicate update for layer', layerIdx);
-            return;
-        }
-        
-        // Remember this layer
-        this.lastUpdatedLayer = layerIdx;
-        
-        // Clear previous timer if exists
-        if (this.updateDebounceTimer) {
-            clearTimeout(this.updateDebounceTimer);
-        }
-        
-        // Set a debounce timer
-        this.updateDebounceTimer = setTimeout(() => {
-            this.updateActiveTrackRow(layerIdx);
-            // Reset after update
-            this.lastUpdatedLayer = -1;
-            this.updateDebounceTimer = null;
-        }, 10);
     }
 
     /**
@@ -106,21 +75,10 @@ export class TracksRenderer {
      * 
      * @param tracksEl - The tracks container element
      */
-    public setTracksElement(tracksEl: HTMLElement | null, container: HTMLElement | null): void {
+    public setTracksElement(tracksEl: HTMLElement | null): void {
         this.tracksEl = tracksEl;
-        this.parentContainer = container;
     }
 
-    private resetTracksElement(): void {
-        if (this.parentContainer) {
-            this.tracksEl = this.parentContainer.querySelector('.timeline-grid__tracks');
-            if (!this.tracksEl) {
-                console.log('TracksRenderer: tracksEl is null, cannot reset tracks element');
-                return;
-            }
-
-        }
-    }
     /**
      * Render track rows for all layers
      * 
@@ -140,15 +98,11 @@ export class TracksRenderer {
                 </div>
             `;
         }).join('');
-    }
-
-    /**
+    }    /**
      * Update the active state of track rows visually without full re-render
      * 
      * @param layerIdx - Index of layer to set as active
-     */
-    public updateActiveTrackRow(layerIdx: number): void {
-        this.resetTracksElement();
+     */    public updateActiveTrackRow(layerIdx: number): void {
         if (!this.tracksEl) {
             console.log('TracksRenderer: tracksEl is null, cannot update active track row');
             return;
@@ -156,42 +110,55 @@ export class TracksRenderer {
         
         console.log('TracksRenderer: updating active track row for layer', layerIdx);
         
-        // Update active class on track rows immediately
-        const allTracks = this.tracksEl.querySelectorAll('.timeline-grid__track-row');
-        
-        if (!allTracks || allTracks.length === 0) {
-            console.log('TracksRenderer: No track rows found in the DOM');
-            return;
-        }
-        
-        // Keep track of whether we successfully updated any track
-        let trackUpdated = false;
-        
-        // Use forEach with an index to match against layerIdx
-        allTracks.forEach((track, idx) => {
-            if (idx === layerIdx) {
-                track.classList.add('active');
-                trackUpdated = true;
-            } else {
-                track.classList.remove('active');
+        // Force a microtask delay to ensure DOM is ready
+        setTimeout(() => {
+            // Update active class on track rows 
+            const allTracks = this.tracksEl?.querySelectorAll('.timeline-grid__track-row');
+            
+            if (!allTracks || allTracks.length === 0) {
+                console.log('TracksRenderer: No track rows found in the DOM');
+                return;
             }
-        });
-        
-        // If we couldn't update the track by index, try by data attribute
-        if (!trackUpdated && allTracks.length > 0) {
-            const state = this.stateManager.getState();
-            if (state.layers[layerIdx]) {
-                const layerName = state.layers[layerIdx].name;
-                
-                // Find the track row by layer name data attribute
-                allTracks.forEach((track) => {
-                    if (track.getAttribute('data-layer') === layerName) {
-                        track.classList.add('active');
-                        trackUpdated = true;
-                    }
-                });
+            
+            console.log('TracksRenderer: found', allTracks.length, 'track rows');
+            
+            // Keep track of whether we successfully updated any track
+            let trackUpdated = false;
+            
+            // Use forEach with an index to match against layerIdx
+            allTracks.forEach((track, idx) => {
+                if (idx === layerIdx) {
+                    console.log('TracksRenderer: adding active class to track', idx);
+                    track.classList.add('active');
+                    trackUpdated = true;
+                } else {
+                    track.classList.remove('active');
+                }
+            });
+            
+            // If we couldn't update the track by index, try by data attribute
+            if (!trackUpdated && allTracks.length > 0) {
+                console.log('TracksRenderer: trying to update active track by state');
+                const state = this.stateManager.getState();
+                if (state.layers[layerIdx]) {
+                    const layerName = state.layers[layerIdx].name;
+                    console.log('TracksRenderer: looking for track with layer name', layerName);
+                    
+                    // Find the track row by layer name data attribute
+                    allTracks.forEach((track) => {
+                        if (track.getAttribute('data-layer') === layerName) {
+                            console.log('TracksRenderer: found track by layer name', layerName);
+                            track.classList.add('active');
+                            trackUpdated = true;
+                        }
+                    });
+                }
             }
-        }
+            
+            if (!trackUpdated) {
+                console.log('TracksRenderer: Could not update any track row for layer', layerIdx);
+            }
+        }, 0);
     }
 
     /**

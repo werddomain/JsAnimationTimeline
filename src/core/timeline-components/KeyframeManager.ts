@@ -49,7 +49,9 @@ export class KeyframeManager {
     private registerEvents(): void {
         // No direct event subscriptions needed for this component
         // It primarily responds to user interactions
+       
     }
+   
 
     /**
      * Set the tracks element reference
@@ -145,15 +147,18 @@ export class KeyframeManager {
                         
                         // Add 'selected' class to the clicked frame immediately
                         frameCell.classList.add('selected');
-                        
-                        // Find and add 'active' class to the parent track row
+                              // Find and add 'active' class to the parent track row
                         const trackRow = frameCell.closest('.timeline-grid__track-row');
                         if (trackRow) {
                             trackRow.classList.add('active');
                         }
                     }
                     
-                    // Update the state
+                    // Emit layer selection event first
+                    console.log('KeyframeManager: Emitting layerSelected event for layer', layerIdx);
+                    this.eventManager.emit('layerSelected', layerIdx);
+                    
+                    // Then update the playhead state
                     this.stateManager.updatePlayhead({ layerIdx, frame });
                 }
             }

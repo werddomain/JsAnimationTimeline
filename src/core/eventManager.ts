@@ -41,6 +41,9 @@ export class EventManager {
 
   emit(event: TimelineEvent, payload?: any) {
     if (!this.listeners[event]) return;
+    // if (event === 'layerSelected'){
+    //   debugger;
+    // }
     for (const cb of this.listeners[event]) cb(payload);
   }
 }

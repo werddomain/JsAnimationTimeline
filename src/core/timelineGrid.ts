@@ -188,15 +188,16 @@ export class TimelineGrid3D {
         const { scrollWidth, clientWidth } = this.scrollContainer;
         this.virtualScrollbar.update(scrollWidth, clientWidth, data.position);
       }
-    });
-    
-    // Update virtual scrollbar when content size changes
+    });    // Update virtual scrollbar when content size changes
     this.eventManager.subscribe('contentSizeChange', (data) => {
       if (this.virtualScrollbar) {
         this.virtualScrollbar.update(data.totalWidth, data.viewportWidth, 
           this.scrollContainer ? this.scrollContainer.scrollLeft : 0);
       }
     });
+    
+    // Note: We no longer subscribe to layerSelected here as TracksRenderer already handles it
+    // This prevents duplicate calls to updateActiveTrackRow
     
     // Handle window resize to ensure timeline always fills double the viewport width
     let resizeTimeout: any = null;
@@ -297,7 +298,8 @@ export class TimelineGrid3D {
     this.scrollController.setScrollContainer(this.scrollContainer);
     this.frameNavigator.setScrollContainer(this.scrollContainer);
     this.rulerRenderer.setElements(this.rulerEl, this.tracksEl, this.scrollContainer);
-    this.tracksRenderer.setTracksElement(this.tracksEl);
+
+    this.tracksRenderer.setTracksElement(this.tracksEl, this.container);
     this.keyframeManager.setTracksElement(this.tracksEl);
     this.playheadController.setTracksElement(this.tracksEl);
     

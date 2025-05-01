@@ -28,7 +28,6 @@ export class TracksRenderer {
     private keyframeRenderer: (layerIdx: number, frameCount: number) => string;
     private lastUpdatedLayer: number = -1;
     private updateDebounceTimer: any = null;
-    parentContainer: HTMLElement | null = null;
 
     /**
      * Creates an instance of TracksRenderer
@@ -106,21 +105,10 @@ export class TracksRenderer {
      * 
      * @param tracksEl - The tracks container element
      */
-    public setTracksElement(tracksEl: HTMLElement | null, container: HTMLElement | null): void {
+    public setTracksElement(tracksEl: HTMLElement | null): void {
         this.tracksEl = tracksEl;
-        this.parentContainer = container;
     }
 
-    private resetTracksElement(): void {
-        if (this.parentContainer) {
-            this.tracksEl = this.parentContainer.querySelector('.timeline-grid__tracks');
-            if (!this.tracksEl) {
-                console.log('TracksRenderer: tracksEl is null, cannot reset tracks element');
-                return;
-            }
-
-        }
-    }
     /**
      * Render track rows for all layers
      * 
@@ -148,7 +136,6 @@ export class TracksRenderer {
      * @param layerIdx - Index of layer to set as active
      */
     public updateActiveTrackRow(layerIdx: number): void {
-        this.resetTracksElement();
         if (!this.tracksEl) {
             console.log('TracksRenderer: tracksEl is null, cannot update active track row');
             return;

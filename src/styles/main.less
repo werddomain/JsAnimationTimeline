@@ -29,6 +29,7 @@
   border-right: 1px solid #b0b0b0;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .timeline__grid {
@@ -55,6 +56,11 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+  padding-bottom: 28px;
+  /* Same as footer height to prevent content overlap */
+  overflow-y: auto;
+  height: calc(100% - 27px);
+  /* Subtract header height */
 }
 
 .layer-panel__item {
@@ -100,25 +106,14 @@
   text-overflow: ellipsis;
 }
 
-.layer-panel__visible, .layer-panel__lock {
+.layer-panel__visible,
+.layer-panel__lock {
   width: 24px;
   text-align: center;
   font-size: 16px;
   cursor: pointer;
 }
 
-.layer-panel__add-btn {
-  margin-left: 8px;
-  background: #d0eaff;
-  border: 1px solid #b0b0b0;
-  border-radius: 3px;
-  font-size: 16px;
-  cursor: pointer;
-  padding: 0 6px;
-  height: 22px;
-}
-
-.layer-panel__remove-btn,
 .layer-panel__up-btn,
 .layer-panel__down-btn {
   margin-left: 4px;
@@ -130,6 +125,8 @@
   padding: 0 4px;
   height: 20px;
 }
+
+
 
 .layer-panel__item:focus-within {
   background: #e0f7fa;
@@ -157,10 +154,49 @@
 
 .layer-panel__footer {
   display: flex;
+  flex-direction: row;
+  gap: 7px;
+
   align-items: center;
-  justify-content: flex-end;
-  height: 16px;
-  background: #eaeaea;
+  justify-content: left;
+  height: 28px;
+  background: #f6f6e7;
   border-top: 1px solid #b0b0b0;
-  padding-right: 1px;
+  padding: 0 5px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+
+  button {
+    display: flex;
+    align-items: center;
+    background: #fff;
+    border: 1px solid #b0b0b0;
+    border-radius: 3px;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0 6px;
+    height: 22px;
+    min-width: 22px;
+
+    &:hover {
+      background: #f0f0f0;
+    }
+
+    &:active {
+      background: #e0e0e0;
+    }
+  }
+  .layer-panel__add-btn{
+    font-size: 16px;
+  }
+
+
+  
+   
+  .layer-panel__delete-btn {
+    margin-left: auto;
+  }
 }
