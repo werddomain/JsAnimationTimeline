@@ -41,13 +41,47 @@ export class PlayheadController {
         
         // Register events
         this.registerEvents();
-    }
-
-    /**
+    }    /**
      * Register events that this component needs to respond to
      */
     private registerEvents(): void {
-        // This component doesn't need to listen to any events directly
+        // Listen to window resize to adjust playhead height
+        window.addEventListener('resize', this.handleResize.bind(this));
+        
+        // Listen directly to playhead move events to update visual selection
+        this.eventManager.subscribe('playheadMove', (data) => {
+            // Wait a brief moment to ensure DOM has updated
+            setTimeout(() => {
+                this.updatePlayheadPosition();
+            }, 0);
+        });
+        
+        // Listen to control bar height changes
+        const resizeObserver = new ResizeObserver((entries) => {
+            // When control bar height changes, update playhead
+            const playhead = this.container.querySelector('.timeline-grid__playhead') as HTMLElement;
+            if (playhead) {
+                this.adjustPlayheadHeight(playhead);
+            }
+        });
+        
+        // Start observing after a short delay to ensure the elements are rendered
+        setTimeout(() => {
+            const controlBar = this.container.querySelector('.timeline-grid__control-bar');
+            if (controlBar) {
+                resizeObserver.observe(controlBar);
+            }
+        }, 100);
+    }
+    
+    /**
+     * Handle window resize events
+     */
+    private handleResize(): void {
+        const playhead = this.container.querySelector('.timeline-grid__playhead') as HTMLElement;
+        if (playhead) {
+            this.adjustPlayheadHeight(playhead);
+        }
     }
 
     /**
@@ -57,9 +91,7 @@ export class PlayheadController {
      */
     public setTracksElement(tracksEl: HTMLElement | null): void {
         this.tracksEl = tracksEl;
-    }
-
-    /**
+    }    /**
      * Update just the playhead position element without full rerender
      */
     public updatePlayheadPosition(): void {
@@ -72,8 +104,13 @@ export class PlayheadController {
             // Update position
             playhead.style.left = `${(playheadFrame - 1) * this.frameWidth}px`;
             
+            // Adjust height to prevent covering the control bar
+            this.adjustPlayheadHeight(playhead);
+            
             // Update selected frame cell and active track row
             if (this.tracksEl) {
+                console.log(`Updating selection for frame ${playheadFrame} on layer ${playheadLayer}`);
+                
                 // Clear all selected states first
                 const allFrames = this.tracksEl.querySelectorAll('.timeline-grid__frame-cell.selected');
                 Array.from(allFrames).forEach((frame) => frame.classList.remove('selected'));
@@ -81,20 +118,65 @@ export class PlayheadController {
                 const allTracks = this.tracksEl.querySelectorAll('.timeline-grid__track-row.active');
                 Array.from(allTracks).forEach((track) => track.classList.remove('active'));
                 
-                // Find and select the current frame
-                const currentFrame = this.tracksEl.querySelector(
+                // Find and select the current frame with more reliable attribute selectors
+                // Try first with the exact selector
+                let currentFrame = this.tracksEl.querySelector(
                     `.timeline-grid__frame-cell[data-frame="${playheadFrame}"][data-layer-idx="${playheadLayer}"]`
-                );
+                ) as HTMLElement | null;
+                
+                // If the first selector fails, try with a slightly different approach
+                if (!currentFrame) {
+                    const possibleFrames = this.tracksEl.querySelectorAll('.timeline-grid__frame-cell');
+                    for (let i = 0; i < possibleFrames.length; i++) {
+                        const frame = possibleFrames[i] as HTMLElement;
+                        const dataFrame = frame.getAttribute('data-frame');
+                        const dataLayerIdx = frame.getAttribute('data-layer-idx');
+                        
+                        if (dataFrame === String(playheadFrame) && dataLayerIdx === String(playheadLayer)) {
+                            currentFrame = frame;
+                            break;
+                        }
+                    }
+                }
                 
                 if (currentFrame) {
+                    console.log('Found frame cell, adding selected class');
                     currentFrame.classList.add('selected');
                     
                     // Select the track row too
                     const trackRow = currentFrame.closest('.timeline-grid__track-row');
                     if (trackRow) {
                         trackRow.classList.add('active');
+                    } else {
+                        console.log('Could not find parent track row');
+                    }
+                } else {
+                    console.warn(`Could not find frame cell for frame=${playheadFrame}, layer=${playheadLayer}`);
+                    
+                    // Fallback: try to at least select the track row for the layer
+                    const trackRows = this.tracksEl.querySelectorAll('.timeline-grid__track-row');
+                    if (trackRows && trackRows.length > playheadLayer) {
+                        trackRows[playheadLayer].classList.add('active');
                     }
                 }
+            }
+        }
+    }
+    
+    /**
+     * Adjust the playhead height to account for the control bar
+     * 
+     * @param playhead - The playhead element to adjust
+     */
+    private adjustPlayheadHeight(playhead: HTMLElement): void {
+        const controlBar = this.container.querySelector('.timeline-grid__control-bar') as HTMLElement;
+        if (controlBar) {
+            const controlBarHeight = controlBar.offsetHeight;
+            const scrollContainer = this.container.querySelector('.timeline-grid__scroll-container') as HTMLElement;
+            if (scrollContainer) {
+                // Set the height to be the full container height minus the control bar height
+                const adjustedHeight = `calc(100% - ${controlBarHeight}px)`;
+                playhead.style.height = adjustedHeight;
             }
         }
     }
@@ -115,10 +197,11 @@ export class PlayheadController {
         if (playhead.parentNode) {
             playhead.parentNode.replaceChild(newPlayhead, playhead);
         }
-        
-        // Make playhead narrower so it doesn't interfere with frame clicks
+          // Make playhead narrower so it doesn't interfere with frame clicks
         newPlayhead.classList.add('draggable');
         
+        // Adjust the playhead height to not overlap with the control bar
+        this.adjustPlayheadHeight(newPlayhead);
         // State variables for drag operation
         let isDragging = false;
         let startX = 0;
@@ -192,13 +275,12 @@ export class PlayheadController {
      */
     public setFrameWidth(frameWidth: number): void {
         this.frameWidth = frameWidth;
-    }
-
-    /**
+    }    /**
      * Clean up event listeners
      */
     public cleanup(): void {
         document.removeEventListener('mousemove', this.mouseMoveHandler);
         document.removeEventListener('mouseup', this.mouseUpHandler);
+        window.removeEventListener('resize', this.handleResize);
     }
 }

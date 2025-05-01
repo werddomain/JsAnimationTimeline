@@ -4,7 +4,7 @@
   position: absolute;
   top: 0;
   width: 2px; /* Make much narrower for better frame clicking */
-  height: 100%;
+  height: calc(100% - 28px); /* Default height minus control bar height, will be overridden by JavaScript */
   background-color: #e22;
   z-index: 1000;
   cursor: ew-resize;
@@ -17,7 +17,7 @@
     top: 0;
     left: -4px;
     width: 10px;
-    height: 100%;
+    height: 100%; /* Will inherit parent's calculated height */
     background: transparent;
     cursor: ew-resize;
   }
@@ -38,7 +38,7 @@
 .timeline-grid__scroll-container .timeline-grid__playhead {
   position: absolute;
   top: 0;
-  height: 100%;
+  /* height controlled by JavaScript now */
   /* Allow clicks to pass through to frames when not directly on the center line */
   pointer-events: auto;
 }

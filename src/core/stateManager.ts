@@ -24,7 +24,8 @@ export class StateManager {
   setState(newState: Partial<TimelineState>) {
     this.state = { ...this.state, ...newState };
     this.eventManager.emit('stateChange', this.getState());
-  }  updatePlayhead(playhead: { layerIdx: number; frame: number }) {
+  }  
+  updatePlayhead(playhead: { layerIdx: number; frame: number }) {
     this.state.playhead = playhead;
     this.eventManager.emit('playheadMove', playhead);
     this.eventManager.emit('layerSelected', playhead.layerIdx);

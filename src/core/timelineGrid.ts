@@ -272,20 +272,19 @@ export class TimelineGrid3D {
         </div>
         <div class="timeline-grid__playhead" style="left:${(playheadFrame-1)*frameWidth}px"></div>
       </div>
-      </div>
-      <div class="timeline-grid__control-bar">
+      </div>      <div class="timeline-grid__control-bar">
         <button class="timeline-grid__ctrl-btn" id="play-btn" title="Play/Pause">${this.playbackController.getIsPlaying() ? '<svg width=16 height=16><rect x=3 y=3 width=3 height=10 fill=black/><rect x=10 y=3 width=3 height=10 fill=black/></svg>' : '<svg width=16 height=16><polygon points="3,3 13,8 3,13" fill="black"/></svg>'}</button>
         <button class="timeline-grid__ctrl-btn" id="stop-btn" title="Stop"><svg width=16 height=16><rect x=3 y=3 width=10 height=10 fill=black/></svg></button>
         <button class="timeline-grid__ctrl-btn" id="step-back-btn" title="Step Back"><svg width=16 height=16><polygon points="11,3 11,13 3,8" fill="black"/></svg></button>
         <button class="timeline-grid__ctrl-btn" id="step-fwd-btn" title="Step Forward"><svg width=16 height=16><polygon points="5,3 5,13 13,8" fill="black"/></svg></button>
         <span class="timeline-grid__ctrl-sep"></span>
         <label for="goto-frame">Frame:</label>
-        <input type="number" id="goto-frame" min="1" max="${frameCount}" value="${playheadFrame}" class="timeline-grid__goto-input" />
-        <label for="goto-time">Time:</label>
-        <input type="number" id="goto-time" min="0" step="0.01" value="${((playheadFrame - 1) / state.fps).toFixed(2)}" class="timeline-grid__goto-input" />s
+        <input type="number" id="goto-frame" min="1" max="${frameCount}" value="${playheadFrame}" class="timeline-grid__goto-input" />        <label for="goto-time">Time:</label>
+        <input type="number" id="goto-time" min="0" step="0.01" value="${((playheadFrame - 1) / state.fps).toFixed(2)}" class="timeline-grid__goto-input goto-time" /> <span class="timeline-grid__unit">s</span>
         <label for="fps-input">FPS:</label>
         <input type="number" id="fps-input" min="1" max="120" step="0.01" value="${state.fps}" class="timeline-grid__fps-input" />
         <button id="goto-frame-btn" class="timeline-grid__goto-btn">Go</button>
+        <div class="timeline-grid__scrollbar-container" id="scrollbar-container"></div>
       </div>
     `;
     

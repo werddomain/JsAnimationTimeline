@@ -50,15 +50,22 @@ export class TracksRenderer {
         
         // Register events
         this.registerEvents();
-    }
-
-    /**
+    }    /**
      * Register events that this component needs to respond to
      */
     private registerEvents(): void {
         // Listen for layer selection changes
         this.eventManager.subscribe('layerSelected', (layerIdx) => {
             this.updateActiveTrackRow(layerIdx);
+        });
+        
+        // Also listen to playhead move events to highlight active track row
+        this.eventManager.subscribe('playheadMove', (data) => {
+            if (data && typeof data.layerIdx !== 'undefined') {
+                setTimeout(() => {
+                    this.updateActiveTrackRow(data.layerIdx);
+                }, 0);
+            }
         });
     }
 

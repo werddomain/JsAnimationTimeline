@@ -135,14 +135,22 @@ export class KeyframeManager {
                 if (e.shiftKey) {
                     // Toggle keyframe
                     this.toggleKeyframe(layerIdx, frame);
-                } else {
-                    // First, remove 'selected' class from all frame cells
+                } else {                    // First, remove 'selected' class from all frame cells and 'active' from all track rows
                     if (this.tracksEl) {
                         const allFrames = this.tracksEl.querySelectorAll('.timeline-grid__frame-cell');
                         Array.from(allFrames).forEach((frame) => frame.classList.remove('selected'));
                         
+                        const allTracks = this.tracksEl.querySelectorAll('.timeline-grid__track-row');
+                        Array.from(allTracks).forEach((track) => track.classList.remove('active'));
+                        
                         // Add 'selected' class to the clicked frame immediately
                         frameCell.classList.add('selected');
+                        
+                        // Find and add 'active' class to the parent track row
+                        const trackRow = frameCell.closest('.timeline-grid__track-row');
+                        if (trackRow) {
+                            trackRow.classList.add('active');
+                        }
                     }
                     
                     // Update the state

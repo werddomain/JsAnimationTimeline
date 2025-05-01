@@ -14,8 +14,7 @@ export class VirtualScrollbar {
   private isThumbDragging: boolean = false;
   private dragStartX: number = 0;
   private dragStartScrollPos: number = 0;
-  
-  constructor(container: HTMLElement, eventManager: EventManager) {
+    constructor(container: HTMLElement, eventManager: EventManager) {
     this.container = container;
     this.eventManager = eventManager;
     
@@ -25,9 +24,12 @@ export class VirtualScrollbar {
     this.thumbElement = document.createElement('div');
     this.thumbElement.className = 'virtual-scrollbar__thumb';
     
+    // Find scrollbar container in control bar
+    const scrollbarContainer = this.container.querySelector('#scrollbar-container') || this.container;
+    
     // Assemble the DOM
     this.scrollbarElement.appendChild(this.thumbElement);
-    this.container.appendChild(this.scrollbarElement);
+    scrollbarContainer.appendChild(this.scrollbarElement);
     
     // Set up event listeners
     this.attachEventListeners();
@@ -162,16 +164,16 @@ export class VirtualScrollbar {
     this.updateThumbWidth();
     this.updateThumbPosition();
   }
-  
-  // Public method to destroy and clean up
+    // Public method to destroy and clean up
   public destroy(): void {
     this.thumbElement.removeEventListener('mousedown', this.handleThumbMouseDown.bind(this));
     this.scrollbarElement.removeEventListener('mousedown', this.handleTrackMouseDown.bind(this));
     document.removeEventListener('mousemove', this.handleMouseMove.bind(this));
     document.removeEventListener('mouseup', this.handleMouseUp.bind(this));
     
-    if (this.container.contains(this.scrollbarElement)) {
-      this.container.removeChild(this.scrollbarElement);
+    // Find the parent of the scrollbar to remove it
+    if (this.scrollbarElement.parentElement) {
+      this.scrollbarElement.parentElement.removeChild(this.scrollbarElement);
     }
   }
 }

@@ -43,15 +43,18 @@ export class FrameNavigator {
         
         // Register events this component responds to
         this.registerEvents();
-    }
-
-    /**
+    }    /**
      * Register events that this component needs to respond to
      */
     private registerEvents(): void {
         // Listen for frame count changes
         this.eventManager.subscribe('frameCountChanged', (data) => {
             this.frameCount = data.frameCount;
+        });
+
+        // Listen for playhead movement to update input values
+        this.eventManager.subscribe('playheadMove', (data) => {
+            this.updateInputValues(data.frame);
         });
     }
 
@@ -170,14 +173,36 @@ export class FrameNavigator {
      */
     public setFrameCount(frameCount: number): void {
         this.frameCount = frameCount;
-    }
-
-    /**
+    }    /**
      * Update frame width
      * 
      * @param frameWidth - New frame width
      */
     public setFrameWidth(frameWidth: number): void {
         this.frameWidth = frameWidth;
+    }
+
+    /**
+     * Update input values based on the current frame
+     * 
+     * @param frame - Current frame number
+     */
+    private updateInputValues(frame: number): void {
+        const frameInput = this.container.querySelector('#goto-frame') as HTMLInputElement;
+        const timeInput = this.container.querySelector('#goto-time') as HTMLInputElement;
+        
+        if (frameInput && timeInput) {
+            // Temporarily disable sync to prevent circular updates
+            this.suppressSync = true;
+            
+            // Update frame input
+            frameInput.value = String(frame);
+            
+            // Update time input based on current FPS
+            const state = this.stateManager.getState();
+            timeInput.value = ((frame - 1) / state.fps).toFixed(2);
+            
+            this.suppressSync = false;
+        }
     }
 }
