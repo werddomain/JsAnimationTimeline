@@ -41,15 +41,18 @@ export class KeyframeManager {
         
         // Register events
         this.registerEvents();
-    }
-
-    /**
+    }    /**
      * Register events that this component needs to respond to
      */
     private registerEvents(): void {
-        // No direct event subscriptions needed for this component
-        // It primarily responds to user interactions
-       
+        // Listen for layer rename events to update frame cell attributes if needed
+        this.eventManager.subscribe('layerRenamed', (data) => {
+            if (data && data.oldName && data.newName && data.idx !== undefined) {
+                console.log(`KeyframeManager: Layer renamed from "${data.oldName}" to "${data.newName}"`);
+                // No need for special handling here as frame cells have layerIdx attribute 
+                // which doesn't change when a layer is renamed
+            }
+        });
     }
    
 

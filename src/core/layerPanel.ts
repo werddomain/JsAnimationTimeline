@@ -187,15 +187,21 @@ export class LayerPanel {
         nameSpan.onfocus = () => {
           this.isEditing = true;
         };
-        
-        nameSpan.onblur = () => {
+          nameSpan.onblur = () => {
           this.isEditing = false;
           const layers = this.stateManager.getState().layers.slice();
           const oldName = layers[idx].name;
-          layers[idx].name = nameSpan.textContent?.trim() || 'Layer';
+          const newName = nameSpan.textContent?.trim() || 'Layer';
+          layers[idx].name = newName;
           this.stateManager.updateLayers(layers);
-          if (oldName !== layers[idx].name) {
-            this.eventManager.emit('layerRenamed', { idx, name: layers[idx].name });
+          if (oldName !== newName) {
+            // Emit layerRenamed with both old and new names
+            this.eventManager.emit('layerRenamed', { 
+              idx, 
+              name: newName, 
+              oldName: oldName,
+              newName: newName
+            });
           }
         };
         

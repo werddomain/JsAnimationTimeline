@@ -43,8 +43,7 @@ export class PlayheadController {
         this.registerEvents();
     }    /**
      * Register events that this component needs to respond to
-     */
-    private registerEvents(): void {
+     */    private registerEvents(): void {
         // Listen to window resize to adjust playhead height
         window.addEventListener('resize', this.handleResize.bind(this));
         
@@ -54,6 +53,22 @@ export class PlayheadController {
             setTimeout(() => {
                 this.updatePlayheadPosition();
             }, 0);
+        });
+        
+        // Listen for layer rename events to ensure playhead is still properly positioned
+        this.eventManager.subscribe('layerRenamed', (data) => {
+            if (data && data.idx !== undefined) {
+                const state = this.stateManager.getState();
+                const playheadLayer = state.playhead ? state.playhead.layerIdx : 0;
+                
+                // Only update if the renamed layer is the currently active layer
+                if (playheadLayer === data.idx) {
+                    console.log(`PlayheadController: Active layer renamed from "${data.oldName}" to "${data.newName}"`);
+                    setTimeout(() => {
+                        this.updatePlayheadPosition();
+                    }, 0);
+                }
+            }
         });
         
         // Listen to control bar height changes

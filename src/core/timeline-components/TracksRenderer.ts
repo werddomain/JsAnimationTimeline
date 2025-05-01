@@ -53,9 +53,7 @@ export class TracksRenderer {
         
         // Register events
         this.registerEvents();
-    }
-
-    /**
+    }    /**
      * Register events that this component needs to respond to
      */
     private registerEvents(): void {
@@ -70,6 +68,14 @@ export class TracksRenderer {
             if (data && typeof data.layerIdx !== 'undefined') {
                 console.log('TracksRenderer: Received playheadMove event for layer', data.layerIdx);
                 this.debouncedUpdateActiveTrackRow(data.layerIdx);
+            }
+        });
+        
+        // Listen for layer rename events to update track data attributes
+        this.eventManager.subscribe('layerRenamed', (data) => {
+            if (data && data.oldName && data.newName && data.idx !== undefined) {
+                console.log(`TracksRenderer: Layer renamed from "${data.oldName}" to "${data.newName}"`);
+                this.handleLayerRenamed(data.idx, data.oldName, data.newName);
             }
         });
     }
@@ -191,6 +197,49 @@ export class TracksRenderer {
                     }
                 });
             }
+        }
+    }
+
+    /**
+     * Handle layer rename events and update track elements accordingly
+     * 
+     * @param layerIdx - Index of the renamed layer
+     * @param oldName - Previous name of the layer
+     * @param newName - New name of the layer  
+     */
+    private handleLayerRenamed(layerIdx: number, oldName: string, newName: string): void {
+        this.resetTracksElement();
+        if (!this.tracksEl) {
+            console.log('TracksRenderer: tracksEl is null, cannot update track data attributes');
+            return;
+        }
+        
+        // Find the track row by either index or old name
+        let trackElement: Element | null = null;
+        const allTracks = this.tracksEl.querySelectorAll('.timeline-grid__track-row');
+        
+        // First try by index
+        if (allTracks[layerIdx]) {
+            trackElement = allTracks[layerIdx];
+            console.log('TracksRenderer: Found track element by index', layerIdx);
+        } 
+        
+        // If not found, try by name attribute
+        if (!trackElement) {
+            allTracks.forEach(track => {
+                if (track.getAttribute('data-layer') === oldName) {
+                    trackElement = track;
+                    console.log('TracksRenderer: Found track element by name', oldName);
+                }
+            });
+        }
+        
+        // Update the track element if found
+        if (trackElement) {
+            trackElement.setAttribute('data-layer', newName);
+            console.log('TracksRenderer: Updated track data-layer attribute to', newName);
+        } else {
+            console.log('TracksRenderer: Could not find track element for layer', layerIdx);
         }
     }
 
