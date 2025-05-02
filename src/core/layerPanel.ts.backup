@@ -119,39 +119,29 @@ export class LayerPanel {
    * @param idx - The index of the layer
    */
   private attachDragAndDropHandlers(item: Element, idx: number): void {
-    // Get the drag handle element
+    // Dragstart event - when user starts dragging the item
     const dragHandle = item.querySelector('.layer-panel__drag-handle');
-    if (!dragHandle) return;
-      // Dragstart event - when user starts dragging the item
-    dragHandle.addEventListener('dragstart', (e: Event) => {
-      const dragEvent = e as DragEvent;
-      this.dragSourceIdx = idx;
-      item.classList.add('dragging');
-        // Add is-dragging class to the timeline container to increase spacing
-      const timelineContainer = this.container.closest('.jstimeline');
-      if (timelineContainer) {
-        timelineContainer.classList.add('is-dragging');
-      }
-      
-      console.log(`LayerPanel: Started dragging layer ${idx}`);
-      
-      // Set the drag effect and data
-      if (dragEvent.dataTransfer) {
-        dragEvent.dataTransfer.effectAllowed = 'move';
-        dragEvent.dataTransfer.setData('text/plain', idx.toString());
-        // Use the whole item as drag image for better visual feedback
-        dragEvent.dataTransfer.setDragImage(item, 10, 10);
-      }
-    });
-      // Dragend event - when the drag operation ends
+    if (dragHandle) {
+      dragHandle.addEventListener('dragstart', (e: DragEvent) => {
+        this.dragSourceIdx = idx;
+        item.classList.add('dragging');
+        
+        console.log(`LayerPanel: Started dragging layer ${idx}`);
+        
+        // Set the drag effect and data
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', idx.toString());
+          // Use the whole item as drag image for better visual feedback
+          e.dataTransfer.setDragImage(item, 10, 10);
+        }
+      });
+    }
+    
+    // Dragend event - when the drag operation ends
     item.addEventListener('dragend', () => {
       item.classList.remove('dragging');
       this.dragSourceIdx = -1;
-        // Remove is-dragging class from the timeline container to return to normal spacing
-      const timelineContainer = this.container.closest('.jstimeline');
-      if (timelineContainer) {
-        timelineContainer.classList.remove('is-dragging');
-      }
       
       // Remove all drag-over classes
       const allItems = this.container.querySelectorAll('.layer-panel__item');

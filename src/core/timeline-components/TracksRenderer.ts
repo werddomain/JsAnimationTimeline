@@ -29,6 +29,7 @@ export class TracksRenderer {
     private lastUpdatedLayer: number = -1;
     private updateDebounceTimer: any = null;
     parentContainer: HTMLElement | null = null;
+    private isDragging: boolean = false; // Track if dragging is active
 
     /**
      * Creates an instance of TracksRenderer
@@ -76,7 +77,9 @@ export class TracksRenderer {
                 console.log(`TracksRenderer: Layer renamed from "${data.oldName}" to "${data.newName}"`);
                 this.handleLayerRenamed(data.idx, data.oldName, data.newName);
             }
-        });        // Listen for layer reordering events to update track positions
+        });
+        
+        // Listen for layer reordering events to update track positions
         this.eventManager.subscribe('layerReordered', (layers) => {
             console.log('TracksRenderer: Received layerReordered event');
             // Store the active layer to maintain selection after reordering
@@ -87,6 +90,26 @@ export class TracksRenderer {
             setTimeout(() => {
                 this.maintainActiveStateAfterReordering(activeLayerIdx);
             }, 0);
+        });
+          // Listen for drag start/end events to adjust track spacing accordingly
+        document.addEventListener('dragstart', () => {
+            console.log('TracksRenderer: Drag operation started');
+            this.isDragging = true;
+            // Request a re-render to apply the increased spacing
+            const state = this.stateManager.getState();
+            if (state.playhead) {
+                this.container.innerHTML = this.renderTracks(state.playhead.frame || 1, 100); // Default to 100 frames if not specified
+            }
+        });
+        
+        document.addEventListener('dragend', () => {
+            console.log('TracksRenderer: Drag operation ended');
+            this.isDragging = false;
+            // Request a re-render to restore normal spacing
+            const state = this.stateManager.getState();
+            if (state.playhead) {
+                this.container.innerHTML = this.renderTracks(state.playhead.frame || 1, 100); // Default to 100 frames if not specified
+            }
         });
     }
     
@@ -143,14 +166,18 @@ export class TracksRenderer {
      * @param playheadFrame - Current playhead frame
      * @param frameCount - Total number of frames
      * @returns HTML string with rendered track rows
-     */
-    public renderTracks(playheadFrame: number, frameCount: number): string {
+     */    public renderTracks(playheadFrame: number, frameCount: number): string {
         const state = this.stateManager.getState();
+        
+        // Add a spacing factor to account for the margins in layer panel items
+        // Use different spacing based on whether we're dragging or not
+        const spacingFactor = this.isDragging ? 10 : 2; // 10px during drag, 2px normally
         
         return state.layers.map((layer, idx) => {
             const isActive = state.playhead && state.playhead.layerIdx === idx;
+            // Apply additional spacing between rows by adjusting the top position
             return `
-                <div class="timeline-grid__track-row${isActive ? ' active' : ''}" data-layer="${layer.name}" style="top:${idx*this.rowHeight}px">
+                <div class="timeline-grid__track-row${isActive ? ' active' : ''}" data-layer="${layer.name}" style="top:${idx*this.rowHeight + idx*spacingFactor}px">
                     <span class="timeline-grid__track-color-dot" style="background:${layer.color}"></span>
                     ${this.keyframeRenderer(idx, frameCount)}
                 </div>

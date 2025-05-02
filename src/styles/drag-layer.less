@@ -1,0 +1,85 @@
+/**
+ * Drag-and-drop layer styles for the JsAnimationTimeline
+ * Contains all the styles related to layer dragging functionality
+ */
+
+// Drag handle styles
+.layer-panel__drag-handle {
+  display: inline-block;
+  cursor: grab;
+  margin-right: 3px;
+  font-size: 12px;
+  color: #888;
+  user-select: none;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background-color 0.2s, color 0.2s;
+  border: 1px dotted transparent;
+  
+  &:hover {
+    color: #333;
+    background-color: #e0e0e0;
+    border-color: #ccc;
+  }
+  
+  &:active {
+    cursor: grabbing;
+    color: #1976d2;
+  }
+  
+  /* Add this to make it clearer that the handle is draggable */
+  &::before {
+    content: "";
+    display: inline-block;
+    width: 0;
+    height: 0;
+    margin-right: 2px;
+    vertical-align: middle;
+  }
+}
+
+// Dragging item styles
+.layer-panel__item.dragging {
+  opacity: 0.7;
+  background-color: #e0f7fa;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+// Drag-over styles for the drop target
+.layer-panel__item.drag-over {
+  position: relative;
+  border-top: none;
+  background-color: #f0f8ff;
+  
+  /* Add a more visible drop indicator line */
+  &::before {
+    content: '';
+    position: absolute;
+    top: -3px; /* Adjust based on the margin we added */
+    left: 0;
+    right: 0;
+    height: 3px;
+    background-color: #1976d2;
+    z-index: 10;
+  }
+  
+  /* Add some extra padding to make the drop target larger */
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+// Styles when dragging is active - apply to the jstimeline container
+.jstimeline.is-dragging {
+  .layer-panel__list {
+    .layer-panel__item {
+      // Increase spacing between items during drag
+      margin-top: 5px; 
+      margin-bottom: 5px;
+      
+      // Add a subtle indicator to show where items can be dropped
+      &:not(.dragging):not(.drag-over):hover {
+        border-top: 1px dashed #1976d2;
+      }
+    }
+  }
+}

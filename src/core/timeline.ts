@@ -10,11 +10,12 @@ export class Timeline {
   private stateManager: StateManager;
   private layerPanel: LayerPanel | null = null;
   private timelineGrid: TimelineGrid3D | null = null;
-
   constructor(containerId: string) {
     const el = document.getElementById(containerId);
     if (!el) throw new Error('Timeline container not found');
     this.container = el;
+    // Add main class for specific styling
+    this.container.classList.add('jstimeline');
 
     // Initial state
     const initialLayers: LayerData[] = [

@@ -12,6 +12,9 @@
 // Import Virtual Scrollbar Styles
 @import "./virtualScrollbar.less";
 
+// Import Drag and Drop Layer Styles
+@import "./drag-layer.less";
+
 #timeline-container {
   display: flex;
   flex-direction: row;
@@ -56,11 +59,10 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding-bottom: 28px;
-  /* Same as footer height to prevent content overlap */
+  padding-top: 2px; /* Add padding to the top */
+  padding-bottom: 28px; /* Same as footer height to prevent content overlap */
   overflow-y: auto;
-  height: calc(100% - 27px);
-  /* Subtract header height */
+  height: calc(100% - 27px); /* Subtract header height */
 }
 
 .layer-panel__item {
@@ -72,62 +74,17 @@
   background: #f8f8f8;
   height: 22px; // Match image: taller rows
   font-size: 12px; // Slightly larger for clarity
-  position: relative;
-  min-height: 22px;
+  position: relative;  min-height: 22px;
   max-height: 22px;
   box-sizing: border-box;
-  margin-bottom: 0; // Remove extra spacing
+  margin-top: 1px; // Minimal spacing between items
+  margin-bottom: 1px; // Minimal spacing between items
 }
 
 .layer-panel__item.active {
   background: #bcdcff;
   border-left: 3px solid #1976d2;
   color: #222;
-}
-
-.layer-panel__drag-handle {
-  display: inline-block;
-  cursor: grab;
-  margin-right: 3px;
-  font-size: 12px;
-  color: #888;
-  user-select: none;
-  padding: 2px 4px;
-  border-radius: 3px;
-  transition: background-color 0.2s, color 0.2s;
-  border: 1px dotted transparent;
-  
-  &:hover {
-    color: #333;
-    background-color: #e0e0e0;
-    border-color: #ccc;
-  }
-  
-  &:active {
-    cursor: grabbing;
-    color: #1976d2;
-  }
-  
-  /* Add this to make it clearer that the handle is draggable */
-  &::before {
-    content: "";
-    display: inline-block;
-    width: 0;
-    height: 0;
-    margin-right: 2px;
-    vertical-align: middle;
-  }
-}
-
-.layer-panel__item.dragging {
-  opacity: 0.7;
-  background-color: #e0f7fa;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
-
-.layer-panel__item.drag-over {
-  border-top: 2px solid #1976d2;
-  background-color: #f0f8ff;
 }
 
 .layer-panel__color {
