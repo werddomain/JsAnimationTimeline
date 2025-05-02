@@ -55,8 +55,7 @@ export class TracksRenderer {
         this.registerEvents();
     }    /**
      * Register events that this component needs to respond to
-     */
-    private registerEvents(): void {
+     */    private registerEvents(): void {
         // Listen for layer selection changes
         this.eventManager.subscribe('layerSelected', (layerIdx) => {
             console.log('TracksRenderer: Received layerSelected event for layer', layerIdx);
@@ -77,6 +76,17 @@ export class TracksRenderer {
                 console.log(`TracksRenderer: Layer renamed from "${data.oldName}" to "${data.newName}"`);
                 this.handleLayerRenamed(data.idx, data.oldName, data.newName);
             }
+        });        // Listen for layer reordering events to update track positions
+        this.eventManager.subscribe('layerReordered', (layers) => {
+            console.log('TracksRenderer: Received layerReordered event');
+            // Store the active layer to maintain selection after reordering
+            const state = this.stateManager.getState();
+            const activeLayerIdx = state.playhead ? state.playhead.layerIdx : -1;
+            
+            // Force track update on next render cycle to ensure DOM is updated
+            setTimeout(() => {
+                this.maintainActiveStateAfterReordering(activeLayerIdx);
+            }, 0);
         });
     }
     
@@ -259,14 +269,30 @@ export class TracksRenderer {
      */
     public setFrameWidth(frameWidth: number): void {
         this.frameWidth = frameWidth;
-    }
-
-    /**
+    }    /**
      * Get the tracks element
      * 
      * @returns The tracks element
      */
     public getTracksElement(): HTMLElement | null {
         return this.tracksEl;
+    }
+
+    /**
+     * Ensure the active state is correctly set after layer reordering
+     * 
+     * @param activeLayerIdx - Index of currently active layer 
+     */
+    public maintainActiveStateAfterReordering(activeLayerIdx: number): void {
+        this.resetTracksElement();
+        const state = this.stateManager.getState();
+        
+        if (state.playhead && typeof state.playhead.layerIdx !== 'undefined') {
+            // Use the playhead's layer index as the active layer
+            this.updateActiveTrackRow(state.playhead.layerIdx);
+        } else if (activeLayerIdx >= 0) {
+            // Fallback to provided layer index
+            this.updateActiveTrackRow(activeLayerIdx);
+        }
     }
 }

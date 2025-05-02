@@ -154,8 +154,7 @@ export class TimelineGrid3D {
   
   /**
    * Register event handlers for this component
-   */
-  private registerEvents(): void {
+   */  private registerEvents(): void {
     // Listen for state changes to re-render or update playhead
     this.eventManager.subscribe('stateChange', () => {
       if (!this.container.querySelector('.timeline-grid__playhead')) {
@@ -165,6 +164,13 @@ export class TimelineGrid3D {
         // Just update the playhead position for better performance
         this.playheadController.updatePlayheadPosition();
       }
+    });
+    
+    // Listen for layer reordering events - always do a full render
+    this.eventManager.subscribe('layerReordered', () => {
+      console.log('TimelineGrid3D: Received layerReordered event, triggering full render');
+      // Force a full render to update track positions
+      this.render();
     });
     
     // Listen for frame count changes from scroll controller
@@ -293,11 +299,13 @@ export class TimelineGrid3D {
     this.scrollContainer = this.container.querySelector('.timeline-grid__scroll-container');
     this.rulerEl = this.container.querySelector('.timeline-grid__ruler');
     this.tracksEl = this.container.querySelector('.timeline-grid__tracks');
-    
-    // Update component references
+      // Update component references
     this.scrollController.setScrollContainer(this.scrollContainer);
     this.frameNavigator.setScrollContainer(this.scrollContainer);
     this.rulerRenderer.setElements(this.rulerEl, this.tracksEl, this.scrollContainer);
+    
+    // Explicitly update TracksRenderer with the new tracks element
+    this.tracksRenderer.setTracksElement(this.tracksEl, this.container);
 
     this.tracksRenderer.setTracksElement(this.tracksEl, this.container);
     this.keyframeManager.setTracksElement(this.tracksEl);

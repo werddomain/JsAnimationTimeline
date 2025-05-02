@@ -85,6 +85,51 @@
   color: #222;
 }
 
+.layer-panel__drag-handle {
+  display: inline-block;
+  cursor: grab;
+  margin-right: 3px;
+  font-size: 12px;
+  color: #888;
+  user-select: none;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background-color 0.2s, color 0.2s;
+  border: 1px dotted transparent;
+  
+  &:hover {
+    color: #333;
+    background-color: #e0e0e0;
+    border-color: #ccc;
+  }
+  
+  &:active {
+    cursor: grabbing;
+    color: #1976d2;
+  }
+  
+  /* Add this to make it clearer that the handle is draggable */
+  &::before {
+    content: "";
+    display: inline-block;
+    width: 0;
+    height: 0;
+    margin-right: 2px;
+    vertical-align: middle;
+  }
+}
+
+.layer-panel__item.dragging {
+  opacity: 0.7;
+  background-color: #e0f7fa;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.layer-panel__item.drag-over {
+  border-top: 2px solid #1976d2;
+  background-color: #f0f8ff;
+}
+
 .layer-panel__color {
   display: inline-block;
   width: 7px;
@@ -116,14 +161,24 @@
 
 .layer-panel__up-btn,
 .layer-panel__down-btn {
-  margin-left: 4px;
-  background: #fff;
-  border: 1px solid #b0b0b0;
+  margin-left: 2px;
+  background: transparent;
+  border: 1px solid #e0e0e0;
   border-radius: 3px;
-  font-size: 13px;
+  font-size: 11px;
   cursor: pointer;
-  padding: 0 4px;
-  height: 20px;
+  padding: 0 3px;
+  height: 18px;
+  opacity: 0.6;
+  
+  &:hover {
+    opacity: 1;
+    background: #f0f0f0;
+  }
+  
+  &:focus {
+    outline: 1px dotted #999;
+  }
 }
 
 

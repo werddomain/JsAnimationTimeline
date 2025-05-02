@@ -3,3 +3,13 @@ Refer to the **doc\ProjectDescription.md** for detailed1 information about the p
 Implement the tasks in the task-list 'start-menu-theme-task.md'.
 Elaborate complicated tasks into smalles tasks. 
 Refer to the attached image for the result look and feel we wish to have.
+
+
+
+
+
+
+
+========================
+
+While strictly adheres the the guidelines in **doc\ProjectDescription.md** continue working on implementing the tasks from
