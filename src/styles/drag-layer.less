@@ -70,11 +70,14 @@
 
 // Styles when dragging is active - apply to the jstimeline container
 .jstimeline.is-dragging {
+  // Common variables for both layer panel and timeline grid
+  --drag-item-spacing: 5px;
+
   .layer-panel__list {
     .layer-panel__item {
       // Increase spacing between items during drag
-      margin-top: 5px; 
-      margin-bottom: 5px;
+      margin-top: var(--drag-item-spacing);
+      margin-bottom: var(--drag-item-spacing);
       
       // Add a subtle indicator to show where items can be dropped
       &:not(.dragging):not(.drag-over):hover {
@@ -82,4 +85,7 @@
       }
     }
   }
+  
+  // We'll use the CSS variable in the timeline-grid__track-row elements, but
+  // the actual positioning is handled by the TracksRenderer.ts using spacingFactor
 }

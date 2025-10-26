@@ -91,14 +91,38 @@ export class TracksRenderer {
                 this.maintainActiveStateAfterReordering(activeLayerIdx);
             }, 0);
         });
-          // Listen for drag start/end events to adjust track spacing accordingly
+        
+        // Use MutationObserver to detect when the jstimeline container gets the is-dragging class
+        setTimeout(() => {
+            const timelineContainer = document.querySelector('.jstimeline');
+            if (timelineContainer) {
+                console.log('TracksRenderer: Setting up MutationObserver for jstimeline container');
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                            const hasIsDragging = timelineContainer.classList.contains('is-dragging');                            if (hasIsDragging !== this.isDragging) {
+                                console.log(`TracksRenderer: is-dragging class ${hasIsDragging ? 'added to' : 'removed from'} jstimeline`);
+                                this.isDragging = hasIsDragging;
+                                // Re-render to update the row spacing
+                                const state = this.stateManager.getState();
+                                if (state.playhead) {
+                                    this.updateTracksOnly(state.playhead.frame || 1, 100);
+                                }
+                            }
+                        }
+                    });
+                });
+                observer.observe(timelineContainer, { attributes: true });
+            }
+        }, 100); // Small delay to ensure DOM is ready
+            // Listen for drag start/end events to adjust track spacing accordingly
         document.addEventListener('dragstart', () => {
             console.log('TracksRenderer: Drag operation started');
             this.isDragging = true;
             // Request a re-render to apply the increased spacing
             const state = this.stateManager.getState();
             if (state.playhead) {
-                this.container.innerHTML = this.renderTracks(state.playhead.frame || 1, 100); // Default to 100 frames if not specified
+                this.updateTracksOnly(state.playhead.frame || 1, 100); // Default to 100 frames if not specified
             }
         });
         
@@ -108,7 +132,7 @@ export class TracksRenderer {
             // Request a re-render to restore normal spacing
             const state = this.stateManager.getState();
             if (state.playhead) {
-                this.container.innerHTML = this.renderTracks(state.playhead.frame || 1, 100); // Default to 100 frames if not specified
+                this.updateTracksOnly(state.playhead.frame || 1, 100); // Default to 100 frames if not specified
             }
         });
     }
@@ -171,7 +195,9 @@ export class TracksRenderer {
         
         // Add a spacing factor to account for the margins in layer panel items
         // Use different spacing based on whether we're dragging or not
-        const spacingFactor = this.isDragging ? 10 : 2; // 10px during drag, 2px normally
+        // Match the CSS variable --drag-item-spacing (5px) in drag-layer.less for dragging
+        // Match the margin-top + margin-bottom (1px + 1px = 2px) in main.less for normal state
+        const spacingFactor = this.isDragging ? 10 : 2; // 10px (5px top + 5px bottom) during drag, 2px (1px + 1px) normally
         
         return state.layers.map((layer, idx) => {
             const isActive = state.playhead && state.playhead.layerIdx === idx;
@@ -320,6 +346,25 @@ export class TracksRenderer {
         } else if (activeLayerIdx >= 0) {
             // Fallback to provided layer index
             this.updateActiveTrackRow(activeLayerIdx);
+        }
+    }
+
+    /**
+     * Updates only the tracks content without affecting other elements like ruler and playhead
+     * 
+     * @param playheadFrame - Current playhead frame
+     * @param frameCount - Total number of frames
+     */
+    public updateTracksOnly(playheadFrame: number, frameCount: number): void {
+        // Find the tracks element (not the container) and update only its content
+        const tracksEl = this.parentContainer ? 
+            this.parentContainer.querySelector('.timeline-grid__tracks') : null;
+            
+        if (tracksEl) {
+            console.log('TracksRenderer: Updating only tracks content');
+            tracksEl.innerHTML = this.renderTracks(playheadFrame, frameCount);
+        } else {
+            console.warn('TracksRenderer: Could not find tracks element to update');
         }
     }
 }
