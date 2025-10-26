@@ -3,7 +3,7 @@
 Alwais start by creating a task list if the user did not provide you one. Keep it up to date after each iteration and during your codding progress by marking as completed task and by adding remark or new task.
 
 **Context:**
-Refer to the **/doc/project guideline.md** and **/doc/requirement.md** for detailed information about the project architecture, technologies, coding guidelines, and overall requirements. *Ensure your code adheres strictly to these guidelines.*
+Refer to the **doc\Project Development Guidelines.md** and **doc\Création Contrôle Timeline JavaScript Flash MX.md** for detailed information about the project architecture, technologies, coding guidelines, and overall requirements. *Ensure your code adheres strictly to these guidelines.*
 
 **Current Task:**
 You have a list of task inside "doc/requirement-update-task-list.md" to implement/do insode the project. Dont forget to mark task as completed before taking an other task. Elaborate complicated tasks into smalles tasks. 
