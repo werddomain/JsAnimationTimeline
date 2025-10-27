@@ -60,6 +60,12 @@
       box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
     }
 
+    &:focus {
+      outline: 2px solid #4a90e2;
+      outline-offset: 2px;
+      z-index: 1;
+    }
+
     &.timeline-btn-play {
       color: #006600;
     }
@@ -185,6 +191,12 @@
         background: linear-gradient(to bottom, #d0d0d0, #e8e8e8);
       }
 
+      &:focus {
+        outline: 2px solid #4a90e2;
+        outline-offset: 2px;
+        z-index: 1;
+      }
+
       &.layer-toolbar-btn-delete {
         color: #cc0000;
       }
@@ -203,6 +215,12 @@
 
       &:hover {
         background-color: #f0f0f0;
+      }
+
+      &:focus {
+        outline: 2px solid #4a90e2;
+        outline-offset: -2px;
+        z-index: 1;
       }
 
       &.layer-row-selected {
@@ -420,6 +438,12 @@
       &:hover {
         background-color: #f0f0f0;
       }
+
+      &:focus {
+        outline: 2px solid #4a90e2;
+        outline-offset: -2px;
+        z-index: 1;
+      }
     }
 
     // Standard frame (content persists from previous keyframe)
@@ -432,6 +456,12 @@
 
       &:hover {
         background-color: #d5d5d5;
+      }
+
+      &:focus {
+        outline: 2px solid #4a90e2;
+        outline-offset: -2px;
+        z-index: 1;
       }
 
       // Selected state
@@ -451,6 +481,12 @@
 
       &:hover {
         background-color: #c0d8f0;
+      }
+
+      &:focus {
+        outline: 2px solid #4a90e2;
+        outline-offset: -2px;
+        z-index: 1;
       }
 
       // Selected state
@@ -473,6 +509,12 @@
 
       &:hover {
         background-color: #d5d5d5;
+      }
+
+      &:focus {
+        outline: 2px solid #4a90e2;
+        outline-offset: -2px;
+        z-index: 1;
       }
 
       // Solid circle using ::before
@@ -509,6 +551,12 @@
 
       &:hover {
         background-color: #f0f0f0;
+      }
+
+      &:focus {
+        outline: 2px solid #4a90e2;
+        outline-offset: -2px;
+        z-index: 1;
       }
 
       // Hollow circle using ::before
@@ -804,5 +852,62 @@
   // Ensure it's visible on touch devices
   @media (pointer: coarse) {
     opacity: 1;
+  }
+}
+
+// Responsive Design Styles
+.JsTimeLine {
+  // Ensure minimum container size
+  min-width: 320px;
+  min-height: 200px;
+
+  // Mobile responsive adjustments
+  @media (max-width: 768px) {
+    .timeline-corner {
+      .timeline-controls {
+        gap: 4px;
+        padding: 2px;
+      }
+
+      .timeline-control-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 10px;
+      }
+
+      .timeline-frame-display {
+        font-size: 11px;
+        padding: 2px 4px;
+      }
+    }
+
+    .layer-name {
+      font-size: 12px;
+    }
+
+    .layer-icon {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  // Small mobile adjustments
+  @media (max-width: 480px) {
+    .timeline-layout-grid {
+      // Reduce layer panel width on very small screens
+      grid-template-columns: 150px 1fr;
+    }
+
+    .layer-name {
+      font-size: 11px;
+    }
+  }
+
+  // Ensure proper flex behavior
+  .timeline-ruler-container,
+  .timeline-layer-panel-container,
+  .timeline-grid-container {
+    min-width: 0; // Allow flex items to shrink below content size
+    min-height: 0;
   }
 }

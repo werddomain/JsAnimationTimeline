@@ -23,6 +23,7 @@ export class JsTimeLine {
   private playPauseBtn!: HTMLButtonElement;
   private stopBtn!: HTMLButtonElement;
   private frameDisplay!: HTMLDivElement;
+  private resizeObserver: ResizeObserver | null = null;
 
   constructor(elementId: string) {
     const element = document.getElementById(elementId);
@@ -37,6 +38,12 @@ export class JsTimeLine {
 
     // Initialize the context
     this.initializeContext();
+
+    // Setup responsive resizing
+    this.setupResizeObserver();
+
+    // Apply initial panel sizes
+    this.applyPanelSizes();
 
     // Load test data and render
     this.loadTestData();
@@ -64,17 +71,22 @@ export class JsTimeLine {
     playPauseBtn.className = 'timeline-control-btn timeline-btn-play';
     playPauseBtn.innerHTML = '▶';
     playPauseBtn.title = 'Play';
+    playPauseBtn.setAttribute('aria-label', 'Play animation');
     this.playPauseBtn = playPauseBtn;
     
     const stopBtn = document.createElement('button');
     stopBtn.className = 'timeline-control-btn timeline-btn-stop';
     stopBtn.innerHTML = '■';
     stopBtn.title = 'Stop';
+    stopBtn.setAttribute('aria-label', 'Stop animation');
     this.stopBtn = stopBtn;
     
     const frameDisplay = document.createElement('div');
     frameDisplay.className = 'timeline-frame-display';
     frameDisplay.textContent = '1';
+    frameDisplay.setAttribute('role', 'status');
+    frameDisplay.setAttribute('aria-live', 'polite');
+    frameDisplay.setAttribute('aria-label', 'Current frame');
     this.frameDisplay = frameDisplay;
     
     controls.appendChild(playPauseBtn);
@@ -106,6 +118,8 @@ export class JsTimeLine {
     
     const gridContent = document.createElement('div');
     gridContent.className = 'timeline-grid-content';
+    gridContent.setAttribute('role', 'grid');
+    gridContent.setAttribute('aria-label', 'Timeline animation frames');
     
     // Playhead spans across ruler and grid
     const playhead = document.createElement('div');
@@ -255,6 +269,131 @@ export class JsTimeLine {
   }
 
   /**
+   * Setup ResizeObserver to handle container size changes
+   */
+  private setupResizeObserver(): void {
+    // Check if ResizeObserver is supported
+    if (typeof ResizeObserver === 'undefined') {
+      console.warn('ResizeObserver not supported in this browser');
+      return;
+    }
+
+    // Debounce the resize handler to avoid excessive re-renders
+    const handleResize = debounce((entries: ResizeObserverEntry[]) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        
+        // Only proceed if dimensions are valid
+        if (width > 0 && height > 0) {
+          this.handleContainerResize(width, height);
+        }
+      }
+    }, 100);
+
+    this.resizeObserver = new ResizeObserver(handleResize);
+    this.resizeObserver.observe(this.container);
+  }
+
+  /**
+   * Handle container resize events
+   */
+  private handleContainerResize(width: number, height: number): void {
+    console.log(`Timeline container resized: ${width}x${height}`);
+
+    // Update any components that need to know about size changes
+    const layerPanel = this._context.UI.layerPanel;
+    const timeRuler = this._context.UI.timeRuler;
+    const timelineGrid = this._context.UI.timelineGrid;
+
+    // Re-render components if they have render methods
+    if (layerPanel && typeof layerPanel.render === 'function') {
+      layerPanel.render();
+    }
+    
+    if (timeRuler && typeof timeRuler.render === 'function') {
+      timeRuler.render();
+    }
+    
+    if (timelineGrid && typeof timelineGrid.render === 'function') {
+      timelineGrid.render();
+    }
+
+    // Emit resize event for other components that may need to react
+    this._context.Core.eventManager.emit('timeline:resized', { width, height });
+  }
+
+  /**
+   * Disconnect ResizeObserver when destroying the timeline
+   */
+  public destroy(): void {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
+  }
+
+  /**
+   * Apply panel sizes from settings
+   */
+  private applyPanelSizes(): void {
+    const settings = this._context.Data.getData().settings;
+    const layoutGrid = this._context.UI.layoutGrid;
+    
+    // Get panel sizes with defaults
+    const layerPanelWidth = settings.layerPanelWidth || 250;
+    const rulerHeight = settings.rulerHeight || 40;
+    
+    // Enforce minimum sizes
+    const minLayerPanelWidth = 150;
+    const minRulerHeight = 30;
+    
+    const finalLayerPanelWidth = Math.max(layerPanelWidth, minLayerPanelWidth);
+    const finalRulerHeight = Math.max(rulerHeight, minRulerHeight);
+    
+    // Update grid template
+    layoutGrid.style.gridTemplateColumns = `${finalLayerPanelWidth}px 1fr`;
+    layoutGrid.style.gridTemplateRows = `${finalRulerHeight}px 1fr`;
+    
+    console.log(`Applied panel sizes: layer panel ${finalLayerPanelWidth}px, ruler ${finalRulerHeight}px`);
+  }
+
+  /**
+   * Update panel size and save to settings
+   */
+  public updateLayerPanelWidth(width: number): void {
+    const minWidth = 150;
+    const finalWidth = Math.max(width, minWidth);
+    
+    const data = this._context.Data.getData();
+    data.settings.layerPanelWidth = finalWidth;
+    this._context.Data.load(data);
+    
+    this.applyPanelSizes();
+    this._context.Core.eventManager.emit('timeline:panelResized', { 
+      panel: 'layer', 
+      width: finalWidth 
+    });
+  }
+
+  /**
+   * Update ruler height and save to settings
+   */
+  public updateRulerHeight(height: number): void {
+    const minHeight = 30;
+    const finalHeight = Math.max(height, minHeight);
+    
+    const data = this._context.Data.getData();
+    data.settings.rulerHeight = finalHeight;
+    this._context.Data.load(data);
+    
+    this.applyPanelSizes();
+    this._context.Core.eventManager.emit('timeline:panelResized', { 
+      panel: 'ruler', 
+      height: finalHeight 
+    });
+  }
+
+  /**
    * Setup playback control button handlers
    */
   private setupPlaybackControls(): void {
@@ -275,6 +414,7 @@ export class JsTimeLine {
     this._context.Core.eventManager.on('playback:started', () => {
       this.playPauseBtn.innerHTML = '⏸';
       this.playPauseBtn.title = 'Pause';
+      this.playPauseBtn.setAttribute('aria-label', 'Pause animation');
       this.playPauseBtn.classList.remove('timeline-btn-play');
       this.playPauseBtn.classList.add('timeline-btn-pause');
     });
@@ -282,6 +422,7 @@ export class JsTimeLine {
     this._context.Core.eventManager.on('playback:paused', () => {
       this.playPauseBtn.innerHTML = '▶';
       this.playPauseBtn.title = 'Play';
+      this.playPauseBtn.setAttribute('aria-label', 'Play animation');
       this.playPauseBtn.classList.remove('timeline-btn-pause');
       this.playPauseBtn.classList.add('timeline-btn-play');
     });
@@ -289,6 +430,7 @@ export class JsTimeLine {
     this._context.Core.eventManager.on('playback:stopped', () => {
       this.playPauseBtn.innerHTML = '▶';
       this.playPauseBtn.title = 'Play';
+      this.playPauseBtn.setAttribute('aria-label', 'Play animation');
       this.playPauseBtn.classList.remove('timeline-btn-pause');
       this.playPauseBtn.classList.add('timeline-btn-play');
     });

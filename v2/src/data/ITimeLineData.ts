@@ -5,6 +5,8 @@ export interface ITimeLineSettings {
   frameRate: number;
   frameWidth?: number;  // Width of each frame in pixels (optional, default 15)
   rowHeight?: number;   // Height of each layer row in pixels (optional, default 30)
+  layerPanelWidth?: number;  // Width of layer panel in pixels (optional, default 250)
+  rulerHeight?: number;      // Height of time ruler in pixels (optional, default 40)
 }
 
 export interface IKeyframe {

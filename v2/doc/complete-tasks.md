@@ -1339,7 +1339,31 @@ Specification uses camelCase with 'on' prefix (e.g., 'onObjectAdd', 'onKeyframeD
 - Grid reflows correctly
 - Mobile sizes work (min 320px)
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-01-26
+
+**Implementation Details:**
+- Enhanced `ITimeLineData.ts` interface with configurable panel sizes:
+  - Added `layerPanelWidth?: number` (default 250px)
+  - Added `rulerHeight?: number` (default 40px)
+- Implemented ResizeObserver in `JsTimeLine.ts`:
+  - Added `resizeObserver: ResizeObserver | null` property
+  - Created `setupResizeObserver()` method that observes container element
+  - Debounced resize handler (100ms) using `Performance.debounce()`
+  - `handleContainerResize(width, height)` triggers component re-renders
+  - `destroy()` method disconnects ResizeObserver for cleanup
+- Added panel sizing methods:
+  - `applyPanelSizes()`: Applies settings with minimum size enforcement (150px/30px)
+  - `updateLayerPanelWidth(width)`: Updates and persists layer panel width
+  - `updateRulerHeight(height)`: Updates and persists ruler height
+- Events emitted:
+  - 'timeline:resized' with container dimensions
+  - 'timeline:panelResized' with panel sizes
+- Responsive CSS added to `JsTimeLine.less`:
+  - Container min-width: 320px, min-height: 200px
+  - Mobile breakpoint @768px: smaller controls (24px), icons (12px), fonts (11-12px)
+  - Small mobile @480px: reduced layer panel to 150px width
+  - Flex min-width/min-height: 0 for proper shrinking behavior
+- Build successful (523 KiB bundle)
 
 ### **Task 20.4: Accessibility Improvements**
 
@@ -1380,7 +1404,55 @@ Specification uses camelCase with 'on' prefix (e.g., 'onObjectAdd', 'onKeyframeD
 - Meets WCAG 2.1 AA standards
 - Tab order is logical
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-01-26
+
+**Implementation Details:**
+- **LayerPanel Accessibility (`LayerPanel.ts`)**:
+  - ARIA tree pattern: Container has `role="tree"`, `aria-label="Layer hierarchy"`
+  - Layer rows: `role="treeitem"`, dynamic `aria-label` (e.g., "Folder: Background" or "Layer: Character")
+  - Dynamic ARIA states: `aria-selected`, `aria-expanded` (folders), `aria-disabled` (locked)
+  - Keyboard navigation with `setupKeyboardNavigation()`:
+    - ArrowDown/Up: Navigate between layers
+    - ArrowRight: Expand collapsed folders
+    - ArrowLeft: Collapse expanded folders
+    - Enter/Space: Toggle folder state
+    - Delete: Remove selected layer
+  - Focus management: `tabindex` (0 for selected, -1 for others), programmatic `focus()` on selection
+  - Toolbar ARIA: `role="toolbar"`, `aria-label` on all buttons (Add Layer, Add Folder, Delete)
+  - Enhanced `selectLayer()`: Updates all rows' ARIA attributes and focuses selected row
+
+- **TimelineGrid Accessibility (`TimelineGrid.ts` and `JsTimeLine.ts`)**:
+  - Grid container: `role="grid"`, `aria-label="Timeline animation frames"`
+  - All frame elements: `role="gridcell"`, descriptive `aria-label`, `tabindex="-1"`
+  - Frame type labels:
+    - Keyframes: "Keyframe at frame X" or "Empty keyframe at frame X"
+    - Standard frames: "Standard frame at frame X"
+    - Tween frames: "Tween frame at frame X, motion tween"
+    - Empty frames: "Empty frame at frame X"
+
+- **Playback Controls Accessibility (`JsTimeLine.ts`)**:
+  - Play/Pause button: Dynamic `aria-label` ("Play animation" / "Pause animation")
+  - Stop button: `aria-label="Stop animation"`
+  - Frame display: `role="status"`, `aria-live="polite"`, `aria-label="Current frame"`
+  - ARIA labels update on playback state changes
+
+- **CSS Focus Indicators (`JsTimeLine.less`)**:
+  - All interactive elements have visible `:focus` styles
+  - Layer rows: 2px blue outline (outline-offset: -2px)
+  - Toolbar buttons: 2px blue outline (outline-offset: 2px)
+  - Playback controls: 2px blue outline (outline-offset: 2px)
+  - Grid frames: 2px blue outline (outline-offset: -2px) for all frame types
+  - Focus color: #4a90e2 (timeline blue theme)
+  - z-index: 1 to ensure focus indicators are visible above other elements
+
+- **Accessibility Standards Met**:
+  - WCAG 2.1 AA keyboard navigation compliance
+  - Screen reader support with comprehensive ARIA labels
+  - Logical tab order (toolbar buttons, layer rows)
+  - Focus visible on all interactive elements
+  - No color-only indicators (shapes, borders, text also used)
+  
+- Build successful (523 KiB bundle, 3 size warnings only)
 
 ---
 

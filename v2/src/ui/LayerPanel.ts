@@ -125,6 +125,10 @@ export class LayerPanel {
     // Create scrollable content container
     const contentWrapper = document.createElement('div');
     contentWrapper.className = 'layer-panel-layers';
+    
+    // Add ARIA attributes for accessibility
+    contentWrapper.setAttribute('role', 'tree');
+    contentWrapper.setAttribute('aria-label', 'Layer hierarchy');
 
     // Render all layers recursively
     this.renderLayers(data.layers, contentWrapper, 0);
@@ -134,6 +138,9 @@ export class LayerPanel {
     
     container.appendChild(contentWrapper);
     container.appendChild(toolbar);
+    
+    // Setup keyboard navigation after rendering
+    this.setupKeyboardNavigation(contentWrapper);
   }
 
   /**
@@ -142,23 +149,28 @@ export class LayerPanel {
   private createToolbar(): HTMLElement {
     const toolbar = document.createElement('div');
     toolbar.className = 'layer-panel-toolbar';
+    toolbar.setAttribute('role', 'toolbar');
+    toolbar.setAttribute('aria-label', 'Layer management controls');
 
     const addLayerBtn = document.createElement('button');
     addLayerBtn.className = 'layer-toolbar-btn';
     addLayerBtn.innerHTML = '➕ Layer';
     addLayerBtn.title = 'Add Layer';
+    addLayerBtn.setAttribute('aria-label', 'Add new layer');
     addLayerBtn.addEventListener('click', () => this.onAddLayer());
 
     const addFolderBtn = document.createElement('button');
     addFolderBtn.className = 'layer-toolbar-btn';
     addFolderBtn.innerHTML = '📁 Folder';
     addFolderBtn.title = 'Add Folder';
+    addFolderBtn.setAttribute('aria-label', 'Add new folder');
     addFolderBtn.addEventListener('click', () => this.onAddFolder());
 
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'layer-toolbar-btn layer-toolbar-btn-delete';
     deleteBtn.innerHTML = '🗑 Delete';
     deleteBtn.title = 'Delete Selected';
+    deleteBtn.setAttribute('aria-label', 'Delete selected layer');
     deleteBtn.addEventListener('click', () => this.onDelete());
 
     toolbar.appendChild(addLayerBtn);
@@ -200,6 +212,19 @@ export class LayerPanel {
     row.setAttribute('data-layer-id', layer.id);
     row.setAttribute('data-layer-type', layer.type);
     row.setAttribute('draggable', 'true');
+    
+    // ARIA attributes for accessibility
+    row.setAttribute('role', 'treeitem');
+    row.setAttribute('aria-label', `${layer.type === 'folder' ? 'Folder' : 'Layer'}: ${layer.name}`);
+    row.setAttribute('aria-selected', this.selectedLayerId === layer.id ? 'true' : 'false');
+    if (layer.type === 'folder') {
+      const isExpanded = !this.collapsedFolders.has(layer.id);
+      row.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    }
+    if (layer.locked) {
+      row.setAttribute('aria-disabled', 'true');
+    }
+    row.setAttribute('tabindex', this.selectedLayerId === layer.id ? '0' : '-1');
 
     // Apply indentation for nested layers
     if (depth > 0) {
@@ -342,18 +367,120 @@ export class LayerPanel {
   private selectLayer(id: string): void {
     this.selectedLayerId = id;
     
-    // Update visual selection
+    // Update ARIA selected attribute on all layer rows
     const container = this.context.UI.layerPanelContent;
-    const rows = container.querySelectorAll('.layer-row');
-    rows.forEach(row => {
-      if (row.getAttribute('data-layer-id') === id) {
-        row.classList.add('layer-row-selected');
-      } else {
-        row.classList.remove('layer-row-selected');
+    const allRows = container.querySelectorAll('.layer-row');
+    allRows.forEach((row) => {
+      const layerId = row.getAttribute('data-layer-id');
+      const isSelected = layerId === id;
+      row.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+      row.setAttribute('tabindex', isSelected ? '0' : '-1');
+    });
+    
+    // Focus the selected layer for keyboard navigation
+    const selectedRow = container.querySelector(`[data-layer-id="${id}"]`) as HTMLElement;
+    if (selectedRow) {
+      selectedRow.focus();
+    }
+    
+    this.render();
+
+    // Emit event
+    this.context.Core.eventManager.emit('layer:selected', { layerId: id });
+    this.context.Core.eventManager.emit('onLayerSelect', { layerId: id });
+
+    // Update mobile context menu trigger
+    this.updateContextMenuTrigger();
+  }
+
+  /**
+   * Setup keyboard navigation for layers
+   */
+  private setupKeyboardNavigation(container: HTMLElement): void {
+    container.addEventListener('keydown', (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.classList.contains('layer-row')) return;
+
+      const layerId = target.getAttribute('data-layer-id');
+      if (!layerId) return;
+
+      const data = this.context.Data.getData();
+      const allLayers = this.getAllLayers(data.layers);
+      const currentIndex = allLayers.findIndex(l => l.id === layerId);
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          if (currentIndex < allLayers.length - 1) {
+            this.selectLayer(allLayers[currentIndex + 1].id);
+          }
+          break;
+
+        case 'ArrowUp':
+          e.preventDefault();
+          if (currentIndex > 0) {
+            this.selectLayer(allLayers[currentIndex - 1].id);
+          }
+          break;
+
+        case 'ArrowRight':
+          e.preventDefault();
+          // Expand folder if collapsed
+          const layer = allLayers[currentIndex];
+          if (layer.type === 'folder' && this.collapsedFolders.has(layer.id)) {
+            this.toggleFolderCollapse(layer.id);
+          }
+          break;
+
+        case 'ArrowLeft':
+          e.preventDefault();
+          // Collapse folder if expanded
+          const currentLayer = allLayers[currentIndex];
+          if (currentLayer.type === 'folder' && !this.collapsedFolders.has(currentLayer.id)) {
+            this.toggleFolderCollapse(currentLayer.id);
+          }
+          break;
+
+        case 'Enter':
+        case ' ':
+          e.preventDefault();
+          // Toggle folder collapse or trigger rename
+          const selectedLayer = allLayers[currentIndex];
+          if (selectedLayer.type === 'folder') {
+            this.toggleFolderCollapse(selectedLayer.id);
+          }
+          break;
+
+        case 'Delete':
+          e.preventDefault();
+          // Delete selected layer
+          if (this.selectedLayerId) {
+            const layerManager = this.context.Core.layerManager;
+            if (layerManager) {
+              layerManager.deleteObject(this.selectedLayerId);
+            }
+          }
+          break;
       }
     });
+  }
 
-    this.context.Core.eventManager.emit('layer:selected', { id });
+  /**
+   * Get all layers in a flat array (for keyboard navigation)
+   */
+  private getAllLayers(layers: readonly ILayer[]): ILayer[] {
+    const result: ILayer[] = [];
+    
+    for (const layer of layers) {
+      result.push(layer as ILayer);
+      
+      // Only include visible children (not collapsed)
+      if (layer.type === 'folder' && layer.children && !this.collapsedFolders.has(layer.id)) {
+        result.push(...this.getAllLayers(layer.children));
+      }
+    }
+    
+    return result;
   }
 
   /**

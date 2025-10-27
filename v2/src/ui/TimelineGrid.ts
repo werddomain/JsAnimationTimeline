@@ -500,6 +500,9 @@ export class TimelineGrid {
     frameElement.dataset.layerId = layerId;
     frameElement.dataset.frameId = `${layerId}:${frame}`;
     frameElement.setAttribute('draggable', 'true');
+    frameElement.setAttribute('role', 'gridcell');
+    frameElement.setAttribute('aria-label', `${isEmpty ? 'Empty keyframe' : 'Keyframe'} at frame ${frame}`);
+    frameElement.setAttribute('tabindex', '-1');
     this.addFrameClickHandler(frameElement);
     this.addFrameDragHandlers(frameElement);
     container.appendChild(frameElement);
@@ -519,6 +522,9 @@ export class TimelineGrid {
     frameElement.dataset.frame = frame.toString();
     frameElement.dataset.layerId = layerId;
     frameElement.dataset.frameId = `${layerId}:${frame}`;
+    frameElement.setAttribute('role', 'gridcell');
+    frameElement.setAttribute('aria-label', `Standard frame at frame ${frame}`);
+    frameElement.setAttribute('tabindex', '-1');
     this.addFrameClickHandler(frameElement);
     this.addFrameDropTarget(frameElement);
     container.appendChild(frameElement);
@@ -538,6 +544,9 @@ export class TimelineGrid {
     frameElement.dataset.frame = frame.toString();
     frameElement.dataset.layerId = layerId;
     frameElement.dataset.frameId = `${layerId}:${frame}`;
+    frameElement.setAttribute('role', 'gridcell');
+    frameElement.setAttribute('aria-label', `Empty frame at frame ${frame}`);
+    frameElement.setAttribute('tabindex', '-1');
     this.addFrameClickHandler(frameElement);
     this.addFrameDropTarget(frameElement);
     container.appendChild(frameElement);
@@ -557,6 +566,9 @@ export class TimelineGrid {
     frameElement.dataset.frame = frame.toString();
     frameElement.dataset.layerId = layerId;
     frameElement.dataset.frameId = `${layerId}:${frame}`;
+    frameElement.setAttribute('role', 'gridcell');
+    frameElement.setAttribute('aria-label', `Tween frame at frame ${frame}, ${tween.type || 'motion'} tween`);
+    frameElement.setAttribute('tabindex', '-1');
     this.addFrameClickHandler(frameElement);
     container.appendChild(frameElement);
   }
