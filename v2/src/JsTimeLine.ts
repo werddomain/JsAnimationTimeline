@@ -124,7 +124,35 @@ export class JsTimeLine {
     const timeRuler = new TimeRuler(this._context);
     this._context.UI.timeRuler = timeRuler;
 
+    // Setup scroll synchronization
+    this.setupScrollSync();
+
     console.log('Context initialized');
+  }
+
+  /**
+   * Setup scroll synchronization between grid, ruler, and layer panel
+   */
+  private setupScrollSync(): void {
+    const gridContainer = this._context.UI.gridContainer;
+    const rulerContent = this._context.UI.rulerContent;
+    const layerPanelContent = this._context.UI.layerPanelContent;
+
+    gridContainer.addEventListener('scroll', () => {
+      // Synchronize horizontal scroll with ruler
+      const scrollLeft = gridContainer.scrollLeft;
+      rulerContent.style.transform = `translateX(-${scrollLeft}px)`;
+
+      // Synchronize vertical scroll with layer panel
+      const scrollTop = gridContainer.scrollTop;
+      layerPanelContent.style.transform = `translateY(-${scrollTop}px)`;
+
+      // Emit scroll event for other components that may need to react
+      this._context.Core.eventManager.emit('timeline:scroll', {
+        scrollLeft,
+        scrollTop
+      });
+    });
   }
 
   /**

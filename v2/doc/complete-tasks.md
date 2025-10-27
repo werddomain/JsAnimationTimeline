@@ -2,7 +2,33 @@
 
 This document outlines all remaining tasks to fully implement the Flash MX-style timeline control as specified in the technical specification, while strictly adhering to the project development guidelines.
 
-**To GitHub Copilot:** Follow the Project Development Guidelines strictly. All styling must be in LESS files, use the Context architecture, maintain type safety, and follow proper naming conventions.
+---
+
+## **📋 CRITICAL INSTRUCTIONS FOR GITHUB COPILOT**
+
+**TASK LIST MAINTENANCE RULES:**
+
+1. **ALWAYS update task checkboxes** when completing a task:
+   - Change `- [ ]` to `- [x]` when a task is completed
+   - Mark the task as completed in the "✅ Task Completed" line with date and description
+
+2. **AFTER completing ANY task in this document:**
+   - Find the corresponding checkbox for that task
+   - Update it from `- [ ]` to `- [x]`
+   - Update the completion note at the bottom of that task section
+   - Keep this task list synchronized with actual implementation progress
+
+3. **Project Guidelines Compliance:**
+   - All styling MUST be in LESS files (never in TypeScript)
+   - Use the Context architecture pattern exclusively
+   - Maintain strict type safety (no `any` types)
+   - Follow proper naming conventions (PascalCase for classes, camelCase for methods)
+   - Use LESS nesting within `.JsTimeLine` root class
+
+4. **Before starting any new task:**
+   - Check dependencies are completed (marked with `- [x]`)
+   - Read the entire task description and acceptance criteria
+   - Understand the architectural implications
 
 ---
 
