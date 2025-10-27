@@ -65,6 +65,9 @@ export class TimelineGrid {
       this.contextMenuTrigger = null;
     }
 
+    // Only show trigger on touch devices
+    if (!this.isTouchDevice) return;
+
     // Only show trigger if exactly one frame is selected
     if (selectedFrames.length !== 1) return;
 

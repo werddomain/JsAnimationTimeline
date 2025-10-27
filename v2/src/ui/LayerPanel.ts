@@ -56,6 +56,9 @@ export class LayerPanel {
       this.contextMenuTrigger = null;
     }
 
+    // Only show trigger on touch devices
+    if (!this.isTouchDevice) return;
+
     // Only show trigger if a layer is selected
     if (!this.selectedLayerId) return;
 
