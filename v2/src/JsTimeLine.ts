@@ -394,6 +394,21 @@ export class JsTimeLine {
   }
 
   /**
+   * Enable or disable moving playhead when clicking on frames
+   * @param enabled - Whether to move playhead on frame click (default: true)
+   */
+  public setMovePlayheadOnFrameClick(enabled: boolean): void {
+    const data = this._context.Data.getData();
+    data.settings.movePlayheadOnFrameClick = enabled;
+    this._context.Data.load(data);
+    
+    this._context.Core.eventManager.emit('timeline:settingChanged', { 
+      setting: 'movePlayheadOnFrameClick', 
+      value: enabled 
+    });
+  }
+
+  /**
    * Setup playback control button handlers
    */
   private setupPlaybackControls(): void {

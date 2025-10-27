@@ -144,7 +144,8 @@ export class TimeLineData {
         totalFrames: 100,
         frameRate: 24,
         frameWidth: 15,
-        rowHeight: 30
+        rowHeight: 30,
+        movePlayheadOnFrameClick: true  // Default: move playhead on frame click
       },
       layers: []
     };

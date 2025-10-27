@@ -200,8 +200,9 @@
                 <li>Layer Panel on the left showing: Background, Character folder (with Head and Body), and Foreground</li>
                 <li>Time Ruler at the top showing frames 1-100 with tick marks and labels</li>
                 <li>Red playhead at frame 1</li>
-                <li>Timeline grid in the center (currently empty, will be implemented in Phase 12)</li>
+                <li>Timeline grid showing keyframes and tweens for all layers</li>
                 <li>Synchronized scrolling between all three sections</li>
+                <li><strong>NEW:</strong> Click any frame to move the playhead to that frame (can be disabled below)</li>
             </ul>
         </div>
 
@@ -211,6 +212,11 @@
             <button onclick="testPlayhead()">Move Playhead to Frame 50</button>
             <button onclick="resetPlayhead()">Reset Playhead</button>
             <button onclick="logContext()">Log Context to Console</button>
+            <hr style="margin: 15px 0; border: none; border-top: 1px solid #ddd;">
+            <label>
+                <input type="checkbox" id="playhead-on-click-toggle" checked onchange="togglePlayheadOnClick()">
+                Move playhead when clicking frames
+            </label>
             <hr style="margin: 15px 0; border: none; border-top: 1px solid #ddd;">
             <button onclick="exportTimelineData()">Export Timeline Data</button>
             <input type="file" id="file-input" accept=".json" onchange="importTimelineData(event)">
@@ -366,6 +372,12 @@
         }
 
         // Event Logger Functions
+        function togglePlayheadOnClick() {
+            const checkbox = document.getElementById('playhead-on-click-toggle');
+            timeline.setMovePlayheadOnFrameClick(checkbox.checked);
+            console.log('Move playhead on frame click:', checkbox.checked);
+        }
+
         function toggleEventLogger() {
             const checkbox = document.getElementById('event-logger-toggle');
             const eventLog = document.getElementById('event-log');

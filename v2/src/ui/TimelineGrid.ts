@@ -624,6 +624,9 @@ export class TimelineGrid {
       const selectionManager = this.context.Core.selectionManager;
       if (!selectionManager) return;
 
+      // Get frame number from element
+      const frameNumber = parseInt(frameElement.dataset.frame || '1', 10);
+
       // Handle different click modes
       if (e.ctrlKey || e.metaKey) {
         // CTRL/CMD + click: Toggle selection
@@ -639,6 +642,17 @@ export class TimelineGrid {
       } else {
         // Normal click: Single selection
         selectionManager.selectFrame(frameId);
+
+        // Move playhead to clicked frame if enabled in settings
+        const data = this.context.Data.getData();
+        const movePlayheadOnClick = data?.settings?.movePlayheadOnFrameClick ?? true; // Default true
+        
+        if (movePlayheadOnClick) {
+          const timeRuler = this.context.UI.timeRuler;
+          if (timeRuler && frameNumber) {
+            timeRuler.setPlayheadPosition(frameNumber, true); // true = manual user action
+          }
+        }
       }
 
       // Update visual feedback
