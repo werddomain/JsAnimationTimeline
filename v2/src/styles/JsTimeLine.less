@@ -581,6 +581,47 @@
 }
 
 // Context menu styles (outside .JsTimeLine to be global)
+.context-menu {
+  background: white;
+  border: 1px solid #999;
+  border-radius: 2px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
+  min-width: 200px;
+  padding: 2px 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+
+  .context-menu-item {
+    padding: 6px 24px 6px 16px;
+    cursor: pointer;
+    user-select: none;
+    color: #333;
+    white-space: nowrap;
+    transition: background-color 0.1s;
+
+    &:hover:not(.disabled) {
+      background-color: #0066cc;
+      color: white;
+    }
+
+    &:active:not(.disabled) {
+      background-color: #0052a3;
+    }
+
+    &.disabled {
+      color: #999;
+      cursor: default;
+    }
+  }
+
+  .context-menu-separator {
+    height: 1px;
+    background-color: #ddd;
+    margin: 4px 0;
+  }
+}
+
+// Legacy class name for backward compatibility
 .timeline-context-menu {
   background: white;
   border: 1px solid #ccc;

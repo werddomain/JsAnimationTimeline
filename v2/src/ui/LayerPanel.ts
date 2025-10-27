@@ -1,5 +1,6 @@
 import { IJsTimeLineContext } from '../IJsTimeLineContext';
 import { ILayer } from '../data/ITimeLineData';
+import { IMenuItem } from './ContextMenu';
 
 export class LayerPanel {
   private context: IJsTimeLineContext;
@@ -132,6 +133,14 @@ export class LayerPanel {
     row.addEventListener('click', (e) => {
       e.stopPropagation();
       this.selectLayer(layer.id);
+    });
+
+    // Right-click for context menu
+    row.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.selectLayer(layer.id);
+      this.showLayerContextMenu(e, layer);
     });
 
     // Drag and drop handlers
@@ -525,5 +534,126 @@ export class LayerPanel {
       console.log('Reorder not fully implemented - would move', this.draggedLayerId, 
                   isTopHalf ? 'before' : 'after', targetLayerId);
     }
+  }
+
+  /**
+   * Show context menu for a layer
+   */
+  private showLayerContextMenu(e: MouseEvent, layer: ILayer): void {
+    const contextMenu = this.context.UI.contextMenu;
+    const layerManager = this.context.Core.layerManager;
+    
+    if (!contextMenu || !layerManager) return;
+
+    const menuItems: IMenuItem[] = [
+      {
+        label: 'Insert Layer',
+        action: () => {
+          const data = this.context.Data.getData();
+          layerManager.addLayer(`New Layer`, layer.id);
+        }
+      },
+      {
+        label: 'Insert Folder',
+        action: () => {
+          const data = this.context.Data.getData();
+          layerManager.addFolder(`New Folder`, layer.id);
+        }
+      },
+      {
+        separator: true
+      },
+      {
+        label: 'Delete Layer',
+        action: () => {
+          // Emit confirmation event
+          const confirmed = confirm(`Delete layer "${layer.name}"?`);
+          if (confirmed) {
+            layerManager.deleteObject(layer.id);
+          }
+        }
+      },
+      {
+        label: 'Rename Layer',
+        action: () => {
+          // Find the layer row and trigger rename
+          const layerRow = this.context.UI.layerPanelContent.querySelector(`[data-layer-id="${layer.id}"]`);
+          if (layerRow) {
+            const nameContainer = layerRow.querySelector('.layer-name') as HTMLElement;
+            if (nameContainer) {
+              this.startRename(layer.id, nameContainer);
+            }
+          }
+        }
+      },
+      {
+        separator: true
+      },
+      {
+        label: 'Show/Hide Others',
+        action: () => {
+          this.toggleOthersVisibility(layer.id);
+        }
+      },
+      {
+        label: 'Lock Others',
+        action: () => {
+          this.lockOthers(layer.id);
+        }
+      },
+      {
+        separator: true
+      },
+      {
+        label: 'Properties...',
+        enabled: false
+      }
+    ];
+
+    contextMenu.show(e.clientX, e.clientY, menuItems);
+  }
+
+  /**
+   * Toggle visibility of all layers except the specified one
+   */
+  private toggleOthersVisibility(excludeLayerId: string): void {
+    const data = this.context.Data.getData();
+    const layerManager = this.context.Core.layerManager;
+    if (!layerManager) return;
+
+    const toggleLayersRecursive = (layers: readonly ILayer[]) => {
+      layers.forEach(layer => {
+        if (layer.id !== excludeLayerId) {
+          layerManager.toggleVisibility(layer.id);
+        }
+        if (layer.children) {
+          toggleLayersRecursive(layer.children);
+        }
+      });
+    };
+
+    toggleLayersRecursive(data.layers);
+  }
+
+  /**
+   * Lock all layers except the specified one
+   */
+  private lockOthers(excludeLayerId: string): void {
+    const data = this.context.Data.getData();
+    const layerManager = this.context.Core.layerManager;
+    if (!layerManager) return;
+
+    const lockLayersRecursive = (layers: readonly ILayer[]) => {
+      layers.forEach(layer => {
+        if (layer.id !== excludeLayerId && !layer.locked) {
+          layerManager.toggleLock(layer.id);
+        }
+        if (layer.children) {
+          lockLayersRecursive(layer.children);
+        }
+      });
+    };
+
+    lockLayersRecursive(data.layers);
   }
 }

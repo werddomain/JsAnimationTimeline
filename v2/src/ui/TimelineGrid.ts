@@ -1,5 +1,6 @@
 import { IJsTimeLineContext } from '../IJsTimeLineContext';
 import { ILayer, IKeyframe, ITween } from '../data/ITimeLineData';
+import { IMenuItem } from './ContextMenu';
 
 /**
  * TimelineGrid Component
@@ -21,7 +22,7 @@ export class TimelineGrid {
   }
 
   /**
-   * Setup context menu for tween operations
+   * Setup context menu for frame and keyframe operations
    */
   private setupContextMenu(): void {
     this.gridContent.addEventListener('contextmenu', (e: MouseEvent) => {
@@ -34,14 +35,28 @@ export class TimelineGrid {
 
       const selectionManager = this.context.Core.selectionManager;
       const tweenManager = this.context.Core.tweenManager;
+      const keyframeManager = this.context.Core.keyframeManager;
+      const contextMenu = this.context.UI.contextMenu;
       
-      if (!selectionManager || !tweenManager) return;
+      if (!selectionManager || !tweenManager || !keyframeManager || !contextMenu) return;
 
-      // Check if exactly 2 keyframes are selected
-      const selectedFrames = selectionManager.getSelectedFrames();
+      const [layerId, frameStr] = frameId.split(':');
+      const frame = parseInt(frameStr, 10);
+      const data = this.context.Data.getData();
+      const layer = this.findLayerById(data.layers, layerId);
       
+      if (!layer) return;
+
+      // Check context of the click
+      const hasKeyframe = layer.keyframes?.some(kf => kf.frame === frame);
+      const isInTween = tweenManager.isFrameInTween(layerId, frame);
+      const selectedFrames = selectionManager.getSelectedFrames();
+      const hasSelection = selectedFrames.length > 0;
+
+      const menuItems: IMenuItem[] = [];
+
+      // Check for 2 selected keyframes for tween creation
       if (selectedFrames.length === 2) {
-        // Check if both are on the same layer and are keyframes
         const [layerId1, frame1Str] = selectedFrames[0].split(':');
         const [layerId2, frame2Str] = selectedFrames[1].split(':');
 
@@ -51,88 +66,130 @@ export class TimelineGrid {
           const startFrame = Math.min(frame1, frame2);
           const endFrame = Math.max(frame1, frame2);
 
-          // Check if both frames are actually keyframes
-          const data = this.context.Data.getData();
-          const layer = this.findLayerById(data.layers, layerId1);
-          
-          if (layer && layer.keyframes) {
-            const hasStartKf = layer.keyframes.some(kf => kf.frame === startFrame);
-            const hasEndKf = layer.keyframes.some(kf => kf.frame === endFrame);
+          const layer1 = this.findLayerById(data.layers, layerId1);
+          if (layer1 && layer1.keyframes) {
+            const hasStartKf = layer1.keyframes.some(kf => kf.frame === startFrame);
+            const hasEndKf = layer1.keyframes.some(kf => kf.frame === endFrame);
 
             if (hasStartKf && hasEndKf) {
-              this.showContextMenu(e.clientX, e.clientY, [
-                {
-                  label: 'Create Motion Tween',
-                  action: () => {
-                    tweenManager.createMotionTween(layerId1, startFrame, endFrame);
-                  }
+              menuItems.push({
+                label: 'Create Motion Tween',
+                action: () => {
+                  tweenManager.createMotionTween(layerId1, startFrame, endFrame);
                 }
-              ]);
-              return;
+              });
+              menuItems.push({ separator: true });
             }
           }
         }
       }
 
       // Check if clicking on a tween
-      const [layerId, frameStr] = frameId.split(':');
-      const frame = parseInt(frameStr, 10);
-      
-      if (tweenManager.isFrameInTween(layerId, frame)) {
+      if (isInTween) {
         const tween = tweenManager.getTweenAtFrame(layerId, frame);
         if (tween) {
-          this.showContextMenu(e.clientX, e.clientY, [
-            {
-              label: 'Remove Motion Tween',
-              action: () => {
-                tweenManager.removeTween(layerId, tween.startFrame, tween.endFrame);
-              }
+          menuItems.push({
+            label: 'Remove Motion Tween',
+            action: () => {
+              tweenManager.removeTween(layerId, tween.startFrame, tween.endFrame);
             }
-          ]);
+          });
+          menuItems.push({ separator: true });
         }
       }
-    });
-  }
 
-  /**
-   * Show a simple context menu
-   */
-  private showContextMenu(x: number, y: number, items: Array<{ label: string; action: () => void }>): void {
-    // Remove any existing context menu
-    const existingMenu = document.querySelector('.timeline-context-menu');
-    if (existingMenu) {
-      existingMenu.remove();
-    }
-
-    // Create menu
-    const menu = document.createElement('div');
-    menu.className = 'timeline-context-menu';
-    menu.style.position = 'fixed';
-    menu.style.left = `${x}px`;
-    menu.style.top = `${y}px`;
-    menu.style.zIndex = '10000';
-
-    items.forEach(item => {
-      const menuItem = document.createElement('div');
-      menuItem.className = 'timeline-context-menu-item';
-      menuItem.textContent = item.label;
-      menuItem.addEventListener('click', () => {
-        item.action();
-        menu.remove();
-      });
-      menu.appendChild(menuItem);
-    });
-
-    document.body.appendChild(menu);
-
-    // Close menu on click outside
-    const closeMenu = (e: MouseEvent) => {
-      if (!menu.contains(e.target as Node)) {
-        menu.remove();
-        document.removeEventListener('click', closeMenu);
+      // Common frame operations
+      if (hasKeyframe) {
+        // Keyframe-specific operations
+        menuItems.push({
+          label: 'Insert Frame',
+          action: () => {
+            keyframeManager.insertFrame(layerId, frame);
+          }
+        });
+        menuItems.push({
+          label: 'Delete Frames',
+          action: () => {
+            if (hasSelection) {
+              // Delete selected frames - convert to layer-specific ranges
+              // For simplicity, delete current frame
+              keyframeManager.deleteFrames(layerId, frame, frame);
+            } else {
+              keyframeManager.deleteFrames(layerId, frame, frame);
+            }
+          }
+        });
+        menuItems.push({ separator: true });
+        menuItems.push({
+          label: 'Insert Keyframe',
+          action: () => {
+            keyframeManager.insertKeyframe(layerId, frame);
+          }
+        });
+        menuItems.push({
+          label: 'Insert Blank Keyframe',
+          action: () => {
+            keyframeManager.insertBlankKeyframe(layerId, frame);
+          }
+        });
+        menuItems.push({
+          label: 'Clear Keyframe',
+          action: () => {
+            keyframeManager.deleteKeyframe(layerId, frame);
+          }
+        });
+      } else {
+        // Empty frame operations
+        menuItems.push({
+          label: 'Insert Frame',
+          action: () => {
+            keyframeManager.insertFrame(layerId, frame);
+          }
+        });
+        menuItems.push({
+          label: 'Insert Keyframe',
+          action: () => {
+            keyframeManager.insertKeyframe(layerId, frame);
+          }
+        });
+        menuItems.push({
+          label: 'Insert Blank Keyframe',
+          action: () => {
+            keyframeManager.insertBlankKeyframe(layerId, frame);
+          }
+        });
       }
-    };
-    setTimeout(() => document.addEventListener('click', closeMenu), 0);
+
+      // Copy/Paste operations
+      menuItems.push({ separator: true });
+      menuItems.push({
+        label: 'Copy Frames',
+        enabled: hasSelection || hasKeyframe,
+        action: () => {
+          if (hasSelection) {
+            keyframeManager.copyKeyframes(selectedFrames);
+          } else {
+            keyframeManager.copyKeyframes([frameId]);
+          }
+        }
+      });
+
+      const clipboard = this.context.Core.stateManager?.get('clipboard_keyframes');
+      const hasClipboard = clipboard && Array.isArray(clipboard) && clipboard.length > 0;
+      
+      menuItems.push({
+        label: 'Paste Frames',
+        enabled: hasClipboard,
+        action: () => {
+          keyframeManager.pasteKeyframes(layerId, frame);
+        }
+      });
+
+      // Show menu if we have any items
+      if (menuItems.length > 0) {
+        contextMenu.show(e.clientX, e.clientY, menuItems);
+      }
+    });
   }
 
   /**

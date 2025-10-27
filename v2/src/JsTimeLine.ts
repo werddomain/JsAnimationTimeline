@@ -12,6 +12,7 @@ import { TweenManager } from './core/TweenManager';
 import { LayerPanel } from './ui/LayerPanel';
 import { TimeRuler } from './ui/TimeRuler';
 import { TimelineGrid } from './ui/TimelineGrid';
+import { ContextMenu } from './ui/ContextMenu';
 import { ITimeLineData } from './data/ITimeLineData';
 
 export class JsTimeLine {
@@ -162,6 +163,9 @@ export class JsTimeLine {
 
     const timelineGrid = new TimelineGrid(this._context);
     this._context.UI.timelineGrid = timelineGrid;
+
+    const contextMenu = new ContextMenu();
+    this._context.UI.contextMenu = contextMenu;
 
     // Instantiate PlaybackEngine
     const playbackEngine = new PlaybackEngine(this._context);

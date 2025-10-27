@@ -674,7 +674,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - Styling matches Flash MX aesthetic
 - Separators render correctly
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - ContextMenu.ts created as reusable framework with IMenuItem interface. show(x, y, items) displays menu at coordinates with auto-positioning to stay on screen. hide() removes menu from DOM. Handles click events, auto-hides on outside click and Escape key. Disabled items grayed out with .disabled class. Separator support with .context-menu-separator. Styled with white background, box shadow, hover states (#0066cc). Added to context as UI.contextMenu. TimelineGrid updated to use new ContextMenu class.
 
 ### **Task 17.2: Implement Layer Context Menu**
 
@@ -711,7 +711,21 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - Show/Hide Others affects other layers
 - Lock Others locks other layers
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-01-26
+
+**Implementation Details:**
+- Added `showLayerContextMenu()` method to `LayerPanel.ts` with 9 menu items:
+  - Insert Layer: Adds new layer below selected
+  - Insert Folder: Adds new folder below selected
+  - Delete Layer: Deletes with confirmation dialog
+  - Rename Layer: Triggers inline rename mode
+  - Show/Hide Others: Toggles visibility of all other layers recursively
+  - Lock Others: Locks all other layers recursively
+  - Properties (disabled): Placeholder for future implementation
+- Added helper methods `toggleOthersVisibility()` and `lockOthers()` for batch operations
+- Fixed `IMenuItem` interface in `ContextMenu.ts` to make `label` optional for separators
+- Right-click handler automatically selects layer before showing menu
+- All actions properly integrated with `LayerManager` service
 
 ### **Task 17.3: Implement Keyframe Context Menu**
 
@@ -752,7 +766,25 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - Menu items call appropriate Manager methods
 - Disabled items are grayed out when not applicable
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-01-26
+
+**Implementation Details:**
+- Completely rewrote `setupContextMenu()` in `TimelineGrid.ts` with comprehensive keyframe operations
+- Context-aware menu that adapts based on:
+  - Empty frame: Insert Frame, Insert Keyframe, Insert Blank Keyframe
+  - Keyframe: All insert/delete operations, Clear Keyframe
+  - Tween: Remove Motion Tween option
+  - 2 selected keyframes (same layer): Create Motion Tween
+- Menu items organized by category with separators:
+  - Tween operations (Create/Remove)
+  - Frame insertion/deletion operations
+  - Keyframe specific operations (Clear)
+  - Copy/Paste operations
+- Copy Frames: Enabled when selection exists or clicking on keyframe
+- Paste Frames: Enabled only when clipboard contains keyframes
+- Delete Frames: Handles both single frame and selection
+- Fixed clipboard detection to use `stateManager.get('clipboard_keyframes')`
+- All actions properly wired to KeyframeManager and TweenManager
 
 ### **Task 17.4: Implement Mobile Context Menu (Three Dots)**
 
@@ -845,6 +877,71 @@ Review `src/core/EventManager.ts` and all Manager classes:
 - All events are logged with details
 - Test page demonstrates event handling
 - Documentation shows example usage
+
+✅ **Task Completed:** ___
+
+### **Task 18.3: Standardize Event Naming Convention**
+
+**Priority:** LOW  
+**Dependencies:** Task 18.1 completed
+
+**Prompt:**
+"Copilot, align all event names with the specification's naming convention.
+
+Current implementation uses colon-separated format (e.g., 'layer:added', 'keyframe:deleted', 'playback:started').
+Specification uses camelCase with 'on' prefix (e.g., 'onObjectAdd', 'onKeyframeDelete', 'onPlaybackStart').
+
+1. Update all `emit()` calls in Manager classes:
+   - **LayerManager.ts**: 
+     - 'layer:added', 'folder:added' → 'onObjectAdd'
+     - 'layer:deleted' → 'onObjectDelete'
+     - 'layer:renamed' → 'onObjectRename'
+     - 'layer:reordered' → 'onObjectReorder'
+     - 'layer:reparented' → 'onObjectReparent'
+     - 'layer:visibilityChanged' → 'onObjectVisibilityChange'
+     - 'layer:lockChanged' → 'onObjectLockChange'
+   - **KeyframeManager.ts**:
+     - 'keyframe:added' → 'onKeyframeAdd'
+     - 'keyframe:deleted', 'frames:deleted' → 'onKeyframeDelete'
+     - 'keyframes:moved' → 'onKeyframeMove'
+     - 'keyframes:copied', 'keyframes:pasted' → Document as internal events or map to spec
+   - **TweenManager.ts**:
+     - 'tween:added' → 'onTweenAdd'
+     - 'tween:removed' → 'onTweenRemove'
+   - **PlaybackEngine.ts**:
+     - 'playback:started' → 'onPlaybackStart'
+     - 'playback:paused' → 'onPlaybackPause'
+     - 'playback:frameEnter' → 'onFrameEnter'
+     - 'playback:frameChanged' → 'onTimeSeek'
+   - **SelectionManager.ts**:
+     - 'selection:changed' → 'onKeyframeSelect'
+
+2. Update all event listeners in UI components:
+   - Search for all `eventManager.on()` calls
+   - Update event names to match new convention
+   - Test that all event handlers still work
+
+3. Add 'onBefore' cancellable events:
+   - Implement 'onBeforeObjectDelete' in LayerManager.deleteObject()
+   - Implement 'onBeforeKeyframeDelete' in KeyframeManager.deleteFrames()
+   - Create event object with preventDefault() method
+   - Check defaultPrevented flag before proceeding with deletion
+
+4. Create migration guide:
+   - Document all event name changes in CHANGELOG.md
+   - Provide mapping table for external consumers
+   - Add deprecation warnings for old event names (optional)
+
+5. Update all JSDoc comments to reference new event names"
+
+**Acceptance Criteria:**
+- All event names match specification exactly
+- Event payloads match specification format
+- Cancellable events (onBefore*) work correctly
+- All UI components updated and tested
+- No broken event listeners
+- Migration guide created for external consumers
+- All JSDoc comments updated
 
 ✅ **Task Completed:** ___
 

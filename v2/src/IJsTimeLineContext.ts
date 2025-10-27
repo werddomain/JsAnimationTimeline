@@ -24,6 +24,7 @@ export interface IJsTimeLineContext {
     layerPanel?: any;  // Will be LayerPanel instance
     timeRuler?: any;   // Will be TimeRuler instance
     timelineGrid?: any; // Will be TimelineGrid instance
+    contextMenu?: any; // Will be ContextMenu instance
   };
 
   // Core Services
