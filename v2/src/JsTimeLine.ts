@@ -13,7 +13,9 @@ import { LayerPanel } from './ui/LayerPanel';
 import { TimeRuler } from './ui/TimeRuler';
 import { TimelineGrid } from './ui/TimelineGrid';
 import { ContextMenu } from './ui/ContextMenu';
+import { TweenPropertiesDialog } from './ui/TweenPropertiesDialog';
 import { ITimeLineData } from './data/ITimeLineData';
+import { debounce } from './utils/Performance';
 
 export class JsTimeLine {
   private container: HTMLElement;
@@ -167,6 +169,9 @@ export class JsTimeLine {
     const contextMenu = new ContextMenu();
     this._context.UI.contextMenu = contextMenu;
 
+    const tweenPropertiesDialog = new TweenPropertiesDialog(this._context);
+    this._context.UI.tweenPropertiesDialog = tweenPropertiesDialog;
+
     // Instantiate PlaybackEngine
     const playbackEngine = new PlaybackEngine(this._context);
     this._context.Core.playbackEngine = playbackEngine;
@@ -201,27 +206,52 @@ export class JsTimeLine {
 
   /**
    * Setup scroll synchronization between grid, ruler, and layer panel
+   * Uses RAF for smooth 60fps scrolling performance
    */
   private setupScrollSync(): void {
     const gridContainer = this._context.UI.gridContainer;
     const rulerContent = this._context.UI.rulerContent;
     const layerPanelContent = this._context.UI.layerPanelContent;
 
-    gridContainer.addEventListener('scroll', () => {
-      // Synchronize horizontal scroll with ruler
+    let rafId: number | null = null;
+    let lastScrollLeft = 0;
+    let lastScrollTop = 0;
+
+    // Use RAF for smooth scroll synchronization
+    const syncScroll = () => {
       const scrollLeft = gridContainer.scrollLeft;
-      rulerContent.style.transform = `translateX(-${scrollLeft}px)`;
-
-      // Synchronize vertical scroll with layer panel
       const scrollTop = gridContainer.scrollTop;
-      layerPanelContent.style.transform = `translateY(-${scrollTop}px)`;
 
-      // Emit scroll event for other components that may need to react
+      // Only update if scroll position changed
+      if (scrollLeft !== lastScrollLeft || scrollTop !== lastScrollTop) {
+        // Use CSS transforms for better performance (GPU accelerated)
+        rulerContent.style.transform = `translateX(-${scrollLeft}px)`;
+        layerPanelContent.style.transform = `translateY(-${scrollTop}px)`;
+
+        lastScrollLeft = scrollLeft;
+        lastScrollTop = scrollTop;
+
+        // Debounced event emission (less frequent for event handlers)
+        debouncedEmitScroll(scrollLeft, scrollTop);
+      }
+
+      rafId = null;
+    };
+
+    // Debounce scroll event emission to reduce event spam
+    const debouncedEmitScroll = debounce((scrollLeft: number, scrollTop: number) => {
       this._context.Core.eventManager.emit('timeline:scroll', {
         scrollLeft,
         scrollTop
       });
-    });
+    }, 100);
+
+    gridContainer.addEventListener('scroll', () => {
+      // Request animation frame only if not already requested
+      if (rafId === null) {
+        rafId = requestAnimationFrame(syncScroll);
+      }
+    }, { passive: true }); // Passive listener for better scroll performance
   }
 
   /**
@@ -558,3 +588,7 @@ export class JsTimeLine {
     }
   }
 }
+
+// Export utility functions
+export { EventLogger, attachEventLogger } from './utils/EventLogger';
+export { debounce, throttle, rafLoop, calculateVisibleRange, memoize, PerformanceMonitor } from './utils/Performance';

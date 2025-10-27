@@ -12,13 +12,96 @@ export class TimelineGrid {
   private collapsedFolders: Set<string> = new Set();
   private draggedFrames: string[] = [];
   private dropIndicator: HTMLElement | null = null;
+  private contextMenuTrigger: HTMLElement | null = null;
+  private isTouchDevice: boolean = false;
 
   constructor(context: IJsTimeLineContext) {
     this.context = context;
     this.gridContent = context.UI.gridContent;
+    this.isTouchDevice = this.detectTouchDevice();
     this.restoreCollapsedState();
     this.createDropIndicator();
     this.setupContextMenu();
+    this.setupSelectionTrigger();
+  }
+
+  /**
+   * Detect if device supports touch
+   */
+  private detectTouchDevice(): boolean {
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  }
+
+  /**
+   * Setup selection-based context menu trigger
+   */
+  private setupSelectionTrigger(): void {
+    if (!this.isTouchDevice) return;
+
+    // Listen to selection changes
+    const selectionManager = this.context.Core.selectionManager;
+    const eventManager = this.context.Core.eventManager;
+    
+    if (!selectionManager || !eventManager) return;
+
+    // Listen for selection changes
+    eventManager.on('onSelectionChange', () => {
+      this.updateContextMenuTrigger();
+    });
+  }
+
+  /**
+   * Update context menu trigger position based on selection
+   */
+  private updateContextMenuTrigger(): void {
+    const selectionManager = this.context.Core.selectionManager;
+    if (!selectionManager) return;
+
+    const selectedFrames = selectionManager.getSelectedFrames();
+    
+    // Remove existing trigger
+    if (this.contextMenuTrigger) {
+      this.contextMenuTrigger.remove();
+      this.contextMenuTrigger = null;
+    }
+
+    // Only show trigger if exactly one frame is selected
+    if (selectedFrames.length !== 1) return;
+
+    const frameId = selectedFrames[0];
+    const frameElement = this.gridContent.querySelector(`[data-frame-id="${frameId}"]`) as HTMLElement;
+    
+    if (!frameElement) return;
+
+    // Create trigger icon
+    this.contextMenuTrigger = document.createElement('div');
+    this.contextMenuTrigger.className = 'context-menu-trigger';
+    this.contextMenuTrigger.innerHTML = '⋮'; // Three dots
+
+    // Position relative to frame
+    const frameRect = frameElement.getBoundingClientRect();
+    const gridRect = this.gridContent.getBoundingClientRect();
+    
+    this.contextMenuTrigger.style.position = 'absolute';
+    this.contextMenuTrigger.style.left = `${frameRect.right - gridRect.left - 40}px`;
+    this.contextMenuTrigger.style.top = `${frameRect.top - gridRect.top + 4}px`;
+
+    // Add click handler
+    this.contextMenuTrigger.addEventListener('click', (e: MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      // Simulate right-click on the frame element
+      const contextMenuEvent = new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: frameRect.left + frameRect.width / 2,
+        clientY: frameRect.top + frameRect.height / 2
+      });
+      frameElement.dispatchEvent(contextMenuEvent);
+    });
+
+    this.gridContent.appendChild(this.contextMenuTrigger);
   }
 
   /**
@@ -88,6 +171,17 @@ export class TimelineGrid {
       if (isInTween) {
         const tween = tweenManager.getTweenAtFrame(layerId, frame);
         if (tween) {
+          menuItems.push({
+            label: 'Tween Properties...',
+            action: () => {
+              const dialog = this.context.UI.tweenPropertiesDialog;
+              if (dialog) {
+                dialog.show(layerId, tween, (updatedTween: any) => {
+                  tweenManager.updateTween(layerId, tween, updatedTween);
+                });
+              }
+            }
+          });
           menuItems.push({
             label: 'Remove Motion Tween',
             action: () => {
@@ -482,6 +576,24 @@ export class TimelineGrid {
       tweenElement.dataset.tweenType = tween.type ?? 'linear';
       tweenElement.dataset.startFrame = tween.startFrame.toString();
       tweenElement.dataset.endFrame = tween.endFrame.toString();
+      
+      // Add double-click handler to open tween properties dialog
+      tweenElement.addEventListener('dblclick', (e: MouseEvent) => {
+        e.stopPropagation();
+        const dialog = this.context.UI.tweenPropertiesDialog;
+        const tweenManager = this.context.Core.tweenManager;
+        
+        // Find the layer ID from the parent container
+        const layerRow = tweenElement.closest('.grid-row');
+        const layerId = layerRow?.getAttribute('data-layer-id');
+        
+        if (dialog && tweenManager && layerId) {
+          dialog.show(layerId, tween, (updatedTween: any) => {
+            tweenManager.updateTween(layerId, tween, updatedTween);
+          });
+        }
+      });
+      
       container.appendChild(tweenElement);
     }
   }

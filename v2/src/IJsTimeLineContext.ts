@@ -25,6 +25,7 @@ export interface IJsTimeLineContext {
     timeRuler?: any;   // Will be TimeRuler instance
     timelineGrid?: any; // Will be TimelineGrid instance
     contextMenu?: any; // Will be ContextMenu instance
+    tweenPropertiesDialog?: any; // Will be TweenPropertiesDialog instance
   };
 
   // Core Services

@@ -137,6 +137,51 @@ export class TweenManager {
   }
 
   /**
+   * Update an existing tween with new properties
+   * Emits onTweenUpdate event
+   * @param layerId ID of the layer
+   * @param oldTween The existing tween to update
+   * @param newTween The new tween properties
+   * @returns true if updated successfully, false if not found
+   */
+  public updateTween(layerId: string, oldTween: ITween, newTween: ITween): boolean {
+    const layer = this.findLayer(layerId);
+    if (!layer || !layer.tweens) {
+      console.error('Layer or tweens not found');
+      return false;
+    }
+
+    // Find the tween to update
+    const tweenIndex = layer.tweens.findIndex(tw => 
+      tw.startFrame === oldTween.startFrame && tw.endFrame === oldTween.endFrame
+    );
+
+    if (tweenIndex === -1) {
+      console.warn('Tween not found');
+      return false;
+    }
+
+    // Update the tween
+    layer.tweens[tweenIndex] = { ...newTween };
+
+    // Emit onTweenUpdate event (spec-compliant)
+    this.context.Core.eventManager.emit('onTweenUpdate', {
+      layerId,
+      oldTween,
+      newTween
+    });
+
+    // Also emit legacy event for backward compatibility
+    this.context.Core.eventManager.emit('tween:updated', { layerId, tween: newTween });
+
+    // Trigger UI re-render
+    this.refreshUI();
+
+    console.log(`Updated tween from frame ${newTween.startFrame} to ${newTween.endFrame}`);
+    return true;
+  }
+
+  /**
    * Get tween at a specific frame
    * @param layerId ID of the layer
    * @param frame Frame number

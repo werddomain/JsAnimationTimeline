@@ -8,12 +8,89 @@ export class LayerPanel {
   private draggedLayerId: string | null = null;
   private dropIndicator: HTMLElement | null = null;
   private collapsedFolders: Set<string> = new Set();
+  private contextMenuTrigger: HTMLElement | null = null;
+  private isTouchDevice: boolean = false;
 
   constructor(context: IJsTimeLineContext) {
     this.context = context;
+    this.isTouchDevice = this.detectTouchDevice();
     this.setupEventListeners();
     this.createDropIndicator();
     this.restoreCollapsedState();
+    this.setupSelectionTrigger();
+  }
+
+  /**
+   * Detect if device supports touch
+   */
+  private detectTouchDevice(): boolean {
+    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  }
+
+  /**
+   * Setup selection-based context menu trigger
+   */
+  private setupSelectionTrigger(): void {
+    if (!this.isTouchDevice) return;
+
+    // Listen to layer selection changes
+    const eventManager = this.context.Core.eventManager;
+    if (!eventManager) return;
+
+    // Listen for layer selection
+    eventManager.on('onLayerSelect', () => {
+      this.updateContextMenuTrigger();
+    });
+  }
+
+  /**
+   * Update context menu trigger position for selected layer
+   */
+  private updateContextMenuTrigger(): void {
+    const layerContainer = this.context.UI.layerPanelContent;
+    if (!layerContainer) return;
+
+    // Remove existing trigger
+    if (this.contextMenuTrigger) {
+      this.contextMenuTrigger.remove();
+      this.contextMenuTrigger = null;
+    }
+
+    // Only show trigger if a layer is selected
+    if (!this.selectedLayerId) return;
+
+    const layerElement = layerContainer.querySelector(`[data-layer-id="${this.selectedLayerId}"]`) as HTMLElement;
+    if (!layerElement) return;
+
+    // Create trigger icon
+    this.contextMenuTrigger = document.createElement('div');
+    this.contextMenuTrigger.className = 'context-menu-trigger';
+    this.contextMenuTrigger.innerHTML = '⋮'; // Three dots
+
+    // Position at end of layer row
+    const layerRect = layerElement.getBoundingClientRect();
+    const containerRect = layerContainer.getBoundingClientRect();
+    
+    this.contextMenuTrigger.style.position = 'absolute';
+    this.contextMenuTrigger.style.right = '8px';
+    this.contextMenuTrigger.style.top = `${layerRect.top - containerRect.top + 8}px`;
+
+    // Add click handler
+    this.contextMenuTrigger.addEventListener('click', (e: MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      // Simulate right-click on the layer element
+      const contextMenuEvent = new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: layerRect.right - 50,
+        clientY: layerRect.top + layerRect.height / 2
+      });
+      layerElement.dispatchEvent(contextMenuEvent);
+    });
+
+    layerContainer.appendChild(this.contextMenuTrigger);
   }
 
   /**
