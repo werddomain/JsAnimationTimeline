@@ -313,6 +313,64 @@ export class JsTimeLine {
         keyframeManager.pasteKeyframes(firstLayer.id, currentFrame);
       }
 
+      // Enter: Toggle Play/Pause
+      else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (playbackEngine.getIsPlaying()) {
+          playbackEngine.pause();
+          console.log('Playback paused (Enter)');
+        } else {
+          playbackEngine.play();
+          console.log('Playback started (Enter)');
+        }
+      }
+
+      // Comma (,): Previous Frame
+      else if (e.key === ',') {
+        e.preventDefault();
+        const prevFrame = Math.max(1, currentFrame - 1);
+        playbackEngine.goToFrame(prevFrame);
+        console.log(`Moved to previous frame: ${prevFrame}`);
+      }
+
+      // Period (.): Next Frame
+      else if (e.key === '.') {
+        e.preventDefault();
+        const nextFrame = Math.min(data.settings.totalFrames, currentFrame + 1);
+        playbackEngine.goToFrame(nextFrame);
+        console.log(`Moved to next frame: ${nextFrame}`);
+      }
+
+      // Delete: Delete selected frames/keyframes
+      else if (e.key === 'Delete') {
+        if (selectionManager) {
+          const selectedFrames = selectionManager.getSelectedFrames();
+          if (selectedFrames.length > 0) {
+            e.preventDefault();
+            // Group selected frames by layer and delete them
+            const framesByLayer = new Map<string, number[]>();
+            selectedFrames.forEach(frameId => {
+              const [layerId, frameStr] = frameId.split(':');
+              const frame = parseInt(frameStr, 10);
+              if (!framesByLayer.has(layerId)) {
+                framesByLayer.set(layerId, []);
+              }
+              framesByLayer.get(layerId)!.push(frame);
+            });
+
+            // Delete frames for each layer
+            framesByLayer.forEach((frames, layerId) => {
+              const minFrame = Math.min(...frames);
+              const maxFrame = Math.max(...frames);
+              keyframeManager.deleteFrames(layerId, minFrame, maxFrame);
+            });
+
+            selectionManager.clearSelection();
+            console.log(`Deleted ${selectedFrames.length} selected frames`);
+          }
+        }
+      }
+
       // F6: Insert content keyframe
       else if (e.key === 'F6') {
         e.preventDefault();
@@ -448,5 +506,55 @@ export class JsTimeLine {
    */
   public getContext(): IJsTimeLineContext {
     return this._context;
+  }
+
+  /**
+   * Export timeline data as JSON string
+   * @returns JSON string representation of timeline data
+   */
+  public exportData(): string {
+    return this._context.Data.toJSON();
+  }
+
+  /**
+   * Import timeline data from JSON string
+   * @param json JSON string to import
+   * @throws Error if JSON is invalid or incompatible
+   */
+  public importData(json: string): void {
+    try {
+      // Load and validate data
+      this._context.Data.fromJSON(json);
+      
+      // Re-render all UI components
+      if (this._context.UI.layerPanel) {
+        this._context.UI.layerPanel.render();
+      }
+      
+      if (this._context.UI.timeRuler) {
+        this._context.UI.timeRuler.render();
+        this._context.UI.timeRuler.setPlayheadPosition(1);
+      }
+      
+      if (this._context.UI.timelineGrid) {
+        this._context.UI.timelineGrid.render();
+      }
+      
+      // Reset playback to frame 1
+      if (this._context.Core.playbackEngine) {
+        this._context.Core.playbackEngine.stop();
+      }
+      
+      // Emit event
+      this._context.Core.eventManager.emit('timeline:dataImported', {
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log('Timeline data imported successfully');
+      
+    } catch (error) {
+      console.error('Failed to import timeline data:', error);
+      throw error;
+    }
   }
 }

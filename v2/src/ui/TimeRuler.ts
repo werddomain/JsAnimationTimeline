@@ -84,16 +84,24 @@ export class TimeRuler {
 
   /**
    * Update the playhead position
+   * Emits onTimeSeek event when manually moved
    * @param frame Frame number to position the playhead at
+   * @param isManual Whether this is a manual user action (true) or programmatic (false)
    */
-  public setPlayheadPosition(frame: number): void {
+  public setPlayheadPosition(frame: number, isManual: boolean = false): void {
     const settings = this.context.Data.getData().settings;
     const frameWidth = settings.frameWidth || 15;
     const playhead = this.context.UI.playhead;
 
     if (playhead) {
       playhead.style.left = `${(frame - 1) * frameWidth}px`;
-      // Emit event for other components to react
+      
+      // Emit onTimeSeek event (spec-compliant) only for manual seeks
+      if (isManual) {
+        this.context.Core.eventManager.emit('onTimeSeek', { currentFrame: frame });
+      }
+      
+      // Also emit legacy event for backward compatibility
       this.context.Core.eventManager.emit('playhead:moved', { frame });
     }
   }
@@ -127,7 +135,7 @@ export class TimeRuler {
       // Calculate which frame the mouse is over
       const frame = Math.max(1, Math.min(totalFrames, Math.round(mouseX / frameWidth) + 1));
       
-      this.setPlayheadPosition(frame);
+      this.setPlayheadPosition(frame, true); // true = manual user action
     });
 
     document.addEventListener('mouseup', () => {
@@ -152,7 +160,7 @@ export class TimeRuler {
       
       const frame = Math.max(1, Math.min(totalFrames, Math.round(mouseX / frameWidth) + 1));
       
-      this.setPlayheadPosition(frame);
+      this.setPlayheadPosition(frame, true); // true = manual user click on ruler
     });
   }
 }

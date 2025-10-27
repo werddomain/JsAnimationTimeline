@@ -14,6 +14,7 @@ export class KeyframeManager {
 
   /**
    * Insert a content keyframe (F6)
+   * Emits onKeyframeAdd event
    * @param layerId ID of the layer
    * @param frame Frame number where to insert
    */
@@ -46,7 +47,18 @@ export class KeyframeManager {
     // Sort keyframes by frame number
     layer.keyframes.sort((a, b) => a.frame - b.frame);
 
-    // Emit event
+    // Generate keyframe ID for event
+    const keyframeId = `kf-${layerId}-${frame}`;
+
+    // Emit onKeyframeAdd event (spec-compliant)
+    this.context.Core.eventManager.emit('onKeyframeAdd', {
+      id: keyframeId,
+      layerId,
+      frame,
+      type: 'content'
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('keyframe:added', { layerId, frame, isEmpty: false });
 
     // Trigger UI re-render
@@ -55,6 +67,7 @@ export class KeyframeManager {
 
   /**
    * Insert a blank keyframe (F7)
+   * Emits onKeyframeAdd event
    * @param layerId ID of the layer
    * @param frame Frame number where to insert
    */
@@ -87,7 +100,18 @@ export class KeyframeManager {
     // Sort keyframes by frame number
     layer.keyframes.sort((a, b) => a.frame - b.frame);
 
-    // Emit event
+    // Generate keyframe ID for event
+    const keyframeId = `kf-${layerId}-${frame}`;
+
+    // Emit onKeyframeAdd event (spec-compliant)
+    this.context.Core.eventManager.emit('onKeyframeAdd', {
+      id: keyframeId,
+      layerId,
+      frame,
+      type: 'blank'
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('keyframe:added', { layerId, frame, isEmpty: true });
 
     // Trigger UI re-render
@@ -135,15 +159,33 @@ export class KeyframeManager {
 
   /**
    * Delete frames (Shift+F5)
+   * Emits cancellable onBeforeKeyframeDelete event, then onKeyframeDelete event
    * @param layerId ID of the layer
    * @param frameStart Start frame number (inclusive)
    * @param frameEnd End frame number (inclusive)
+   * @returns true if deleted, false if cancelled by listener
    */
-  public deleteFrames(layerId: string, frameStart: number, frameEnd: number): void {
+  public deleteFrames(layerId: string, frameStart: number, frameEnd: number): boolean {
     const layer = this.findLayer(layerId);
     if (!layer) {
       console.error(`Layer ${layerId} not found`);
-      return;
+      return false;
+    }
+
+    // Collect keyframe IDs that will be deleted
+    const keyframesToDelete = layer.keyframes
+      ?.filter(kf => kf.frame >= frameStart && kf.frame <= frameEnd)
+      .map(kf => `kf-${layerId}-${kf.frame}`) || [];
+
+    // Emit cancellable onBeforeKeyframeDelete event
+    const beforeEvent = this.context.Core.eventManager.emitCancellable('onBeforeKeyframeDelete', {
+      ids: keyframesToDelete
+    });
+
+    // Check if the deletion was cancelled
+    if (beforeEvent.defaultPrevented) {
+      console.log('Keyframe deletion cancelled by listener');
+      return false;
     }
 
     const frameCount = frameEnd - frameStart + 1;
@@ -181,44 +223,76 @@ export class KeyframeManager {
       });
     }
 
-    // Emit event
+    // Emit onKeyframeDelete event (spec-compliant)
+    this.context.Core.eventManager.emit('onKeyframeDelete', {
+      ids: keyframesToDelete
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('frames:deleted', { layerId, frameStart, frameEnd });
 
     // Trigger UI re-render
     this.refreshUI();
+
+    return true;
   }
 
   /**
    * Delete a specific keyframe
+   * Emits cancellable onBeforeKeyframeDelete event, then onKeyframeDelete event
    * @param layerId ID of the layer
    * @param frame Frame number of the keyframe to delete
+   * @returns true if deleted, false if not found or cancelled by listener
    */
-  public deleteKeyframe(layerId: string, frame: number): void {
+  public deleteKeyframe(layerId: string, frame: number): boolean {
     const layer = this.findLayer(layerId);
     if (!layer) {
       console.error(`Layer ${layerId} not found`);
-      return;
+      return false;
     }
 
     if (!layer.keyframes) {
-      return;
+      return false;
+    }
+
+    // Generate keyframe ID
+    const keyframeId = `kf-${layerId}-${frame}`;
+
+    // Emit cancellable onBeforeKeyframeDelete event
+    const beforeEvent = this.context.Core.eventManager.emitCancellable('onBeforeKeyframeDelete', {
+      ids: [keyframeId]
+    });
+
+    // Check if the deletion was cancelled
+    if (beforeEvent.defaultPrevented) {
+      console.log('Keyframe deletion cancelled by listener');
+      return false;
     }
 
     // Remove the keyframe
     layer.keyframes = layer.keyframes.filter(kf => kf.frame !== frame);
 
-    // Emit event
+    // Emit onKeyframeDelete event (spec-compliant)
+    this.context.Core.eventManager.emit('onKeyframeDelete', {
+      ids: [keyframeId]
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('keyframe:deleted', { layerId, frame });
 
     // Trigger UI re-render
     this.refreshUI();
+
+    return true;
   }
 
   /**
    * Move keyframes to a new position (for drag-and-drop)
+   * Emits onKeyframeMove event
    * @param frameIds Array of frame IDs (format: layerId:frameNumber)
    * @param targetLayerId Target layer ID
    * @param targetFrame Target frame number
+   * @returns true if moved successfully, false if conflict or error
    */
   public moveKeyframes(frameIds: string[], targetLayerId: string, targetFrame: number): boolean {
     if (frameIds.length === 0) return false;
@@ -242,6 +316,8 @@ export class KeyframeManager {
 
     // Collect keyframes to move
     const keyframesToMove: IKeyframe[] = [];
+    const moves: Array<{ id: string; newFrame: number; oldFrame: number }> = [];
+
     frameIds.forEach(frameId => {
       const [layerId, frameStr] = frameId.split(':');
       const frame = parseInt(frameStr, 10);
@@ -249,7 +325,13 @@ export class KeyframeManager {
       if (layer && layer.keyframes) {
         const kf = layer.keyframes.find(k => k.frame === frame);
         if (kf) {
-          keyframesToMove.push({ ...kf, frame: kf.frame + frameOffset });
+          const newFrame = kf.frame + frameOffset;
+          keyframesToMove.push({ ...kf, frame: newFrame });
+          moves.push({
+            id: `kf-${layerId}-${frame}`,
+            oldFrame: frame,
+            newFrame
+          });
         }
       }
     });
@@ -282,7 +364,12 @@ export class KeyframeManager {
     targetLayer.keyframes.push(...keyframesToMove);
     targetLayer.keyframes.sort((a, b) => a.frame - b.frame);
 
-    // Emit event
+    // Emit onKeyframeMove event (spec-compliant)
+    this.context.Core.eventManager.emit('onKeyframeMove', {
+      moves
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('keyframes:moved', {
       frameIds,
       targetLayerId,

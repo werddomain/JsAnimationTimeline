@@ -27,6 +27,7 @@ export class PlaybackEngine {
 
   /**
    * Start playback from current frame
+   * Emits onPlaybackStart event
    */
   public play(): void {
     if (this.isPlaying) return;
@@ -35,7 +36,10 @@ export class PlaybackEngine {
     this.lastFrameTime = performance.now();
     this.updateFrameInterval();
     
-    // Emit playback started event
+    // Emit onPlaybackStart event (spec-compliant)
+    this.context.Core.eventManager.emit('onPlaybackStart', { currentFrame: this.currentFrame });
+    
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('playback:started', { frame: this.currentFrame });
     
     this.animate();
@@ -61,6 +65,7 @@ export class PlaybackEngine {
 
   /**
    * Advance to the next frame
+   * Emits onFrameEnter event with keyframe IDs on current frame
    */
   private advanceFrame(): void {
     const settings = this.context.Data.getData()?.settings;
@@ -79,12 +84,40 @@ export class PlaybackEngine {
       this.context.UI.timeRuler.setPlayheadPosition(this.currentFrame);
     }
 
-    // Emit frame enter event
+    // Collect keyframe IDs on the current frame
+    const keyframeIdsOnFrame: string[] = [];
+    const data = this.context.Data.getData();
+    if (data?.layers) {
+      const collectKeyframes = (layers: readonly any[]) => {
+        for (const layer of layers) {
+          if (layer.keyframes) {
+            layer.keyframes.forEach((kf: any) => {
+              if (kf.frame === this.currentFrame) {
+                keyframeIdsOnFrame.push(`kf-${layer.id}-${kf.frame}`);
+              }
+            });
+          }
+          if (layer.children) {
+            collectKeyframes(layer.children);
+          }
+        }
+      };
+      collectKeyframes(data.layers);
+    }
+
+    // Emit onFrameEnter event (spec-compliant)
+    this.context.Core.eventManager.emit('onFrameEnter', {
+      currentFrame: this.currentFrame,
+      keyframeIdsOnFrame
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('playback:frameEnter', { frame: this.currentFrame });
   }
 
   /**
    * Pause playback at current frame
+   * Emits onPlaybackPause event
    */
   public pause(): void {
     if (!this.isPlaying) return;
@@ -96,6 +129,10 @@ export class PlaybackEngine {
       this.animationFrameId = null;
     }
 
+    // Emit onPlaybackPause event (spec-compliant)
+    this.context.Core.eventManager.emit('onPlaybackPause', { currentFrame: this.currentFrame });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('playback:paused', { frame: this.currentFrame });
   }
 

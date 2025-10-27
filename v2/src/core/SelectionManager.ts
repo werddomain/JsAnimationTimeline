@@ -120,10 +120,25 @@ export class SelectionManager {
 
   /**
    * Emit selection change event
+   * Emits onKeyframeSelect event (spec-compliant) and legacy selection:changed event
    */
   private emitSelectionChange(): void {
+    const selectedFrames = this.getSelectedFrames();
+
+    // Convert frame IDs to keyframe IDs for spec-compliant event
+    const selectedIds = selectedFrames.map(frameId => {
+      const [layerId, frame] = frameId.split(':');
+      return `kf-${layerId}-${frame}`;
+    });
+
+    // Emit onKeyframeSelect event (spec-compliant)
+    this.context.Core.eventManager.emit('onKeyframeSelect', {
+      selectedIds
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('selection:changed', {
-      selectedFrames: this.getSelectedFrames(),
+      selectedFrames,
       count: this.getSelectionCount()
     });
   }

@@ -91,7 +91,14 @@ export class LayerManager {
     };
     this.context.Data.load(updatedData);
 
-    // Emit event
+    // Emit onObjectAdd event (spec-compliant)
+    this.context.Core.eventManager.emit('onObjectAdd', {
+      id: newLayer.id,
+      type: 'layer',
+      parentId: parentId || null
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('layer:added', { layer: newLayer });
 
     return newLayer;
@@ -137,7 +144,14 @@ export class LayerManager {
     };
     this.context.Data.load(updatedData);
 
-    // Emit event
+    // Emit onObjectAdd event (spec-compliant)
+    this.context.Core.eventManager.emit('onObjectAdd', {
+      id: newFolder.id,
+      type: 'folder',
+      parentId: parentId || null
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('folder:added', { folder: newFolder });
 
     return newFolder;
@@ -145,6 +159,9 @@ export class LayerManager {
 
   /**
    * Delete a layer or folder from the timeline
+   * Emits cancellable onBeforeObjectDelete event, then onObjectDelete event
+   * @param id - ID of the layer or folder to delete
+   * @returns true if deleted, false if not found or cancelled by listener
    */
   public deleteObject(id: string): boolean {
     const data = this.context.Data.getData();
@@ -157,6 +174,19 @@ export class LayerManager {
     if (index === -1) return false;
 
     const deletedObject = parentArray[index];
+
+    // Emit cancellable onBeforeObjectDelete event
+    const beforeEvent = this.context.Core.eventManager.emitCancellable('onBeforeObjectDelete', {
+      ids: [id]
+    });
+
+    // Check if the deletion was cancelled
+    if (beforeEvent.defaultPrevented) {
+      console.log('Layer deletion cancelled by listener');
+      return false;
+    }
+
+    // Proceed with deletion
     parentArray.splice(index, 1);
 
     // Update data
@@ -166,7 +196,12 @@ export class LayerManager {
     };
     this.context.Data.load(updatedData);
 
-    // Emit event
+    // Emit onObjectDelete event
+    this.context.Core.eventManager.emit('onObjectDelete', { 
+      ids: [id]
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('layer:deleted', { 
       id, 
       object: deletedObject 
@@ -177,6 +212,10 @@ export class LayerManager {
 
   /**
    * Rename a layer or folder
+   * Emits onObjectRename event
+   * @param id - ID of the layer or folder to rename
+   * @param newName - New name for the object
+   * @returns true if renamed successfully, false if not found
    */
   public renameObject(id: string, newName: string): boolean {
     const data = this.context.Data.getData();
@@ -195,7 +234,14 @@ export class LayerManager {
     };
     this.context.Data.load(updatedData);
 
-    // Emit event
+    // Emit onObjectRename event (spec-compliant)
+    this.context.Core.eventManager.emit('onObjectRename', { 
+      id, 
+      oldName, 
+      newName 
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('layer:renamed', { 
       id, 
       oldName, 
@@ -207,6 +253,10 @@ export class LayerManager {
 
   /**
    * Reorder a layer within its parent
+   * Emits onObjectReorder event
+   * @param id - ID of the layer or folder to reorder
+   * @param newIndex - New index within the parent
+   * @returns true if reordered successfully, false if not found
    */
   public reorderObject(id: string, newIndex: number): boolean {
     const data = this.context.Data.getData();
@@ -232,7 +282,14 @@ export class LayerManager {
     };
     this.context.Data.load(updatedData);
 
-    // Emit event
+    // Emit onObjectReorder event (spec-compliant)
+    this.context.Core.eventManager.emit('onObjectReorder', { 
+      id, 
+      oldIndex, 
+      newIndex: insertIndex 
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('layer:reordered', { 
       id, 
       oldIndex, 
@@ -244,8 +301,12 @@ export class LayerManager {
 
   /**
    * Move a layer to a different parent (reparenting)
+   * Emits onObjectReparent event
+   * @param id - ID of the layer or folder to reparent
+   * @param newParentId - ID of the new parent folder (null for root level)
+   * @returns true if reparented successfully, false if not found or invalid parent
    */
-  public reparentObject(id: string, newParentId: string | null): boolean {
+  public reparentObject(id: string, newParentId: string | null, oldParentId?: string | null): boolean {
     const data = this.context.Data.getData();
     const layers = [...data.layers] as ILayer[];
 
@@ -279,7 +340,14 @@ export class LayerManager {
     };
     this.context.Data.load(updatedData);
 
-    // Emit event
+    // Emit onObjectReparent event (spec-compliant)
+    this.context.Core.eventManager.emit('onObjectReparent', { 
+      id, 
+      newParentId,
+      oldParentId: oldParentId || null
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('layer:reparented', { 
       id, 
       newParentId 
@@ -290,6 +358,9 @@ export class LayerManager {
 
   /**
    * Toggle layer visibility
+   * Emits onObjectVisibilityChange event
+   * @param id - ID of the layer or folder
+   * @returns true if toggled successfully, false if not found
    */
   public toggleVisibility(id: string): boolean {
     const data = this.context.Data.getData();
@@ -307,7 +378,13 @@ export class LayerManager {
     };
     this.context.Data.load(updatedData);
 
-    // Emit event
+    // Emit onObjectVisibilityChange event (spec-compliant)
+    this.context.Core.eventManager.emit('onObjectVisibilityChange', { 
+      id, 
+      isVisible: layer.visible 
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('layer:visibilityChanged', { 
       id, 
       visible: layer.visible 
@@ -318,6 +395,9 @@ export class LayerManager {
 
   /**
    * Toggle layer lock state
+   * Emits onObjectLockChange event
+   * @param id - ID of the layer or folder
+   * @returns true if toggled successfully, false if not found
    */
   public toggleLock(id: string): boolean {
     const data = this.context.Data.getData();
@@ -335,7 +415,13 @@ export class LayerManager {
     };
     this.context.Data.load(updatedData);
 
-    // Emit event
+    // Emit onObjectLockChange event (spec-compliant)
+    this.context.Core.eventManager.emit('onObjectLockChange', { 
+      id, 
+      isLocked: layer.locked 
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('layer:lockChanged', { 
       id, 
       locked: layer.locked 

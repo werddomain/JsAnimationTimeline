@@ -96,6 +96,43 @@
         .controls button:active {
             transform: scale(0.98);
         }
+
+        .controls input[type="file"] {
+            display: none;
+        }
+
+        .controls label {
+            padding: 10px 20px;
+            margin-right: 10px;
+            background-color: #2196F3;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-block;
+        }
+
+        .controls label:hover {
+            background-color: #0b7dda;
+        }
+
+        .error-message {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f44336;
+            color: white;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .success-message {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 4px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -119,6 +156,12 @@
             <button onclick="testPlayhead()">Move Playhead to Frame 50</button>
             <button onclick="resetPlayhead()">Reset Playhead</button>
             <button onclick="logContext()">Log Context to Console</button>
+            <hr style="margin: 15px 0; border: none; border-top: 1px solid #ddd;">
+            <button onclick="exportTimelineData()">Export Timeline Data</button>
+            <input type="file" id="file-input" accept=".json" onchange="importTimelineData(event)">
+            <label for="file-input">Import Timeline Data</label>
+            <div id="error-message" class="error-message"></div>
+            <div id="success-message" class="success-message"></div>
         </div>
     </div>
 
@@ -154,6 +197,92 @@
             const context = timeline.getContext();
             console.log('Timeline Context:', context);
             console.log('Data:', context.Data.getData());
+        }
+
+        function exportTimelineData() {
+            try {
+                // Get JSON data from timeline
+                const jsonData = timeline.exportData();
+                
+                // Create a blob and download link
+                const blob = new Blob([jsonData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'timeline-data.json';
+                
+                // Trigger download
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Clean up
+                URL.revokeObjectURL(url);
+                
+                showSuccess('Timeline data exported successfully!');
+                console.log('Exported data:', jsonData);
+            } catch (error) {
+                showError(`Export failed: ${error.message}`);
+                console.error('Export error:', error);
+            }
+        }
+
+        function importTimelineData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const jsonData = e.target.result;
+                    
+                    // Import data into timeline
+                    timeline.importData(jsonData);
+                    
+                    showSuccess('Timeline data imported successfully!');
+                    console.log('Imported data successfully');
+                } catch (error) {
+                    showError(`Import failed: ${error.message}`);
+                    console.error('Import error:', error);
+                }
+                
+                // Reset file input
+                event.target.value = '';
+            };
+            
+            reader.onerror = function() {
+                showError('Failed to read file');
+                event.target.value = '';
+            };
+            
+            reader.readAsText(file);
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            const successDiv = document.getElementById('success-message');
+            
+            successDiv.style.display = 'none';
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const errorDiv = document.getElementById('error-message');
+            const successDiv = document.getElementById('success-message');
+            
+            errorDiv.style.display = 'none';
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 3000);
         }
 
         console.log('Timeline control loaded successfully!');

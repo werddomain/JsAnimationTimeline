@@ -14,10 +14,12 @@ export class TweenManager {
 
   /**
    * Create a motion tween between two keyframes
+   * Emits onTweenAdd event
    * @param layerId ID of the layer
    * @param startFrame Start frame number
    * @param endFrame End frame number
    * @param type Tween type (linear, ease, etc.)
+   * @returns true if created successfully, false if error or overlap
    */
   public createMotionTween(layerId: string, startFrame: number, endFrame: number, type: string = 'linear'): boolean {
     const layer = this.findLayer(layerId);
@@ -75,7 +77,15 @@ export class TweenManager {
     // Sort tweens by start frame
     layer.tweens.sort((a, b) => a.startFrame - b.startFrame);
 
-    // Emit event
+    // Emit onTweenAdd event (spec-compliant)
+    this.context.Core.eventManager.emit('onTweenAdd', {
+      layerId,
+      startFrame,
+      endFrame,
+      type: 'motion'
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('tween:added', { layerId, startFrame, endFrame, type });
 
     // Trigger UI re-render
@@ -87,9 +97,11 @@ export class TweenManager {
 
   /**
    * Remove a tween from a layer
+   * Emits onTweenRemove event
    * @param layerId ID of the layer
    * @param startFrame Start frame of the tween to remove
    * @param endFrame End frame of the tween to remove
+   * @returns true if removed successfully, false if not found
    */
   public removeTween(layerId: string, startFrame: number, endFrame: number): boolean {
     const layer = this.findLayer(layerId);
@@ -107,7 +119,14 @@ export class TweenManager {
       return false;
     }
 
-    // Emit event
+    // Emit onTweenRemove event (spec-compliant)
+    this.context.Core.eventManager.emit('onTweenRemove', {
+      layerId,
+      startFrame,
+      endFrame
+    });
+
+    // Also emit legacy event for backward compatibility
     this.context.Core.eventManager.emit('tween:removed', { layerId, startFrame, endFrame });
 
     // Trigger UI re-render
