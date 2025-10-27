@@ -1,6 +1,11 @@
 import { TimeLineData } from './data/TimeLineData';
 import { EventManager } from './core/EventManager';
 import { StateManager } from './core/StateManager';
+import { PlaybackEngine } from './core/PlaybackEngine';
+import { LayerManager } from './core/LayerManager';
+import { SelectionManager } from './core/SelectionManager';
+import { KeyframeManager } from './core/KeyframeManager';
+import { TweenManager } from './core/TweenManager';
 import { IPlugin } from './plugins/IPlugin';
 
 export interface IJsTimeLineContext {
@@ -25,6 +30,11 @@ export interface IJsTimeLineContext {
   Core: {
     eventManager: EventManager;
     stateManager: StateManager;
+    playbackEngine?: PlaybackEngine;
+    layerManager?: LayerManager;
+    selectionManager?: SelectionManager;
+    keyframeManager?: KeyframeManager;
+    tweenManager?: TweenManager;
   };
 
   // Data Management

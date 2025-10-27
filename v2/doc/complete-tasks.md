@@ -55,7 +55,7 @@ This document outlines all remaining tasks to fully implement the Flash MX-style
 - Ruler and layer panel do NOT show their own scrollbars
 - Performance is smooth with no lag
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - Scroll synchronization implemented in JsTimeLine.ts with transform-based updates
 
 ---
 
@@ -82,7 +82,7 @@ This document outlines all remaining tasks to fully implement the Flash MX-style
 - Scrolling is enabled
 - Each layer has a corresponding row in the grid
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - TimelineGrid.ts created with full rendering logic for all layer types
 
 ### **Task 12.2: Implement Frame Rendering Logic**
 
@@ -115,7 +115,7 @@ Based on spec Section 1.4, implement rendering for each layer:
 - Standard frames show gray fill after keyframes
 - Rendering is contextual (frame N depends on frame N-1)
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - Frame rendering logic implemented with contextual frame type detection
 
 ### **Task 12.3: Style Timeline Grid Elements**
 
@@ -143,7 +143,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - Borders are subtle but visible
 - Hover states provide visual feedback
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - Comprehensive grid styles added to JsTimeLine.less with pseudo-elements
 
 ### **Task 12.4: Integrate TimelineGrid with Main Control**
 
@@ -164,7 +164,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - Grid is synchronized with layer panel (same row heights)
 - Grid is synchronized with ruler (same frame widths)
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - TimelineGrid integrated into JsTimeLine.ts and rendering correctly
 
 ---
 
@@ -190,7 +190,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - Triangle indicator is at the top in the ruler
 - Playhead is always on top (z-index)
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - Playhead repositioned to grid container, spans full height with triangle indicator
 
 ### **Task 13.2: Create Playback Engine**
 
@@ -221,7 +221,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - goToFrame works accurately
 - Events are emitted on each frame change
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - PlaybackEngine.ts created with play/pause/stop/goToFrame methods and frame-accurate timing
 
 ### **Task 13.3: Add Playback Controls UI**
 
@@ -246,7 +246,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - Current frame display updates during playback
 - Controls are styled consistently
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - Playback controls added to corner with Play/Pause/Stop buttons and frame display
 
 ### **Task 13.4: Implement Scrubbing (Drag Playhead)**
 
@@ -274,7 +274,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - onTimeSeek events are emitted
 - Works on touch devices
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - Playhead dragging implemented in TimeRuler.ts with mouse handlers and ruler click-to-jump
 
 ---
 
@@ -311,7 +311,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - Events are emitted
 - UI re-renders to show changes
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - LayerManager.ts created with full CRUD operations, toolbar added to LayerPanel
 
 ### **Task 14.2: Implement Layer Renaming**
 
@@ -340,7 +340,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - Name updates in data model
 - onObjectRename event is emitted
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - Double-click rename implemented in LayerPanel with input field and keyboard handlers
 
 ### **Task 14.3: Implement Drag-and-Drop Layer Reordering**
 
@@ -372,7 +372,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - Data model and UI update correctly
 - Events are emitted
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - Drag-and-drop implemented with visual feedback, reparentObject working for folders
 
 ### **Task 14.4: Implement Folder Expand/Collapse**
 
@@ -402,7 +402,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - State persists during session
 - Grid remains synchronized with layer panel
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - Folder expand/collapse implemented with click handler on folder icon, CSS rotation animation, collapsed state tracking in Set and StateManager persistence, synchronized rendering in LayerPanel and TimelineGrid to show/hide children, folder:toggled event emission
 
 ---
 
@@ -438,7 +438,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - Selection state is tracked accurately
 - Events are emitted
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - SelectionManager.ts created with selectFrame, deselectFrame, clearSelection, toggleSelection, and selectRange methods. Click handlers added to all frame types in TimelineGrid with CTRL/Shift modifiers support. Selected frames visually highlighted with blue background and white borders. Selection state tracked in Set and selection:changed events emitted.
 
 ### **Task 15.2: Implement Insert Keyframe (F6/F7/F5)**
 
@@ -473,7 +473,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - UI re-renders to show changes
 - Events are emitted
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - KeyframeManager.ts created with insertKeyframe, insertBlankKeyframe, insertFrame, deleteFrames, and deleteKeyframe methods. All methods update data model (keyframes array), emit appropriate events (keyframe:added, frame:inserted, frames:deleted), and trigger UI re-render. Keyboard shortcuts added in setupKeyboardShortcuts: F6 for content keyframe, F7 for blank keyframe, F5 for insert frame, Shift+F5 for delete frames.
 
 ### **Task 15.3: Implement Keyframe Drag-and-Drop**
 
@@ -508,7 +508,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - Invalid drops are prevented
 - Data and UI update correctly
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - Keyframe drag-and-drop implemented in TimelineGrid. Keyframes made draggable with dragstart/dragend handlers. Drop targets added to all frame types (keyframes, standard, empty). Multiple selected keyframes drag together. Visual feedback: dragging opacity 0.5, blue dashed drop indicator. KeyframeManager.moveKeyframes handles data model updates, conflict detection, and cross-layer moves. Selection updates to new positions after drop. Events emitted: keyframes:moved.
 
 ### **Task 15.4: Implement Copy/Paste for Keyframes**
 
@@ -539,7 +539,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - Works across layers
 - Context menu includes copy/paste
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - Copy/paste functionality implemented in KeyframeManager. copyKeyframes stores selected keyframes data in StateManager clipboard. pasteKeyframes retrieves clipboard data, calculates frame offset to preserve relative timing, checks for conflicts, and creates new keyframes at target position. Keyboard shortcuts added: CTRL+C for copy, CTRL+V for paste. Events emitted: keyframes:copied, keyframes:pasted. Works across layers.
 
 ---
 
@@ -578,7 +578,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - Tween only shows when exactly 2 keyframes selected
 - Events are emitted
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - TweenManager.ts created with createMotionTween, removeTween, getTweenAtFrame, and isFrameInTween methods. Context menu system implemented in TimelineGrid with right-click handler. Menu shows "Create Motion Tween" when exactly 2 keyframes on same layer are selected. createMotionTween validates keyframes, checks for overlaps, adds tween to layer's tweens array. Events emitted: tween:added. Grid already renders tweens with blue background and arrows from existing renderTweens implementation.
 
 ### **Task 16.2: Implement Remove Tween**
 
@@ -607,7 +607,7 @@ Use LESS nesting within `.JsTimeLine` and follow the visual specifications from 
 - Events are emitted
 - Keyframes remain intact
 
-✅ **Task Completed:** ___
+✅ **Task Completed:** 2025-10-26 - Remove tween already implemented in TweenManager.removeTween and context menu. Right-clicking on any tween frame (blue area) shows "Remove Motion Tween" option. removeTween filters tween from layer's tweens array, emits tween:removed event, and triggers UI re-render. Grid automatically renders frames as standard (gray) after tween removal. Keyframes remain intact.
 
 ### **Task 16.3: Implement Tween Properties (Optional Enhancement)**
 

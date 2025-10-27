@@ -2,9 +2,11 @@ import { IJsTimeLineContext } from '../IJsTimeLineContext';
 
 export class TimeRuler {
   private context: IJsTimeLineContext;
+  private isDragging: boolean = false;
 
   constructor(context: IJsTimeLineContext) {
     this.context = context;
+    this.setupPlayheadDragging();
   }
 
   /**
@@ -91,6 +93,66 @@ export class TimeRuler {
 
     if (playhead) {
       playhead.style.left = `${(frame - 1) * frameWidth}px`;
+      // Emit event for other components to react
+      this.context.Core.eventManager.emit('playhead:moved', { frame });
     }
+  }
+
+  /**
+   * Setup playhead dragging functionality
+   */
+  private setupPlayheadDragging(): void {
+    const playhead = this.context.UI.playhead;
+    const gridContainer = this.context.UI.gridContainer;
+
+    if (!playhead || !gridContainer) return;
+
+    playhead.addEventListener('mousedown', (e: MouseEvent) => {
+      e.preventDefault();
+      this.isDragging = true;
+      document.body.style.cursor = 'ew-resize';
+    });
+
+    document.addEventListener('mousemove', (e: MouseEvent) => {
+      if (!this.isDragging) return;
+
+      const rect = gridContainer.getBoundingClientRect();
+      const scrollLeft = gridContainer.scrollLeft;
+      const mouseX = e.clientX - rect.left + scrollLeft;
+      
+      const settings = this.context.Data.getData().settings;
+      const frameWidth = settings.frameWidth || 15;
+      const totalFrames = settings.totalFrames;
+      
+      // Calculate which frame the mouse is over
+      const frame = Math.max(1, Math.min(totalFrames, Math.round(mouseX / frameWidth) + 1));
+      
+      this.setPlayheadPosition(frame);
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (this.isDragging) {
+        this.isDragging = false;
+        document.body.style.cursor = '';
+      }
+    });
+
+    // Also allow clicking on the ruler to jump to a frame
+    const rulerContainer = this.context.UI.rulerContainer;
+    rulerContainer.addEventListener('click', (e: MouseEvent) => {
+      if (this.isDragging) return; // Ignore if currently dragging
+
+      const rect = gridContainer.getBoundingClientRect();
+      const scrollLeft = gridContainer.scrollLeft;
+      const mouseX = e.clientX - rect.left + scrollLeft;
+      
+      const settings = this.context.Data.getData().settings;
+      const frameWidth = settings.frameWidth || 15;
+      const totalFrames = settings.totalFrames;
+      
+      const frame = Math.max(1, Math.min(totalFrames, Math.round(mouseX / frameWidth) + 1));
+      
+      this.setPlayheadPosition(frame);
+    });
   }
 }

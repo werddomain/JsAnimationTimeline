@@ -4,6 +4,11 @@ import { IJsTimeLineContext } from './IJsTimeLineContext';
 import { TimeLineData } from './data/TimeLineData';
 import { EventManager } from './core/EventManager';
 import { StateManager } from './core/StateManager';
+import { PlaybackEngine } from './core/PlaybackEngine';
+import { LayerManager } from './core/LayerManager';
+import { SelectionManager } from './core/SelectionManager';
+import { KeyframeManager } from './core/KeyframeManager';
+import { TweenManager } from './core/TweenManager';
 import { LayerPanel } from './ui/LayerPanel';
 import { TimeRuler } from './ui/TimeRuler';
 import { TimelineGrid } from './ui/TimelineGrid';
@@ -12,6 +17,9 @@ import { ITimeLineData } from './data/ITimeLineData';
 export class JsTimeLine {
   private container: HTMLElement;
   private _context!: IJsTimeLineContext;
+  private playPauseBtn!: HTMLButtonElement;
+  private stopBtn!: HTMLButtonElement;
+  private frameDisplay!: HTMLDivElement;
 
   constructor(elementId: string) {
     const element = document.getElementById(elementId);
@@ -45,6 +53,32 @@ export class JsTimeLine {
     const corner = document.createElement('div');
     corner.className = 'timeline-corner';
 
+    // Add playback controls in the corner
+    const controls = document.createElement('div');
+    controls.className = 'timeline-controls';
+    
+    const playPauseBtn = document.createElement('button');
+    playPauseBtn.className = 'timeline-control-btn timeline-btn-play';
+    playPauseBtn.innerHTML = '▶';
+    playPauseBtn.title = 'Play';
+    this.playPauseBtn = playPauseBtn;
+    
+    const stopBtn = document.createElement('button');
+    stopBtn.className = 'timeline-control-btn timeline-btn-stop';
+    stopBtn.innerHTML = '■';
+    stopBtn.title = 'Stop';
+    this.stopBtn = stopBtn;
+    
+    const frameDisplay = document.createElement('div');
+    frameDisplay.className = 'timeline-frame-display';
+    frameDisplay.textContent = '1';
+    this.frameDisplay = frameDisplay;
+    
+    controls.appendChild(playPauseBtn);
+    controls.appendChild(stopBtn);
+    controls.appendChild(frameDisplay);
+    corner.appendChild(controls);
+
     // Top: Time Ruler (fixed height, scrolls horizontally)
     const rulerContainer = document.createElement('div');
     rulerContainer.className = 'timeline-ruler';
@@ -52,11 +86,7 @@ export class JsTimeLine {
     const rulerContent = document.createElement('div');
     rulerContent.className = 'timeline-ruler-content';
     
-    const playhead = document.createElement('div');
-    playhead.className = 'timeline-playhead';
-    
     rulerContainer.appendChild(rulerContent);
-    rulerContainer.appendChild(playhead);
 
     // Left: Layer Panel (fixed width, scrolls vertically)
     const layerPanelContainer = document.createElement('div');
@@ -74,7 +104,12 @@ export class JsTimeLine {
     const gridContent = document.createElement('div');
     gridContent.className = 'timeline-grid-content';
     
+    // Playhead spans across ruler and grid
+    const playhead = document.createElement('div');
+    playhead.className = 'timeline-playhead';
+    
     gridContainer.appendChild(gridContent);
+    gridContainer.appendChild(playhead);
 
     // Assemble the layout
     layoutGrid.appendChild(corner);
@@ -128,8 +163,34 @@ export class JsTimeLine {
     const timelineGrid = new TimelineGrid(this._context);
     this._context.UI.timelineGrid = timelineGrid;
 
+    // Instantiate PlaybackEngine
+    const playbackEngine = new PlaybackEngine(this._context);
+    this._context.Core.playbackEngine = playbackEngine;
+
+    // Instantiate LayerManager
+    const layerManager = new LayerManager(this._context);
+    this._context.Core.layerManager = layerManager;
+
+    // Instantiate SelectionManager
+    const selectionManager = new SelectionManager(this._context);
+    this._context.Core.selectionManager = selectionManager;
+
+    // Instantiate KeyframeManager
+    const keyframeManager = new KeyframeManager(this._context);
+    this._context.Core.keyframeManager = keyframeManager;
+
+    // Instantiate TweenManager
+    const tweenManager = new TweenManager(this._context);
+    this._context.Core.tweenManager = tweenManager;
+
     // Setup scroll synchronization
     this.setupScrollSync();
+
+    // Setup playback controls
+    this.setupPlaybackControls();
+
+    // Setup keyboard shortcuts
+    this.setupKeyboardShortcuts();
 
     console.log('Context initialized');
   }
@@ -156,6 +217,126 @@ export class JsTimeLine {
         scrollLeft,
         scrollTop
       });
+    });
+  }
+
+  /**
+   * Setup playback control button handlers
+   */
+  private setupPlaybackControls(): void {
+    const playbackEngine = this._context.Core.playbackEngine;
+    if (!playbackEngine) return;
+
+    // Play/Pause button
+    this.playPauseBtn.addEventListener('click', () => {
+      playbackEngine.togglePlayPause();
+    });
+
+    // Stop button
+    this.stopBtn.addEventListener('click', () => {
+      playbackEngine.stop();
+    });
+
+    // Listen to playback events to update UI
+    this._context.Core.eventManager.on('playback:started', () => {
+      this.playPauseBtn.innerHTML = '⏸';
+      this.playPauseBtn.title = 'Pause';
+      this.playPauseBtn.classList.remove('timeline-btn-play');
+      this.playPauseBtn.classList.add('timeline-btn-pause');
+    });
+
+    this._context.Core.eventManager.on('playback:paused', () => {
+      this.playPauseBtn.innerHTML = '▶';
+      this.playPauseBtn.title = 'Play';
+      this.playPauseBtn.classList.remove('timeline-btn-pause');
+      this.playPauseBtn.classList.add('timeline-btn-play');
+    });
+
+    this._context.Core.eventManager.on('playback:stopped', () => {
+      this.playPauseBtn.innerHTML = '▶';
+      this.playPauseBtn.title = 'Play';
+      this.playPauseBtn.classList.remove('timeline-btn-pause');
+      this.playPauseBtn.classList.add('timeline-btn-play');
+    });
+
+    // Update frame display on frame changes
+    this._context.Core.eventManager.on('playback:frameEnter', (data: { frame: number }) => {
+      this.frameDisplay.textContent = data.frame.toString();
+    });
+
+    this._context.Core.eventManager.on('playback:frameChanged', (data: { frame: number }) => {
+      this.frameDisplay.textContent = data.frame.toString();
+    });
+
+    this._context.Core.eventManager.on('playhead:moved', (data: { frame: number }) => {
+      this.frameDisplay.textContent = data.frame.toString();
+    });
+  }
+
+  /**
+   * Setup keyboard shortcuts for keyframe operations
+   */
+  private setupKeyboardShortcuts(): void {
+    document.addEventListener('keydown', (e: KeyboardEvent) => {
+      const keyframeManager = this._context.Core.keyframeManager;
+      const playbackEngine = this._context.Core.playbackEngine;
+      const selectionManager = this._context.Core.selectionManager;
+
+      if (!keyframeManager || !playbackEngine) return;
+
+      // Get currently selected layer (we'll use the first layer for now)
+      // TODO: Track currently active layer selection
+      const data = this._context.Data.getData();
+      const firstLayer = data.layers[0];
+      if (!firstLayer) return;
+
+      const currentFrame = playbackEngine.getCurrentFrame();
+
+      // CTRL+C: Copy selected keyframes
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        if (selectionManager) {
+          const selectedFrames = selectionManager.getSelectedFrames();
+          if (selectedFrames.length > 0) {
+            e.preventDefault();
+            keyframeManager.copyKeyframes(selectedFrames);
+          }
+        }
+      }
+
+      // CTRL+V: Paste keyframes
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        e.preventDefault();
+        keyframeManager.pasteKeyframes(firstLayer.id, currentFrame);
+      }
+
+      // F6: Insert content keyframe
+      else if (e.key === 'F6') {
+        e.preventDefault();
+        keyframeManager.insertKeyframe(firstLayer.id, currentFrame);
+        console.log(`Inserted content keyframe at frame ${currentFrame}`);
+      }
+
+      // F7: Insert blank keyframe
+      else if (e.key === 'F7') {
+        e.preventDefault();
+        keyframeManager.insertBlankKeyframe(firstLayer.id, currentFrame);
+        console.log(`Inserted blank keyframe at frame ${currentFrame}`);
+      }
+
+      // F5: Insert frame (extend sequence)
+      else if (e.key === 'F5') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          // Shift+F5: Delete frames
+          // For now, delete just the current frame
+          keyframeManager.deleteFrames(firstLayer.id, currentFrame, currentFrame);
+          console.log(`Deleted frame ${currentFrame}`);
+        } else {
+          // F5: Insert frame
+          keyframeManager.insertFrame(firstLayer.id, currentFrame);
+          console.log(`Inserted frame at ${currentFrame}`);
+        }
+      }
     });
   }
 

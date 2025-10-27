@@ -8,10 +8,174 @@ import { ILayer, IKeyframe, ITween } from '../data/ITimeLineData';
 export class TimelineGrid {
   private context: IJsTimeLineContext;
   private gridContent: HTMLElement;
+  private collapsedFolders: Set<string> = new Set();
+  private draggedFrames: string[] = [];
+  private dropIndicator: HTMLElement | null = null;
 
   constructor(context: IJsTimeLineContext) {
     this.context = context;
     this.gridContent = context.UI.gridContent;
+    this.restoreCollapsedState();
+    this.createDropIndicator();
+    this.setupContextMenu();
+  }
+
+  /**
+   * Setup context menu for tween operations
+   */
+  private setupContextMenu(): void {
+    this.gridContent.addEventListener('contextmenu', (e: MouseEvent) => {
+      e.preventDefault();
+
+      const target = e.target as HTMLElement;
+      const frameId = target.dataset.frameId;
+
+      if (!frameId) return;
+
+      const selectionManager = this.context.Core.selectionManager;
+      const tweenManager = this.context.Core.tweenManager;
+      
+      if (!selectionManager || !tweenManager) return;
+
+      // Check if exactly 2 keyframes are selected
+      const selectedFrames = selectionManager.getSelectedFrames();
+      
+      if (selectedFrames.length === 2) {
+        // Check if both are on the same layer and are keyframes
+        const [layerId1, frame1Str] = selectedFrames[0].split(':');
+        const [layerId2, frame2Str] = selectedFrames[1].split(':');
+
+        if (layerId1 === layerId2) {
+          const frame1 = parseInt(frame1Str, 10);
+          const frame2 = parseInt(frame2Str, 10);
+          const startFrame = Math.min(frame1, frame2);
+          const endFrame = Math.max(frame1, frame2);
+
+          // Check if both frames are actually keyframes
+          const data = this.context.Data.getData();
+          const layer = this.findLayerById(data.layers, layerId1);
+          
+          if (layer && layer.keyframes) {
+            const hasStartKf = layer.keyframes.some(kf => kf.frame === startFrame);
+            const hasEndKf = layer.keyframes.some(kf => kf.frame === endFrame);
+
+            if (hasStartKf && hasEndKf) {
+              this.showContextMenu(e.clientX, e.clientY, [
+                {
+                  label: 'Create Motion Tween',
+                  action: () => {
+                    tweenManager.createMotionTween(layerId1, startFrame, endFrame);
+                  }
+                }
+              ]);
+              return;
+            }
+          }
+        }
+      }
+
+      // Check if clicking on a tween
+      const [layerId, frameStr] = frameId.split(':');
+      const frame = parseInt(frameStr, 10);
+      
+      if (tweenManager.isFrameInTween(layerId, frame)) {
+        const tween = tweenManager.getTweenAtFrame(layerId, frame);
+        if (tween) {
+          this.showContextMenu(e.clientX, e.clientY, [
+            {
+              label: 'Remove Motion Tween',
+              action: () => {
+                tweenManager.removeTween(layerId, tween.startFrame, tween.endFrame);
+              }
+            }
+          ]);
+        }
+      }
+    });
+  }
+
+  /**
+   * Show a simple context menu
+   */
+  private showContextMenu(x: number, y: number, items: Array<{ label: string; action: () => void }>): void {
+    // Remove any existing context menu
+    const existingMenu = document.querySelector('.timeline-context-menu');
+    if (existingMenu) {
+      existingMenu.remove();
+    }
+
+    // Create menu
+    const menu = document.createElement('div');
+    menu.className = 'timeline-context-menu';
+    menu.style.position = 'fixed';
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+    menu.style.zIndex = '10000';
+
+    items.forEach(item => {
+      const menuItem = document.createElement('div');
+      menuItem.className = 'timeline-context-menu-item';
+      menuItem.textContent = item.label;
+      menuItem.addEventListener('click', () => {
+        item.action();
+        menu.remove();
+      });
+      menu.appendChild(menuItem);
+    });
+
+    document.body.appendChild(menu);
+
+    // Close menu on click outside
+    const closeMenu = (e: MouseEvent) => {
+      if (!menu.contains(e.target as Node)) {
+        menu.remove();
+        document.removeEventListener('click', closeMenu);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', closeMenu), 0);
+  }
+
+  /**
+   * Find a layer by ID
+   */
+  private findLayerById(layers: readonly ILayer[], layerId: string): ILayer | null {
+    for (const layer of layers) {
+      if (layer.id === layerId) {
+        return layer as ILayer;
+      }
+      if (layer.children) {
+        const found = this.findLayerById(layer.children, layerId);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Create a drop indicator for visual feedback during drag
+   */
+  private createDropIndicator(): void {
+    this.dropIndicator = document.createElement('div');
+    this.dropIndicator.className = 'grid-drop-indicator';
+    this.dropIndicator.style.display = 'none';
+  }
+
+  /**
+   * Restore collapsed folders from StateManager
+   */
+  private restoreCollapsedState(): void {
+    const stored = this.context.Core.stateManager.get('collapsedFolders');
+    if (stored && Array.isArray(stored)) {
+      this.collapsedFolders = new Set(stored);
+    }
+  }
+
+  /**
+   * Update collapsed folders from current state
+   * Called when folder collapse state changes
+   */
+  public updateCollapsedState(): void {
+    this.restoreCollapsedState();
   }
 
   /**
@@ -51,12 +215,13 @@ export class TimelineGrid {
 
   /**
    * Count total number of layers (including nested layers in folders)
+   * Only counts visible layers (respecting collapsed folders)
    */
   private countLayers(layers: readonly ILayer[]): number {
     let count = 0;
     for (const layer of layers) {
       count++;
-      if (layer.type === 'folder' && layer.children) {
+      if (layer.type === 'folder' && layer.children && !this.collapsedFolders.has(layer.id)) {
         count += this.countLayers(layer.children);
       }
     }
@@ -65,6 +230,7 @@ export class TimelineGrid {
 
   /**
    * Render layers recursively, handling both regular layers and folders
+   * Only renders visible layers (respecting collapsed folders)
    */
   private renderLayers(layers: readonly ILayer[], depth: number, startRow: number, totalFrames: number, frameWidth: number, rowHeight: number): number {
     let currentRow = startRow;
@@ -74,8 +240,8 @@ export class TimelineGrid {
       this.renderLayerRow(layer, currentRow, totalFrames, frameWidth, rowHeight);
       currentRow++;
 
-      // If this is a folder, recursively render children
-      if (layer.type === 'folder' && layer.children) {
+      // If this is a folder, recursively render children only if not collapsed
+      if (layer.type === 'folder' && layer.children && !this.collapsedFolders.has(layer.id)) {
         currentRow = this.renderLayers(layer.children, depth + 1, currentRow, totalFrames, frameWidth, rowHeight);
       }
     }
@@ -145,7 +311,7 @@ export class TimelineGrid {
       if (keyframe) {
         // This is a keyframe
         const isEmpty = keyframe.isEmpty ?? false;
-        this.renderKeyframe(container, frame, isEmpty, frameWidth, rowHeight);
+        this.renderKeyframe(container, frame, isEmpty, frameWidth, rowHeight, layer.id);
         lastKeyframe = keyframe;
       } else {
         // Check if this frame is part of a tween
@@ -153,13 +319,13 @@ export class TimelineGrid {
         
         if (tween) {
           // This is part of a tween sequence
-          this.renderTweenFrame(container, frame, tween, frameWidth, rowHeight);
+          this.renderTweenFrame(container, frame, tween, frameWidth, rowHeight, layer.id);
         } else if (lastKeyframe && !lastKeyframe.isEmpty) {
           // This is a standard frame (content persists from last keyframe)
-          this.renderStandardFrame(container, frame, frameWidth, rowHeight);
+          this.renderStandardFrame(container, frame, frameWidth, rowHeight, layer.id);
         } else {
           // This is an empty frame
-          this.renderEmptyFrame(container, frame, frameWidth, rowHeight);
+          this.renderEmptyFrame(container, frame, frameWidth, rowHeight, layer.id);
         }
       }
     }
@@ -171,7 +337,7 @@ export class TimelineGrid {
   /**
    * Render a keyframe (solid or hollow circle)
    */
-  private renderKeyframe(container: HTMLElement, frame: number, isEmpty: boolean, frameWidth: number, rowHeight: number): void {
+  private renderKeyframe(container: HTMLElement, frame: number, isEmpty: boolean, frameWidth: number, rowHeight: number, layerId: string): void {
     const frameElement = document.createElement('div');
     frameElement.className = isEmpty ? 'grid-keyframe-empty' : 'grid-keyframe';
     frameElement.style.position = 'absolute';
@@ -180,13 +346,18 @@ export class TimelineGrid {
     frameElement.style.width = `${frameWidth}px`;
     frameElement.style.height = `${rowHeight}px`;
     frameElement.dataset.frame = frame.toString();
+    frameElement.dataset.layerId = layerId;
+    frameElement.dataset.frameId = `${layerId}:${frame}`;
+    frameElement.setAttribute('draggable', 'true');
+    this.addFrameClickHandler(frameElement);
+    this.addFrameDragHandlers(frameElement);
     container.appendChild(frameElement);
   }
 
   /**
    * Render a standard frame (content persists from previous keyframe)
    */
-  private renderStandardFrame(container: HTMLElement, frame: number, frameWidth: number, rowHeight: number): void {
+  private renderStandardFrame(container: HTMLElement, frame: number, frameWidth: number, rowHeight: number, layerId: string): void {
     const frameElement = document.createElement('div');
     frameElement.className = 'grid-frame-standard';
     frameElement.style.position = 'absolute';
@@ -195,13 +366,17 @@ export class TimelineGrid {
     frameElement.style.width = `${frameWidth}px`;
     frameElement.style.height = `${rowHeight}px`;
     frameElement.dataset.frame = frame.toString();
+    frameElement.dataset.layerId = layerId;
+    frameElement.dataset.frameId = `${layerId}:${frame}`;
+    this.addFrameClickHandler(frameElement);
+    this.addFrameDropTarget(frameElement);
     container.appendChild(frameElement);
   }
 
   /**
    * Render an empty frame
    */
-  private renderEmptyFrame(container: HTMLElement, frame: number, frameWidth: number, rowHeight: number): void {
+  private renderEmptyFrame(container: HTMLElement, frame: number, frameWidth: number, rowHeight: number, layerId: string): void {
     const frameElement = document.createElement('div');
     frameElement.className = 'grid-frame';
     frameElement.style.position = 'absolute';
@@ -210,13 +385,17 @@ export class TimelineGrid {
     frameElement.style.width = `${frameWidth}px`;
     frameElement.style.height = `${rowHeight}px`;
     frameElement.dataset.frame = frame.toString();
+    frameElement.dataset.layerId = layerId;
+    frameElement.dataset.frameId = `${layerId}:${frame}`;
+    this.addFrameClickHandler(frameElement);
+    this.addFrameDropTarget(frameElement);
     container.appendChild(frameElement);
   }
 
   /**
    * Render a frame that is part of a tween sequence
    */
-  private renderTweenFrame(container: HTMLElement, frame: number, tween: ITween, frameWidth: number, rowHeight: number): void {
+  private renderTweenFrame(container: HTMLElement, frame: number, tween: ITween, frameWidth: number, rowHeight: number, layerId: string): void {
     const frameElement = document.createElement('div');
     frameElement.className = 'grid-frame-tween';
     frameElement.style.position = 'absolute';
@@ -225,6 +404,9 @@ export class TimelineGrid {
     frameElement.style.width = `${frameWidth}px`;
     frameElement.style.height = `${rowHeight}px`;
     frameElement.dataset.frame = frame.toString();
+    frameElement.dataset.layerId = layerId;
+    frameElement.dataset.frameId = `${layerId}:${frame}`;
+    this.addFrameClickHandler(frameElement);
     container.appendChild(frameElement);
   }
 
@@ -244,6 +426,189 @@ export class TimelineGrid {
       tweenElement.dataset.startFrame = tween.startFrame.toString();
       tweenElement.dataset.endFrame = tween.endFrame.toString();
       container.appendChild(tweenElement);
+    }
+  }
+
+  /**
+   * Add click handler to a frame element for selection
+   */
+  private addFrameClickHandler(frameElement: HTMLElement): void {
+    frameElement.addEventListener('click', (e: MouseEvent) => {
+      const frameId = frameElement.dataset.frameId;
+      if (!frameId) return;
+
+      const selectionManager = this.context.Core.selectionManager;
+      if (!selectionManager) return;
+
+      // Handle different click modes
+      if (e.ctrlKey || e.metaKey) {
+        // CTRL/CMD + click: Toggle selection
+        selectionManager.toggleSelection(frameId);
+      } else if (e.shiftKey) {
+        // Shift + click: Range selection
+        const lastSelected = selectionManager.getLastSelectedFrame();
+        if (lastSelected) {
+          selectionManager.selectRange(lastSelected, frameId);
+        } else {
+          selectionManager.selectFrame(frameId);
+        }
+      } else {
+        // Normal click: Single selection
+        selectionManager.selectFrame(frameId);
+      }
+
+      // Update visual feedback
+      this.updateSelectionVisuals();
+    });
+  }
+
+  /**
+   * Update visual feedback for selected frames
+   */
+  private updateSelectionVisuals(): void {
+    const selectionManager = this.context.Core.selectionManager;
+    if (!selectionManager) return;
+
+    // Remove all existing selection classes
+    const allFrames = this.gridContent.querySelectorAll('[data-frame-id]');
+    allFrames.forEach(frame => {
+      frame.classList.remove('selected');
+    });
+
+    // Add selection class to selected frames
+    const selectedFrames = selectionManager.getSelectedFrames();
+    selectedFrames.forEach(frameId => {
+      const frameElement = this.gridContent.querySelector(`[data-frame-id="${frameId}"]`);
+      if (frameElement) {
+        frameElement.classList.add('selected');
+      }
+    });
+  }
+
+  /**
+   * Add drag-and-drop handlers to a frame element
+   */
+  private addFrameDragHandlers(frameElement: HTMLElement): void {
+    // Dragstart: Store dragged frame IDs
+    frameElement.addEventListener('dragstart', (e: DragEvent) => {
+      const frameId = frameElement.dataset.frameId;
+      if (!frameId) return;
+
+      const selectionManager = this.context.Core.selectionManager;
+      if (!selectionManager) return;
+
+      // If dragging a selected frame, drag all selected frames
+      if (selectionManager.isSelected(frameId)) {
+        this.draggedFrames = selectionManager.getSelectedFrames();
+      } else {
+        // If dragging a non-selected frame, drag only this frame
+        this.draggedFrames = [frameId];
+        selectionManager.selectFrame(frameId);
+        this.updateSelectionVisuals();
+      }
+
+      // Set drag data
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', JSON.stringify(this.draggedFrames));
+      }
+
+      // Add dragging class
+      frameElement.classList.add('dragging');
+    });
+
+    // Dragend: Clean up
+    frameElement.addEventListener('dragend', (e: DragEvent) => {
+      frameElement.classList.remove('dragging');
+      this.hideDropIndicator();
+      this.draggedFrames = [];
+    });
+  }
+
+  /**
+   * Add drop target handlers to a frame element
+   */
+  private addFrameDropTarget(frameElement: HTMLElement): void {
+    // Dragover: Show drop indicator
+    frameElement.addEventListener('dragover', (e: DragEvent) => {
+      if (this.draggedFrames.length === 0) return;
+      
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'move';
+      }
+
+      const targetFrameId = frameElement.dataset.frameId;
+      if (targetFrameId) {
+        this.showDropIndicator(targetFrameId);
+      }
+    });
+
+    // Drop: Move keyframes
+    frameElement.addEventListener('drop', (e: DragEvent) => {
+      e.preventDefault();
+      
+      const targetFrameId = frameElement.dataset.frameId;
+      if (!targetFrameId || this.draggedFrames.length === 0) return;
+
+      const [targetLayerId, targetFrameStr] = targetFrameId.split(':');
+      const targetFrame = parseInt(targetFrameStr, 10);
+
+      const keyframeManager = this.context.Core.keyframeManager;
+      if (keyframeManager) {
+        const success = keyframeManager.moveKeyframes(this.draggedFrames, targetLayerId, targetFrame);
+        if (success) {
+          // Update selection to new positions
+          const [sourceLayerId, sourceFrameStr] = this.draggedFrames[0].split(':');
+          const sourceFrame = parseInt(sourceFrameStr, 10);
+          const frameOffset = targetFrame - sourceFrame;
+
+          const selectionManager = this.context.Core.selectionManager;
+          if (selectionManager) {
+            selectionManager.clearSelection();
+            this.draggedFrames.forEach(frameId => {
+              const [layerId, frameStr] = frameId.split(':');
+              const frame = parseInt(frameStr, 10);
+              const newFrameId = `${targetLayerId}:${frame + frameOffset}`;
+              selectionManager.toggleSelection(newFrameId);
+            });
+          }
+        }
+      }
+
+      this.hideDropIndicator();
+      this.draggedFrames = [];
+    });
+  }
+
+  /**
+   * Show drop indicator at target position
+   */
+  private showDropIndicator(targetFrameId: string): void {
+    if (!this.dropIndicator) return;
+
+    const targetElement = this.gridContent.querySelector(`[data-frame-id="${targetFrameId}"]`) as HTMLElement;
+    if (!targetElement) return;
+
+    // Position the drop indicator
+    this.dropIndicator.style.display = 'block';
+    this.dropIndicator.style.left = targetElement.style.left;
+    this.dropIndicator.style.top = targetElement.offsetTop + 'px';
+    this.dropIndicator.style.width = targetElement.style.width;
+    this.dropIndicator.style.height = targetElement.style.height;
+
+    // Append to grid if not already there
+    if (!this.dropIndicator.parentElement) {
+      this.gridContent.appendChild(this.dropIndicator);
+    }
+  }
+
+  /**
+   * Hide drop indicator
+   */
+  private hideDropIndicator(): void {
+    if (this.dropIndicator) {
+      this.dropIndicator.style.display = 'none';
     }
   }
 }
