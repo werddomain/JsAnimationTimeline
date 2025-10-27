@@ -200,18 +200,133 @@
       position: relative;
       min-width: 100%;
       min-height: 100%;
-      // Temporary sizing for scroll testing
-      // This will be replaced when TimelineGrid component renders actual content
-      width: 2000px;
-      height: 1000px;
-      background: repeating-linear-gradient(
-        0deg,
-        #f9f9f9,
-        #f9f9f9 30px,
-        #e9e9e9 30px,
-        #e9e9e9 31px
-      );
-      background-size: 100% 31px;
+    }
+
+    // Grid row container for each layer
+    .grid-row {
+      position: absolute;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    // Empty frame (no keyframe yet)
+    .grid-frame {
+      position: absolute;
+      background-color: #fafafa;
+      border-right: 1px solid #e8e8e8;
+      cursor: pointer;
+      transition: background-color 0.15s;
+
+      &:hover {
+        background-color: #f0f0f0;
+      }
+    }
+
+    // Standard frame (content persists from previous keyframe)
+    .grid-frame-standard {
+      position: absolute;
+      background-color: #e5e5e5;
+      border-right: 1px solid #d8d8d8;
+      cursor: pointer;
+      transition: background-color 0.15s;
+
+      &:hover {
+        background-color: #d5d5d5;
+      }
+    }
+
+    // Tween frame (part of a tween sequence)
+    .grid-frame-tween {
+      position: absolute;
+      background-color: #d0e8ff;
+      border-right: 1px solid #b8d8f0;
+      cursor: pointer;
+      transition: background-color 0.15s;
+
+      &:hover {
+        background-color: #c0d8f0;
+      }
+    }
+
+    // Keyframe with content (solid circle)
+    .grid-keyframe {
+      position: absolute;
+      background-color: #e5e5e5;
+      border-right: 1px solid #d8d8d8;
+      cursor: pointer;
+      transition: background-color 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &:hover {
+        background-color: #d5d5d5;
+      }
+
+      // Solid circle using ::before
+      &::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        background-color: #333;
+        border-radius: 50%;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      }
+    }
+
+    // Keyframe empty (hollow circle)
+    .grid-keyframe-empty {
+      position: absolute;
+      background-color: #fafafa;
+      border-right: 1px solid #e8e8e8;
+      cursor: pointer;
+      transition: background-color 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &:hover {
+        background-color: #f0f0f0;
+      }
+
+      // Hollow circle using ::before
+      &::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        background-color: transparent;
+        border: 2px solid #333;
+        border-radius: 50%;
+        box-sizing: border-box;
+      }
+    }
+
+    // Tween overlay (background and arrow)
+    .grid-tween {
+      position: absolute;
+      background-color: rgba(100, 180, 255, 0.15);
+      border: 1px solid #80c0ff;
+      border-left: none;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 4px;
+
+      // Arrow using ::after
+      &::after {
+        content: '→';
+        font-size: 12px;
+        color: #0066cc;
+        font-weight: bold;
+      }
+
+      &[data-tween-type="ease"] {
+        background-color: rgba(150, 200, 255, 0.2);
+        
+        &::after {
+          content: '⇝';
+        }
+      }
     }
   }
 }

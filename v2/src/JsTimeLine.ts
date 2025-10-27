@@ -6,6 +6,7 @@ import { EventManager } from './core/EventManager';
 import { StateManager } from './core/StateManager';
 import { LayerPanel } from './ui/LayerPanel';
 import { TimeRuler } from './ui/TimeRuler';
+import { TimelineGrid } from './ui/TimelineGrid';
 import { ITimeLineData } from './data/ITimeLineData';
 
 export class JsTimeLine {
@@ -123,6 +124,9 @@ export class JsTimeLine {
 
     const timeRuler = new TimeRuler(this._context);
     this._context.UI.timeRuler = timeRuler;
+
+    const timelineGrid = new TimelineGrid(this._context);
+    this._context.UI.timelineGrid = timelineGrid;
 
     // Setup scroll synchronization
     this.setupScrollSync();
@@ -246,6 +250,11 @@ export class JsTimeLine {
       this._context.UI.timeRuler.render();
       // Set initial playhead position at frame 1
       this._context.UI.timeRuler.setPlayheadPosition(1);
+    }
+
+    // Render the timeline grid
+    if (this._context.UI.timelineGrid) {
+      this._context.UI.timelineGrid.render();
     }
   }
 

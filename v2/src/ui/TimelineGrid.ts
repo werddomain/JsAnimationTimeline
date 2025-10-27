@@ -1,5 +1,5 @@
 import { IJsTimeLineContext } from '../IJsTimeLineContext';
-import { ILayer } from '../data/ITimeLineData';
+import { ILayer, IKeyframe, ITween } from '../data/ITimeLineData';
 
 /**
  * TimelineGrid Component
@@ -46,7 +46,7 @@ export class TimelineGrid {
 
     // Render all layers recursively
     let rowIndex = 0;
-    this.renderLayers(layers, 0, rowIndex);
+    this.renderLayers(layers, 0, rowIndex, totalFrames, frameWidth, rowHeight);
   }
 
   /**
@@ -66,17 +66,17 @@ export class TimelineGrid {
   /**
    * Render layers recursively, handling both regular layers and folders
    */
-  private renderLayers(layers: readonly ILayer[], depth: number, startRow: number): number {
+  private renderLayers(layers: readonly ILayer[], depth: number, startRow: number, totalFrames: number, frameWidth: number, rowHeight: number): number {
     let currentRow = startRow;
 
     for (const layer of layers) {
       // Create row container for this layer
-      this.renderLayerRow(layer, currentRow);
+      this.renderLayerRow(layer, currentRow, totalFrames, frameWidth, rowHeight);
       currentRow++;
 
       // If this is a folder, recursively render children
       if (layer.type === 'folder' && layer.children) {
-        currentRow = this.renderLayers(layer.children, depth + 1, currentRow);
+        currentRow = this.renderLayers(layer.children, depth + 1, currentRow, totalFrames, frameWidth, rowHeight);
       }
     }
 
@@ -86,12 +86,7 @@ export class TimelineGrid {
   /**
    * Render a single layer row with all its frames
    */
-  private renderLayerRow(layer: ILayer, rowIndex: number): void {
-    const settings = this.context.Data.getData()?.settings;
-    if (!settings) return;
-
-    const { totalFrames, frameWidth, rowHeight } = settings;
-
+  private renderLayerRow(layer: ILayer, rowIndex: number, totalFrames: number, frameWidth: number, rowHeight: number): void {
     // Create row container
     const rowElement = document.createElement('div');
     rowElement.className = 'grid-row';
@@ -110,7 +105,7 @@ export class TimelineGrid {
     }
 
     // For regular layers, render frames based on keyframes and tweens
-    this.renderFrames(rowElement, layer, frameWidth, rowHeight);
+    this.renderFrames(rowElement, layer, frameWidth, rowHeight, totalFrames);
     this.gridContent.appendChild(rowElement);
   }
 
@@ -133,8 +128,7 @@ export class TimelineGrid {
   /**
    * Render frames for a regular layer, determining frame type contextually
    */
-  private renderFrames(container: HTMLElement, layer: ILayer, frameWidth: number, rowHeight: number): void {
-    const totalFrames = this.context.Data.getData()?.settings.totalFrames || 100;
+  private renderFrames(container: HTMLElement, layer: ILayer, frameWidth: number, rowHeight: number, totalFrames: number): void {
     const keyframes = layer.keyframes || [];
     const tweens = layer.tweens || [];
 
@@ -142,7 +136,7 @@ export class TimelineGrid {
     const sortedKeyframes = [...keyframes].sort((a, b) => a.frame - b.frame);
 
     // Track the last keyframe to determine standard frames
-    let lastKeyframe: { frame: number; isEmpty: boolean } | null = null;
+    let lastKeyframe: IKeyframe | null = null;
 
     for (let frame = 1; frame <= totalFrames; frame++) {
       // Check if this frame is a keyframe
@@ -150,7 +144,8 @@ export class TimelineGrid {
       
       if (keyframe) {
         // This is a keyframe
-        this.renderKeyframe(container, frame, keyframe.isEmpty, frameWidth, rowHeight);
+        const isEmpty = keyframe.isEmpty ?? false;
+        this.renderKeyframe(container, frame, isEmpty, frameWidth, rowHeight);
         lastKeyframe = keyframe;
       } else {
         // Check if this frame is part of a tween
@@ -221,7 +216,7 @@ export class TimelineGrid {
   /**
    * Render a frame that is part of a tween sequence
    */
-  private renderTweenFrame(container: HTMLElement, frame: number, tween: { startFrame: number; endFrame: number; type: string }, frameWidth: number, rowHeight: number): void {
+  private renderTweenFrame(container: HTMLElement, frame: number, tween: ITween, frameWidth: number, rowHeight: number): void {
     const frameElement = document.createElement('div');
     frameElement.className = 'grid-frame-tween';
     frameElement.style.position = 'absolute';
@@ -236,7 +231,7 @@ export class TimelineGrid {
   /**
    * Render tween overlays (backgrounds and arrows)
    */
-  private renderTweens(container: HTMLElement, tweens: readonly { startFrame: number; endFrame: number; type: string }[], frameWidth: number, rowHeight: number): void {
+  private renderTweens(container: HTMLElement, tweens: readonly ITween[], frameWidth: number, rowHeight: number): void {
     for (const tween of tweens) {
       const tweenElement = document.createElement('div');
       tweenElement.className = 'grid-tween';
@@ -245,7 +240,7 @@ export class TimelineGrid {
       tweenElement.style.top = '0';
       tweenElement.style.width = `${(tween.endFrame - tween.startFrame) * frameWidth}px`;
       tweenElement.style.height = `${rowHeight}px`;
-      tweenElement.dataset.tweenType = tween.type;
+      tweenElement.dataset.tweenType = tween.type ?? 'linear';
       tweenElement.dataset.startFrame = tween.startFrame.toString();
       tweenElement.dataset.endFrame = tween.endFrame.toString();
       container.appendChild(tweenElement);
