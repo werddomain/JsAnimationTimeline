@@ -1,0 +1,35 @@
+import { TimeLineData } from './data/TimeLineData';
+import { EventManager } from './core/EventManager';
+import { StateManager } from './core/StateManager';
+import { IPlugin } from './plugins/IPlugin';
+
+export interface IJsTimeLineContext {
+  // UI References
+  UI: {
+    root: HTMLElement;
+    layoutGrid: HTMLElement;
+    corner: HTMLElement;
+    rulerContainer: HTMLElement;
+    rulerContent: HTMLElement;
+    playhead: HTMLElement;
+    layerPanelContainer: HTMLElement;
+    layerPanelContent: HTMLElement;
+    gridContainer: HTMLElement;
+    gridContent: HTMLElement;
+    layerPanel?: any;  // Will be LayerPanel instance
+    timeRuler?: any;   // Will be TimeRuler instance
+    timelineGrid?: any; // Will be TimelineGrid instance
+  };
+
+  // Core Services
+  Core: {
+    eventManager: EventManager;
+    stateManager: StateManager;
+  };
+
+  // Data Management
+  Data: TimeLineData;
+
+  // Plugins
+  Plugins: { [key: string]: IPlugin };
+}

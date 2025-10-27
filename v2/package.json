@@ -1,0 +1,34 @@
+{
+  "name": "js-timeline-control",
+  "version": "0.1.0",
+  "description": "A timeline control inspired by the Flash MX timeline, built with TypeScript and LESS.",
+  "main": "dist/index.js",
+  "directories": {
+    "doc": "doc"
+  },
+  "scripts": {
+    "build": "webpack --mode=production",
+    "build:dev": "webpack --mode=development",
+    "watch": "webpack --watch --mode=development",
+    "debug": "webpack-dev-server --open --mode=development"
+  },
+  "keywords": [
+    "timeline",
+    "typescript",
+    "less",
+    "control"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "css-loader": "^7.1.2",
+    "less": "^4.4.2",
+    "less-loader": "^12.3.0",
+    "style-loader": "^4.0.0",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3",
+    "webpack": "^5.102.1",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.2"
+  }
+}
