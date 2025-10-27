@@ -1,178 +1,88 @@
 /**
- * Event Management System for JsAnimationTimeline
- * Provides publish/subscribe functionality for loose coupling between components
- * Following the Project Development Guidelines
+ * Interface for cancellable events
+ * Listeners can call preventDefault() to cancel the operation
  */
-
-/**
- * Type definition for event handler functions
- */
-export type EventHandler<T = any> = (data: T) => void;
-
-/**
- * Interface for event subscription objects
- */
-export interface IEventSubscription {
-  /** Unique identifier for the subscription */
-  id: string;
-  /** Event name */
-  event: string;
-  /** Handler function */
-  handler: EventHandler;
-  /** Whether this is a one-time subscription */
-  once: boolean;
+export interface ICancellableEvent {
+  eventName: string;
+  data: any;
+  defaultPrevented: boolean;
+  preventDefault(): void;
 }
 
 /**
- * Event Manager class that handles event emission and subscription
+ * EventManager handles all event subscriptions and emissions
+ * Supports both regular and cancellable events
  */
 export class EventManager {
-  private _events: Map<string, IEventSubscription[]> = new Map();
-  private _subscriptionCounter: number = 0;
+  private listeners: Map<string, Set<Function>> = new Map();
 
   /**
    * Subscribe to an event
-   * @param event Event name to listen for
-   * @param handler Function to call when event is emitted
-   * @param once Whether to auto-unsubscribe after first call
-   * @returns Subscription object that can be used to unsubscribe
+   * @param eventName Name of the event
+   * @param callback Function to call when event is triggered
    */
-  public on<T = any>(event: string, handler: EventHandler<T>, once: boolean = false): IEventSubscription {
-    const subscription: IEventSubscription = {
-      id: `sub_${++this._subscriptionCounter}`,
-      event,
-      handler: handler as EventHandler,
-      once
-    };
-
-    if (!this._events.has(event)) {
-      this._events.set(event, []);
+  public on(eventName: string, callback: Function): void {
+    if (!this.listeners.has(eventName)) {
+      this.listeners.set(eventName, new Set());
     }
-
-    this._events.get(event)!.push(subscription);
-
-    return subscription;
-  }
-
-  /**
-   * Subscribe to an event for one-time execution
-   * @param event Event name to listen for
-   * @param handler Function to call when event is emitted
-   * @returns Subscription object
-   */
-  public once<T = any>(event: string, handler: EventHandler<T>): IEventSubscription {
-    return this.on(event, handler, true);
+    this.listeners.get(eventName)!.add(callback);
   }
 
   /**
    * Unsubscribe from an event
-   * @param subscription Subscription object returned from on() or once()
+   * @param eventName Name of the event
+   * @param callback Function to remove
    */
-  public off(subscription: IEventSubscription): void {
-    const handlers = this._events.get(subscription.event);
-    if (!handlers) {
-      return;
-    }
-
-    const index = handlers.findIndex(s => s.id === subscription.id);
-    if (index !== -1) {
-      handlers.splice(index, 1);
-    }
-
-    // Clean up empty event arrays
-    if (handlers.length === 0) {
-      this._events.delete(subscription.event);
+  public off(eventName: string, callback: Function): void {
+    const callbacks = this.listeners.get(eventName);
+    if (callbacks) {
+      callbacks.delete(callback);
     }
   }
 
   /**
-   * Unsubscribe all handlers for a specific event
-   * @param event Event name to clear
+   * Trigger an event
+   * @param eventName Name of the event
+   * @param data Data to pass to listeners
+   * @returns The event object (for cancellable events)
    */
-  public offAll(event: string): void {
-    this._events.delete(event);
+  public emit(eventName: string, data?: any): any {
+    const callbacks = this.listeners.get(eventName);
+    if (callbacks) {
+      callbacks.forEach(callback => callback(data));
+    }
+    return data;
   }
 
   /**
-   * Emit an event to all subscribers
-   * @param event Event name to emit
-   * @param data Data to pass to event handlers
+   * Emit a cancellable event
+   * Listeners can call event.preventDefault() to cancel the operation
+   * @param eventName Name of the event
+   * @param data Data to pass to listeners
+   * @returns The cancellable event object
    */
-  public emit<T = any>(event: string, data?: T): void {
-    const handlers = this._events.get(event);
-    if (!handlers) {
-      return;
-    }
-
-    // Create a copy of handlers to avoid issues if handlers modify the array
-    const handlersCopy = [...handlers];
-    const oneTimeSubscriptions: string[] = [];
-
-    for (const subscription of handlersCopy) {
-      try {
-        subscription.handler(data);
-      } catch (error) {
-        console.error(`Error in event handler for '${event}':`, error);
+  public emitCancellable(eventName: string, data?: any): ICancellableEvent {
+    const event: ICancellableEvent = {
+      eventName,
+      data,
+      defaultPrevented: false,
+      preventDefault() {
+        this.defaultPrevented = true;
       }
+    };
 
-      if (subscription.once) {
-        oneTimeSubscriptions.push(subscription.id);
-      }
+    const callbacks = this.listeners.get(eventName);
+    if (callbacks) {
+      callbacks.forEach(callback => callback(event));
     }
 
-    // Remove one-time subscriptions
-    if (oneTimeSubscriptions.length > 0) {
-      for (const subscriptionId of oneTimeSubscriptions) {
-        const subscription = handlersCopy.find(s => s.id === subscriptionId);
-        if (subscription) {
-          this.off(subscription);
-        }
-      }
-    }
+    return event;
   }
 
   /**
-   * Get the number of subscribers for an event
-   * @param event Event name
-   * @returns Number of subscribers
-   */
-  public getSubscriberCount(event: string): number {
-    const handlers = this._events.get(event);
-    return handlers ? handlers.length : 0;
-  }
-
-  /**
-   * Get all event names that have subscribers
-   * @returns Array of event names
-   */
-  public getEventNames(): string[] {
-    return Array.from(this._events.keys());
-  }
-
-  /**
-   * Clear all event subscriptions
+   * Clear all listeners
    */
   public clear(): void {
-    this._events.clear();
-  }
-
-  /**
-   * Get debug information about current subscriptions
-   * @returns Object with debug information
-   */
-  public getDebugInfo(): { totalEvents: number; totalSubscriptions: number; events: Record<string, number> } {
-    const events: Record<string, number> = {};
-    let totalSubscriptions = 0;
-
-    for (const [eventName, handlers] of this._events) {
-      events[eventName] = handlers.length;
-      totalSubscriptions += handlers.length;
-    }
-
-    return {
-      totalEvents: this._events.size,
-      totalSubscriptions,
-      events
-    };
+    this.listeners.clear();
   }
 }

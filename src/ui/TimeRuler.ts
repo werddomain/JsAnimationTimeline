@@ -1,204 +1,166 @@
-/**
- * Time Ruler UI Component for JsAnimationTimeline
- * Manages the top panel with time ruler and playhead
- * Following the Project Development Guidelines
- */
+import { IJsTimeLineContext } from '../IJsTimeLineContext';
 
-import { IJsTimeLineContext } from '../interfaces/IJsTimeLineContext';
-
-/**
- * Time Ruler class that manages the time ruler UI
- */
 export class TimeRuler {
-  private _element: HTMLElement;
-  private _context: IJsTimeLineContext | null = null;
-  private _playheadElement: HTMLElement | null = null;
+  private context: IJsTimeLineContext;
+  private isDragging: boolean = false;
 
-  constructor() {
-    this._element = this._createElement();
+  constructor(context: IJsTimeLineContext) {
+    this.context = context;
+    this.setupPlayheadDragging();
   }
 
   /**
-   * Initialize the time ruler with context
+   * Render the time ruler with ticks and labels
    */
-  public initialize(context: IJsTimeLineContext): void {
-    this._context = context;
-    this._setupEventListeners();
-    this._registerScrollElement();
-    this._renderFrameMarkers();
-    this._updatePlayhead();
-  }
+  public render(): void {
+    const data = this.context.Data.getData();
+    const container = this.context.UI.rulerContent;
+    const settings = data.settings;
 
-  /**
-   * Get the DOM element
-   */
-  public getElement(): HTMLElement {
-    return this._element;
-  }
+    // Clear existing content
+    container.innerHTML = '';
 
-  /**
-   * Dispose of the component
-   */
-  public dispose(): void {
-    if (this._context) {
-      this._context.Services.scrollManager.unregisterScrollElement('time-ruler');
-    }
-    this._context = null;
-  }
+    const totalFrames = settings.totalFrames;
+    const frameWidth = settings.frameWidth || 15;
+    const labelInterval = this.calculateLabelInterval(frameWidth);
 
-  /**
-   * Register scroll element with scroll manager
-   */
-  private _registerScrollElement(): void {
-    if (!this._context) return;
+    // Set the width of the ruler content to accommodate all frames
+    container.style.width = `${totalFrames * frameWidth}px`;
 
-    const rulerContent = this._element.querySelector('[data-js-ruler-content]') as HTMLElement;
-    if (rulerContent) {
-      // Make the ruler content horizontally scrollable
-      rulerContent.style.overflowX = 'auto';
-      rulerContent.style.overflowY = 'hidden';
-      rulerContent.style.maxWidth = '100%';
-      
-      // Register with scroll manager
-      this._context.Services.scrollManager.registerScrollElement('time-ruler', rulerContent);
-    }
-  }
-
-  /**
-   * Create the DOM structure
-   */
-  private _createElement(): HTMLElement {
-    const element = document.createElement('div');
-    element.className = 'timeline-ruler';
-    
-    element.innerHTML = `
-      <div class="timeline-ruler-content" data-js-ruler-content>
-        <div class="timeline-frame-markers" data-js-frame-markers></div>
-        <div class="timeline-playhead" data-js-playhead></div>
-      </div>
-    `;
-    
-    return element;
-  }
-
-  /**
-   * Setup event listeners
-   */
-  private _setupEventListeners(): void {
-    if (!this._context) return;
-
-    // Listen for current frame changes
-    this._context.Core.eventManager.on('state:change:currentFrame', () => {
-      this._updatePlayhead();
-    });
-
-    // Listen for ruler clicks to set playhead position
-    const rulerContent = this._element.querySelector('[data-js-ruler-content]') as HTMLElement;
-    if (rulerContent) {
-      rulerContent.addEventListener('click', (event) => {
-        this._handleRulerClick(event);
-      });
-    }
-
-    // Setup playhead dragging
-    this._playheadElement = this._element.querySelector('[data-js-playhead]') as HTMLElement;
-    if (this._playheadElement) {
-      this._setupPlayheadDragging();
-    }
-  }
-
-  /**
-   * Render frame markers based on current configuration
-   */
-  private _renderFrameMarkers(): void {
-    if (!this._context) return;
-
-    const markersContainer = this._element.querySelector('[data-js-frame-markers]') as HTMLElement;
-    if (!markersContainer) return;
-
-    const config = this._context.Config;
-    const frameWidth = config.timeScale;
-    const totalFrames = config.totalFrames;
-
-    markersContainer.innerHTML = '';
-
+    // Create ruler ticks and labels
     for (let frame = 1; frame <= totalFrames; frame++) {
-      const x = (frame - 1) * frameWidth;
-      const isMajor = frame % 5 === 1; // Major marker every 5 frames
+      const tick = this.createTick(frame, frameWidth, labelInterval);
+      container.appendChild(tick);
+    }
+  }
+
+  /**
+   * Calculate the interval for showing frame labels based on frame width
+   * @param frameWidth Width of each frame in pixels
+   * @returns Interval for showing labels
+   */
+  private calculateLabelInterval(frameWidth: number): number {
+    // Show labels less frequently if frames are narrow
+    if (frameWidth < 10) {
+      return 10;
+    } else if (frameWidth < 15) {
+      return 5;
+    } else {
+      return 5; // Default: show every 5th frame
+    }
+  }
+
+  /**
+   * Create a tick element for a frame
+   * @param frame Frame number
+   * @param frameWidth Width of each frame
+   * @param labelInterval Interval for showing labels
+   * @returns The tick element
+   */
+  private createTick(frame: number, frameWidth: number, labelInterval: number): HTMLElement {
+    const tick = document.createElement('div');
+    tick.className = 'ruler-tick';
+    tick.style.left = `${(frame - 1) * frameWidth}px`;
+    tick.style.width = `${frameWidth}px`;
+
+    // Add label at intervals and at frame 1
+    const showLabel = frame === 1 || frame % labelInterval === 0;
+    
+    if (showLabel) {
+      tick.classList.add('ruler-tick-labeled');
+      const label = document.createElement('span');
+      label.className = 'ruler-label';
+      label.textContent = frame.toString();
+      tick.appendChild(label);
+    }
+
+    // Make every 5th tick slightly taller
+    if (frame % 5 === 0) {
+      tick.classList.add('ruler-tick-major');
+    }
+
+    return tick;
+  }
+
+  /**
+   * Update the playhead position
+   * Emits onTimeSeek event when manually moved
+   * @param frame Frame number to position the playhead at
+   * @param isManual Whether this is a manual user action (true) or programmatic (false)
+   */
+  public setPlayheadPosition(frame: number, isManual: boolean = false): void {
+    const settings = this.context.Data.getData().settings;
+    const frameWidth = settings.frameWidth || 15;
+    const playhead = this.context.UI.playhead;
+
+    if (playhead) {
+      playhead.style.left = `${(frame - 1) * frameWidth}px`;
       
-      const marker = document.createElement('div');
-      marker.className = `frame-marker ${isMajor ? 'major' : ''}`;
-      marker.style.left = `${x}px`;
-      
-      if (isMajor) {
-        const label = document.createElement('div');
-        label.className = 'frame-label';
-        label.textContent = frame.toString();
-        marker.appendChild(label);
+      // Emit onTimeSeek event (spec-compliant) only for manual seeks
+      if (isManual) {
+        this.context.Core.eventManager.emit('onTimeSeek', { currentFrame: frame });
       }
       
-      markersContainer.appendChild(marker);
+      // Also emit legacy event for backward compatibility
+      this.context.Core.eventManager.emit('playhead:moved', { frame });
     }
-  }
-
-  /**
-   * Update playhead position
-   */
-  private _updatePlayhead(): void {
-    if (!this._context || !this._playheadElement) return;
-
-    const currentFrame = this._context.Data.getCurrentFrame();
-    const frameWidth = this._context.Config.timeScale;
-    const x = (currentFrame - 1) * frameWidth;
-    
-    this._playheadElement.style.left = `${x}px`;
-  }
-
-  /**
-   * Handle ruler click to set playhead position
-   */
-  private _handleRulerClick(event: MouseEvent): void {
-    if (!this._context) return;
-
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const frameWidth = this._context.Config.timeScale;
-    const frame = Math.max(1, Math.round(x / frameWidth) + 1);
-    
-    this._context.Core.stateManager.set('currentFrame', frame);
   }
 
   /**
    * Setup playhead dragging functionality
    */
-  private _setupPlayheadDragging(): void {
-    if (!this._playheadElement || !this._context) return;
+  private setupPlayheadDragging(): void {
+    const playhead = this.context.UI.playhead;
+    const gridContainer = this.context.UI.gridContainer;
 
-    let isDragging = false;
+    if (!playhead || !gridContainer) return;
 
-    this._playheadElement.addEventListener('mousedown', (event) => {
-      event.preventDefault();
-      isDragging = true;
+    playhead.addEventListener('mousedown', (e: MouseEvent) => {
+      e.preventDefault();
+      this.isDragging = true;
       document.body.style.cursor = 'ew-resize';
     });
 
-    document.addEventListener('mousemove', (event) => {
-      if (!isDragging || !this._context) return;
+    document.addEventListener('mousemove', (e: MouseEvent) => {
+      if (!this.isDragging) return;
 
-      const rulerContent = this._element.querySelector('[data-js-ruler-content]') as HTMLElement;
-      const rect = rulerContent.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const frameWidth = this._context.Config.timeScale;
-      const frame = Math.max(1, Math.min(this._context.Config.totalFrames, Math.round(x / frameWidth) + 1));
+      const rect = gridContainer.getBoundingClientRect();
+      const scrollLeft = gridContainer.scrollLeft;
+      const mouseX = e.clientX - rect.left + scrollLeft;
       
-      this._context.Core.stateManager.set('currentFrame', frame);
+      const settings = this.context.Data.getData().settings;
+      const frameWidth = settings.frameWidth || 15;
+      const totalFrames = settings.totalFrames;
+      
+      // Calculate which frame the mouse is over
+      const frame = Math.max(1, Math.min(totalFrames, Math.round(mouseX / frameWidth) + 1));
+      
+      this.setPlayheadPosition(frame, true); // true = manual user action
     });
 
     document.addEventListener('mouseup', () => {
-      if (isDragging) {
-        isDragging = false;
+      if (this.isDragging) {
+        this.isDragging = false;
         document.body.style.cursor = '';
       }
+    });
+
+    // Also allow clicking on the ruler to jump to a frame
+    const rulerContainer = this.context.UI.rulerContainer;
+    rulerContainer.addEventListener('click', (e: MouseEvent) => {
+      if (this.isDragging) return; // Ignore if currently dragging
+
+      const rect = gridContainer.getBoundingClientRect();
+      const scrollLeft = gridContainer.scrollLeft;
+      const mouseX = e.clientX - rect.left + scrollLeft;
+      
+      const settings = this.context.Data.getData().settings;
+      const frameWidth = settings.frameWidth || 15;
+      const totalFrames = settings.totalFrames;
+      
+      const frame = Math.max(1, Math.min(totalFrames, Math.round(mouseX / frameWidth) + 1));
+      
+      this.setPlayheadPosition(frame, true); // true = manual user click on ruler
     });
   }
 }
