@@ -1,7 +1,7 @@
 // Import the styles directly
 import './styles/JsTimeLine.less';
 import { IJsTimeLineContext } from './IJsTimeLineContext';
-import { TimeLineData } from './data/TimeLineData';
+import { TimeLineData } from './data/TimelineData';
 import { EventManager } from './core/EventManager';
 import { StateManager } from './core/StateManager';
 import { PlaybackEngine } from './core/PlaybackEngine';

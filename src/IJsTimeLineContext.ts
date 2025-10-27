@@ -1,4 +1,4 @@
-import { TimeLineData } from './data/TimeLineData';
+import { TimeLineData } from './data/TimelineData';
 import { EventManager } from './core/EventManager';
 import { StateManager } from './core/StateManager';
 import { PlaybackEngine } from './core/PlaybackEngine';

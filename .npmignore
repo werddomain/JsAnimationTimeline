@@ -1,0 +1,32 @@
+# Development files
+.github/
+node_modules/
+src/tests/
+*.log
+*.tgz
+
+# Build tools
+webpack.config.js
+tsconfig.debug.json
+.vscode/
+
+# Documentation (keep only README)
+doc/
+changelog/
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# Editor files
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+
+# Test files
+test/
+*.test.ts
+*.spec.ts

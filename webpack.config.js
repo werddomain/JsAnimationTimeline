@@ -1,49 +1,100 @@
 const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
-module.exports = {
-  mode: 'development', // Use 'production' for minified builds
-  entry: './src/JsTimeLine.ts',
-  devtool: 'inline-source-map', // Ensures best source maps for debugging
+module.exports = (env) => {
+  const isProduction = env.production === true;
   
-  output: {
-    filename: 'JsTimeLine.bundle.js',
-    path: path.resolve(__dirname, 'dist'),
-    library: 'JsTimeLine',
-    libraryTarget: 'umd',
-    clean: true, // Clean the dist folder before each build
-  },
-  
-  resolve: {
-    extensions: ['.ts', '.js'],
-  },
-  
-  module: {
-    rules: [
-      // TypeScript Loader
-      {
-        test: /\.ts$/,
-        use: 'ts-loader',
-        exclude: /node_modules/,
+  return {
+    mode: isProduction ? 'production' : 'development',
+    entry: './src/JsTimeLine.ts',
+    devtool: isProduction ? 'source-map' : 'inline-source-map',
+    
+    output: {
+      filename: isProduction ? '[name].[contenthash].js' : '[name].js',
+      path: path.resolve(__dirname, 'dist'),
+      library: {
+        name: 'JsTimeLine',
+        type: 'umd',
       },
-      // LESS/CSS Loaders
-      {
-        test: /\.less$/i,
-        use: [
-          'style-loader', // Injects styles into DOM
-          'css-loader',   // Translates CSS into CommonJS
-          'less-loader',  // Compiles LESS to CSS
-        ],
-      },
-    ],
-  },
-  
-  devServer: {
-    static: {
-      directory: path.join(__dirname), // Serve from root
+      globalObject: 'this',
+      clean: true,
     },
-    compress: true,
-    port: 9000,
-    hot: true, // Enable hot module replacement
-    watchFiles: ['src/**/*', 'index.html'], // Watch src and index.html
-  },
+    
+    resolve: {
+      extensions: ['.ts', '.js', '.less', '.css'],
+    },
+    
+    module: {
+      rules: [
+        // TypeScript Loader
+        {
+          test: /\.ts$/,
+          use: 'ts-loader',
+          exclude: /node_modules/,
+        },
+        // LESS/CSS Loaders
+        {
+          test: /\.less$/i,
+          use: [
+            isProduction ? MiniCssExtractPlugin.loader : 'style-loader',
+            'css-loader',
+            'less-loader',
+          ],
+        },
+        // CSS Loaders
+        {
+          test: /\.css$/i,
+          use: [
+            isProduction ? MiniCssExtractPlugin.loader : 'style-loader',
+            'css-loader',
+          ],
+        },
+      ],
+    },
+    
+    plugins: [
+      new HtmlWebpackPlugin({
+        template: './index.html',
+        filename: 'index.html',
+        inject: 'body',
+      }),
+      ...(isProduction ? [
+        new MiniCssExtractPlugin({
+          filename: 'styles.[contenthash].css',
+        }),
+      ] : []),
+    ],
+    
+    devServer: {
+      static: {
+        directory: path.join(__dirname, 'dist'),
+      },
+      compress: true,
+      port: 9000,
+      hot: true,
+      watchFiles: ['src/**/*'],
+      open: false,
+    },
+    
+    optimization: {
+      moduleIds: 'deterministic',
+      runtimeChunk: 'single',
+      splitChunks: {
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+          },
+          styles: {
+            name: 'styles',
+            type: 'css/mini-extract',
+            chunks: 'all',
+            enforce: true,
+          },
+        },
+      },
+    },
+  };
 };

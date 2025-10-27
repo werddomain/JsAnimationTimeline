@@ -241,13 +241,14 @@
         </div>
     </div>
 
-    <!-- Load the bundled script -->
-    <script src="dist/JsTimeLine.bundle.js"></script>
+    <!-- Scripts are automatically injected by webpack HtmlWebpackPlugin -->
 
     <!-- Instantiate the control -->
     <script>
-        // Create the timeline control
-        const timeline = new JsTimeLine.JsTimeLine('timeline-container');
+        // Wait for scripts to load
+        window.addEventListener('DOMContentLoaded', function() {
+            // Create the timeline control
+            const timeline = new JsTimeLine.JsTimeLine('timeline-container');
         
         // Store reference globally for testing
         window.timelineControl = timeline;
@@ -444,6 +445,7 @@
         console.log('Timeline control loaded successfully!');
         console.log('Use the buttons above or call testPlayhead(), resetPlayhead(), or logContext() from the console');
         console.log('Enable event logging to see all events in real-time!');
+        });
     </script>
 </body>
 </html>
