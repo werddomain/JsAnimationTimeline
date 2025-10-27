@@ -304,9 +304,11 @@ export class LayerManager {
    * Emits onObjectReparent event
    * @param id - ID of the layer or folder to reparent
    * @param newParentId - ID of the new parent folder (null for root level)
+   * @param oldParentId - Optional: ID of the old parent (for optimization)
+   * @param index - Optional: Index at which to insert in the new parent (default: append to end)
    * @returns true if reparented successfully, false if not found or invalid parent
    */
-  public reparentObject(id: string, newParentId: string | null, oldParentId?: string | null): boolean {
+  public reparentObject(id: string, newParentId: string | null, oldParentId?: string | null, index?: number): boolean {
     const data = this.context.Data.getData();
     const layers = [...data.layers] as ILayer[];
 
@@ -319,7 +321,7 @@ export class LayerManager {
 
     const [movedLayer] = oldParentArray.splice(oldIndex, 1);
 
-    // Add to new parent
+    // Add to new parent at specified index
     if (newParentId) {
       const newParent = this.findLayerById(layers, newParentId);
       if (!newParent || newParent.type !== 'folder') return false;
@@ -327,10 +329,21 @@ export class LayerManager {
       if (!newParent.children) {
         newParent.children = [];
       }
-      (newParent.children as ILayer[]).push(movedLayer);
+      
+      // Insert at specified index or append to end
+      const targetArray = newParent.children as ILayer[];
+      if (index !== undefined && index >= 0 && index <= targetArray.length) {
+        targetArray.splice(index, 0, movedLayer);
+      } else {
+        targetArray.push(movedLayer);
+      }
     } else {
-      // Move to root level
-      layers.push(movedLayer);
+      // Move to root level at specified index
+      if (index !== undefined && index >= 0 && index <= layers.length) {
+        layers.splice(index, 0, movedLayer);
+      } else {
+        layers.push(movedLayer);
+      }
     }
 
     // Update data

@@ -214,7 +214,6 @@ export class LayerPanel {
     row.className = 'layer-row';
     row.setAttribute('data-layer-id', layer.id);
     row.setAttribute('data-layer-type', layer.type);
-    row.setAttribute('draggable', 'true');
     
     // ARIA attributes for accessibility
     row.setAttribute('role', 'treeitem');
@@ -248,12 +247,21 @@ export class LayerPanel {
       this.showLayerContextMenu(e, layer);
     });
 
-    // Drag and drop handlers
-    row.addEventListener('dragstart', (e) => this.onDragStart(e, layer.id));
-    row.addEventListener('dragend', (e) => this.onDragEnd(e));
+    // Drag and drop handlers on the row for drop zone
     row.addEventListener('dragover', (e) => this.onDragOver(e, layer.id, layer.type));
     row.addEventListener('drop', (e) => this.onDrop(e, layer.id, layer.type));
     row.addEventListener('dragleave', (e) => this.onDragLeave(e));
+
+    // Create drag handle
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'layer-drag-handle';
+    dragHandle.textContent = '::';
+    dragHandle.setAttribute('draggable', 'true');
+    dragHandle.setAttribute('title', 'Drag to reorder');
+    
+    // Drag handlers on the handle only
+    dragHandle.addEventListener('dragstart', (e) => this.onDragStart(e, layer.id));
+    dragHandle.addEventListener('dragend', (e) => this.onDragEnd(e));
 
     // Create layer controls container (left side)
     const controls = document.createElement('div');
@@ -319,6 +327,7 @@ export class LayerPanel {
     });
 
     // Assemble the row
+    row.appendChild(dragHandle);
     row.appendChild(controls);
     row.appendChild(nameContainer);
 
@@ -361,6 +370,20 @@ export class LayerPanel {
 
     this.context.Core.eventManager.on('layer:lockChanged', () => {
       this.render();
+    });
+
+    this.context.Core.eventManager.on('layer:reordered', () => {
+      this.render();
+      if (this.context.UI.timelineGrid) {
+        this.context.UI.timelineGrid.render();
+      }
+    });
+
+    this.context.Core.eventManager.on('layer:reparented', () => {
+      this.render();
+      if (this.context.UI.timelineGrid) {
+        this.context.UI.timelineGrid.render();
+      }
     });
   }
 
@@ -723,24 +746,129 @@ export class LayerPanel {
                           mouseY < rect.height * 0.75;
 
     if (isFolderCenter) {
-      // Reparent into folder
+      // Reparent into folder (at end)
       layerManager.reparentObject(this.draggedLayerId, targetLayerId);
     } else {
-      // Reorder at same level
-      // This is a simplified implementation - in a full implementation,
-      // you would calculate the exact index considering the drop position
-      // For now, we'll just emit an event
-      this.context.Core.eventManager.emit('layer:dropReorder', {
-        draggedId: this.draggedLayerId,
-        targetId: targetLayerId,
-        position: isTopHalf ? 'before' : 'after'
-      });
+      // Reorder at same level - calculate the new index
+      const data = this.context.Data.getData();
+      const result = this.calculateReorderIndex(data.layers, this.draggedLayerId, targetLayerId, isTopHalf ? 'before' : 'after');
       
-      // Note: A complete implementation would need to calculate indices
-      // and call layerManager.reorderObject() with the correct index
-      console.log('Reorder not fully implemented - would move', this.draggedLayerId, 
-                  isTopHalf ? 'before' : 'after', targetLayerId);
+      if (result) {
+        // Check if we need to reparent first (moving from one parent to another)
+        if ((result as any).needsReparent) {
+          // Reparent to the target's parent at the specified index (atomic operation)
+          layerManager.reparentObject(this.draggedLayerId, result.parentId, undefined, result.newIndex);
+        } else {
+          // Simple reorder within the same parent
+          // This will emit 'layer:reordered' event
+          // which will trigger re-render of both LayerPanel and TimelineGrid
+          layerManager.reorderObject(this.draggedLayerId, result.newIndex);
+        }
+      }
     }
+  }
+
+  /**
+   * Calculate the new index for reordering a layer
+   * @param layers The layers array to search
+   * @param draggedId ID of the layer being dragged
+   * @param targetId ID of the target layer
+   * @param position 'before' or 'after' the target
+   * @returns Object with newIndex and parentId, or null if not found
+   */
+  private calculateReorderIndex(
+    layers: readonly ILayer[], 
+    draggedId: string, 
+    targetId: string, 
+    position: 'before' | 'after'
+  ): { newIndex: number; parentId: string | null } | null {
+    // Helper function to find layer and its parent
+    const findLayerWithParent = (
+      layerList: readonly ILayer[], 
+      id: string, 
+      parentId: string | null = null
+    ): { layer: ILayer; parent: string | null; siblings: readonly ILayer[] } | null => {
+      for (const layer of layerList) {
+        if (layer.id === id) {
+          return { layer, parent: parentId, siblings: layerList };
+        }
+        if (layer.children) {
+          const result = findLayerWithParent(layer.children, id, layer.id);
+          if (result) return result;
+        }
+      }
+      return null;
+    };
+
+    // Find both dragged and target layers
+    const draggedInfo = findLayerWithParent(layers, draggedId);
+    const targetInfo = findLayerWithParent(layers, targetId);
+
+    if (!draggedInfo || !targetInfo) {
+      console.error('Could not find dragged or target layer');
+      return null;
+    }
+
+    // If they are not in the same parent, we need to handle reparenting
+    // Return the target's parent and the index where we want to insert
+    if (draggedInfo.parent !== targetInfo.parent) {
+      // Calculate index in target's parent
+      const siblings = targetInfo.siblings;
+      const targetIndex = siblings.findIndex(l => l.id === targetId);
+      
+      if (targetIndex === -1) {
+        console.error('Could not find target index');
+        return null;
+      }
+
+      // Calculate the new index based on position
+      // Since the dragged item is not in this array yet, no adjustment needed
+      const newIndex = position === 'before' ? targetIndex : targetIndex + 1;
+      
+      return { 
+        newIndex, 
+        parentId: targetInfo.parent,
+        needsReparent: true 
+      } as any;
+    }
+
+    // Get the siblings array
+    const siblings = targetInfo.siblings;
+    const targetIndex = siblings.findIndex(l => l.id === targetId);
+    
+    if (targetIndex === -1) {
+      console.error('Could not find target index');
+      return null;
+    }
+
+    const draggedIndex = siblings.findIndex(l => l.id === draggedId);
+    if (draggedIndex === -1) {
+      console.error('Could not find dragged layer index');
+      return null;
+    }
+
+    // Calculate new index based on position
+    // Important: LayerManager.reorderObject() removes the item first, then inserts at newIndex
+    // So we need to calculate the index AFTER removal
+    let newIndex: number;
+    
+    if (position === 'before') {
+      // Want to insert before target
+      newIndex = targetIndex;
+      // If dragged is before target, after removal target shifts back by 1
+      if (draggedIndex < targetIndex) {
+        newIndex--;
+      }
+    } else {
+      // Want to insert after target
+      newIndex = targetIndex + 1;
+      // If dragged is before target, after removal everything shifts back by 1
+      if (draggedIndex < targetIndex) {
+        newIndex--;
+      }
+    }
+
+    return { newIndex, parentId: draggedInfo.parent };
   }
 
   /**

@@ -23,6 +23,25 @@ export class TimelineGrid {
     this.createDropIndicator();
     this.setupContextMenu();
     this.setupSelectionTrigger();
+    this.setupEventListeners();
+  }
+
+  /**
+   * Setup event listeners for timeline updates
+   */
+  private setupEventListeners(): void {
+    const eventManager = this.context.Core.eventManager;
+    if (!eventManager) return;
+
+    // Listen for layer reorder events to update grid
+    eventManager.on('layer:reordered', () => {
+      this.render();
+    });
+
+    // Listen for folder toggle events
+    eventManager.on('folder:toggled', () => {
+      this.render();
+    });
   }
 
   /**
