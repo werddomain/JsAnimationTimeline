@@ -6,6 +6,7 @@ A feature-rich, Flash MX-style timeline control built with TypeScript and LESS. 
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-blue.svg)
 
+### [[Demo Page](https://werddomain.github.io/JsAnimationTimeline/)]
 ## ✨ Features
 
 ### Core Functionality
