@@ -50,8 +50,10 @@ export class TweenManager {
     // Check for overlapping tweens
     if (layer.tweens) {
       const overlapping = layer.tweens.some(tw => {
-        return (startFrame >= tw.startFrame && startFrame <= tw.endFrame) ||
-               (endFrame >= tw.startFrame && endFrame <= tw.endFrame) ||
+        // Tweens can share an endpoint (one tween ends where another begins)
+        // So we use exclusive checks on endpoints
+        return (startFrame > tw.startFrame && startFrame < tw.endFrame) ||
+               (endFrame > tw.startFrame && endFrame < tw.endFrame) ||
                (startFrame <= tw.startFrame && endFrame >= tw.endFrame);
       });
 
