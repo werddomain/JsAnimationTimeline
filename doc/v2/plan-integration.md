@@ -54,7 +54,7 @@ F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 → E1 → B3
 
 | ID | Phase | Vague | Tâche | Dépend de | Débloque | Zone de fichiers | Fait |
 |---|---|---|---|---|---|---|---|
-| **F01** | 0 | 0 | Squelette monorepo (npm workspaces), code actuel déplacé tel quel dans `packages/editor/src/legacy`, tests Jest toujours verts | — | F02, F03, F05, C1, C2 | racine, `packages/editor/src/legacy/` | ☐ |
+| **F01** | 0 | 0 | Squelette monorepo (npm workspaces), code actuel déplacé tel quel dans `packages/editor/src/legacy`, tests Jest toujours verts | — | F02, F03, F05, C1, C2 | racine, `packages/editor/src/legacy/` | ☑ |
 | **F02** | 0 | 1 | Build Vite en mode librairie par package (ESM + UMD + `.d.ts`, sans hash), champ `exports` correct | F01 | F04, B1 | `vite.config.*`, `package.json` des packages | ☐ |
 | **F03** | 0 | 1 | ESLint (`no-explicit-any`, en avertissement pour `legacy/`) + test de conventions (en-tête de chemin, dépendances d'en-tête = `dependencies`) | F01 | F04 | `.eslintrc`, `tools/conventions/` | ☐ |
 | **F04** | 0 | 2 | CI GitHub Actions (Node 22) : lint, Jest, build, Playwright Chromium + test « la démo s'affiche » | F02, F03 | R5, X2 | `.github/workflows/`, `e2e/` | ☐ |

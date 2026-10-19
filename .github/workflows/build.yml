@@ -32,14 +32,14 @@ jobs:
       with:
         name: dist
         path: |
-          dist/
-          !dist/**/*.map
+          packages/editor/dist/
+          !packages/editor/dist/**/*.map
     
     - name: Archive build artifacts with source maps
       uses: actions/upload-artifact@v4
       with:
         name: dist-with-maps
-        path: dist/
+        path: packages/editor/dist/
 
   publish-release:
     needs: build

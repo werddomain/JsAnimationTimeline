@@ -1,40 +1,22 @@
 {
-  "name": "js-timeline-control",
+  "name": "jsanimationtimeline",
   "version": "0.1.0",
-  "description": "A Flash MX-style timeline control built with TypeScript and LESS for creating animation timelines.",
-  "main": "dist/JsTimeLine.bundle.js",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist/**/*",
-    "src/**/*",
-    "README.md",
-    "LICENSE"
+  "private": true,
+  "description": "Monorepo of the JsAnimationTimeline packages: runtime, editor and export-css.",
+  "workspaces": [
+    "packages/runtime",
+    "packages/editor",
+    "packages/export-css"
   ],
-  "directories": {
-    "doc": "doc"
-  },
   "scripts": {
-    "build": "webpack --env production",
-    "build:dev": "webpack --env development",
-    "dev": "webpack serve --env development",
-    "watch": "webpack --watch --env development",
-    "test": "jest",
-    "test:coverage": "jest --coverage",
-    "prepublishOnly": "npm run build"
+    "build": "npm run build --workspaces --if-present",
+    "build:dev": "npm run build:dev --workspace packages/editor",
+    "dev": "npm run dev --workspace packages/editor",
+    "watch": "npm run watch --workspace packages/editor",
+    "test": "npm test --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
-  "keywords": [
-    "timeline",
-    "animation",
-    "flash",
-    "flash-mx",
-    "typescript",
-    "less",
-    "control",
-    "ui-component",
-    "keyframe",
-    "tween"
-  ],
-  "author": "",
   "license": "MIT",
   "repository": {
     "type": "git",

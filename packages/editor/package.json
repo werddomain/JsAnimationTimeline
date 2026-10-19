@@ -1,0 +1,40 @@
+{
+  "name": "@werddomain/timeline-editor",
+  "version": "0.1.0",
+  "description": "A Flash MX-style timeline control built with TypeScript and LESS for creating animation timelines.",
+  "main": "dist/JsTimeLine.bundle.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "webpack --env production",
+    "build:dev": "webpack --env development",
+    "dev": "webpack serve --env development",
+    "watch": "webpack --watch --env development",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "timeline",
+    "animation",
+    "flash",
+    "flash-mx",
+    "typescript",
+    "less",
+    "control",
+    "ui-component",
+    "keyframe",
+    "tween"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/werddomain/JsAnimationTimeline.git",
+    "directory": "packages/editor"
+  }
+}

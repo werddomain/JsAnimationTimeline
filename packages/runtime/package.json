@@ -1,0 +1,20 @@
+{
+  "name": "@werddomain/timeline-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "description": "UI-less player for JsAnimationTimeline animations.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/werddomain/JsAnimationTimeline.git",
+    "directory": "packages/runtime"
+  }
+}
