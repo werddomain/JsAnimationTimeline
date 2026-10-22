@@ -58,7 +58,7 @@ F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 → E1 → B3
 | **F02** | 0 | 1 | Build Vite en mode librairie par package (ESM + UMD + `.d.ts`, sans hash), champ `exports` correct | F01 | F04, B1 | `vite.config.*`, `package.json` des packages | ☑ |
 | **F03** | 0 | 1 | ESLint (`no-explicit-any`, en avertissement pour `legacy/`) + test de conventions (en-tête de chemin, dépendances d'en-tête = `dependencies`) | F01 | F04 | `.eslintrc`, `tools/conventions/` | ☑ |
 | **F04** | 0 | 2 | CI GitHub Actions (Node 22) : lint, Jest, build, Playwright Chromium + test « la démo s'affiche » | F02, F03 | R5, X2 | `.github/workflows/`, `e2e/` | ☐ |
-| **F05** | 0 | 1 | **Contrat** : schéma JSON v2 (`schema/timeline.schema.json`) + types TS du modèle dans `runtime` | F01 | R1, R4, C3, G1, B1 | `schema/`, `packages/runtime/src/model/` | ☐ |
+| **F05** | 0 | 1 | **Contrat** : schéma JSON v2 (`schema/timeline.schema.json`) + types TS du modèle dans `runtime` | F01 | R1, R4, C3, G1, B1 | `schema/`, `packages/runtime/src/model/` | ☑ |
 | **R1** | 1 | 2 | Registre de propriétés + propriétés intégrées (x, y, rotation, scaleX/Y, skewX/Y, opacity) + composition `transform` à ordre fixe | F05 | R2 | `packages/runtime/src/properties/` | ☐ |
 | **R2** | 1 | 3 | Évaluation : valeur de chaque propriété à l'image N (plages, pistes, accélérations, valeurs par défaut, plage vide) | R1 | R3, K1, X1 | `packages/runtime/src/evaluate/` | ☐ |
 | **R3** | 1 | 4 | Lecteur Web Animations : construction des images clés, échantillonnage des accélérations, play/pause/seek/loop/speed, événements, `update`, `destroy` | R2 | R5, P1, P2, X2, B2 | `packages/runtime/src/player/` | ☐ |
