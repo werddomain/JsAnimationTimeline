@@ -23,7 +23,7 @@ const tsRules = Object.assign({}, ...recommendedTs.map((c) => c.rules ?? {}));
 export default tseslint.config(
   { ignores: ['**/dist/**', '**/dist-demo/**', '**/coverage/**', '**/node_modules/**'] },
   {
-    files: ['packages/*/src/**/*.ts', 'tools/**/*.ts', 'e2e/**/*.ts', 'demo/*/src/**/*.ts'],
+    files: ['packages/*/src/**/*.ts', 'tools/**/*.ts', 'e2e/**/*.ts', 'demo/*/src/**/*.ts', 'demo/*/*.ts'],
     extends: [js.configs.recommended, ...recommendedTs],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
     rules: { '@typescript-eslint/no-explicit-any': 'error' }

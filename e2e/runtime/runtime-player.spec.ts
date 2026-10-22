@@ -74,10 +74,12 @@ test.describe('runtime demo (scenario 11)', () => {
   });
 
   test('plays, then pauses on a frame that no longer moves', async ({ page }) => {
+    // Half speed (4 s in all) keeps the pause before the last frame, even on a slow machine.
+    await page.locator('#speed').selectOption('0.5');
     await page.locator('#play').click();
     await expect(page.locator('body')).toHaveAttribute('data-playing', 'true');
     await expect(page.locator('#events li[data-event="play"]')).toHaveCount(1);
-    await expect.poll(() => currentFrame(page)).toBeGreaterThan(3);
+    await expect.poll(() => currentFrame(page)).toBeGreaterThan(2);
 
     await page.locator('#pause').click();
     await expect(page.locator('body')).toHaveAttribute('data-playing', 'false');

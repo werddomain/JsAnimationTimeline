@@ -5,7 +5,8 @@ import { defineConfig } from 'vite';
 /**
  * Démo du runtime : lit le package depuis ses sources (pas de build préalable),
  * construit vers demo/runtime/dist avec des chemins relatifs, servie sur le
- * port 9001 pour les tests Playwright.
+ * port 9001 pour les tests Playwright (même port que e2e/runtime/demoUrl.ts
+ * et le script `dev` de demo/runtime/package.json).
  */
 export const RUNTIME_DEMO_PORT = 9001;
 
