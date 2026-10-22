@@ -18,6 +18,6 @@ module.exports = {
     }]
   },
   moduleNameMapper: {
-    '\\.less$': '<rootDir>/src/__tests__/__mocks__/styleMock.js'
+    '\\.less$': '<rootDir>/src/legacy/__tests__/__mocks__/styleMock.js'
   }
 };

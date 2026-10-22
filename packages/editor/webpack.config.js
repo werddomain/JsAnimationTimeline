@@ -7,7 +7,7 @@ module.exports = (env) => {
   
   return {
     mode: isProduction ? 'production' : 'development',
-    entry: './src/JsTimeLine.ts',
+    entry: './src/index.ts',
     devtool: isProduction ? 'source-map' : 'inline-source-map',
     
     output: {
