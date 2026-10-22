@@ -4,6 +4,15 @@
  * des types) que la TimelineEventMap s'enrichit par augmentation de module,
  * comme le fera chaque plugin, et que les erreurs de nom ou de charge utile
  * sont refusées par le compilateur.
+ *
+ * Attention : l'augmentation ci-dessous est globale. `npm run typecheck`
+ * compile ce test dans le même programme que le code de production et que
+ * les plugins ; l'événement `__test__:colorChanged` y est donc visible. Son
+ * préfixe `__test__:` ne peut pas entrer en collision avec un vrai plugin, et
+ * les assertions ne vérifient que l'inclusion des noms (jamais l'union
+ * exacte), pour rester vraies quand d'autres plugins enrichissent la carte.
+ * Le build (tsconfig.build.json) exclut les tests : le code de production ne
+ * peut pas émettre cet événement sans casser le build.
  */
 
 import { EventBus } from '../EventBus';
@@ -12,13 +21,16 @@ import type { EditorReadyEvent, TimelineEventMap } from '../TimelineEventMap';
 
 declare module '../TimelineEventMap' {
   interface TimelineEventMap {
-    'test:colorChanged': { readonly layerId: string; readonly color: string };
+    '__test__:colorChanged': { readonly layerId: string; readonly color: string };
   }
 }
 
 /** Échoue à la compilation si les deux types ne sont pas identiques. */
 type Equals<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+
+/** Vrai si tous les noms `N` font partie des noms de la carte `M` (inclusion, pas égalité). */
+type IncludesNames<M, N extends string> = Equals<Extract<EventName<M>, N>, N>;
 
 function assertType<T extends true>(value: T): T {
   return value;
@@ -29,11 +41,13 @@ describe('TimelineEventMap augmentation', () => {
     // Arrange
     const bus = new EventBus();
     const received: string[] = [];
-    bus.on('test:colorChanged', (payload) => received.push(`${payload.layerId}=${payload.color}`));
+    bus.on('__test__:colorChanged', (payload) =>
+      received.push(`${payload.layerId}=${payload.color}`)
+    );
     bus.on('editor:ready', (payload) => received.push(payload.pluginIds.join(',')));
 
     // Act
-    bus.emit('test:colorChanged', { layerId: 'l1', color: '#f00' });
+    bus.emit('__test__:colorChanged', { layerId: 'l1', color: '#f00' });
     bus.emit('editor:ready', { pluginIds: ['core', 'layers.list'] });
     bus.emit('editor:destroying', {});
 
@@ -45,17 +59,21 @@ describe('TimelineEventMap augmentation', () => {
     assertType<Equals<TimelineEventMap['editor:ready'], EditorReadyEvent>>(true);
     assertType<Equals<TimelineEventMap['editor:destroying']['reason'], string | undefined>>(true);
     assertType<
-      Equals<TimelineEventMap['test:colorChanged'], { readonly layerId: string; readonly color: string }>
+      Equals<
+        TimelineEventMap['__test__:colorChanged'],
+        { readonly layerId: string; readonly color: string }
+      >
     >(true);
     expect(true).toBe(true);
   });
 
-  it('lists the augmented name among the event names', () => {
+  it('lists the core names and the augmented name among the event names', () => {
     assertType<
-      Equals<
-        EventName<TimelineEventMap>,
-        'editor:ready' | 'editor:destroying' | 'test:colorChanged'
-      >
+      IncludesNames<TimelineEventMap, 'editor:ready' | 'editor:destroying' | '__test__:colorChanged'>
+    >(true);
+    // L'inclusion échoue bien pour un nom absent de la carte.
+    assertType<
+      Equals<IncludesNames<TimelineEventMap, 'editor:ready' | '__test__:absent'>, false>
     >(true);
     expect(true).toBe(true);
   });
@@ -68,21 +86,21 @@ describe('TimelineEventMap augmentation', () => {
 
     // Act : chaque ligne marquée doit être une erreur de compilation.
     // @ts-expect-error la couleur doit être une chaîne
-    bus.emit('test:colorChanged', { layerId: 'l1', color: 42 });
+    bus.emit('__test__:colorChanged', { layerId: 'l1', color: 42 });
     // @ts-expect-error il manque layerId
-    bus.emit('test:colorChanged', { color: '#f00' });
+    bus.emit('__test__:colorChanged', { color: '#f00' });
     // @ts-expect-error pluginIds doit être une liste de chaînes
     bus.emit('editor:ready', { pluginIds: 'core' });
     // @ts-expect-error événement inconnu
-    bus.emit('test:unknown', {});
+    bus.emit('__test__:unknown', {});
     // @ts-expect-error événement inconnu pour un abonnement
-    bus.on('test:unknown', () => undefined);
+    bus.on('__test__:unknown', () => undefined);
     // @ts-expect-error le gestionnaire lit un champ absent de la charge utile
     silentBus.on('editor:ready', (payload) => payload.missing.length);
     // @ts-expect-error événement inconnu pour un abonnement annulable
-    bus.onCancellable('test:unknown', () => undefined);
+    bus.onCancellable('__test__:unknown', () => undefined);
     // @ts-expect-error mauvaise charge utile pour une émission annulable
-    bus.emitCancellable('test:colorChanged', { layerId: 1, color: '#f00' });
+    bus.emitCancellable('__test__:colorChanged', { layerId: 1, color: '#f00' });
     silentBus.emit('editor:ready', { pluginIds: [] });
 
     // Assert : le gestionnaire fautif a bien levé une erreur à l'exécution.

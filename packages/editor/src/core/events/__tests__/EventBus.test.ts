@@ -1,21 +1,14 @@
 // packages/editor/src/core/events/__tests__/EventBus.test.ts
 /**
- * Comportement de l'EventBus : abonnement, ordre, instantané pendant une
- * émission, isolation des erreurs, canal annulable, comptage et nettoyage.
+ * Comportement de l'EventBus : abonnement, ordre, doublons, `once`,
+ * instantané et retraits pendant une émission, canaux séparés, comptage et
+ * nettoyage. L'isolation des erreurs et le canal annulable sont couverts par
+ * EventBus.cancellable.test.ts.
  */
 
-import { ERROR_PREFIX, EventBus } from '../EventBus';
-import type { CancellableHandler, EventHandler } from '../EventBus';
-
-interface TestEvents {
-  'item:added': { readonly id: string };
-  'item:removed': { readonly id: string };
-  'count:changed': number;
-}
-
-function createBus(onError?: (error: unknown, eventName: string) => void): EventBus<TestEvents> {
-  return new EventBus<TestEvents>({ onError });
-}
+import type { EventBus, EventHandler } from '../EventBus';
+import { createBus } from './testBus';
+import type { TestEvents } from './testBus';
 
 describe('EventBus on / off / emit', () => {
   it('calls a subscribed handler with the payload', () => {
@@ -185,7 +178,9 @@ describe('EventBus once', () => {
     expect(single).toHaveBeenCalledTimes(1);
   });
 
-  it('does not call a once handler again from a re-entrant emit', () => {
+  it('calls a once handler a single time when an earlier handler re-emits', () => {
+    // Arrange : le gestionnaire réentrant précède le `once`, qui est donc
+    // consommé par l'émission imbriquée (sémantique DOM et Node).
     const bus = createBus();
     const single = jest.fn();
     bus.on('count:changed', (value) => {
@@ -193,21 +188,36 @@ describe('EventBus once', () => {
     });
     bus.once('count:changed', single);
 
+    // Act
     bus.emit('count:changed', 1);
 
+    // Assert
     expect(single).toHaveBeenCalledTimes(1);
-    expect(single).toHaveBeenCalledWith(1);
+    expect(single).toHaveBeenCalledWith(2);
+    expect(bus.listenerCount('count:changed')).toBe(1);
+  });
+
+  it('does not call a once handler again when it re-emits itself', () => {
+    const bus = createBus();
+    const values: number[] = [];
+    bus.once('count:changed', (value) => {
+      values.push(value);
+      bus.emit('count:changed', value + 1);
+    });
+
+    bus.emit('count:changed', 1);
+
+    expect(values).toEqual([1]);
   });
 });
 
-describe('EventBus snapshot during emit', () => {
+describe('EventBus subscriptions and removals during an emit', () => {
   it('does not call a handler subscribed during the emit until the next emit', () => {
     const bus = createBus();
     const late = jest.fn();
-    const subscriber = jest.fn(() => {
+    bus.once('count:changed', () => {
       bus.on('count:changed', late);
     });
-    bus.once('count:changed', subscriber);
 
     bus.emit('count:changed', 1);
     expect(late).not.toHaveBeenCalled();
@@ -217,7 +227,7 @@ describe('EventBus snapshot during emit', () => {
     expect(late).toHaveBeenCalledWith(2);
   });
 
-  it('still calls a handler unsubscribed during the emit, but not on the next one', () => {
+  it('skips a handler unsubscribed by an earlier handler of the same emit', () => {
     const bus = createBus();
     const target = jest.fn();
     let unsubscribeTarget = (): void => undefined;
@@ -227,11 +237,33 @@ describe('EventBus snapshot during emit', () => {
     bus.emit('count:changed', 1);
     bus.emit('count:changed', 2);
 
-    expect(target).toHaveBeenCalledTimes(1);
-    expect(target).toHaveBeenCalledWith(1);
+    expect(target).not.toHaveBeenCalled();
   });
 
-  it('keeps calling the snapshot when clear is called during the emit', () => {
+  it('skips a handler removed with off by an earlier handler of the same emit', () => {
+    const bus = createBus();
+    const target = jest.fn();
+    bus.on('count:changed', () => bus.off('count:changed', target));
+    bus.on('count:changed', target);
+
+    bus.emit('count:changed', 1);
+
+    expect(target).not.toHaveBeenCalled();
+  });
+
+  it('skips a once handler removed with off by an earlier handler of the same emit', () => {
+    const bus = createBus();
+    const single = jest.fn();
+    bus.on('count:changed', () => bus.off('count:changed', single));
+    bus.once('count:changed', single);
+
+    bus.emit('count:changed', 1);
+
+    expect(single).not.toHaveBeenCalled();
+    expect(bus.listenerCount('count:changed')).toBe(1);
+  });
+
+  it('skips the remaining handlers when clear is called during the emit', () => {
     const bus = createBus();
     const second = jest.fn();
     bus.on('count:changed', () => bus.clear());
@@ -240,147 +272,44 @@ describe('EventBus snapshot during emit', () => {
     bus.emit('count:changed', 1);
     bus.emit('count:changed', 2);
 
-    expect(second).toHaveBeenCalledTimes(1);
+    expect(second).not.toHaveBeenCalled();
   });
-});
 
-describe('EventBus error isolation', () => {
-  it('reports a throwing handler to onError and keeps calling the others', () => {
-    // Arrange
-    const onError = jest.fn<void, [unknown, string]>();
-    const bus = createBus(onError);
-    const failure = new Error('boom');
-    const after = jest.fn();
-    bus.on('item:added', () => {
-      throw failure;
+  it('keeps calling the other handlers when one unsubscribes itself', () => {
+    const bus = createBus();
+    const calls: string[] = [];
+    const unsubscribeSelf = bus.on('count:changed', () => {
+      calls.push('self');
+      unsubscribeSelf();
     });
-    bus.on('item:added', after);
+    bus.on('count:changed', () => calls.push('other'));
+
+    bus.emit('count:changed', 1);
+    bus.emit('count:changed', 2);
+
+    expect(calls).toEqual(['self', 'other', 'other']);
+  });
+
+  it('does not reach a plugin torn down by an earlier destroying handler', () => {
+    // Arrange : le plugin A détruit le plugin B pendant la même émission.
+    const bus = createBus();
+    const pluginB = { destroyed: false, unsubscribe: (): void => undefined };
+    const useAfterDestroy = jest.fn();
+    bus.on('item:removed', () => {
+      pluginB.unsubscribe();
+      pluginB.destroyed = true;
+    });
+    pluginB.unsubscribe = bus.on('item:removed', () => {
+      if (pluginB.destroyed) useAfterDestroy();
+    });
 
     // Act
-    bus.emit('item:added', { id: 'a' });
+    bus.emit('item:removed', { id: 'a' });
 
     // Assert
-    expect(onError).toHaveBeenCalledTimes(1);
-    expect(onError).toHaveBeenCalledWith(failure, 'item:added');
-    expect(after).toHaveBeenCalledTimes(1);
-  });
-
-  it('reports to console.error with a prefix by default', () => {
-    // Arrange
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    const bus = new EventBus<TestEvents>();
-    const failure = new Error('boom');
-    const after = jest.fn();
-    bus.on('count:changed', () => {
-      throw failure;
-    });
-    bus.on('count:changed', after);
-
-    try {
-      // Act
-      bus.emit('count:changed', 1);
-
-      // Assert
-      expect(spy).toHaveBeenCalledTimes(1);
-      const [message, reported] = spy.mock.calls[0] ?? [];
-      expect(String(message).startsWith(ERROR_PREFIX)).toBe(true);
-      expect(String(message)).toContain('count:changed');
-      expect(reported).toBe(failure);
-      expect(after).toHaveBeenCalledTimes(1);
-    } finally {
-      spy.mockRestore();
-    }
-  });
-
-  it('isolates errors thrown by cancellable handlers too', () => {
-    const onError = jest.fn<void, [unknown, string]>();
-    const bus = createBus(onError);
-    const after = jest.fn();
-    bus.onCancellable('item:removed', () => {
-      throw new Error('boom');
-    });
-    bus.onCancellable('item:removed', after);
-
-    const result = bus.emitCancellable('item:removed', { id: 'a' });
-
-    expect(onError).toHaveBeenCalledWith(expect.any(Error), 'item:removed');
-    expect(after).toHaveBeenCalledTimes(1);
-    expect(result).toBe(true);
-  });
-});
-
-describe('EventBus cancellable events', () => {
-  it('returns true when no handler cancels', () => {
-    const bus = createBus();
-    const handler = jest.fn();
-    bus.onCancellable('item:removed', handler);
-
-    const result = bus.emitCancellable('item:removed', { id: 'a' });
-
-    expect(result).toBe(true);
-    expect(handler).toHaveBeenCalledTimes(1);
-    const [event] = handler.mock.calls[0] ?? [];
-    expect(event.payload).toEqual({ id: 'a' });
-    expect(event.cancelled).toBe(false);
-  });
-
-  it('returns true when there are no cancellable handlers', () => {
-    const bus = createBus();
-
-    expect(bus.emitCancellable('item:removed', { id: 'a' })).toBe(true);
-  });
-
-  it('returns false when a handler cancels, and later handlers still run and see it', () => {
-    // Arrange
-    const bus = createBus();
-    const seen: boolean[] = [];
-    bus.onCancellable('item:removed', (event) => seen.push(event.cancelled));
-    bus.onCancellable('item:removed', (event) => event.cancel());
-    bus.onCancellable('item:removed', (event) => seen.push(event.cancelled));
-
-    // Act
-    const result = bus.emitCancellable('item:removed', { id: 'a' });
-
-    // Assert
-    expect(result).toBe(false);
-    expect(seen).toEqual([false, true]);
-  });
-
-  it('creates a fresh, non-cancelled event for every emit', () => {
-    const bus = createBus();
-    let shouldCancel = true;
-    bus.onCancellable('item:removed', (event) => {
-      if (shouldCancel) event.cancel();
-    });
-
-    const first = bus.emitCancellable('item:removed', { id: 'a' });
-    shouldCancel = false;
-    const second = bus.emitCancellable('item:removed', { id: 'a' });
-
-    expect(first).toBe(false);
-    expect(second).toBe(true);
-  });
-
-  it('stops calling a cancellable handler after its unsubscribe function is called', () => {
-    const bus = createBus();
-    const handler = jest.fn();
-    const unsubscribe = bus.onCancellable('item:removed', handler);
-
-    unsubscribe();
-    bus.emitCancellable('item:removed', { id: 'a' });
-
-    expect(handler).not.toHaveBeenCalled();
-  });
-
-  it('removes a cancellable handler with off', () => {
-    const bus = createBus();
-    const handler: CancellableHandler<{ readonly id: string }> = jest.fn();
-    bus.onCancellable('item:removed', handler);
-
-    bus.off('item:removed', handler);
-    bus.emitCancellable('item:removed', { id: 'a' });
-
-    expect(handler).not.toHaveBeenCalled();
+    expect(pluginB.destroyed).toBe(true);
+    expect(useAfterDestroy).not.toHaveBeenCalled();
+    expect(bus.listenerCount('item:removed')).toBe(1);
   });
 });
 
@@ -448,5 +377,16 @@ describe('EventBus listenerCount and clear', () => {
 
     expect(bus.listenerCount()).toBe(0);
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('accepts new subscriptions after clear', () => {
+    const bus = populated();
+    const handler = jest.fn();
+
+    bus.clear();
+    bus.on('count:changed', handler);
+    bus.emit('count:changed', 1);
+
+    expect(handler).toHaveBeenCalledWith(1);
   });
 });

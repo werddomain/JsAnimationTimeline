@@ -6,21 +6,32 @@
  *
  * Sémantique :
  * - les gestionnaires s'exécutent de façon synchrone, dans l'ordre d'abonnement ;
- * - la liste des gestionnaires est figée au début de chaque émission : s'abonner
- *   ou se désabonner pendant une émission n'a d'effet qu'à l'émission suivante ;
+ * - la liste des gestionnaires est figée au début de chaque émission : un
+ *   gestionnaire inscrit pendant une émission n'est appelé qu'à partir de
+ *   l'émission suivante ;
+ * - en revanche, un retrait est immédiat (comme `EventTarget` du DOM) : une
+ *   inscription retirée pendant une émission (`off`, fonction de
+ *   désabonnement, `clear`) n'est plus appelée, même par l'émission en cours.
+ *   Un plugin détruit pendant `editor:destroying` ne reçoit donc plus rien ;
+ * - un gestionnaire `once` est appelé au plus une fois, y compris lors d'une
+ *   émission réentrante : c'est la première émission qui l'atteint qui le consomme ;
  * - un gestionnaire qui lève une erreur est signalé à `onError` et n'empêche pas
- *   les suivants de s'exécuter ;
+ *   les suivants de s'exécuter. Si `onError` lève à son tour, les deux erreurs
+ *   sont écrites avec `console.error` et l'émission continue ;
  * - un même gestionnaire inscrit deux fois est appelé deux fois, et `off` ne
  *   retire qu'une inscription ;
  * - chaque nom d'événement a deux canaux séparés : `on`/`once`/`emit` d'un côté,
  *   `onCancellable`/`emitCancellable` de l'autre. `emit` n'appelle jamais les
- *   gestionnaires annulables et `emitCancellable` n'appelle jamais ceux de `on`.
+ *   gestionnaires annulables et `emitCancellable` n'appelle jamais ceux de `on` ;
+ * - canal annulable « fail-closed » : un gestionnaire annulable qui lève une
+ *   erreur annule l'événement (en plus d'être signalé). Une validation ou une
+ *   vérification de verrou qui plante bloque donc l'opération au lieu de la
+ *   laisser passer.
  */
 
 import { CancellableEvent } from './CancellableEvent';
 import type { ICancellableEvent } from './CancellableEvent';
 import { HandlerRegistry } from './HandlerRegistry';
-import type { IRegistration } from './HandlerRegistry';
 import type { TimelineEventMap } from './TimelineEventMap';
 
 /** Gestionnaire d'un événement ordinaire. */
@@ -37,6 +48,11 @@ export interface EventBusOptions {
   /**
    * Reçoit les erreurs levées par les gestionnaires. Par défaut, elles sont
    * écrites avec `console.error`, préfixées de `ERROR_PREFIX`.
+   *
+   * Contrat : ne doit pas lever. Si elle lève malgré tout, le bus écrit
+   * l'erreur d'origine et celle de `onError` avec `console.error`, puis
+   * continue l'émission (les gestionnaires suivants sont appelés et
+   * `emitCancellable` retourne normalement).
    */
   readonly onError?: (error: unknown, eventName: string) => void;
 }
@@ -47,6 +63,14 @@ export const ERROR_PREFIX = '[EventBus]';
 function reportToConsole(error: unknown, eventName: string): void {
   console.error(
     `${ERROR_PREFIX} Un gestionnaire de l'événement « ${eventName} » a levé une erreur :`,
+    error
+  );
+}
+
+function reportFailedReporter(error: unknown, reporterError: unknown, eventName: string): void {
+  console.error(
+    `${ERROR_PREFIX} onError a levé une erreur en signalant celle d'un gestionnaire de « ${eventName} » :`,
+    reporterError,
     error
   );
 }
@@ -74,6 +98,7 @@ export class EventBus<M extends object = TimelineEventMap> {
   /**
    * Retire une inscription de `handler` pour `name` : d'abord dans le canal
    * ordinaire, sinon dans le canal annulable. Sans effet si elle est absente.
+   * Le retrait vaut aussi pour une émission en cours.
    */
   off<K extends EventName<M>>(
     name: K,
@@ -84,9 +109,7 @@ export class EventBus<M extends object = TimelineEventMap> {
 
   /** Émet `name` vers les gestionnaires ordinaires. */
   emit<K extends EventName<M>>(name: K, payload: M[K]): void {
-    this.dispatch(this.handlers.take(name), name, (handler) =>
-      (handler as EventHandler<M[K]>)(payload)
-    );
+    this.dispatch(this.handlers, name, (handler) => (handler as EventHandler<M[K]>)(payload));
   }
 
   /** S'abonne aux émissions annulables de `name` ; retourne la fonction de désabonnement. */
@@ -100,13 +123,21 @@ export class EventBus<M extends object = TimelineEventMap> {
   /**
    * Émet `name` vers les gestionnaires annulables. Tous s'exécutent, même
    * après une annulation (ils peuvent lire `event.cancelled`).
-   * @returns `true` si aucun gestionnaire n'a annulé l'événement.
+   *
+   * Fail-closed : un gestionnaire qui lève une erreur est signalé à `onError`
+   * ET annule l'événement ; les gestionnaires suivants voient `cancelled` à vrai.
+   * @returns `true` si aucun gestionnaire n'a annulé l'événement ni levé d'erreur.
    */
   emitCancellable<K extends EventName<M>>(name: K, payload: M[K]): boolean {
     const event = new CancellableEvent<M[K]>(payload);
-    this.dispatch(this.cancellableHandlers.take(name), name, (handler) =>
-      (handler as CancellableHandler<M[K]>)(event)
-    );
+    this.dispatch(this.cancellableHandlers, name, (handler) => {
+      try {
+        (handler as CancellableHandler<M[K]>)(event);
+      } catch (error) {
+        event.cancel();
+        throw error;
+      }
+    });
     return !event.cancelled;
   }
 
@@ -121,17 +152,22 @@ export class EventBus<M extends object = TimelineEventMap> {
     this.cancellableHandlers.clear(name);
   }
 
-  private dispatch<H>(
-    snapshot: readonly IRegistration<H>[],
-    name: string,
-    invoke: (handler: H) => void
-  ): void {
-    for (const registration of snapshot) {
+  private dispatch<H>(registry: HandlerRegistry<H>, name: string, invoke: (handler: H) => void): void {
+    for (const registration of registry.snapshot(name)) {
+      if (!registry.claim(name, registration)) continue;
       try {
         invoke(registration.handler);
       } catch (error) {
-        this.reportError(error, name);
+        this.report(error, name);
       }
+    }
+  }
+
+  private report(error: unknown, name: string): void {
+    try {
+      this.reportError(error, name);
+    } catch (reporterError) {
+      reportFailedReporter(error, reporterError, name);
     }
   }
 }

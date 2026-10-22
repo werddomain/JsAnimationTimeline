@@ -4,6 +4,13 @@
  * immuable d'inscriptions par nom d'événement. Chaque inscription a sa propre
  * identité, ce qui permet d'inscrire deux fois le même gestionnaire et de
  * n'en retirer qu'une.
+ *
+ * Une émission lit un instantané de la liste (`snapshot`), puis réclame
+ * chaque inscription (`claim`) juste avant de l'appeler : une inscription
+ * retirée entre-temps (`off`, fonction de désabonnement, `clear`) est alors
+ * ignorée, comme pour `EventTarget` du DOM. Une inscription `once` est retirée
+ * au moment où elle est réclamée, donc appelée au plus une fois, même en cas
+ * d'émission réentrante.
  */
 
 /** Une inscription : le gestionnaire et son mode (`once` ou permanent). */
@@ -15,6 +22,8 @@ export interface IRegistration<H> {
 /** Registre nom d'événement -> inscriptions, dans l'ordre d'abonnement. */
 export class HandlerRegistry<H> {
   private readonly channels = new Map<string, readonly IRegistration<H>[]>();
+  /** Inscriptions retirées : un instantané en cours ne doit plus les appeler. */
+  private readonly removed = new WeakSet<IRegistration<H>>();
 
   /** Ajoute une inscription et retourne la fonction qui retire exactement celle-ci. */
   add(name: string, handler: H, once: boolean): () => void {
@@ -23,7 +32,7 @@ export class HandlerRegistry<H> {
     return () => this.removeRegistration(name, registration);
   }
 
-  /** Retire la première inscription de `handler` ; ne fait rien s'il est absent. */
+  /** Retire la première inscription de `handler` ; retourne `false` s'il est absent. */
   remove(name: string, handler: unknown): boolean {
     const target = this.list(name).find((registration) => registration.handler === handler);
     if (target === undefined) return false;
@@ -31,17 +40,19 @@ export class HandlerRegistry<H> {
     return true;
   }
 
+  /** Instantané (immuable) des inscriptions de `name` au début d'une émission. */
+  snapshot(name: string): readonly IRegistration<H>[] {
+    return this.list(name);
+  }
+
   /**
-   * Retourne l'instantané des inscriptions à appeler pour une émission et
-   * retire dès maintenant les inscriptions `once`, pour qu'une émission
-   * réentrante ne les rappelle pas.
+   * Réclame `registration` juste avant de l'appeler. Retourne `false` si elle
+   * a été retirée depuis l'instantané ; retire une inscription `once`.
    */
-  take(name: string): readonly IRegistration<H>[] {
-    const snapshot = this.list(name);
-    if (snapshot.some((registration) => registration.once)) {
-      this.replace(name, snapshot.filter((registration) => !registration.once));
-    }
-    return snapshot;
+  claim(name: string, registration: IRegistration<H>): boolean {
+    if (this.removed.has(registration)) return false;
+    if (registration.once) this.removeRegistration(name, registration);
+    return true;
   }
 
   /** Nombre d'inscriptions pour `name`, ou pour tous les noms si absent. */
@@ -54,8 +65,11 @@ export class HandlerRegistry<H> {
 
   /** Vide les inscriptions de `name`, ou toutes si absent. */
   clear(name?: string): void {
-    if (name === undefined) this.channels.clear();
-    else this.channels.delete(name);
+    const names = name === undefined ? [...this.channels.keys()] : [name];
+    for (const channel of names) {
+      this.list(channel).forEach((registration) => this.removed.add(registration));
+      this.channels.delete(channel);
+    }
   }
 
   private list(name: string): readonly IRegistration<H>[] {
@@ -63,14 +77,9 @@ export class HandlerRegistry<H> {
   }
 
   private removeRegistration(name: string, registration: IRegistration<H>): void {
-    this.replace(
-      name,
-      this.list(name).filter((candidate) => candidate !== registration)
-    );
-  }
-
-  private replace(name: string, registrations: readonly IRegistration<H>[]): void {
-    if (registrations.length === 0) this.channels.delete(name);
-    else this.channels.set(name, registrations);
+    this.removed.add(registration);
+    const remaining = this.list(name).filter((candidate) => candidate !== registration);
+    if (remaining.length === 0) this.channels.delete(name);
+    else this.channels.set(name, remaining);
   }
 }

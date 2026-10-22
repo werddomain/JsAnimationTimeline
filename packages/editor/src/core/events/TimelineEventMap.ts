@@ -36,6 +36,10 @@ export interface EditorDestroyingEvent {
  * `bus.emit('layer:colorChanged', { layerId: 'l1', color: '#f00' })` est
  * vérifié par le compilateur (nom et charge utile).
  *
+ * Une augmentation est globale au programme TypeScript qui la voit : ne
+ * jamais tester l'union exacte des noms (elle grandit avec chaque plugin),
+ * seulement l'inclusion des noms attendus.
+ *
  * Convention de nommage : `<domaine>:<action au passé ou à l'infinitif>`.
  */
 export interface TimelineEventMap {
