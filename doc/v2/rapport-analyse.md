@@ -29,21 +29,21 @@ La v1 visée se compose de **quatre livrables** dans un seul dépôt :
 | # | Sujet | Décision |
 |---|---|---|
 | 1 | Usage final | Éditeur **et** lecteur léger, en packages séparés (`runtime` + `editor`) |
-| 2 | Ce qu'on anime | Éléments HTML via CSS, construit sur une couche de valeurs génériques |
+| 2 | Ce qu'on anime | Éléments HTML via CSS par défaut, construit sur une couche de valeurs génériques. *Amendé le 22 octobre 2026* : n'importe quelle scène fournie par le développeur (canvas, WebGL, SVG, audio...), voir `doc/v2/scene-developpeur.md` |
 | 3 | Code existant | Refactorisation progressive vers les plugins, en gardant la logique |
 | 4 | Modèle d'interpolation | **Motion tween de CS4** : plage liée à un objet, images clés par propriété |
-| 5 | Calque | Un calque = une seule cible (sélecteur CSS ou élément) |
+| 5 | Calque | Un calque = une seule cible (sélecteur CSS ou élément). *Amendé le 22 octobre 2026* : sélecteur CSS ou `ref` (avec `stage`) interprétée par la scène ; dans l'éditeur, un élément devient une `ref` liée à l'exécution |
 | 6 | Saisie des valeurs | L'API est la base ; un panneau de propriétés est un plugin optionnel |
 | 7 | Éditeur de courbes CS4 | Pas en v1 ; préréglages d'accélération par plage |
-| 8 | Sortie | JSON joué par `runtime` (Web Animations) **+** export CSS `@keyframes` en plugin |
+| 8 | Sortie | JSON joué par `runtime` (Web Animations) **+** export CSS `@keyframes` en plugin. *Amendé le 22 octobre 2026* : Web Animations pour la scène HTML, sinon chaque image est donnée à la scène du développeur ; l'export CSS ne traite que les calques HTML |
 | 9 | Dépôt | Monorepo avec plusieurs packages npm, plus NuGet |
 | 10 | Distribution | npm (modules ES + types + UMD) **et** NuGet |
 | 11 | Navigateurs testés | Chromium seulement, en CI à chaque push |
 | 12 | Annuler/rétablir | Oui en v1, chaque action passe par une commande annulable |
 | 13 | En-tête de fichier | Chemin relatif à la racine du dépôt |
 | 14 | NuGet | Razor Class Library **+** composant Blazor C# avec interop typée |
-| 15 | Propriétés animables | Transformations + opacité intégrées, et **toute propriété CSS numérique** déclarable par un plugin |
-| 16 | Aperçu en direct | Oui, déplacer la tête de lecture applique l'image courante aux cibles via `runtime` |
+| 15 | Propriétés animables | Transformations + opacité intégrées, et **toute propriété CSS numérique** déclarable par un plugin. *Amendé le 22 octobre 2026* : aussi toute valeur numérique sans CSS (`kind: 'value'`), déclarée par une scène ou un plugin |
+| 16 | Aperçu en direct | Oui, déplacer la tête de lecture applique l'image courante aux cibles via `runtime`. *Amendé le 22 octobre 2026* : l'image courante va à la scène active (HTML par défaut, ou aucune avec `stage: false`) |
 | 17 | Fonctions du lecteur | Lecture, pause, aller à l'image, boucle, vitesse, événements (pas d'étiquettes, pas de lecture à l'envers, pas de déclenchement au défilement) |
 | 18 | Ajouts à l'éditeur | Zoom de la règle + modification de la cadence (fps) et de la durée depuis la barre d'outils |
 
