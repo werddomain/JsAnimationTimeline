@@ -6,16 +6,17 @@
   "workspaces": [
     "packages/runtime",
     "packages/editor",
-    "packages/export-css"
+    "packages/export-css",
+    "tools/conventions"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "build:dev": "npm run build:dev --workspace packages/editor",
+    "build:demo": "npm run build:demo --workspace packages/editor",
     "dev": "npm run dev --workspace packages/editor",
-    "watch": "npm run watch --workspace packages/editor",
     "test": "npm test --workspaces --if-present",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint ."
   },
   "license": "MIT",
   "repository": {
@@ -27,21 +28,17 @@
   },
   "homepage": "https://github.com/werddomain/JsAnimationTimeline#readme",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/jest": "^30.0.0",
     "ajv": "^8.20.0",
-    "css-loader": "^7.1.2",
-    "html-webpack-plugin": "^5.6.4",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
     "less": "^4.4.2",
-    "less-loader": "^12.3.0",
-    "mini-css-extract-plugin": "^2.9.4",
-    "style-loader": "^4.0.0",
     "ts-jest": "^29.4.6",
-    "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
-    "webpack": "^5.102.1",
-    "webpack-cli": "^6.0.1",
-    "webpack-dev-server": "^5.2.2"
+    "typescript-eslint": "^8.72.0",
+    "vite": "^8.3.5"
   }
 }
