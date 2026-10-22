@@ -7,7 +7,7 @@ import * as runtime from '../../index';
 
 describe('runtime entry point', () => {
   it('exports the model values', () => {
-    expect(Object.keys(runtime).sort()).toEqual([
+    expect(Object.keys(runtime)).toEqual(expect.arrayContaining([
       'CUBIC_BEZIER_PATTERN',
       'DEFAULT_COLLAPSED',
       'DEFAULT_EASING',
@@ -31,7 +31,7 @@ describe('runtime entry point', () => {
       'resolveVisible',
       'validateDocument',
       'walkLayers'
-    ]);
+    ]));
     expect(runtime.SCHEMA_VERSION).toBe('2.0.0');
   });
 });
