@@ -10,6 +10,8 @@
  * `PluginHost` après ses dépendances, et détruite avant elles.
  *
  * @typeParam TContext Contexte transmis à `init` (le futur `IEditorContext`).
+ *   Par défaut `unknown` : un `IPlugin` nu accepte n'importe quel contexte,
+ *   donc son `init` ne peut rien supposer du contexte reçu.
  */
 export interface IPlugin<TContext = unknown> {
   /**
@@ -28,7 +30,8 @@ export interface IPlugin<TContext = unknown> {
 
   /**
    * Nom de l'emplacement de rendu dans lequel `render` dessine.
-   * Par défaut : l'emplacement racine (`ROOT_SLOT`).
+   * Par défaut : l'emplacement racine (`ROOT_SLOT`). Même forme qu'un
+   * identifiant de plugin, vérifiée à l'enregistrement.
    */
   readonly slot?: string;
 
@@ -43,9 +46,19 @@ export interface IPlugin<TContext = unknown> {
    * Initialise le plugin : abonnement aux événements, enregistrement des
    * commandes, etc. Appelé une seule fois, dans l'ordre des dépendances.
    *
+   * Doit être sûr en cas d'exception : si `init` lève, le plugin n'est pas
+   * considéré comme initialisé et son `destroy` n'est PAS appelé ; il doit
+   * donc défaire lui-même ce qu'il a déjà fait avant de lever. (Les
+   * emplacements de rendu définis pendant le démarrage sont retirés par
+   * l'hôte.)
+   *
+   * Déclaré comme propriété de type fonction (et non comme méthode) pour que
+   * `strictFunctionTypes` vérifie le type du contexte : un plugin dont `init`
+   * attend un autre contexte est refusé. Une méthode de classe convient.
+   *
    * @param ctx Contexte partagé de l'éditeur.
    */
-  init(ctx: TContext): void;
+  readonly init: (ctx: TContext) => void;
 
   /**
    * Dessine le contenu propre du plugin dans son emplacement. Appelé après
@@ -58,7 +71,10 @@ export interface IPlugin<TContext = unknown> {
 
   /**
    * Libère les ressources du plugin (abonnements, éléments du DOM...).
-   * Appelé dans l'ordre inverse de l'initialisation.
+   * Appelé dans l'ordre inverse de l'initialisation, uniquement pour les
+   * plugins dont `init` a réussi : à la destruction de l'hôte, ou lors de
+   * l'annulation d'un démarrage raté (y compris si son propre `render` a
+   * levé, ce qui suppose de tolérer un rendu partiel).
    */
   destroy(): void;
 }

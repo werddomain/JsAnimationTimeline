@@ -1,6 +1,6 @@
 // packages/editor/src/core/plugin/__tests__/PluginHost.register.test.ts
 /**
- * Tests de l'enregistrement dans PluginHost : identifiants, doublons
+ * Tests de l'enregistrement dans PluginHost : identifiants, emplacements, doublons
  * (directs, enfants, fournis), epics et ordre d'initialisation.
  */
 
@@ -61,6 +61,27 @@ describe('PluginHost.register', () => {
     // Assert
     expect(error.code).toBe('invalid-id');
     expect(host.has('layers')).toBe(false);
+  });
+
+  it('rejects a child with a malformed slot name without registering the parent', () => {
+    // Arrange
+    const host = newHost();
+    const child = makePlugin([], 'layers.list', [], { slot: 'Layer-Panel' });
+    const epic = makePlugin([], 'layers', [], { children: [child] });
+
+    // Act
+    const error = pluginError(() => host.register(epic));
+
+    // Assert
+    expect(error.code).toBe('invalid-slot');
+    expect(error.pluginId).toBe('layers.list');
+    expect(host.has('layers')).toBe(false);
+  });
+
+  it('accepts a plugin with a well-formed slot name', () => {
+    const host = newHost().register(makePlugin([], 'layers.list', [], { slot: 'layers.panel' }));
+
+    expect(host.has('layers.list')).toBe(true);
   });
 
   it('rejects a direct duplicate id', () => {

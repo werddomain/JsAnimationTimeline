@@ -16,6 +16,8 @@ describe('core/plugin index', () => {
     expect(api.PLUGIN_ID_PATTERN.test('layers.color')).toBe(true);
     expect(api.isValidPluginId('core')).toBe(true);
     expect(typeof api.assertValidPluginId).toBe('function');
+    expect(api.isValidSlotName('timeline.header')).toBe(true);
+    expect(typeof api.assertValidSlotName).toBe('function');
   });
 
   it('re-exports the types usable together', () => {

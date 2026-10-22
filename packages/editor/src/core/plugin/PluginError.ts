@@ -1,7 +1,8 @@
 // packages/editor/src/core/plugin/PluginError.ts
 /**
  * Erreur levée par le système de plugins (identifiant invalide, dépendance
- * manquante ou circulaire, emplacement absent, échec de démarrage...).
+ * manquante ou circulaire, emplacement absent ou invalide, échec de
+ * démarrage...).
  */
 
 /** Code machine de chaque cas d'erreur du système de plugins. */
@@ -11,7 +12,11 @@ export type PluginErrorCode =
   | 'missing-dependency'
   | 'circular-dependency'
   | 'missing-slot'
+  | 'invalid-slot'
+  | 'duplicate-slot'
   | 'init-failed'
+  | 'render-failed'
+  | 'starting'
   | 'already-started'
   | 'not-started';
 
@@ -24,8 +29,8 @@ export class PluginError extends Error {
   readonly pluginId?: string;
 
   /**
-   * Erreur d'origine (pour `init-failed`). Déclarée ici car la bibliothèque
-   * ES2018 ne connaît pas `ErrorOptions`.
+   * Erreur d'origine (pour `init-failed` et `render-failed`). Déclarée ici
+   * car la bibliothèque ES2018 ne connaît pas `ErrorOptions`.
    */
   readonly cause?: unknown;
 

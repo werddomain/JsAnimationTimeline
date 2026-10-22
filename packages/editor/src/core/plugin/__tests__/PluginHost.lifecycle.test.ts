@@ -158,7 +158,7 @@ describe('PluginHost.start rollback', () => {
     expect(host.isStarted).toBe(false);
   });
 
-  it('destroys every initialised plugin when a render throws a non-Error', () => {
+  it('throws render-failed and destroys every initialised plugin when a render throws a non-Error', () => {
     // Arrange
     const log: string[] = [];
     const { host } = hostWithRoot();
@@ -171,7 +171,8 @@ describe('PluginHost.start rollback', () => {
     const error = pluginError(() => host.start(ctx));
 
     // Assert
-    expect(error.code).toBe('init-failed');
+    expect(error.code).toBe('render-failed');
+    expect(error.pluginId).toBe('b');
     expect(error.cause).toBe('rendu cassé');
     expect(error.message).toContain('rendu cassé');
     expect(log).toEqual(['init:a', 'init:b', 'render:a', 'render:b', 'destroy:b', 'destroy:a']);

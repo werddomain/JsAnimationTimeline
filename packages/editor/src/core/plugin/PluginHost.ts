@@ -9,7 +9,7 @@
 import type { IPlugin } from './IPlugin';
 import { PluginError } from './PluginError';
 import { assertValidPluginId } from './pluginId';
-import { ROOT_SLOT, SlotRegistry } from './SlotRegistry';
+import { ROOT_SLOT, SlotRegistry, assertValidSlotName } from './SlotRegistry';
 import { topologicalSort } from './topologicalSort';
 
 /** Options de construction d'un `PluginHost`. */
@@ -24,6 +24,15 @@ export interface PluginHostOptions {
 /** Identifiants fournis par défaut. */
 const DEFAULT_PROVIDED_IDS: readonly string[] = ['core'];
 
+/** État de l'hôte : `starting` couvre toute la durée de `start` (init et rendu). */
+type HostState = 'idle' | 'starting' | 'started';
+
+/** Action publique soumise à l'état de l'hôte. */
+type HostAction = 'register' | 'start' | 'destroy';
+
+/** Phase de démarrage pendant laquelle un plugin a échoué. */
+type StartPhase = 'init' | 'render';
+
 /** Plugin enregistré, avec ses dépendances effectives (epic parent inclus). */
 interface IRegistration<TContext> {
   readonly plugin: IPlugin<TContext>;
@@ -37,6 +46,7 @@ function flatten<TContext>(
   parentId?: string
 ): IRegistration<TContext>[] {
   assertValidPluginId(plugin.id);
+  if (plugin.slot !== undefined) assertValidSlotName(plugin.slot, plugin.id);
   const own = parentId === undefined ? plugin.dependencies : [parentId, ...plugin.dependencies];
   const self: IRegistration<TContext> = {
     plugin,
@@ -66,6 +76,29 @@ function destroyQuietly<TContext>(plugins: readonly IPlugin<TContext>[]): void {
   }
 }
 
+/** Ce qu'une action refusée pendant le démarrage aurait fait. */
+const STARTING_ACTIONS: Readonly<Record<HostAction, string>> = {
+  register: "d'enregistrer un plugin",
+  start: 'de le démarrer à nouveau',
+  destroy: 'de le détruire'
+};
+
+/** Erreur d'une action refusée dans l'état `state`. */
+function stateError(action: HostAction, state: Exclude<HostState, 'idle'>): PluginError {
+  if (state === 'starting') {
+    const verb = STARTING_ACTIONS[action];
+    return new PluginError(
+      'starting',
+      `L'hôte de plugins est en cours de démarrage : impossible ${verb} depuis un plugin.`
+    );
+  }
+  const message =
+    action === 'register'
+      ? "Impossible d'enregistrer un plugin : l'hôte de plugins est déjà démarré."
+      : "L'hôte de plugins est déjà démarré.";
+  return new PluginError('already-started', message);
+}
+
 /** Enregistre, ordonne, démarre et détruit les plugins de l'éditeur. */
 export class PluginHost<TContext = unknown> {
   /** Emplacements de rendu nommés, partagés par les plugins. */
@@ -74,7 +107,9 @@ export class PluginHost<TContext = unknown> {
   private readonly provided: ReadonlySet<string>;
   private registrations: readonly IRegistration<TContext>[] = [];
   private initialised: readonly IPlugin<TContext>[] = [];
-  private started = false;
+  private state: HostState = 'idle';
+  /** Emplacements définis avant le démarrage (les autres sont retirés ensuite). */
+  private slotsBeforeStart: ReadonlySet<string> = new Set();
 
   constructor(options: PluginHostOptions = {}) {
     this.provided = new Set(options.providedIds ?? DEFAULT_PROVIDED_IDS);
@@ -82,17 +117,18 @@ export class PluginHost<TContext = unknown> {
 
   /** Vrai entre un `start` réussi et le `destroy` suivant. */
   get isStarted(): boolean {
-    return this.started;
+    return this.state === 'started';
   }
 
   /**
    * Enregistre un plugin et, récursivement, ses enfants.
    * L'enregistrement est atomique : en cas d'erreur, rien n'est ajouté.
    *
-   * @throws PluginError 'invalid-id', 'duplicate-id' ou 'already-started'.
+   * @throws PluginError 'invalid-id', 'invalid-slot', 'duplicate-id',
+   *   'already-started' ou 'starting' (appel depuis un plugin pendant `start`).
    */
   register(plugin: IPlugin<TContext>): this {
-    this.assertNotStarted('register');
+    this.assertIdle('register');
     const incoming = flatten(plugin);
     const seen = new Set(this.registrations.map((r) => r.id));
     for (const { id } of incoming) {
@@ -133,39 +169,49 @@ export class PluginHost<TContext = unknown> {
    * Initialise tous les plugins dans l'ordre, puis appelle `render` de ceux
    * qui en ont un, dans le même ordre. L'emplacement de chaque plugin est
    * résolu juste avant son rendu (un plugin rendu plus tôt peut le définir).
-   * En cas d'échec, les plugins déjà initialisés sont détruits en ordre inverse.
+   * En cas d'échec, les plugins dont `init` a réussi sont détruits en ordre
+   * inverse (pas celui dont `init` a levé), puis les emplacements définis
+   * pendant ce démarrage sont retirés. Pendant tout le démarrage, `register`,
+   * `start` et `destroy` lèvent 'starting'.
    *
-   * @throws PluginError 'already-started', 'missing-dependency',
-   *   'circular-dependency', 'missing-slot' ou 'init-failed' (avec `cause`).
+   * @throws PluginError 'already-started', 'starting', 'missing-dependency',
+   *   'circular-dependency', 'missing-slot', 'init-failed' ou
+   *   'render-failed' (ces deux derniers avec `cause`).
    */
   start(ctx: TContext): void {
-    this.assertNotStarted('start');
-    const byId = new Map(this.registrations.map((r) => [r.id, r.plugin] as const));
-    const plugins = this.order()
-      .map((id) => byId.get(id))
-      .filter((plugin): plugin is IPlugin<TContext> => plugin !== undefined);
+    this.assertIdle('start');
+    const plugins = this.sortedPlugins();
+    this.slotsBeforeStart = new Set(this.slots.names());
     this.initialised = [];
+    this.state = 'starting';
     try {
       plugins.forEach((plugin) => this.initOne(plugin, ctx));
       plugins.forEach((plugin) => this.renderOne(plugin));
     } catch (error) {
+      const before = this.slotsBeforeStart;
       destroyQuietly(this.initialised);
-      this.initialised = [];
+      this.reset();
+      this.removeSlotsSince(before);
       throw error;
     }
-    this.started = true;
+    this.state = 'started';
   }
 
   /**
    * Détruit les plugins en ordre inverse d'initialisation. Continue malgré
-   * les erreurs et relance la première à la fin. Sans effet si l'hôte n'est
-   * pas démarré (idempotent).
+   * les erreurs et relance la première à la fin. Retire ensuite les
+   * emplacements définis depuis le démarrage. Sans effet si l'hôte n'est pas
+   * démarré (idempotent).
+   *
+   * @throws PluginError 'starting' si appelé pendant `start` ; sinon la
+   *   première erreur levée par un `destroy` de plugin.
    */
   destroy(): void {
-    if (!this.started) return;
+    if (this.state === 'starting') throw stateError('destroy', 'starting');
+    if (this.state === 'idle') return;
     const plugins = [...this.initialised].reverse();
-    this.initialised = [];
-    this.started = false;
+    const before = this.slotsBeforeStart;
+    this.reset();
     const errors: unknown[] = [];
     for (const plugin of plugins) {
       try {
@@ -174,7 +220,31 @@ export class PluginHost<TContext = unknown> {
         errors.push(error);
       }
     }
+    this.removeSlotsSince(before);
     if (errors.length > 0) throw errors[0];
+  }
+
+  /** Plugins enregistrés, dans l'ordre d'initialisation. */
+  private sortedPlugins(): IPlugin<TContext>[] {
+    const byId = new Map(this.registrations.map((r) => [r.id, r.plugin] as const));
+    return this.order()
+      .map((id) => byId.get(id))
+      .filter((plugin): plugin is IPlugin<TContext> => plugin !== undefined);
+  }
+
+  /** Revient à l'état `idle` (avant d'appeler les `destroy` : pas de réentrée). */
+  private reset(): void {
+    this.initialised = [];
+    this.state = 'idle';
+    this.slotsBeforeStart = new Set();
+  }
+
+  /** Retire les emplacements absents de `before` (définis depuis `start`). */
+  private removeSlotsSince(before: ReadonlySet<string>): void {
+    this.slots
+      .names()
+      .filter((name) => !before.has(name))
+      .forEach((name) => this.slots.remove(name));
   }
 
   private initOne(plugin: IPlugin<TContext>, ctx: TContext): void {
@@ -204,22 +274,17 @@ export class PluginHost<TContext = unknown> {
     }
   }
 
-  private failure(id: string, phase: 'init' | 'render', cause: unknown): PluginError {
+  private failure(id: string, phase: StartPhase, cause: unknown): PluginError {
     const detail = cause instanceof Error ? cause.message : String(cause);
     return new PluginError(
-      'init-failed',
+      phase === 'init' ? 'init-failed' : 'render-failed',
       `Échec du démarrage du plugin "${id}" (${phase}) : ${detail}`,
       id,
       cause
     );
   }
 
-  private assertNotStarted(action: 'register' | 'start'): void {
-    if (!this.started) return;
-    const message =
-      action === 'start'
-        ? "L'hôte de plugins est déjà démarré."
-        : "Impossible d'enregistrer un plugin : l'hôte de plugins est déjà démarré.";
-    throw new PluginError('already-started', message);
+  private assertIdle(action: Exclude<HostAction, 'destroy'>): void {
+    if (this.state !== 'idle') throw stateError(action, this.state);
   }
 }
