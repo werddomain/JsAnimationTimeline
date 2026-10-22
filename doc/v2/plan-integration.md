@@ -67,7 +67,7 @@ F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 → E1 → B3
 | **C1** | 2 | 1 | **Contrat** : `IPlugin` + `PluginHost` (tri topologique, erreurs de dépendance, epics parents, emplacements de rendu) | F01 | C4 | `packages/editor/src/core/plugin/` | ☑ |
 | **C2** | 2 | 1 | **Contrat** : `EventBus` typé (`TimelineEventMap` extensible, événements annulables) | F01 | C3, C4 | `packages/editor/src/core/events/` | ☑ |
 | **C3** | 2 | 2 | `Store` (document v2) + `CommandStack` (do/undo, regroupement pendant un glisser, plafond) | C2, F05 | C4, K1, T3, P2 | `packages/editor/src/core/store/`, `core/commands/` | ☑ |
-| **C4** | 2 | 3 | `EditorContext` + `createEditor()` (jeu de plugins par défaut, plugins optionnels, `destroy`) | C1, C2, C3 | C5, I2, L1, S2 | `packages/editor/src/core/`, `src/index.ts` | ☐ |
+| **C4** | 2 | 3 | `EditorContext` + `createEditor()` (jeu de plugins par défaut, plugins optionnels, `destroy`) | C1, C2, C3 | C5, I2, L1, S2 | `packages/editor/src/core/`, `src/index.ts` | ☑ |
 | **C5** | 2 | 6 | Plugin `history.undoRedo` (boutons + Ctrl+Z / Ctrl+Y) | C4, T1, I2 | E1 | `plugins/history/` | ☐ |
 | **I2** | 5 | 4 | Plugin `interaction.shortcuts` : registre de raccourcis où chaque plugin déclare les siens | C4 | C5, K2, K3, P1 | `plugins/interaction/shortcuts/` | ☐ |
 | **L1** | 3 | 4 | Plugin `layout.shell` (4 zones + emplacements) + `layout.scrollSync` (repris de `legacy`) | C4 | L2, Y1, G1, T1 | `plugins/layout/shell/`, `layout/scrollSync/` | ☐ |
