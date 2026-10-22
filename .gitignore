@@ -3,6 +3,7 @@
 **/node_modules
 packages/*/dist
 packages/*/dist-demo
+demo/*/dist
 coverage
 playwright-report/
 test-results/
