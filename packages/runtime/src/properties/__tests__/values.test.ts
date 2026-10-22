@@ -90,4 +90,8 @@ describe('formatCssValue', () => {
   ])('formats %s = %p as %p', (name, value, expected) => {
     expect(formatCssValue(builtin(name), value)).toBe(expected);
   });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY])('throws for %p', (value) => {
+    expect(() => formatCssValue(builtin('x'), value)).toThrow('Property "x" has a non-finite value');
+  });
 });

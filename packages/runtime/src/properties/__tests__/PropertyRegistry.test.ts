@@ -96,7 +96,7 @@ describe('PropertyRegistry', () => {
     expect(original.has('borderRadius')).toBe(false);
   });
 
-  it('orders transform properties translate → rotate → scale → skew, whatever the registration order', () => {
+  it('orders transform properties by step then name, whatever the registration order', () => {
     const registry = new PropertyRegistry([
       { name: 'skewX', kind: 'transform', step: 'skew', cssName: 'skewX', unit: 'deg', defaultValue: 0 },
       { name: 'z', kind: 'transform', step: 'translate', cssName: 'translateZ', unit: 'px', defaultValue: 0 },
@@ -105,7 +105,21 @@ describe('PropertyRegistry', () => {
       { name: 'x', kind: 'transform', step: 'translate', cssName: 'translateX', unit: 'px', defaultValue: 0 },
       BORDER_RADIUS
     ]);
-    expect(registry.transformProperties().map((d) => d.name)).toEqual(['z', 'x', 'rotation', 'scale', 'skewX']);
+    expect(registry.transformProperties().map((d) => d.name)).toEqual(['x', 'z', 'rotation', 'scale', 'skewX']);
+  });
+
+  it('keeps the same transform order after unregister and register', () => {
+    const registry = createPropertyRegistry();
+    const x = registry.require('x');
+    registry.unregister('x');
+    registry.register(x);
+    expect(registry.transformProperties().map((d) => d.name))
+      .toEqual(['x', 'y', 'rotation', 'scaleX', 'scaleY', 'skewX', 'skewY']);
+  });
+
+  it('refuses two properties writing the same CSS', () => {
+    expect(() => createPropertyRegistry().register({ ...BORDER_RADIUS, name: 'alpha', cssName: 'opacity' }))
+      .toThrow('Property "alpha" writes opacity, already written by "opacity".');
   });
 });
 
@@ -118,7 +132,11 @@ describe('assertValidDescriptor', () => {
     ['a cssName with spaces', { cssName: 'border radius' }, 'cssName must be a CSS identifier'],
     ['a non-string unit', { unit: 3 }, 'unit must be a string'],
     ['a NaN default', { defaultValue: Number.NaN }, 'defaultValue must be a finite number'],
-    ['min above max', { min: 2, max: 1 }, 'min is greater than max']
+    ['min above max', { min: 2, max: 1 }, 'min is greater than max'],
+    ['a NaN min', { min: Number.NaN }, 'min and max must be finite numbers'],
+    ['a non-function interpolate', { interpolate: 'linear' }, 'interpolate must be a function'],
+    ['a style named transform', { cssName: 'transform' }, 'cssName "transform" is reserved'],
+    ['a style named __proto__', { cssName: '__proto__' }, 'cssName "__proto__" is reserved']
   ];
 
   it.each(cases)('rejects %s', (_label, override, message) => {
@@ -130,6 +148,15 @@ describe('assertValidDescriptor', () => {
     const descriptor = { name: 'z', kind: 'transform', step: 'perspective', cssName: 'translateZ', unit: 'px', defaultValue: 0 };
     expect(() => assertValidDescriptor(descriptor as unknown as PropertyDescriptor))
       .toThrow('step must be one of translate, rotate, scale, skew');
+  });
+
+  it('rejects a transform whose cssName is not a transform function', () => {
+    const descriptor: PropertyDescriptor = { name: 'w', kind: 'transform', step: 'scale', cssName: 'width', unit: 'px', defaultValue: 0 };
+    expect(() => assertValidDescriptor(descriptor)).toThrow('cssName must be a CSS transform function');
+  });
+
+  it.each([null, undefined])('rejects %p with a clear message', (value) => {
+    expect(() => assertValidDescriptor(value as unknown as PropertyDescriptor)).toThrow('a descriptor must be an object');
   });
 
   it('accepts a vendor-prefixed cssName', () => {

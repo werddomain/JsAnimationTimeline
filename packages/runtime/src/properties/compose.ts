@@ -8,6 +8,10 @@ import type { PropertyRegistry } from './PropertyRegistry';
 import type { PropertyValues } from './types';
 import { formatCssValue } from './values';
 
+function hasValue(values: PropertyValues, name: string): boolean {
+  return Object.prototype.hasOwnProperty.call(values, name);
+}
+
 /** CSS declarations, kebab-case property name → CSS value. */
 export type CssDeclarations = Readonly<Record<string, string>>;
 
@@ -19,27 +23,27 @@ export type CssDeclarations = Readonly<Record<string, string>>;
 export function composeTransform(values: PropertyValues, registry: PropertyRegistry): string {
   return registry
     .transformProperties()
-    .map((d) => `${d.cssName}(${formatCssValue(d, values[d.name] ?? d.defaultValue)})`)
+    .map((d) => `${d.cssName}(${formatCssValue(d, hasValue(values, d.name) ? values[d.name] : d.defaultValue)})`)
     .join(' ');
 }
 
 /**
  * CSS declarations for `values`. `transform` is present only when at least one
- * transform property is in `values`; style properties only when they are.
- * Throws for a name unknown to the registry.
+ * transform property is in `values`, first; style properties only when they
+ * are, in registry order. Throws for a name unknown to the registry.
  */
 export function computeCssDeclarations(values: PropertyValues, registry: PropertyRegistry): CssDeclarations {
+  const descriptors = Object.keys(values).map((name) => registry.require(name));
   const declarations: Record<string, string> = {};
-  let hasTransform = false;
-  for (const [name, value] of Object.entries(values)) {
-    const descriptor = registry.require(name);
-    if (descriptor.kind === 'transform') {
-      hasTransform = true;
-    } else {
-      declarations[descriptor.cssName] = formatCssValue(descriptor, value);
+  if (descriptors.some((d) => d.kind === 'transform')) {
+    declarations.transform = composeTransform(values, registry);
+  }
+  for (const descriptor of registry.list()) {
+    if (descriptor.kind === 'style' && hasValue(values, descriptor.name)) {
+      declarations[descriptor.cssName] = formatCssValue(descriptor, values[descriptor.name]);
     }
   }
-  return hasTransform ? { transform: composeTransform(values, registry), ...declarations } : declarations;
+  return declarations;
 }
 
 /** `border-radius` → `borderRadius` (Web Animations keyframe keys). */

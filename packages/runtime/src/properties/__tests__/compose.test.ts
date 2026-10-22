@@ -66,6 +66,18 @@ describe('computeCssDeclarations', () => {
     expect(computeCssDeclarations({ opacity: 2 }, registry)).toEqual({ opacity: '1' });
   });
 
+  it('writes style declarations in registry order, whatever the order of values', () => {
+    expect(Object.keys(computeCssDeclarations({ borderRadius: 1, opacity: 1, x: 0 }, registry)))
+      .toEqual(['transform', 'opacity', 'border-radius']);
+  });
+
+  it('uses the default of a property named like an Object method', () => {
+    const odd = createPropertyRegistry([
+      { name: 'constructor', kind: 'transform', step: 'rotate', cssName: 'rotateZ', unit: 'deg', defaultValue: 3 }
+    ]);
+    expect(composeTransform({}, odd)).toContain('rotateZ(3deg)');
+  });
+
   it('throws for an unknown property', () => {
     expect(() => computeCssDeclarations({ width: 10 }, registry)).toThrow('Unknown property "width"');
   });

@@ -33,7 +33,14 @@ export function roundCssNumber(value: number): number {
   return Object.is(rounded, -0) ? 0 : rounded;
 }
 
-/** CSS text of a value, e.g. `12.5px`, `45deg`, `0.5`. */
+/**
+ * CSS text of a value, e.g. `12.5px`, `45deg`, `0.5`. The evaluator keeps
+ * full precision; rounding happens only here. Throws for NaN or Infinity,
+ * which would make the whole declaration invalid.
+ */
 export function formatCssValue(descriptor: PropertyDescriptor, value: number): string {
+  if (!Number.isFinite(value)) {
+    throw new Error(`Property "${descriptor.name}" has a non-finite value (${value}).`);
+  }
   return `${roundCssNumber(clampValue(descriptor, value))}${descriptor.unit}`;
 }
