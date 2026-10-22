@@ -9,7 +9,7 @@ export type PropertyKind = 'transform' | 'style';
 
 /**
  * Step of the fixed transform order (translate → rotate → scale → skew).
- * Properties of the same step keep their registration order.
+ * Properties of the same step are sorted by name (see `PropertyRegistry.transformProperties`).
  */
 export type TransformStep = 'translate' | 'rotate' | 'scale' | 'skew';
 

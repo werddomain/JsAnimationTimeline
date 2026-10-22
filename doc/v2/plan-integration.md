@@ -60,11 +60,11 @@ F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 → E1 → B3
 | **F04** | 0 | 2 | CI GitHub Actions (Node 22) : lint, Jest, build, Playwright Chromium + test « la démo s'affiche » | F02, F03 | R5, X2 | `.github/workflows/`, `e2e/` | ☑ |
 | **F05** | 0 | 1 | **Contrat** : schéma JSON v2 (`schema/timeline.schema.json`) + types TS du modèle dans `runtime` | F01 | R1, R4, C3, G1, B1 | `schema/`, `packages/runtime/src/model/` | ☑ |
 | **R1** | 1 | 2 | Registre de propriétés + propriétés intégrées (x, y, rotation, scaleX/Y, skewX/Y, opacity) + composition `transform` à ordre fixe | F05 | R2 | `packages/runtime/src/properties/` | ☑ |
-| **R2** | 1 | 3 | Évaluation : valeur de chaque propriété à l'image N (plages, pistes, accélérations, valeurs par défaut, plage vide) | R1 | R3, K1, X1 | `packages/runtime/src/evaluate/` | ☐ |
+| **R2** | 1 | 3 | Évaluation : valeur de chaque propriété à l'image N (plages, pistes, accélérations, valeurs par défaut, plage vide) | R1 | R3, K1, X1 | `packages/runtime/src/evaluate/` | ☑ |
 | **R3** | 1 | 4 | Lecteur Web Animations : construction des images clés, échantillonnage des accélérations, play/pause/seek/loop/speed, événements, `update`, `destroy` | R2 | R5, P1, P2, X2, B2 | `packages/runtime/src/player/` | ☐ |
 | **R4** | 1 | 2 | Migrateur v1 → v2 | F05 | S2 | `packages/runtime/src/migrate/` | ☑ |
 | **R5** | 1 | 5 | Démo du `runtime` + scénario Playwright 11 (lecture, pause, boucle, `complete`) | R3, F04 | D1 | `demo/runtime/`, `e2e/runtime/` | ☐ |
-| **C1** | 2 | 1 | **Contrat** : `IPlugin` + `PluginHost` (tri topologique, erreurs de dépendance, epics parents, emplacements de rendu) | F01 | C4 | `packages/editor/src/core/plugin/` | ☐ |
+| **C1** | 2 | 1 | **Contrat** : `IPlugin` + `PluginHost` (tri topologique, erreurs de dépendance, epics parents, emplacements de rendu) | F01 | C4 | `packages/editor/src/core/plugin/` | ☑ |
 | **C2** | 2 | 1 | **Contrat** : `EventBus` typé (`TimelineEventMap` extensible, événements annulables) | F01 | C3, C4 | `packages/editor/src/core/events/` | ☑ |
 | **C3** | 2 | 2 | `Store` (document v2) + `CommandStack` (do/undo, regroupement pendant un glisser, plafond) | C2, F05 | C4, K1, T3, P2 | `packages/editor/src/core/store/`, `core/commands/` | ☑ |
 | **C4** | 2 | 3 | `EditorContext` + `createEditor()` (jeu de plugins par défaut, plugins optionnels, `destroy`) | C1, C2, C3 | C5, I2, L1, S2 | `packages/editor/src/core/`, `src/index.ts` | ☐ |
