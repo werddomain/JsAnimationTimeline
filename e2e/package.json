@@ -1,0 +1,11 @@
+{
+  "name": "@werddomain/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Playwright end-to-end tests run against the built demo pages.",
+  "scripts": {
+    "e2e": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "MIT"
+}
