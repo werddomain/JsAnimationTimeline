@@ -53,14 +53,11 @@ npm install
 # Production build
 npm run build
 
-# Development build
-npm run build:dev
+# Demo page build (packages/editor/dist-demo)
+npm run build:demo
 
-# Watch mode
-npm run watch
-
-# Development server with hot reload
-npm run debug
+# Development server with hot reload (port 9000)
+npm run dev
 ```
 
 ### Basic Usage
@@ -310,13 +307,10 @@ The project follows a **Context Architecture Pattern**:
 npm install
 
 # Start development server
-npm run debug
+npm run dev
 
 # Build for production
 npm run build
-
-# Watch mode for development
-npm run watch
 ```
 
 ### Testing

@@ -241,7 +241,11 @@
         </div>
     </div>
 
-    <!-- Scripts are automatically injected by webpack HtmlWebpackPlugin -->
+    <!-- Expose le module sous le global JsTimeLine avant le script inline (les modules s'executent avant DOMContentLoaded) -->
+    <script type="module">
+        import * as JsTimeLineModule from './src/index.ts';
+        window.JsTimeLine = JsTimeLineModule;
+    </script>
 
     <!-- Instantiate the control -->
     <script>

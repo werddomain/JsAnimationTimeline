@@ -3,12 +3,23 @@
   "version": "0.0.0",
   "private": true,
   "description": "UI-less player for JsAnimationTimeline animations.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/timeline-runtime.umd.js",
+  "module": "dist/timeline-runtime.mjs",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/timeline-runtime.mjs",
+      "require": "./dist/timeline-runtime.umd.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
   "files": [
-    "dist/**/*"
+    "dist"
   ],
   "scripts": {
+    "build": "vite build --configLoader runner && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit"
   },
   "license": "MIT",
