@@ -4,3 +4,6 @@
 packages/*/dist
 packages/*/dist-demo
 coverage
+playwright-report/
+test-results/
+blob-report/
