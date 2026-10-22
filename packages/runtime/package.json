@@ -9,7 +9,9 @@
     "dist/**/*"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json"
   },
   "license": "MIT",
   "repository": {

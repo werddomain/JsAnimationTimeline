@@ -1,0 +1,62 @@
+{
+  "version": "2.0.0",
+  "settings": { "fps": 24, "totalFrames": 120 },
+  "layers": [
+    {
+      "id": "l1",
+      "type": "layer",
+      "name": "Logo",
+      "color": "#4a90d9",
+      "icon": "element",
+      "visible": true,
+      "locked": false,
+      "target": { "selector": "#logo" },
+      "spans": [
+        {
+          "id": "s1",
+          "start": 1,
+          "end": 48,
+          "kind": "tween",
+          "easing": "ease-in-out",
+          "tracks": {
+            "x": [ { "frame": 1, "value": 0 }, { "frame": 48, "value": 300 } ],
+            "opacity": [ { "frame": 1, "value": 0 }, { "frame": 12, "value": 1 } ]
+          }
+        },
+        {
+          "id": "s2",
+          "start": 49,
+          "end": 120,
+          "kind": "static",
+          "tracks": { "x": [ { "frame": 49, "value": 300 } ] }
+        }
+      ]
+    },
+    {
+      "id": "f1",
+      "type": "folder",
+      "name": "Personnage",
+      "color": "#e67e22",
+      "children": [
+        {
+          "id": "l2",
+          "type": "layer",
+          "name": "Tête",
+          "target": { "selector": ".character .head" },
+          "spans": [
+            { "id": "s3", "start": 1, "end": 24, "kind": "blank" },
+            {
+              "id": "s4",
+              "start": 25,
+              "end": 120,
+              "kind": "tween",
+              "tracks": {
+                "rotation": [ { "frame": 25, "value": 0 }, { "frame": 120, "value": 360 } ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
