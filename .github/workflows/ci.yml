@@ -49,6 +49,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload package builds
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -56,6 +57,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload demo build
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: dist-demo
