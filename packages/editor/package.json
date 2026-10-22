@@ -31,6 +31,9 @@
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
+  "dependencies": {
+    "@werddomain/timeline-runtime": "0.0.0"
+  },
   "keywords": [
     "timeline",
     "animation",
