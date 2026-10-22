@@ -9,6 +9,14 @@
  * qu'en exécutant une commande sur cette pile. `load` est la seule autre
  * voie : elle remplace le document entier (import, migration).
  *
+ * Propriété (contrat pour C4) : le Store n'est PAS destiné aux plugins.
+ * `createCommandStack` ne sert qu'une fois (le premier appelant choisit
+ * `limit`) et `load` contourne les commandes et vide l'historique. Le noyau
+ * (`createEditor()`) crée donc la pile lui-même, juste après le Store, et ne
+ * donne aux plugins qu'une façade : `document` en lecture, `execute` /
+ * `undo` / `redo` / état de l'historique et abonnements aux événements, sans
+ * `load` ni le Store brut.
+ *
  * Validation : le document initial et chaque document chargé passent par
  * `validateDocument` du runtime ; un document invalide lève une `StoreError`.
  * Les documents produits par les commandes ne sont pas revalidés.

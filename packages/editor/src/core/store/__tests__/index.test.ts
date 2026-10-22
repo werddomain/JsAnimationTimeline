@@ -34,7 +34,6 @@ describe('store and commands public API', () => {
     expect(Object.keys(commands).sort()).toEqual([
       'CANCELLED_REASON',
       'CommandRefusedError',
-      'CommandStack',
       'CompositeCommand',
       'DEFAULT_HISTORY_LIMIT',
       'createCommand'
@@ -49,5 +48,11 @@ describe('store and commands public API', () => {
     assertType<Equals<TimelineEventMap['history:changed'], commands.HistoryChangedEvent>>(true);
     assertType<Equals<store.DocumentChangeCause, 'execute' | 'undo' | 'redo' | 'group-cancel'>>(true);
     expect(true).toBe(true);
+  });
+
+  it('exposes CommandStack as a type only, obtained through Store.createCommandStack', () => {
+    // Assert
+    assertType<Equals<ReturnType<store.Store['createCommandStack']>, commands.CommandStack>>(true);
+    expect('CommandStack' in commands).toBe(false);
   });
 });

@@ -5,13 +5,18 @@
  * regroupe les commandes d'un glisser-déposer en une seule entrée.
  *
  * Création : `store.createCommandStack(options)` (le Store lui confie son
- * `IDocumentWriter` interne). Le constructeur n'est pas destiné aux plugins.
+ * `IDocumentWriter` interne). Le constructeur est interne (`@internal`) et
+ * l'index du module n'exporte la classe que comme type : un plugin ne peut
+ * pas créer sa propre pile.
  *
  * `execute(command)` :
  * 1. émet `command:before` (annulable) ; en cas de veto (ou d'un gestionnaire
  *    qui lève), émet `command:refused` { reason: CANCELLED_REASON } et
  *    retourne `false` ;
- * 2. appelle `command.do(doc)` ; une `CommandRefusedError` émet
+ * 2. relit le document courant (un gestionnaire de `command:before` a pu
+ *    exécuter une autre commande ou charger un document : la commande
+ *    s'applique alors au document à jour, sans perte de modification) puis
+ *    appelle `command.do(doc)` ; une `CommandRefusedError` émet
  *    `command:refused` { reason } et retourne `false` ; toute autre erreur est
  *    propagée (document et historique inchangés) ;
  * 3. si `do` retourne la même référence, c'est un no-op : `false`, rien n'est
@@ -19,7 +24,9 @@
  * 4. sinon l'historique est mis à jour (la pile « rétablir » est vidée), le
  *    document est écrit (`document:changed`, cause `execute`), puis
  *    `history:changed` est émis. Les deux états sont à jour avant la
- *    première émission.
+ *    première émission. Un gestionnaire de `document:changed` peut donc
+ *    exécuter une autre commande : elle est appliquée et enregistrée après
+ *    la première.
  *
  * `undo()` / `redo()` n'émettent pas `command:before` ; ils émettent
  * `document:changed` (cause `undo` / `redo`, si le document change) puis
@@ -35,6 +42,13 @@
  * ainsi que `undo` / `redo` pendant un regroupement, lèvent une erreur ;
  * `endGroup` / `cancelGroup` sans regroupement aussi. La pile « rétablir »
  * n'est vidée qu'au moment où le groupe est enregistré.
+ *
+ * Pendant un regroupement, l'historique est indisponible : `canUndo` /
+ * `canRedo` valent `false` et `undoLabel` / `redoLabel` `undefined`.
+ * `beginGroup`, `endGroup` et `cancelGroup` émettent `history:changed`, ce
+ * qui désactive puis réactive les boutons annuler / rétablir. Un raccourci
+ * (Ctrl+Z…) doit tester `canUndo` / `canRedo` (ou `isGrouping`) avant
+ * d'appeler `undo()` / `redo()`.
  *
  * `clear()` vide l'historique et abandonne un regroupement en cours sans
  * toucher au document (utilisé par `Store.load`).
@@ -89,6 +103,10 @@ export class CommandStack {
   private redoEntries: readonly ICommand[] = [];
   private group: IGroupState | undefined;
 
+  /**
+   * @internal Réservé à `Store.createCommandStack()`, qui fournit le
+   * `writer` ; ne pas appeler depuis un plugin.
+   */
   constructor(
     private readonly bus: EventBus,
     private readonly writer: IDocumentWriter,
@@ -97,22 +115,24 @@ export class CommandStack {
     this.limit = resolveLimit(options);
   }
 
+  /** Vrai si `undo()` est possible (toujours faux pendant un regroupement). */
   get canUndo(): boolean {
-    return this.undoEntries.length > 0;
+    return !this.isGrouping && this.undoEntries.length > 0;
   }
 
+  /** Vrai si `redo()` est possible (toujours faux pendant un regroupement). */
   get canRedo(): boolean {
-    return this.redoEntries.length > 0;
+    return !this.isGrouping && this.redoEntries.length > 0;
   }
 
-  /** Libellé de la commande que `undo()` annulerait. */
+  /** Libellé de la commande que `undo()` annulerait (`undefined` pendant un regroupement). */
   get undoLabel(): string | undefined {
-    return lastOf(this.undoEntries)?.label;
+    return this.isGrouping ? undefined : lastOf(this.undoEntries)?.label;
   }
 
-  /** Libellé de la commande que `redo()` rétablirait. */
+  /** Libellé de la commande que `redo()` rétablirait (`undefined` pendant un regroupement). */
   get redoLabel(): string | undefined {
-    return lastOf(this.redoEntries)?.label;
+    return this.isGrouping ? undefined : lastOf(this.redoEntries)?.label;
   }
 
   /** Vrai entre `beginGroup` et `endGroup` / `cancelGroup`. */
@@ -122,13 +142,14 @@ export class CommandStack {
 
   /** Exécute `command` ; retourne `true` si le document a changé. */
   execute(command: ICommand): boolean {
-    const before = this.writer.document;
-    if (!this.bus.emitCancellable('command:before', { command, document: before })) {
+    if (!this.bus.emitCancellable('command:before', { command, document: this.writer.document })) {
       this.bus.emit('command:refused', { command, reason: CANCELLED_REASON });
       return false;
     }
-    const next = this.apply(command, () => command.do(before));
-    if (next === undefined || next === before) return false;
+    // Relu après le veto : un gestionnaire a pu modifier le document (réentrance).
+    const current = this.writer.document;
+    const next = this.apply(command, () => command.do(current));
+    if (next === undefined || next === current) return false;
     if (this.group !== undefined) {
       this.group = { ...this.group, commands: [...this.group.commands, command] };
       this.writer.commit(next, { cause: 'execute', label: command.label });
@@ -173,7 +194,7 @@ export class CommandStack {
     this.emitHistoryChanged();
   }
 
-  /** Démarre un regroupement ; lève si un regroupement est déjà en cours. */
+  /** Démarre un regroupement (émet `history:changed`) ; lève si un regroupement est déjà en cours. */
   beginGroup(label: string): void {
     if (this.group !== undefined) {
       throw new Error(
@@ -181,22 +202,29 @@ export class CommandStack {
       );
     }
     this.group = { label, snapshot: this.writer.document, commands: [] };
+    this.emitHistoryChanged();
   }
 
-  /** Termine le regroupement ; retourne `true` si une entrée a été enregistrée. */
+  /**
+   * Termine le regroupement (émet `history:changed`) ; retourne `true` si une
+   * entrée a été enregistrée.
+   */
   endGroup(): boolean {
     const group = this.takeGroup('endGroup');
-    if (group.commands.length === 0) return false;
-    this.record(new CompositeCommand(group.label, group.commands));
+    const pushed = group.commands.length > 0;
+    if (pushed) this.record(new CompositeCommand(group.label, group.commands));
     this.emitHistoryChanged();
-    return true;
+    return pushed;
   }
 
-  /** Annule le regroupement : restaure le document d'avant `beginGroup`, n'enregistre rien. */
+  /**
+   * Annule le regroupement : restaure le document d'avant `beginGroup`
+   * (`document:changed`, cause `group-cancel`), n'enregistre rien, puis émet
+   * `history:changed`.
+   */
   cancelGroup(): void {
     const group = this.takeGroup('cancelGroup');
-    if (this.writer.document === group.snapshot) return;
-    this.writer.commit(group.snapshot, { cause: 'group-cancel', label: group.label });
+    this.commitAndNotify(group.snapshot, 'group-cancel', group.label);
   }
 
   /** Appelle `transform` ; traduit une `CommandRefusedError` en refus (`undefined`). */

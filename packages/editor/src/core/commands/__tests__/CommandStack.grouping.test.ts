@@ -2,7 +2,8 @@
 /**
  * Tests du regroupement de la CommandStack (glisser-déposer) : une seule
  * entrée à `endGroup`, `cancelGroup` qui restaure le document, groupe vide,
- * imbrication interdite, undo / redo interdits pendant un regroupement.
+ * imbrication interdite, undo / redo interdits et historique indisponible
+ * (`canUndo` / `canRedo` faux, `history:changed`) pendant un regroupement.
  */
 
 import { createCommand } from '../createCommand';
@@ -26,11 +27,12 @@ describe('CommandStack grouping', () => {
 
     // Assert
     expect(duringDrag).toBe(26);
-    expect(historyDuringDrag).toBe(0);
+    expect(historyDuringDrag).toBe(1);
     expect(pushed).toBe(true);
     expect(stack.isGrouping).toBe(false);
     expect(stack.undoLabel).toBe('Glisser');
     expect(history.map((event) => event.payload)).toEqual([
+      { canUndo: false, canRedo: false, undoLabel: undefined, redoLabel: undefined },
       { canUndo: true, canRedo: false, undoLabel: 'Glisser', redoLabel: undefined }
     ]);
     expect(stack.undo()).toBe(true);
@@ -98,6 +100,10 @@ describe('CommandStack grouping', () => {
       {
         name: 'document:changed',
         payload: { document: beforeGroup, previous: dragged, cause: 'group-cancel', label: 'Glisser' }
+      },
+      {
+        name: 'history:changed',
+        payload: { canUndo: true, canRedo: false, undoLabel: 'Renommer l1 en Titre', redoLabel: undefined }
       }
     ]);
   });
@@ -136,7 +142,8 @@ describe('CommandStack grouping', () => {
     // Arrange
     const { bus, store, stack } = createHarness();
     const before = store.document;
-    const events = recordEvents(bus, ['document:changed', 'history:changed']);
+    const changes = recordEvents(bus, ['document:changed']);
+    const history = recordEvents(bus, ['history:changed']);
 
     // Act
     stack.beginGroup('Vide');
@@ -152,7 +159,9 @@ describe('CommandStack grouping', () => {
     expect(refusedPushed).toBe(false);
     expect(store.document).toBe(before);
     expect(stack.canUndo).toBe(false);
-    expect(events).toEqual([]);
+    expect(changes).toEqual([]);
+    expect(history).toHaveLength(6);
+    expect(history.every((event) => !event.payload.canUndo && !event.payload.canRedo)).toBe(true);
   });
 
   it('throws on a nested beginGroup and keeps the current group', () => {
@@ -174,6 +183,47 @@ describe('CommandStack grouping', () => {
     // Act / Assert
     expect(() => stack.undo()).toThrow(/interdit pendant le regroupement/);
     expect(() => stack.redo()).toThrow(/interdit pendant le regroupement/);
+  });
+
+  it('reports undo and redo as unavailable while grouping, then restores them', () => {
+    // Arrange
+    const { bus, stack } = createHarness();
+    stack.execute(setFps(30, 24));
+    stack.execute(setFps(31, 30));
+    stack.undo();
+    const history = recordEvents(bus, ['history:changed']);
+
+    // Act
+    stack.beginGroup('Glisser');
+    const during = [stack.canUndo, stack.canRedo, stack.undoLabel, stack.redoLabel];
+    stack.cancelGroup();
+    const after = [stack.canUndo, stack.canRedo, stack.undoLabel, stack.redoLabel];
+
+    // Assert
+    expect(during).toEqual([false, false, undefined, undefined]);
+    expect(after).toEqual([true, true, 'Fps 30', 'Fps 31']);
+    expect(history.map((event) => event.payload)).toEqual([
+      { canUndo: false, canRedo: false, undoLabel: undefined, redoLabel: undefined },
+      { canUndo: true, canRedo: true, undoLabel: 'Fps 30', redoLabel: 'Fps 31' }
+    ]);
+  });
+
+  it('lets a guarded undo shortcut be a no-op while grouping', () => {
+    // Arrange
+    const { store, stack } = createHarness();
+    stack.execute(setFps(30, 24));
+    stack.beginGroup('Glisser');
+    stack.execute(setFps(25, 30));
+    const dragged = store.document;
+    const onUndoShortcut = (): boolean => (stack.canUndo ? stack.undo() : false);
+
+    // Act
+    const undone = onUndoShortcut();
+
+    // Assert
+    expect(undone).toBe(false);
+    expect(store.document).toBe(dragged);
+    expect(stack.isGrouping).toBe(true);
   });
 
   it('throws on endGroup or cancelGroup without a group', () => {
