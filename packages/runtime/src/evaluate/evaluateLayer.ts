@@ -20,7 +20,11 @@ import { valueAtFrame, withImplicitStart } from './track';
 /** State of one layer at one frame. */
 export interface ILayerFrameState {
   readonly layerId: string;
-  /** `false` in a `blank` span, before the first span and after the last one. */
+  /**
+   * Content visibility: `false` in a `blank` span, before the first span and
+   * after the last one. The editor flags (`layer.visible`, folder visibility,
+   * `locked`) are not applied here; the player decides what to do with them.
+   */
   readonly visible: boolean;
   /** Span containing the frame, `undefined` outside every span. */
   readonly spanId: string | undefined;
@@ -56,11 +60,16 @@ export function findSpanAt(layer: ILayer, frame: number): ISpan | undefined {
     if (frame < span.start) {
       return undefined;
     }
-    if (frame < span.end + 1) {
+    if (containsFrame(span, frame)) {
       return span;
     }
   }
   return undefined;
+}
+
+/** True when `frame` (possibly fractional, already `>= start`) is before the next span. */
+function containsFrame(span: ISpan, frame: number): boolean {
+  return frame < span.end + 1;
 }
 
 type MutableValues = Record<string, number>;
@@ -124,7 +133,7 @@ export function evaluateLayer(layer: ILayer, frame: number, options: IEvaluateOp
     if (frame < span.start) {
       break;
     }
-    if (frame < span.end + 1) {
+    if (containsFrame(span, frame)) {
       const values = valuesInSpan(span, frame, carried, registry);
       return { layerId: layer.id, visible: span.kind !== 'blank', spanId: span.id, values };
     }

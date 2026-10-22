@@ -79,6 +79,10 @@ describe('createEasingFunction', () => {
   it('throws for an invalid easing', () => {
     expect(() => createEasingFunction('bounce')).toThrow('Invalid easing "bounce".');
   });
+
+  it('returns the same function for the same string', () => {
+    expect(createEasingFunction('ease')).toBe(createEasingFunction('ease'));
+  });
 });
 
 describe('cubicBezierFunction', () => {

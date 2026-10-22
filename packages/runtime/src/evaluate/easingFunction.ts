@@ -38,7 +38,7 @@ function solveCurveX(x: number, x1: number, x2: number): number {
     if (Math.abs(slope) < NEWTON_MIN_SLOPE) {
       break;
     }
-    t -= error / slope;
+    t = Math.min(1, Math.max(0, t - error / slope));
   }
   let low = 0;
   let high = 1;
@@ -71,11 +71,22 @@ export function cubicBezierFunction(curve: ICubicBezier): EasingFunction {
   };
 }
 
-/** Easing function of a preset or `cubic-bezier(...)`; throws for an invalid string. */
+const cache = new Map<string, EasingFunction>();
+
+/**
+ * Easing function of a preset or `cubic-bezier(...)` (cached per string, as
+ * a player evaluates every frame); throws for an invalid string.
+ */
 export function createEasingFunction(easing: string): EasingFunction {
+  const cached = cache.get(easing);
+  if (cached !== undefined) {
+    return cached;
+  }
   const curve = parseEasing(easing);
   if (curve === null) {
     throw new Error(`Invalid easing "${easing}".`);
   }
-  return cubicBezierFunction(curve);
+  const fn = cubicBezierFunction(curve);
+  cache.set(easing, fn);
+  return fn;
 }
