@@ -8,11 +8,12 @@
     "packages/editor",
     "packages/export-css",
     "tools/conventions",
+    "demo/runtime",
     "e2e"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "build:demo": "npm run build:demo --workspace packages/editor",
+    "build:demo": "npm run build:demo --workspaces --if-present",
     "dev": "npm run dev --workspace packages/editor",
     "test": "npm test --workspaces --if-present",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
