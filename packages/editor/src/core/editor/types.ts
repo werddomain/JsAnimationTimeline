@@ -22,6 +22,10 @@ export interface EditorOptions {
    * invalide). Par défaut : un document vide (`createEmptyDocument()`).
    * Les fichiers v1 sont convertis par le plugin `persistence.json` (S2)
    * ou par `migrateToV2` du runtime avant d'être donnés ici.
+   *
+   * Gardé par référence puis gelé en profondeur (`Object.freeze`, en place)
+   * une fois validé : l'objet donné ne peut plus être modifié. Passer une
+   * copie (`structuredClone(data)`) pour garder un original modifiable.
    */
   readonly data?: ITimelineDocument;
   /** Racine où les plugins cherchent les cibles des calques. Par défaut : le document du conteneur. */
@@ -47,7 +51,7 @@ export interface EditorOptions {
 export interface IEditor {
   /** Élément racine de l'éditeur (classe `JsTimeLine`), ajouté au conteneur hôte. */
   readonly container: HTMLElement;
-  /** Document courant (immuable). */
+  /** Document courant, gelé en profondeur (le modifier en place lève une `TypeError`). */
   readonly document: ITimelineDocument;
   /** Vrai si `undo()` est possible. */
   readonly canUndo: boolean;
@@ -72,7 +76,10 @@ export interface IEditor {
 
   /** Document courant, sérialisable avec `JSON.stringify` (même référence que `document`). */
   toJSON(): ITimelineDocument;
-  /** Remplace le document (validé, `StoreError` sinon) et vide l'historique. */
+  /**
+   * Remplace le document (validé, `StoreError` sinon) et vide l'historique.
+   * Comme `options.data`, `doc` est gelé en profondeur (en place) une fois validé.
+   */
   load(doc: ITimelineDocument): void;
   /** API d'un service fourni par un plugin, ou `undefined`. */
   getService<K extends EditorServiceId>(id: K): EditorServiceMap[K] | undefined;

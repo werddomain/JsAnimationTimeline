@@ -5,7 +5,9 @@
  * Étapes :
  * 1. `EventBus`, `Store` (le document est validé : un document invalide lève
  *    une `StoreError` avant toute modification du DOM) puis la pile de
- *    commandes `store.createCommandStack({ limit: historyLimit })` ;
+ *    commandes `store.createCommandStack({ limit: historyLimit })` ; le
+ *    document initial est gelé en profondeur, comme chaque document annoncé
+ *    ensuite par le Store (`freezeDocument.ts`) ;
  * 2. `PluginHost<IEditorContext>` : jeu par défaut (ou celui de
  *    `options.defaultPlugins`), puis `options.plugins` ;
  * 3. élément racine `<div class="JsTimeLine">` ajouté au conteneur et défini
@@ -27,6 +29,7 @@ import { PluginHost } from '../plugin/PluginHost';
 import { ROOT_SLOT } from '../plugin/SlotRegistry';
 import { Store } from '../store/Store';
 import { defaultPlugins } from './defaultPlugins';
+import { freezeAnnouncedDocuments, freezeDocument } from './freezeDocument';
 import { Editor, releaseEditorParts } from './Editor';
 import type { IEditorParts } from './Editor';
 import { EditorLifecycle } from './EditorLifecycle';
@@ -64,6 +67,8 @@ function createParts(container: HTMLElement, options: EditorOptions): IEditorPar
   const bus = new EventBus();
   const store = new Store(bus, options.data ?? createEmptyDocument());
   const commands = store.createCommandStack({ limit: options.historyLimit });
+  freezeDocument(store.document);
+  freezeAnnouncedDocuments(bus);
   const host = new PluginHost<IEditorContext>().registerAll(resolvePlugins(options));
   const element = createRootElement(container);
   host.slots.define(ROOT_SLOT, element);

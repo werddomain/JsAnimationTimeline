@@ -2,7 +2,7 @@
 /**
  * Tests des façades du contexte des plugins : délégation au bus, au Store et
  * à la pile, objets figés sans référence vers les pièces brutes, garde
- * après destruction, et (tests de typage `@ts-expect-error`) impossibilité
+ * après destruction, événements du noyau en écoute seule, et (tests de typage `@ts-expect-error`) impossibilité
  * d'atteindre `load`, `createCommandStack` ou `clear` par le contexte.
  */
 
@@ -12,6 +12,7 @@ import { EventBus } from '../../events/EventBus';
 import { SlotRegistry } from '../../plugin/SlotRegistry';
 import { Store } from '../../store/Store';
 import { catchError, createCounter } from '../../editor/__tests__/fixtures';
+import { CORE_EVENT_NAMES } from '../coreEvents';
 import { createEditorContext } from '../createEditorContext';
 import type { IEditorContext } from '../IEditorContext';
 import { ServiceRegistry } from '../ServiceRegistry';
@@ -61,19 +62,63 @@ describe('createEditorContext facades', () => {
     const { ctx, bus } = createHarness();
     const seen: string[] = [];
     const handler = (): void => void seen.push('on');
-    ctx.events.on('editor:destroying', handler);
-    ctx.events.once('editor:destroying', () => seen.push('once'));
-    ctx.events.onCancellable('editor:destroying', (event) => event.cancel());
+    ctx.events.on('test:ping', handler);
+    ctx.events.once('test:ping', () => seen.push('once'));
+    ctx.events.onCancellable('test:ping', (event) => event.cancel());
 
     // Act
-    ctx.events.emit('editor:destroying', {});
-    ctx.events.off('editor:destroying', handler);
-    bus.emit('editor:destroying', {});
-    const allowed = ctx.events.emitCancellable('editor:destroying', {});
+    ctx.events.emit('test:ping', { value: 1 });
+    ctx.events.off('test:ping', handler);
+    bus.emit('test:ping', { value: 2 });
+    const allowed = ctx.events.emitCancellable('test:ping', { value: 3 });
 
     // Assert
     expect(seen).toEqual(['on', 'once']);
     expect(allowed).toBe(false);
+  });
+
+  it('lets plugins listen to core events but refuses to emit them', () => {
+    // Arrange
+    const { ctx, bus } = createHarness();
+    const seen: string[] = [];
+    ctx.events.on('editor:destroying', () => seen.push('destroying'));
+    ctx.events.on('document:changed', () => seen.push('changed'));
+    const emitUntyped = ctx.events.emit as (name: string, payload: unknown) => void;
+    const emitCancellableUntyped = ctx.events.emitCancellable as (name: string, payload: unknown) => boolean;
+
+    // Act
+    const errors = CORE_EVENT_NAMES.flatMap((name) => [
+      catchError(() => emitUntyped(name, {})),
+      catchError(() => emitCancellableUntyped(name, {}))
+    ]);
+    bus.emit('editor:destroying', {});
+
+    // Assert
+    expect(errors).toHaveLength(CORE_EVENT_NAMES.length * 2);
+    expect((errors[0] as Error).message).toBe(
+      "events.emit : « editor:ready » est un événement du noyau ; un plugin peut s'y abonner mais pas l'émettre."
+    );
+    expect((errors[1] as Error).message).toMatch(/^events\.emitCancellable : « editor:ready »/);
+    expect(seen).toEqual(['destroying']);
+  });
+
+  it('excludes core events from emit and emitCancellable (types)', () => {
+    // Arrange
+    const { ctx } = createHarness();
+
+    // Act
+    const forge = (): unknown[] => [
+      // @ts-expect-error un plugin ne peut pas annoncer un changement de document
+      ctx.events.emit('document:changed', { document: ctx.document, previous: ctx.document, cause: 'execute', label: 'x' }),
+      // @ts-expect-error un plugin ne peut pas annoncer la destruction de l'éditeur
+      ctx.events.emit('editor:destroying', {}),
+      // @ts-expect-error un plugin ne peut pas émettre command:before
+      ctx.events.emitCancellable('command:before', { command: renameLayer('l1', 'A', 'Logo'), document: ctx.document }),
+      ctx.events.emit('test:ping', { value: 1 })
+    ];
+
+    // Assert
+    expect(typeof forge).toBe('function');
   });
 
   it('exposes the history state and grouping through ctx.commands', () => {
@@ -152,9 +197,9 @@ describe('createEditorContext facades', () => {
     const errors = [
       catchError(() => ctx.events.on('editor:ready', handler)),
       catchError(() => ctx.events.once('editor:ready', handler)),
-      catchError(() => ctx.events.emit('editor:ready', { pluginIds: [] })),
+      catchError(() => ctx.events.emit('test:ping', { value: 1 })),
       catchError(() => ctx.events.onCancellable('editor:ready', handler)),
-      catchError(() => ctx.events.emitCancellable('editor:ready', { pluginIds: [] })),
+      catchError(() => ctx.events.emitCancellable('test:ping', { value: 1 })),
       catchError(() => ctx.commands.execute(renameLayer('l1', 'A', 'Logo'))),
       catchError(() => ctx.commands.undo()),
       catchError(() => ctx.commands.redo()),

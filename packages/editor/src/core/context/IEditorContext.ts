@@ -13,6 +13,16 @@
  * Après `editor.destroy()`, les méthodes qui agissent (abonnement, émission,
  * exécution, fourniture d'un service) lèvent une erreur ; les lectures, `off`
  * et les fonctions de désabonnement restent utilisables (nettoyage tardif).
+ *
+ * Événements réservés au noyau (`CoreEventName`) : un plugin peut s'y
+ * abonner, mais pas les émettre (`emit` / `emitCancellable` les refusent au
+ * typage et lèvent une erreur à l'exécution). Seul le noyau annonce un
+ * changement de document, d'historique ou de cycle de vie.
+ *
+ * Document : il est figé en profondeur (`Object.freeze`) par
+ * `createEditor()` (document initial, documents chargés et produits par les
+ * commandes) ; le modifier en place lève une `TypeError`. Seules les
+ * commandes le changent.
  */
 
 import type { ITimelineDocument } from '@werddomain/timeline-runtime';
@@ -30,6 +40,24 @@ import '../commands/commandEvents';
 export type EditorEventName = EventName<TimelineEventMap>;
 
 /**
+ * Événements émis par le noyau seul (Store, `CommandStack`, `createEditor()`).
+ * Les plugins s'y abonnent mais ne peuvent pas les émettre : une fausse
+ * annonce (`document:changed` sans changement, `editor:destroying` alors que
+ * l'éditeur vit) désynchroniserait les autres plugins.
+ */
+export type CoreEventName =
+  | 'editor:ready'
+  | 'editor:destroying'
+  | 'document:loaded'
+  | 'document:changed'
+  | 'command:before'
+  | 'command:refused'
+  | 'history:changed';
+
+/** Événement qu'un plugin peut émettre : tout événement de l'éditeur sauf ceux du noyau. */
+export type PluginEventName = Exclude<EditorEventName, CoreEventName>;
+
+/**
  * Événements de l'éditeur vus par un plugin : la sémantique est celle de
  * l'`EventBus` (synchrone, deux canaux ordinaire / annulable, annulable
  * « fail-closed »), sans `clear` ni `listenerCount`.
@@ -44,15 +72,21 @@ export interface IEditorEvents {
     name: K,
     handler: EventHandler<TimelineEventMap[K]> | CancellableHandler<TimelineEventMap[K]>
   ): void;
-  /** Émet `name` vers les gestionnaires ordinaires. */
-  emit<K extends EditorEventName>(name: K, payload: TimelineEventMap[K]): void;
+  /**
+   * Émet `name` vers les gestionnaires ordinaires. Lève une erreur pour un
+   * événement du noyau (`CoreEventName`).
+   */
+  emit<K extends PluginEventName>(name: K, payload: TimelineEventMap[K]): void;
   /** S'abonne au canal annulable de `name` (veto possible avec `event.cancel()`). */
   onCancellable<K extends EditorEventName>(
     name: K,
     handler: CancellableHandler<TimelineEventMap[K]>
   ): () => void;
-  /** Émet `name` sur le canal annulable ; `true` si personne n'a annulé. */
-  emitCancellable<K extends EditorEventName>(name: K, payload: TimelineEventMap[K]): boolean;
+  /**
+   * Émet `name` sur le canal annulable ; `true` si personne n'a annulé.
+   * Lève une erreur pour un événement du noyau (`CoreEventName`).
+   */
+  emitCancellable<K extends PluginEventName>(name: K, payload: TimelineEventMap[K]): boolean;
 }
 
 /**
@@ -133,9 +167,13 @@ export interface IEditorServices {
 
 /** Contexte reçu par `init` de chaque plugin de l'éditeur. */
 export interface IEditorContext {
-  /** Événements de l'éditeur (sans `clear`). */
+  /** Événements de l'éditeur (sans `clear` ; ceux du noyau en écoute seule). */
   readonly events: IEditorEvents;
-  /** Document courant (immuable, toujours à jour : lire la propriété à chaque usage). */
+  /**
+   * Document courant, toujours à jour : lire la propriété à chaque usage. Il
+   * est figé en profondeur : le modifier en place lève une `TypeError` ;
+   * passer par `commands.execute`.
+   */
   readonly document: ITimelineDocument;
   /** Exécution des commandes et historique (sans `clear` ni `load`). */
   readonly commands: IEditorCommands;

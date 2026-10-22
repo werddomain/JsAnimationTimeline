@@ -5,6 +5,7 @@
  */
 
 export type {
+  CoreEventName,
   EditorEventName,
   EditorPlugin,
   EditorServiceId,
@@ -12,8 +13,10 @@ export type {
   IEditorCommands,
   IEditorContext,
   IEditorEvents,
-  IEditorServices
+  IEditorServices,
+  PluginEventName
 } from './IEditorContext';
+export { CORE_EVENT_NAMES, assertPluginEvent, isCoreEventName } from './coreEvents';
 export { createEditorContext } from './createEditorContext';
 export type { AssertActive, IEditorContextSources } from './createEditorContext';
 export { ServiceRegistry } from './ServiceRegistry';

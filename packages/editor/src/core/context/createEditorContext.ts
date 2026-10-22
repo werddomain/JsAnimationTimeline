@@ -10,6 +10,10 @@
  * émission, exécution, fourniture d'un service) : après la destruction de
  * l'éditeur, il lève une erreur. Les lectures, `off` et `services.get` /
  * `require` n'y sont pas soumis.
+ *
+ * `emit` / `emitCancellable` refusent aussi les événements du noyau
+ * (`assertPluginEvent`) : le typage les exclut déjà, la garde couvre les
+ * appels non typés (JavaScript, transtypage).
  */
 
 import type { ITimelineDocument } from '@werddomain/timeline-runtime';
@@ -17,6 +21,7 @@ import type { CommandStack } from '../commands/CommandStack';
 import type { EventBus } from '../events/EventBus';
 import type { SlotRegistry } from '../plugin/SlotRegistry';
 import type { Store } from '../store/Store';
+import { assertPluginEvent } from './coreEvents';
 import type { IEditorCommands, IEditorContext, IEditorEvents, IEditorServices } from './IEditorContext';
 
 /** Vérifie que l'éditeur est encore utilisable avant l'action `operation`. */
@@ -34,7 +39,10 @@ export interface IEditorContextSources {
   readonly assertActive: AssertActive;
 }
 
-/** Façade des événements : l'`EventBus` sans `clear` ni `listenerCount`. */
+/**
+ * Façade des événements : l'`EventBus` sans `clear` ni `listenerCount`, et
+ * sans émission des événements du noyau.
+ */
 export function createEventsFacade(bus: EventBus, assertActive: AssertActive): IEditorEvents {
   return Object.freeze<IEditorEvents>({
     on: (name, handler) => {
@@ -48,6 +56,7 @@ export function createEventsFacade(bus: EventBus, assertActive: AssertActive): I
     off: (name, handler) => bus.off(name, handler),
     emit: (name, payload) => {
       assertActive('events.emit');
+      assertPluginEvent(name, 'events.emit');
       bus.emit(name, payload);
     },
     onCancellable: (name, handler) => {
@@ -56,6 +65,7 @@ export function createEventsFacade(bus: EventBus, assertActive: AssertActive): I
     },
     emitCancellable: (name, payload) => {
       assertActive('events.emitCancellable');
+      assertPluginEvent(name, 'events.emitCancellable');
       return bus.emitCancellable(name, payload);
     }
   });

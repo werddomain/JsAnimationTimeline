@@ -1,7 +1,8 @@
 // packages/editor/src/core/editor/__tests__/fixtures.ts
 /**
  * Fixtures des tests de l'éditeur et du contexte : service de test déclaré
- * par fusion de déclarations dans `EditorServiceMap`, fabrique de plugins
+ * par fusion de déclarations dans `EditorServiceMap`, événement de plugin
+ * « test:ping » ajouté à `TimelineEventMap`, fabrique de plugins
  * qui consignent leurs appels, conteneur hôte et capture d'erreur.
  */
 
@@ -17,6 +18,17 @@ declare module '../../context/IEditorContext' {
   interface EditorServiceMap {
     'test.counter': ICounterApi;
     'test.greeter': { readonly greet: (name: string) => string };
+  }
+}
+
+/** Charge utile de l'événement de plugin de test « test:ping ». */
+export interface ITestPingEvent {
+  readonly value: number;
+}
+
+declare module '../../events/TimelineEventMap' {
+  interface TimelineEventMap {
+    'test:ping': ITestPingEvent;
   }
 }
 

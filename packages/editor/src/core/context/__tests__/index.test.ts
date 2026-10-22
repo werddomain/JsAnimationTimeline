@@ -8,7 +8,7 @@
 import * as context from '..';
 import * as editor from '../../editor';
 import * as contract from '../IEditorContext';
-import type { EditorEventName } from '../IEditorContext';
+import type { CoreEventName, EditorEventName, PluginEventName } from '../IEditorContext';
 
 type Equals<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -22,7 +22,13 @@ type CoreNames = 'editor:ready' | 'editor:destroying' | 'document:changed' | 'hi
 describe('context and editor modules public API', () => {
   it('exports the runtime values of the context module', () => {
     // Assert
-    expect(Object.keys(context).sort()).toEqual(['ServiceRegistry', 'createEditorContext']);
+    expect(Object.keys(context).sort()).toEqual([
+      'CORE_EVENT_NAMES',
+      'ServiceRegistry',
+      'assertPluginEvent',
+      'createEditorContext',
+      'isCoreEventName'
+    ]);
     expect(Object.keys(contract)).toEqual([]);
   });
 
@@ -42,5 +48,25 @@ describe('context and editor modules public API', () => {
     // Assert
     assertType<Equals<Extract<EditorEventName, CoreNames>, CoreNames>>(true);
     expect(true).toBe(true);
+  });
+
+  it('reserves exactly the events emitted by the core', () => {
+    // Assert
+    assertType<Equals<Extract<CoreEventName, EditorEventName>, CoreEventName>>(true);
+    assertType<Equals<Extract<PluginEventName, CoreEventName>, never>>(true);
+    expect([...context.CORE_EVENT_NAMES].sort()).toEqual([
+      'command:before',
+      'command:refused',
+      'document:changed',
+      'document:loaded',
+      'editor:destroying',
+      'editor:ready',
+      'history:changed'
+    ]);
+    expect(Object.isFrozen(context.CORE_EVENT_NAMES)).toBe(true);
+    expect(context.isCoreEventName('document:changed')).toBe(true);
+    expect(context.isCoreEventName('test:ping')).toBe(false);
+    expect(context.isCoreEventName('toString')).toBe(false);
+    expect(() => context.assertPluginEvent('test:ping', 'events.emit')).not.toThrow();
   });
 });

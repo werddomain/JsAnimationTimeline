@@ -10,13 +10,30 @@
  *   `EditorServiceMap`...) et les valeurs du noyau utiles aux plugins
  *   (erreurs, commandes, `ROOT_SLOT`).
  *
- * Les exports v2 sont nommés un par un (pas de `export *`) : une collision
- * de noms avec le legacy serait ainsi signalée par le compilateur au lieu
- * d'être ignorée en silence. Le Store, la `CommandStack`, l'`EventBus` et le
- * `PluginHost` ne sont pas exportés comme valeurs : seul `createEditor()`
- * les crée.
+ * Tous les exports, legacy compris, sont nommés un par un (aucun
+ * `export *`). Avec un `export *`, un nom local du même nom masquerait en
+ * silence celui du legacy, sans erreur du compilateur ; avec deux listes
+ * explicites, un doublon (valeur ou type) est une vraie erreur TypeScript
+ * (identificateur en double). Le test `__tests__/index.test.ts` vérifie en
+ * plus la liste exacte des valeurs exportées et que la liste legacy
+ * ci-dessous couvre toutes les valeurs du module legacy.
+ *
+ * Le Store, la `CommandStack`, l'`EventBus` et le `PluginHost` ne sont pas
+ * exportés comme valeurs : seul `createEditor()` les crée.
  */
-export * from './legacy/JsTimeLine';
+
+// Contrôle v1 (legacy) : exactement les exports de `legacy/JsTimeLine.ts`.
+export {
+  EventLogger,
+  JsTimeLine,
+  PerformanceMonitor,
+  attachEventLogger,
+  calculateVisibleRange,
+  debounce,
+  memoize,
+  rafLoop,
+  throttle
+} from './legacy/JsTimeLine';
 
 // Éditeur v2 : création et API publique.
 export {
@@ -31,6 +48,7 @@ export type { EditorOptions, IEditor } from './core/editor';
 
 // Contrat des plugins.
 export type {
+  CoreEventName,
   EditorEventName,
   EditorPlugin,
   EditorServiceId,
@@ -38,7 +56,8 @@ export type {
   IEditorCommands,
   IEditorContext,
   IEditorEvents,
-  IEditorServices
+  IEditorServices,
+  PluginEventName
 } from './core/context';
 export { PluginError, ROOT_SLOT } from './core/plugin';
 export type { IPlugin, PluginErrorCode, SlotRegistry } from './core/plugin';
