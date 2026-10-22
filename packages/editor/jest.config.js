@@ -18,6 +18,8 @@ module.exports = {
     }]
   },
   moduleNameMapper: {
-    '\\.less$': '<rootDir>/src/legacy/__tests__/__mocks__/styleMock.js'
+    '\\.less$': '<rootDir>/src/legacy/__tests__/__mocks__/styleMock.js',
+    // Les tests s'exécutent avant tout build : le runtime est lu depuis ses sources.
+    '^@werddomain/timeline-runtime$': '<rootDir>/../runtime/src/index.ts'
   }
 };
