@@ -1,0 +1,153 @@
+// packages/editor/src/core/context/IEditorContext.ts
+/**
+ * Contexte de l'éditeur transmis à `init` de chaque plugin : c'est le
+ * contrat entre le noyau et tous les plugins.
+ *
+ * Le contexte ne donne que des façades : les événements sans `clear`, le
+ * document en lecture seule, l'historique sans `clear` ni `load`, les
+ * emplacements de rendu, l'élément racine de l'éditeur, la racine de
+ * recherche des cibles et le registre des services entre plugins. Le Store,
+ * la `CommandStack` et l'`EventBus` bruts restent la propriété de
+ * `createEditor()`.
+ *
+ * Après `editor.destroy()`, les méthodes qui agissent (abonnement, émission,
+ * exécution, fourniture d'un service) lèvent une erreur ; les lectures, `off`
+ * et les fonctions de désabonnement restent utilisables (nettoyage tardif).
+ */
+
+import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ICommand } from '../commands/ICommand';
+import type { CancellableHandler, EventHandler, EventName } from '../events/EventBus';
+import type { TimelineEventMap } from '../events/TimelineEventMap';
+import type { IPlugin } from '../plugin/IPlugin';
+import type { SlotRegistry } from '../plugin/SlotRegistry';
+// Import pour effet : garde les augmentations de TimelineEventMap (Store et
+// CommandStack) visibles pour tout fichier qui importe le contexte.
+import '../store/storeEvents';
+import '../commands/commandEvents';
+
+/** Nom d'un événement de l'éditeur (clé de `TimelineEventMap`). */
+export type EditorEventName = EventName<TimelineEventMap>;
+
+/**
+ * Événements de l'éditeur vus par un plugin : la sémantique est celle de
+ * l'`EventBus` (synchrone, deux canaux ordinaire / annulable, annulable
+ * « fail-closed »), sans `clear` ni `listenerCount`.
+ */
+export interface IEditorEvents {
+  /** S'abonne à `name` ; retourne la fonction de désabonnement. */
+  on<K extends EditorEventName>(name: K, handler: EventHandler<TimelineEventMap[K]>): () => void;
+  /** S'abonne à la prochaine émission de `name` seulement. */
+  once<K extends EditorEventName>(name: K, handler: EventHandler<TimelineEventMap[K]>): () => void;
+  /** Retire une inscription de `handler` (canal ordinaire, sinon annulable). */
+  off<K extends EditorEventName>(
+    name: K,
+    handler: EventHandler<TimelineEventMap[K]> | CancellableHandler<TimelineEventMap[K]>
+  ): void;
+  /** Émet `name` vers les gestionnaires ordinaires. */
+  emit<K extends EditorEventName>(name: K, payload: TimelineEventMap[K]): void;
+  /** S'abonne au canal annulable de `name` (veto possible avec `event.cancel()`). */
+  onCancellable<K extends EditorEventName>(
+    name: K,
+    handler: CancellableHandler<TimelineEventMap[K]>
+  ): () => void;
+  /** Émet `name` sur le canal annulable ; `true` si personne n'a annulé. */
+  emitCancellable<K extends EditorEventName>(name: K, payload: TimelineEventMap[K]): boolean;
+}
+
+/**
+ * Historique vu par un plugin : exécution des commandes, annuler / rétablir
+ * et regroupement (glisser), sans `clear` ni `load`. Sémantique : celle de
+ * la `CommandStack` (voir `core/commands/CommandStack.ts`).
+ */
+export interface IEditorCommands {
+  /** Exécute `command` ; `true` si le document a changé. */
+  execute(command: ICommand): boolean;
+  /** Annule la dernière entrée ; lève pendant un regroupement. */
+  undo(): boolean;
+  /** Rétablit la dernière entrée annulée ; lève pendant un regroupement. */
+  redo(): boolean;
+  readonly canUndo: boolean;
+  readonly canRedo: boolean;
+  readonly undoLabel: string | undefined;
+  readonly redoLabel: string | undefined;
+  /** Vrai entre `beginGroup` et `endGroup` / `cancelGroup`. */
+  readonly isGrouping: boolean;
+  /** Démarre un regroupement (une seule entrée d'historique à `endGroup`). */
+  beginGroup(label: string): void;
+  /** Termine le regroupement ; `true` si une entrée a été enregistrée. */
+  endGroup(): boolean;
+  /** Annule le regroupement et restaure le document d'avant `beginGroup`. */
+  cancelGroup(): void;
+}
+
+/**
+ * Carte identifiant de service -> API publiée par un plugin pour les autres.
+ *
+ * Le noyau ne déclare aucun service : chaque plugin ajoute le sien par
+ * fusion de déclarations, sans toucher à ce fichier. Par exemple, depuis
+ * `packages/editor/src/plugins/layers/list/LayerListPlugin.ts` (Y1), pour que
+ * les plugins de Y2 à Y4 ajoutent leurs contrôles sur chaque ligne :
+ *
+ * ```ts
+ * declare module '../../../core/context/IEditorContext' {
+ *   interface EditorServiceMap {
+ *     'layers.list': {
+ *       addRowControl(control: ILayerRowControl): () => void;
+ *     };
+ *   }
+ * }
+ *
+ * // Dans init du plugin layers.list :
+ * ctx.services.provide('layers.list', { addRowControl: (c) => this.add(c) });
+ * // Dans init de layers.lock (qui dépend de layers.list) :
+ * ctx.services.require('layers.list').addRowControl(lockControl);
+ * ```
+ *
+ * Le chemin du `declare module` est relatif au fichier qui déclare
+ * l'augmentation et doit désigner ce module. Convention : l'identifiant du
+ * service est celui du plugin qui le fournit ; le plugin consommateur
+ * déclare ce plugin dans ses `dependencies` (le service est alors fourni
+ * avant son `init`).
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- remplie par fusion de déclarations (un service par plugin)
+export interface EditorServiceMap {}
+
+/** Identifiant d'un service déclaré dans `EditorServiceMap`. */
+export type EditorServiceId = keyof EditorServiceMap & string;
+
+/** Registre typé des API que les plugins se fournissent entre eux. */
+export interface IEditorServices {
+  /**
+   * Publie `api` sous `id`. Lève une erreur si `id` est déjà fourni ou si
+   * `api` vaut `undefined`.
+   *
+   * @returns La fonction qui retire ce service (sans effet s'il a déjà été retiré).
+   */
+  provide<K extends EditorServiceId>(id: K, api: EditorServiceMap[K]): () => void;
+  /** API publiée sous `id`, ou `undefined` si aucun plugin ne la fournit. */
+  get<K extends EditorServiceId>(id: K): EditorServiceMap[K] | undefined;
+  /** API publiée sous `id` ; lève une erreur si aucun plugin ne la fournit. */
+  require<K extends EditorServiceId>(id: K): EditorServiceMap[K];
+}
+
+/** Contexte reçu par `init` de chaque plugin de l'éditeur. */
+export interface IEditorContext {
+  /** Événements de l'éditeur (sans `clear`). */
+  readonly events: IEditorEvents;
+  /** Document courant (immuable, toujours à jour : lire la propriété à chaque usage). */
+  readonly document: ITimelineDocument;
+  /** Exécution des commandes et historique (sans `clear` ni `load`). */
+  readonly commands: IEditorCommands;
+  /** Emplacements de rendu nommés ; `ROOT_SLOT` désigne `container`. */
+  readonly slots: SlotRegistry;
+  /** Élément racine de l'éditeur (classe `JsTimeLine`), enfant du conteneur hôte. */
+  readonly container: HTMLElement;
+  /** Racine où chercher les cibles des calques (par défaut, le document du conteneur). */
+  readonly root: ParentNode;
+  /** Services entre plugins (API typées par `EditorServiceMap`). */
+  readonly services: IEditorServices;
+}
+
+/** Plugin de l'éditeur : un `IPlugin` dont `init` reçoit le contexte de l'éditeur. */
+export type EditorPlugin = IPlugin<IEditorContext>;
