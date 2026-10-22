@@ -42,15 +42,32 @@ function assertValidDocument(doc: ITimelineDocument): void {
   }
 }
 
+function durationOf(doc: ITimelineDocument): number {
+  return (doc.settings.totalFrames / doc.settings.fps) * 1000;
+}
+
+/** Animations built for a document, and the layers whose target is missing. */
+interface IAnimationSet {
+  readonly animations: Animation[];
+  readonly missing: string[];
+}
+
+/** Rethrows outside the player's call stack, so playback keeps going. */
+function reportAsync(error: unknown): void {
+  setTimeout(() => {
+    throw error;
+  }, 0);
+}
+
 /** See `IPlayer`. Created by `createPlayer`. */
 export class Player implements IPlayer {
   private doc: ITimelineDocument;
   private readonly root: ParentNode;
   private readonly registry: PropertyRegistry;
   private readonly clock: IPlayerClock;
-  private readonly events = new EventEmitter<IPlayerEventMap>();
-  private animations: Animation[] = [];
-  private missing: string[] = [];
+  private readonly events: EventEmitter<IPlayerEventMap>;
+  private animations: Animation[];
+  private missing: string[];
   /** Time (ms) at `anchorNow`; the current time while paused. */
   private anchorTime = 0;
   private anchorNow = 0;
@@ -64,14 +81,18 @@ export class Player implements IPlayer {
   constructor(doc: ITimelineDocument, options: IPlayerOptions = {}) {
     const speed = options.speed ?? 1;
     assertValidSpeed(speed);
+    assertValidDocument(doc);
     this.speedValue = speed;
     this.loopValue = options.loop ?? false;
     this.root = options.root ?? document;
     this.registry = options.registry ?? defaultPropertyRegistry;
     this.clock = options.clock ?? createBrowserClock();
-    assertValidDocument(doc);
+    this.events = new EventEmitter<IPlayerEventMap>(options.onListenerError ?? reportAsync);
     this.doc = doc;
-    this.animations = this.createAnimations();
+    const built = this.buildAnimations(doc);
+    this.animations = built.animations;
+    this.missing = built.missing;
+    this.syncAnimations();
     if (options.autoplay === true) {
       this.play();
     }
@@ -86,7 +107,7 @@ export class Player implements IPlayer {
   }
 
   get duration(): number {
-    return (this.totalFrames / this.fps) * 1000;
+    return durationOf(this.doc);
   }
 
   get frame(): number {
@@ -106,6 +127,7 @@ export class Player implements IPlayer {
   }
 
   set loop(value: boolean) {
+    this.assertAlive();
     this.loopValue = value;
   }
 
@@ -114,6 +136,7 @@ export class Player implements IPlayer {
   }
 
   set speed(value: number) {
+    this.assertAlive();
     assertValidSpeed(value);
     this.reanchor();
     this.speedValue = value;
@@ -164,16 +187,20 @@ export class Player implements IPlayer {
   update(doc: ITimelineDocument): void {
     this.assertAlive();
     assertValidDocument(doc);
-    const time = this.currentTime();
+    const built = this.buildAnimations(doc);
+    const time = Math.min(this.currentTime(), durationOf(doc));
     this.cancelAnimations();
     this.doc = doc;
-    this.anchorTime = Math.min(time, this.duration);
+    this.animations = built.animations;
+    this.missing = built.missing;
+    this.anchorTime = time;
     this.anchorNow = this.clock.now();
-    this.animations = this.createAnimations();
+    this.syncAnimations();
     this.emitFrame(true);
   }
 
   on<K extends PlayerEventName>(event: K, listener: PlayerListener<K>): () => void {
+    this.assertAlive();
     return this.events.on(event, listener);
   }
 
@@ -205,9 +232,9 @@ export class Player implements IPlayer {
     return this.anchorTime + (this.clock.now() - this.anchorNow) * this.speedValue;
   }
 
-  /** Moves the anchor to now, so speed changes apply from the current time. */
+  /** Moves the anchor to now (never past the end), so changes apply from the current time. */
   private reanchor(): void {
-    this.anchorTime = this.currentTime();
+    this.anchorTime = Math.min(this.currentTime(), this.duration);
     this.anchorNow = this.clock.now();
   }
 
@@ -216,39 +243,51 @@ export class Player implements IPlayer {
     return Math.min(this.totalFrames, Math.max(1, frame));
   }
 
-  private createAnimations(): Animation[] {
+  /**
+   * Creates the animations of `doc` (paused at 0). All or nothing: when a
+   * target fails, the animations already created are cancelled.
+   */
+  private buildAnimations(doc: ITimelineDocument): IAnimationSet {
     const animations: Animation[] = [];
-    this.missing = [];
-    for (const layer of collectLayers(this.doc)) {
-      const keyframes = buildLayerKeyframes(layer, this.doc.settings, this.registry);
-      if (keyframes === null) {
-        continue;
+    const missing: string[] = [];
+    try {
+      for (const layer of collectLayers(doc)) {
+        const keyframes = buildLayerKeyframes(layer, doc.settings, this.registry);
+        if (keyframes === null) {
+          continue;
+        }
+        const target = resolveTarget(layer, this.root);
+        if (target === null) {
+          missing.push(layer.id);
+          continue;
+        }
+        if (typeof target.animate !== 'function') {
+          throw new Error('The Web Animations API (Element.animate) is not available.');
+        }
+        const animation = target.animate(keyframes, { duration: durationOf(doc), fill: 'both', easing: 'linear' });
+        animation.pause();
+        animations.push(animation);
       }
-      const target = resolveTarget(layer, this.root);
-      if (target === null) {
-        this.missing.push(layer.id);
-        continue;
-      }
-      if (typeof target.animate !== 'function') {
-        throw new Error('The Web Animations API (Element.animate) is not available.');
-      }
-      animations.push(target.animate(keyframes, { duration: this.duration, fill: 'both', easing: 'linear' }));
+    } catch (error) {
+      animations.forEach((animation) => animation.cancel());
+      throw error;
     }
-    this.lastFrame = this.timeToFrame(this.anchorTime);
-    this.syncAnimations(animations);
-    return animations;
+    return { animations, missing };
   }
 
   /** Aligns every animation on the player's time, rate and play state. */
-  private syncAnimations(animations: readonly Animation[] = this.animations): void {
+  private syncAnimations(): void {
     const time = this.currentTime();
-    animations.forEach((animation) => {
+    const running = this.isPlaying && time < this.duration;
+    this.animations.forEach((animation) => {
       animation.playbackRate = this.speedValue;
-      animation.currentTime = time;
-      if (this.isPlaying) {
+      if (running) {
+        animation.currentTime = time;
         animation.play();
       } else {
+        // Pause first: setting currentTime then completes the pause at exactly this time.
         animation.pause();
+        animation.currentTime = time;
       }
     });
   }
@@ -267,7 +306,9 @@ export class Player implements IPlayer {
   }
 
   private scheduleTick(): void {
-    this.frameHandle = this.clock.requestFrame(this.tick);
+    if (this.frameHandle === null) {
+      this.frameHandle = this.clock.requestFrame(this.tick);
+    }
   }
 
   private cancelTick(): void {
@@ -277,23 +318,25 @@ export class Player implements IPlayer {
     }
   }
 
+  /** Runs once per animation frame while playing; listeners may pause or seek. */
   private readonly tick = (): void => {
     this.frameHandle = null;
     if (!this.isPlaying) {
       return;
     }
-    if (this.currentTime() < this.duration) {
-      this.emitFrame(false);
+    const time = this.currentTime();
+    if (time < this.duration) {
       this.scheduleTick();
+      this.emitFrame(false);
       return;
     }
     if (this.loopValue) {
-      this.anchorTime = 0;
+      this.anchorTime = (time - this.duration) % this.duration;
       this.anchorNow = this.clock.now();
       this.syncAnimations();
+      this.scheduleTick();
       this.events.emit('loop', NO_PAYLOAD);
       this.emitFrame(true);
-      this.scheduleTick();
       return;
     }
     this.anchorTime = this.duration;

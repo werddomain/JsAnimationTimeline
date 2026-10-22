@@ -8,6 +8,7 @@ export { buildLayerKeyframes, frameToOffset } from './keyframes';
 export { resolveTarget } from './targets';
 export { createBrowserClock } from './clock';
 export { EventEmitter } from './EventEmitter';
+export type { ListenerErrorHandler } from './EventEmitter';
 export type {
   IFrameEvent,
   IPlayer,

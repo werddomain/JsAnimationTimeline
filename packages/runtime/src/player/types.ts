@@ -28,6 +28,11 @@ export interface IPlayerOptions {
   readonly registry?: PropertyRegistry;
   /** Defaults to `performance.now` and `requestAnimationFrame`. */
   readonly clock?: IPlayerClock;
+  /**
+   * Receives errors thrown by event listeners (playback goes on). Defaults to
+   * rethrowing them asynchronously, so they reach the console.
+   */
+  readonly onListenerError?: (error: unknown) => void;
 }
 
 /** Payload of the `frame` event. */

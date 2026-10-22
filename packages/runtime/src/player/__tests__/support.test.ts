@@ -14,8 +14,26 @@ describe('EventEmitter', () => {
     pong: Record<string, never>;
   }
 
+  const fail = (error: unknown): void => {
+    throw error;
+  };
+
+  it('isolates a throwing listener and hands its error to onError', () => {
+    const errors: unknown[] = [];
+    const emitter = new EventEmitter<IMap>((error) => errors.push(error));
+    const after = jest.fn();
+    const boom = new Error('boom');
+    emitter.on('ping', () => {
+      throw boom;
+    });
+    emitter.on('ping', after);
+    emitter.emit('ping', { n: 1 });
+    expect(errors).toEqual([boom]);
+    expect(after).toHaveBeenCalledTimes(1);
+  });
+
   it('calls listeners in order with the payload', () => {
-    const emitter = new EventEmitter<IMap>();
+    const emitter = new EventEmitter<IMap>(fail);
     const calls: string[] = [];
     emitter.on('ping', ({ n }) => calls.push(`a${n}`));
     emitter.on('ping', ({ n }) => calls.push(`b${n}`));
@@ -25,7 +43,7 @@ describe('EventEmitter', () => {
   });
 
   it('lets a listener remove itself while emitting', () => {
-    const emitter = new EventEmitter<IMap>();
+    const emitter = new EventEmitter<IMap>(fail);
     const later = jest.fn();
     const remove = emitter.on('ping', () => remove());
     emitter.on('ping', later);
@@ -35,7 +53,7 @@ describe('EventEmitter', () => {
   });
 
   it('clears every listener', () => {
-    const emitter = new EventEmitter<IMap>();
+    const emitter = new EventEmitter<IMap>(fail);
     const listener = jest.fn();
     emitter.on('ping', listener);
     emitter.clear();

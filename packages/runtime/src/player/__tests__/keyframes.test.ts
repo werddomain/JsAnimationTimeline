@@ -9,6 +9,7 @@ import { evaluateLayer } from '../../evaluate/evaluateLayer';
 import type { ILayer } from '../../model/layer';
 import type { ISpan } from '../../model/span';
 import { createPropertyRegistry } from '../../properties/PropertyRegistry';
+import type { PropertyDescriptor } from '../../properties/types';
 import { buildLayerKeyframes, frameToOffset } from '../keyframes';
 
 const registry = createPropertyRegistry();
@@ -146,6 +147,32 @@ describe('buildLayerKeyframes', () => {
         expect(offset).toBeGreaterThanOrEqual(offsets[i - 1]);
       }
     });
+  });
+});
+
+describe('frame sampling when the browser cannot interpolate like the evaluator', () => {
+  it('samples every frame of a linear tween for a property with a custom interpolator', () => {
+    const level: PropertyDescriptor = {
+      name: 'level', kind: 'style', cssName: 'flex-grow', unit: '', defaultValue: 0,
+      interpolate: (from, to, t) => from + (to - from) * t * t
+    };
+    const custom = createPropertyRegistry([level]);
+    const keyframes = buildLayerKeyframes(
+      layer([{ id: 'a', start: 1, end: 5, kind: 'tween', tracks: { level: [{ frame: 1, value: 0 }, { frame: 5, value: 1 }] } }]),
+      { fps: 10, totalFrames: 5 },
+      custom
+    );
+    expect(keyframes?.map((k) => k.flexGrow)).toEqual(['0', '0.0625', '0.25', '0.5625', '1', '1']);
+  });
+
+  it('samples every frame when a value is outside the property bounds', () => {
+    const spans: ISpan[] = [{ id: 'a', start: 1, end: 5, kind: 'tween', tracks: { opacity: [{ frame: 1, value: 2 }, { frame: 5, value: 0 }] } }];
+    const keyframes = build(spans, 5);
+    expect(keyframes.map((k) => k.offset)).toEqual([0, 0.2, 0.4, 0.6, 0.8, 1]);
+    for (let frame = 1; frame <= 5; frame++) {
+      const expected = evaluateLayer(layer(spans), frame, { registry }).values.opacity;
+      expect(opacityAt(keyframes, frameToOffset(frame, 5))).toBeCloseTo(Math.min(1, expected), 6);
+    }
   });
 });
 

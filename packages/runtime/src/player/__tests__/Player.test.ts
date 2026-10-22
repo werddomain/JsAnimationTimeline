@@ -360,6 +360,137 @@ describe('listeners and destroy', () => {
   });
 });
 
+describe('robustness', () => {
+  it('cancels the animations already created when a later target fails', () => {
+    const doc = makeDoc();
+    const bad = { id: 'bad', type: 'layer' as const, name: 'B', target: { selector: '##' }, spans: [{ id: 'sx', start: 1, end: 10, kind: 'blank' as const }] };
+    expect(() => create({ ...doc, layers: [doc.layers[0], bad] })).toThrow('invalid selector');
+    expect(fake.animations).toHaveLength(1);
+    expect(fake.animations[0].playState).toBe('idle');
+  });
+
+  it('keeps the old document and animations when update fails on a target', () => {
+    const p = create();
+    p.play();
+    clock.advance(200);
+    const doc = makeDoc();
+    const bad = { id: 'bad', type: 'layer' as const, name: 'B', target: { selector: '##' }, spans: [{ id: 'sx', start: 1, end: 10, kind: 'blank' as const }] };
+    expect(() => p.update({ ...doc, layers: [doc.layers[0], bad] })).toThrow('invalid selector');
+    expect(fake.animations.slice(0, 2).every((a) => a.playState === 'running')).toBe(true);
+    expect(fake.animations[2].playState).toBe('idle');
+    expect(p.playing).toBe(true);
+    clock.advance(100);
+    expect(p.frame).toBe(4);
+  });
+
+  it('keeps playing when a listener throws, and reports the error', () => {
+    const errors: unknown[] = [];
+    const p = create(makeDoc(), { onListenerError: (error) => errors.push(error) });
+    const boom = new Error('boom');
+    p.on('frame', () => {
+      throw boom;
+    });
+    p.play();
+    clock.advance(100);
+    clock.advance(100);
+    expect(errors).toEqual([boom, boom]);
+    expect(p.playing).toBe(true);
+    expect(clock.pendingFrames).toBe(1);
+  });
+
+  it('rethrows listener errors asynchronously by default', () => {
+    jest.useFakeTimers();
+    try {
+      const p = create();
+      p.on('frame', () => {
+        throw new Error('late');
+      });
+      expect(() => p.seek(2)).not.toThrow();
+      expect(() => jest.runOnlyPendingTimers()).toThrow('late');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('completes when paused past the end before the frame loop noticed', () => {
+    const p = create();
+    p.play();
+    clock.time += 1500;
+    p.pause();
+    expect(p.frame).toBe(10);
+    expect(times(fake.animations)).toEqual([1000, 1000]);
+    p.play();
+    expect(p.frame).toBe(1);
+  });
+
+  it('keeps the overshoot when looping', () => {
+    const p = create(makeDoc(), { loop: true });
+    p.play();
+    clock.advance(1250);
+    expect(p.frame).toBe(3);
+    expect(times(fake.animations)).toEqual([250, 250]);
+  });
+
+  it('does not restart finished animations when update shortens the document while playing', () => {
+    const p = create();
+    p.play();
+    clock.advance(800);
+    const doc = makeDoc();
+    p.update({
+      ...doc,
+      settings: { fps: 10, totalFrames: 5 },
+      layers: [{ id: 'box', type: 'layer', name: 'Box', target: { selector: '#box' }, spans: [{ id: 's1', start: 1, end: 5, kind: 'static', tracks: { x: [{ frame: 1, value: 1 }] } }] }]
+    });
+    const fresh = fake.animations[fake.animations.length - 1];
+    expect(fresh.playState).toBe('paused');
+    expect(fresh.currentTime).toBe(500);
+    const complete = jest.fn();
+    p.on('complete', complete);
+    clock.advance(16);
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a single frame loop when a listener pauses and plays during a tick', () => {
+    const p = create();
+    let toggled = false;
+    p.on('frame', () => {
+      if (!toggled) {
+        toggled = true;
+        p.pause();
+        p.play();
+      }
+    });
+    p.play();
+    clock.advance(100);
+    expect(clock.pendingFrames).toBe(1);
+    p.pause();
+    expect(clock.pendingFrames).toBe(0);
+  });
+
+  it('stops the frame loop when a listener pauses during a tick', () => {
+    const p = create();
+    p.on('frame', () => p.pause());
+    p.play();
+    clock.advance(100);
+    expect(p.playing).toBe(false);
+    expect(clock.pendingFrames).toBe(0);
+  });
+
+  it.each([
+    ['loop', (p: IPlayer) => {
+      p.loop = true;
+    }],
+    ['speed', (p: IPlayer) => {
+      p.speed = 2;
+    }],
+    ['on', (p: IPlayer) => p.on('frame', () => undefined)]
+  ])('throws on %s after destroy', (_name, call) => {
+    const p = create();
+    p.destroy();
+    expect(() => call(p)).toThrow('The player was destroyed.');
+  });
+});
+
 describe('player entry point', () => {
   it('exports the player values', () => {
     expect(Object.keys(player).sort()).toEqual([

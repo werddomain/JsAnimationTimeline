@@ -1,11 +1,18 @@
 // packages/runtime/src/player/EventEmitter.ts
 /**
- * Émetteur d'événements typé et minimal du lecteur.
+ * Émetteur d'événements typé et minimal du lecteur. Une erreur levée par un
+ * écouteur n'empêche ni les autres écouteurs ni la suite de la lecture : elle
+ * est confiée à `onError`.
  */
+
+/** Receives the errors thrown by listeners. */
+export type ListenerErrorHandler = (error: unknown) => void;
 
 /** Listeners keyed by event name, payload typed by `TMap`. */
 export class EventEmitter<TMap extends object> {
   private readonly listeners = new Map<keyof TMap, Set<(event: never) => void>>();
+
+  constructor(private readonly onError: ListenerErrorHandler) {}
 
   on<K extends keyof TMap>(event: K, listener: (payload: TMap[K]) => void): () => void {
     const set = this.listeners.get(event) ?? new Set();
@@ -25,7 +32,11 @@ export class EventEmitter<TMap extends object> {
       return;
     }
     for (const listener of Array.from(set)) {
-      (listener as (payload: TMap[K]) => void)(payload);
+      try {
+        (listener as (payload: TMap[K]) => void)(payload);
+      } catch (error) {
+        this.onError(error);
+      }
     }
   }
 

@@ -15,6 +15,9 @@
  *   deux images clés, l'accélération étant portée par la première : exact.
  * - Sinon (accélération + images clés au milieu), la courbe est échantillonnée
  *   à chaque image : exact à chaque image entière.
+ * - Le navigateur ne connaît ni les `interpolate` personnalisés ni les bornes
+ *   appliquées pendant l'interpolation : un calque qui en dépend est
+ *   échantillonné à chaque image dans toutes ses interpolations.
  */
 
 import { resolveEasing, resolveTracks } from '../model/defaults';
@@ -26,6 +29,7 @@ import { collectLayerProperties, evaluateLayer } from '../evaluate/evaluateLayer
 import type { ILayerFrameState } from '../evaluate/evaluateLayer';
 import { computeCssDeclarations, cssNameToCamelCase } from '../properties/compose';
 import type { PropertyRegistry } from '../properties/PropertyRegistry';
+import type { PropertyDescriptor } from '../properties/types';
 
 /** Offset of the start of `frame` in the animation, in [0, 1). */
 export function frameToOffset(frame: number, totalFrames: number): number {
@@ -58,13 +62,36 @@ function innerKeyframeFrames(span: ISpan): number[] {
   return Array.from(frames).sort((a, b) => a - b);
 }
 
+function isOutOfBounds(descriptor: PropertyDescriptor, value: number): boolean {
+  return (descriptor.min !== undefined && value < descriptor.min) || (descriptor.max !== undefined && value > descriptor.max);
+}
+
+/**
+ * True when the browser's own interpolation would differ from `evaluateLayer`:
+ * a custom interpolator, or a keyframe value outside the property bounds.
+ */
+function needsFrameSampling(layer: ILayer, registry: PropertyRegistry): boolean {
+  const descriptors = collectLayerProperties(layer).map((name) => registry.require(name));
+  if (descriptors.some((d) => d.interpolate !== undefined)) {
+    return true;
+  }
+  return layer.spans.some((span) =>
+    Object.entries(resolveTracks(span)).some(([name, track]) =>
+      track.some(({ value }) => isOutOfBounds(registry.require(name), value))
+    )
+  );
+}
+
 /** Frames of a span where a keyframe is needed, with the easing of the segment that starts there. */
-function spanFrames(span: ISpan, end: number): Array<{ frame: number; easing: string }> {
+function spanFrames(span: ISpan, end: number, sampleAll: boolean): Array<{ frame: number; easing: string }> {
   if (span.kind !== 'tween' || end <= span.start) {
     return [{ frame: span.start, easing: 'linear' }];
   }
   const easing = resolveEasing(span);
   const inner = innerKeyframeFrames(span).filter((frame) => frame < end);
+  if (sampleAll) {
+    return Array.from({ length: end - span.start + 1 }, (_, i) => ({ frame: span.start + i, easing: 'linear' }));
+  }
   if (isLinear(easing)) {
     return [span.start, ...inner, end].map((frame) => ({ frame, easing: 'linear' }));
   }
@@ -80,6 +107,7 @@ function collectPoints(layer: ILayer, totalFrames: number, registry: PropertyReg
   const add = (frame: number, stateFrame: number, easing = 'linear'): void => {
     points.push({ offset: frameToOffset(frame, totalFrames), state: evaluate(stateFrame), easing });
   };
+  const sampleAll = needsFrameSampling(layer, registry);
   let covered = 0;
   for (const span of layer.spans) {
     if (span.start > totalFrames) {
@@ -89,7 +117,7 @@ function collectPoints(layer: ILayer, totalFrames: number, registry: PropertyReg
       add(span.start, span.start - 1);
     }
     const end = Math.min(span.end, totalFrames);
-    spanFrames(span, end).forEach(({ frame, easing }) => add(frame, frame, easing));
+    spanFrames(span, end, sampleAll).forEach(({ frame, easing }) => add(frame, frame, easing));
     covered = end;
   }
   if (covered < totalFrames) {
