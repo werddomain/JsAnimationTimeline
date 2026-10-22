@@ -1,0 +1,134 @@
+// packages/runtime/src/evaluate/evaluateLayer.ts
+/**
+ * Évaluation d'un calque à l'image N (modèle motion tween CS4) :
+ * - la plage qui contient N donne la visibilité (`blank` masque la cible) ;
+ * - une propriété sans image clé dans la plage reprend la dernière valeur
+ *   connue des plages précédentes, sinon la valeur par défaut du registre ;
+ * - dans une interpolation, l'accélération s'applique à la plage entière :
+ *   l'image N devient une image « accélérée », où les pistes sont lues.
+ */
+
+import { resolveEasing, resolveTracks } from '../model/defaults';
+import type { ILayer } from '../model/layer';
+import type { ISpan } from '../model/span';
+import { defaultPropertyRegistry } from '../properties/PropertyRegistry';
+import type { PropertyRegistry } from '../properties/PropertyRegistry';
+import type { PropertyValues } from '../properties/types';
+import { createEasingFunction } from './easingFunction';
+import { valueAtFrame, withImplicitStart } from './track';
+
+/** State of one layer at one frame. */
+export interface ILayerFrameState {
+  readonly layerId: string;
+  /** `false` in a `blank` span, before the first span and after the last one. */
+  readonly visible: boolean;
+  /** Span containing the frame, `undefined` outside every span. */
+  readonly spanId: string | undefined;
+  /** Value of every property animated anywhere in the layer. */
+  readonly values: PropertyValues;
+}
+
+/** Options shared by the evaluation functions. */
+export interface IEvaluateOptions {
+  /** Defaults to `defaultPropertyRegistry`. */
+  readonly registry?: PropertyRegistry;
+}
+
+/**
+ * Names of the properties used by the tracks of a layer, in order of first
+ * appearance. These are the properties a player writes on the target.
+ */
+export function collectLayerProperties(layer: ILayer): string[] {
+  const names = new Set<string>();
+  for (const span of layer.spans) {
+    Object.keys(resolveTracks(span)).forEach((name) => names.add(name));
+  }
+  return Array.from(names);
+}
+
+/**
+ * Span of `layer` holding `frame`: the last span whose `start <= frame`,
+ * when `frame < end + 1` (a fractional frame belongs to the span of its
+ * integer part). `undefined` before the first span or after the last one.
+ */
+export function findSpanAt(layer: ILayer, frame: number): ISpan | undefined {
+  for (const span of layer.spans) {
+    if (frame < span.start) {
+      return undefined;
+    }
+    if (frame < span.end + 1) {
+      return span;
+    }
+  }
+  return undefined;
+}
+
+type MutableValues = Record<string, number>;
+
+/** Values in force at the end of `span`, given the values at its start. */
+function valuesAfterSpan(span: ISpan, carried: PropertyValues): PropertyValues {
+  if (span.kind === 'blank') {
+    return carried;
+  }
+  const next: MutableValues = { ...carried };
+  for (const [name, track] of Object.entries(resolveTracks(span))) {
+    if (track.length > 0) {
+      next[name] = span.kind === 'static' ? track[0].value : track[track.length - 1].value;
+    }
+  }
+  return next;
+}
+
+/** Frame where the tracks of a tween are read: the eased position in [start, end]. */
+function easedFrame(span: ISpan, frame: number): number {
+  const length = span.end - span.start;
+  if (length <= 0) {
+    return span.start;
+  }
+  const progress = Math.min(1, Math.max(0, (frame - span.start) / length));
+  return span.start + createEasingFunction(resolveEasing(span))(progress) * length;
+}
+
+function valuesInSpan(span: ISpan, frame: number, carried: PropertyValues, registry: PropertyRegistry): PropertyValues {
+  if (span.kind !== 'tween') {
+    return valuesAfterSpan(span, carried);
+  }
+  const at = easedFrame(span, frame);
+  const values: MutableValues = { ...carried };
+  for (const [name, track] of Object.entries(resolveTracks(span))) {
+    const points = withImplicitStart(track, span, carried[name]);
+    values[name] = valueAtFrame(registry.require(name), points, at, span);
+  }
+  return values;
+}
+
+function defaultValues(names: readonly string[], registry: PropertyRegistry): PropertyValues {
+  const values: MutableValues = {};
+  names.forEach((name) => {
+    values[name] = registry.require(name).defaultValue;
+  });
+  return values;
+}
+
+/**
+ * State of `layer` at `frame` (1-based, fractional frames allowed). Throws for
+ * a non-finite frame, a property unknown to the registry or an invalid easing.
+ */
+export function evaluateLayer(layer: ILayer, frame: number, options: IEvaluateOptions = {}): ILayerFrameState {
+  if (!Number.isFinite(frame)) {
+    throw new Error(`Frame must be a finite number (got ${frame}).`);
+  }
+  const registry = options.registry ?? defaultPropertyRegistry;
+  let carried = defaultValues(collectLayerProperties(layer), registry);
+  for (const span of layer.spans) {
+    if (frame < span.start) {
+      break;
+    }
+    if (frame < span.end + 1) {
+      const values = valuesInSpan(span, frame, carried, registry);
+      return { layerId: layer.id, visible: span.kind !== 'blank', spanId: span.id, values };
+    }
+    carried = valuesAfterSpan(span, carried);
+  }
+  return { layerId: layer.id, visible: false, spanId: undefined, values: carried };
+}
