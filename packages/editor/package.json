@@ -2,18 +2,30 @@
   "name": "@werddomain/timeline-editor",
   "version": "0.1.0",
   "description": "A Flash MX-style timeline control built with TypeScript and LESS for creating animation timelines.",
-  "main": "dist/JsTimeLine.bundle.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/timeline-editor.umd.js",
+  "module": "dist/timeline-editor.mjs",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/timeline-editor.mjs",
+      "require": "./dist/timeline-editor.umd.js"
+    },
+    "./timeline-editor.css": "./dist/timeline-editor.css",
+    "./package.json": "./package.json"
+  },
+  "sideEffects": [
+    "*.css",
+    "*.less"
+  ],
   "files": [
-    "dist/**/*",
-    "README.md",
-    "LICENSE"
+    "dist"
   ],
   "scripts": {
-    "build": "webpack --env production",
-    "build:dev": "webpack --env development",
-    "dev": "webpack serve --env development",
-    "watch": "webpack --watch --env development",
+    "build": "vite build --configLoader runner && tsc -p tsconfig.build.json",
+    "dev": "vite --configLoader runner --port 9000 --strictPort",
+    "build:demo": "vite build --configLoader runner --config vite.demo.config.ts",
+    "preview:demo": "vite preview --configLoader runner --config vite.demo.config.ts --port 9000",
     "test": "jest",
     "test:coverage": "jest --coverage",
     "typecheck": "tsc --noEmit",

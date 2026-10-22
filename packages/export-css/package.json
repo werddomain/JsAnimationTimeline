@@ -3,12 +3,23 @@
   "version": "0.0.0",
   "private": true,
   "description": "Exports JsAnimationTimeline animations to pure CSS @keyframes.",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/timeline-export-css.umd.js",
+  "module": "dist/timeline-export-css.mjs",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/timeline-export-css.mjs",
+      "require": "./dist/timeline-export-css.umd.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
   "files": [
-    "dist/**/*"
+    "dist"
   ],
   "scripts": {
+    "build": "vite build --configLoader runner && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit"
   },
   "license": "MIT",
