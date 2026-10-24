@@ -273,6 +273,34 @@ describe('tweens.motion eased tweens', () => {
   });
 });
 
+describe('tweens.motion tween before a blank keyframe', () => {
+  it('disables canCreate and refuses with no history entry', () => {
+    // Arrange
+    const data = doc([
+      layer('a', {
+        spans: [
+          { id: 't', start: 1, end: 10, kind: 'tween', tracks: { x: [{ frame: 1, value: 3 }, { frame: 10, value: 0.1 }] } },
+          { id: 'k', start: 11, end: 12, kind: 'blank' }
+        ]
+      })
+    ]);
+    const { editor, selection, motion, created } = setup(data);
+    selection.set(cells('a', 1, 11));
+    const before = editor.document;
+
+    // Act
+    const verdict = motion.canCreate();
+    const done = motion.create();
+
+    // Assert
+    expect(verdict).toEqual({ enabled: false, reason: 'Déjà une interpolation.' });
+    expect(done).toBe(false);
+    expect(editor.document).toBe(before);
+    expect(editor.canUndo).toBe(false);
+    expect(created).toEqual([]);
+  });
+});
+
 describe('tweens.motion remove', () => {
   it('removes the tweens touched on several layers as one history entry', () => {
     // Arrange

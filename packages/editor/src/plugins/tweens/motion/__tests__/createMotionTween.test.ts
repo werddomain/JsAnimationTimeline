@@ -218,6 +218,36 @@ describe('createMotionTweenBetween', () => {
     expect(spansOf(next, 'l1')[0].tracks).toEqual({ x: [{ frame: 1, value: 0 }, { frame: 4, value: 100 }] });
   });
 
+  it('refuses a re-create of a tween before a blank k2 even when its end value is not a lerp round trip', () => {
+    // Arrange: 3 + (0.1 - 3) * 1 !== 0.1 in floating point.
+    const doc = createDoc([
+      layer('l1', [
+        { id: 't', start: 1, end: 10, kind: 'tween', tracks: { x: [{ frame: 1, value: 3 }, { frame: 10, value: 0.1 }] } },
+        { id: 'k', start: 11, end: 12, kind: 'blank' }
+      ])
+    ]);
+
+    // Assert
+    expect(codeOf(() => createMotionTweenBetween(doc, 'l1', 1, 11, registry))).toBe(MotionTweenCodes.ALREADY_TWEEN);
+  });
+
+  it('applies a merge that changes only a stored value (sameSpan compares values)', () => {
+    // Arrange
+    const doc = createDoc([
+      layer('l1', [
+        { id: 't', start: 1, end: 5, kind: 'tween', tracks: { x: [{ frame: 1, value: 0 }, { frame: 5, value: 9 }] } },
+        stat('b', 6, 8, { x: [{ frame: 6, value: 50 }] })
+      ])
+    ]);
+
+    // Act
+    const next = createMotionTweenBetween(doc, 'l1', 1, 6, registry);
+
+    // Assert
+    expectValid(next);
+    expect(spansOf(next, 'l1')[0].tracks).toEqual({ x: [{ frame: 1, value: 0 }, { frame: 5, value: 50 }] });
+  });
+
   it('keeps the easing of a single absorbed tween when aiming it at k2', () => {
     // Arrange: eased tween [1, 4] holding x = 0, then a static x = 100 at 5.
     const doc = createDoc([

@@ -245,6 +245,28 @@ describe('focus and events', () => {
   });
 });
 
+describe('ungroup selection event', () => {
+  it('reports the whole previous selection, the ungrouped folder included', () => {
+    const events: LayerSelectionChangedEvent[] = [];
+    const recorder: EditorPlugin = {
+      id: 'test.selectionRecorder3',
+      dependencies: ['layers.selection'],
+      init: (ctx: IEditorContext) => {
+        ctx.events.on('layers:selectionChanged', (event) => events.push(event));
+      },
+      destroy: () => undefined
+    };
+    const h = setup(doc([folder('f', [layer('a'), layer('b')]), layer('c')]), [recorder]);
+    h.selection.select(['f', 'c']);
+    events.length = 0;
+
+    h.groups.ungroup('f');
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ ids: ['a', 'b'], previous: ['f', 'c'] });
+  });
+});
+
 describe('ungroup edge cases', () => {
   function recorder(events: LayerSelectionChangedEvent[]): EditorPlugin {
     return {
