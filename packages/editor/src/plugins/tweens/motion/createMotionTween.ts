@@ -15,8 +15,8 @@
  * - la valeur évaluée à k1, à l'image k1 ;
  * - les images clés de contenu intermédiaires, avec leurs valeurs évaluées ;
  * - les images clés de propriété des interpolations absorbées ;
- * - les valeurs évaluées de k2, à l'image k2 - 1 (celles de k1 si k2 est une
- *   image clé vide : pas de mouvement).
+ * - les valeurs évaluées de k2, à l'image k2 - 1 (celles évaluées à k2 - 1 si
+ *   k2 est une image clé vide).
  * k2 reste une image clé de contenu, inchangée : les valeurs à k2 et hors de
  * [k1, k2] ne bougent pas. L'accélération des plages absorbées est perdue.
  * Quand k2 est une image clé vide, l'interpolation finit sur les valeurs

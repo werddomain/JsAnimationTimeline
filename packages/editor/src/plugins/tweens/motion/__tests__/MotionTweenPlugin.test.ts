@@ -189,6 +189,24 @@ describe('tweens.motion canCreate after create', () => {
     expect(created).toHaveLength(1);
     expect(refused.map((event) => event.reason)).toEqual(['Déjà une interpolation.']);
   });
+
+  it('disables canCreate after a two-keyframe create, and a second create is refused', () => {
+    // Arrange: keyframes 1 and 5 of layer a become the tween [1, 4].
+    const { selection, motion, created, refused } = setup();
+    selection.set(cells('a', 1, 5));
+    expect(motion.create()).toBe(true);
+    selection.set(cells('a', 1, 5));
+
+    // Act
+    const verdict = motion.canCreate();
+    const again = motion.create();
+
+    // Assert
+    expect(verdict).toEqual({ enabled: false, reason: 'Déjà une interpolation.' });
+    expect(again).toBe(false);
+    expect(created).toHaveLength(1);
+    expect(refused.map((event) => event.reason)).toEqual(['Déjà une interpolation.']);
+  });
 });
 
 describe('tweens.motion remove', () => {
