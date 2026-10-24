@@ -5,6 +5,8 @@
  * page) et montage d'un éditeur avec l'epic seul.
  */
 
+import { SCHEMA_VERSION, createManualClock } from '@werddomain/timeline-runtime';
+import type { IManualClock, ITimelineDocument } from '@werddomain/timeline-runtime';
 import { createEditor } from '../../../core/editor/createEditor';
 import type { IEditor } from '../../../core/editor/types';
 import type { EditorPlugin } from '../../../core/context/IEditorContext';
@@ -99,16 +101,27 @@ export interface IMountedLayout {
   readonly editor: IEditor;
   readonly container: HTMLElement;
   readonly scheduler: IManualScheduler;
+  /** Horloge manuelle de la lecture de l'éditeur. */
+  readonly clock: IManualClock;
   /** Élément de la zone `zone` (lève si elle est absente). */
   readonly zone: (zone: LayoutZone) => HTMLElement;
 }
 
-/** Monte un éditeur avec l'epic `layout` (ordonnanceur manuel) puis `plugins`. */
-export function mountLayout(plugins: readonly EditorPlugin[] = []): IMountedLayout {
+/** Options de `mountLayout`. */
+export interface IMountOptions {
+  readonly data?: ITimelineDocument;
+  readonly frameWidth?: number;
+}
+
+/** Monte un éditeur avec l'epic `layout` (ordonnanceur et horloge manuels) puis `plugins`. */
+export function mountLayout(plugins: readonly EditorPlugin[] = [], options: IMountOptions = {}): IMountedLayout {
   const container = createContainer();
   const scheduler = createManualScheduler();
+  const clock = createManualClock();
   const editor = createEditor(container, {
-    defaultPlugins: [new LayoutPlugin({ scrollSync: { scheduler } })],
+    data: options.data,
+    clock,
+    defaultPlugins: [new LayoutPlugin({ scrollSync: { scheduler }, ruler: { frameWidth: options.frameWidth } })],
     plugins
   });
   const zone = (name: LayoutZone): HTMLElement => {
@@ -116,5 +129,25 @@ export function mountLayout(plugins: readonly EditorPlugin[] = []): IMountedLayo
     if (element === null) throw new Error(`Zone « ${name} » introuvable.`);
     return element;
   };
-  return { editor, container, scheduler, zone };
+  return { editor, container, scheduler, clock, zone };
+}
+
+/** Document vide de `totalFrames` images à `fps` images par seconde. */
+export function timelineDocument(totalFrames: number, fps = 24): ITimelineDocument {
+  return { version: SCHEMA_VERSION, settings: { fps, totalFrames }, layers: [] };
+}
+
+/** Fait croire à jsdom que `element` commence à `left` pixels dans la fenêtre. */
+export function placeAt(element: HTMLElement, left: number): void {
+  element.getBoundingClientRect = () => ({
+    x: left,
+    y: 0,
+    left,
+    top: 0,
+    right: left,
+    bottom: 0,
+    width: 0,
+    height: 0,
+    toJSON: () => ({})
+  });
 }

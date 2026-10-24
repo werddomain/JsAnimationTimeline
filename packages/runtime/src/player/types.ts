@@ -5,26 +5,39 @@
 
 import type { ITimelineDocument } from '../model/document';
 import type { PropertyRegistry } from '../properties/PropertyRegistry';
+import type { IStageReport } from '../stage/reports';
+import type { IStage } from '../stage/types';
 import type { IPlayerClock, ITransportEventMap, ITransportTime } from '../transport/types';
 
 export type { IFrameEvent, IPlayerClock } from '../transport/types';
 
 /** Options of `createPlayer`. */
 export interface IPlayerOptions {
-  /** Where layer selectors are resolved. Defaults to `document`. */
+  /**
+   * Where the default HTML stage resolves layer selectors. Defaults to
+   * `document`. Not allowed together with `stage`.
+   */
   readonly root?: ParentNode;
+  /**
+   * Stage(s) animating the layers, in routing order (see `IStage`). Defaults
+   * to `createHtmlStage({ root, mode: 'waapi' })`. Their `properties` are
+   * added to a copy of `registry`. The player never destroys a stage's objects.
+   */
+  readonly stage?: IStage | readonly IStage[];
   /** Starts playing right away. Defaults to `false`. */
   readonly autoplay?: boolean;
   /** Restarts at frame 1 after the last frame. Defaults to `false`. */
   readonly loop?: boolean;
   /** Playback rate, > 0. Defaults to 1. */
   readonly speed?: number;
-  /** Defaults to `defaultPropertyRegistry`. */
+  /** Defaults to `defaultPropertyRegistry` (copied and extended when a stage has `properties`). */
   readonly registry?: PropertyRegistry;
   /** Defaults to `performance.now` and `requestAnimationFrame`. */
   readonly clock?: IPlayerClock;
   /**
-   * Receives errors thrown by event listeners (playback goes on). Defaults to
+   * Receives errors thrown by event listeners and by the stages (only the
+   * first one per stage and per layer until the next document); playback
+   * goes on. Defaults to
    * rethrowing them asynchronously, so they reach the console.
    */
   readonly onListenerError?: (error: unknown) => void;
@@ -40,7 +53,7 @@ export type PlayerEventName = keyof IPlayerEventMap;
 
 export type PlayerListener<K extends PlayerEventName> = (event: IPlayerEventMap[K]) => void;
 
-/** Headless player of a timeline document, built on the Web Animations API. */
+/** Headless player of a timeline document, rendered by stages (Web Animations by default). */
 export interface IPlayer {
   /** Current frame, 1..totalFrames. */
   readonly frame: number;
@@ -54,8 +67,14 @@ export interface IPlayer {
   loop: boolean;
   /** Playback rate, > 0 (no reverse playback). */
   speed: number;
-  /** Ids of the layers whose target was not found in `root`. */
+  /**
+   * Ids of the layers without an animated object: no target, unknown stage,
+   * accepted by no stage, or not resolved by their stage (e.g. a selector that
+   * matches nothing or is invalid).
+   */
   readonly missingTargets: readonly string[];
+  /** Warnings of the stages for the current document (reset by `update`). */
+  readonly warnings: readonly IStageReport[];
   play(): void;
   pause(): void;
   /** Goes to a frame (clamped to 1..totalFrames), playing or not; emits `tick` and `frame` right away. */
@@ -65,6 +84,11 @@ export interface IPlayer {
   /** Adds a listener; returns a function that removes it. */
   on<K extends PlayerEventName>(event: K, listener: PlayerListener<K>): () => void;
   off<K extends PlayerEventName>(event: K, listener: PlayerListener<K>): void;
-  /** Stops, removes every animation (targets get their own styles back) and listeners. */
+  /**
+   * Retries the failed target resolutions (only that layer's when given), for
+   * objects created after the document was loaded.
+   */
+  refreshTargets(layerId?: string): void;
+  /** Stops, releases every layer then detaches the stages (targets get their own styles back), removes listeners. */
   destroy(): void;
 }
