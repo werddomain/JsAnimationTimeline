@@ -7,8 +7,8 @@
  *   `attachEventLogger`...) : la page de démo actuelle s'en sert ;
  * - l'éditeur v2 en plugins : `createEditor()`, le jeu de plugins par
  *   défaut, le contrat des plugins (`IEditorContext`, `EditorPlugin`,
- *   `EditorServiceMap`...) et les valeurs du noyau utiles aux plugins
- *   (erreurs, commandes, `ROOT_SLOT`).
+ *   `EditorServiceMap`...), la lecture (`IEditorPlayback`, échantillons) et
+ *   les valeurs du noyau utiles aux plugins (erreurs, commandes, `ROOT_SLOT`).
  *
  * Tous les exports, legacy compris, sont nommés un par un (aucun
  * `export *`). Avec un `export *`, un nom local du même nom masquerait en
@@ -88,8 +88,26 @@ export type {
   HistoryChangedEvent,
   ICommand
 } from './core/commands';
-export { StoreError } from './core/store';
-export type { DocumentChangeCause, DocumentChangedEvent, DocumentLoadedEvent } from './core/store';
+export { StoreError, UNKNOWN_PROPERTY } from './core/store';
+export type {
+  DocumentChangeCause,
+  DocumentChangedEvent,
+  DocumentLoadedEvent,
+  IUnknownPropertyIssue,
+  StoreIssue,
+  StoreWarningHandler
+} from './core/store';
+
+// Lecture : tête de lecture sur le Transport du runtime, échantillons et rendu.
+export type {
+  FrameListener,
+  FrameRenderEvent,
+  IEditorPlayback,
+  IFrameSample,
+  ILayerSample,
+  PlaybackStateEvent,
+  PlayheadChangedEvent
+} from './core/playback';
 
 // Plugins de mise en page (epic `layout`) : coquille, emplacements et défilement.
 export { LAYOUT_SLOTS, LAYOUT_ZONES, LayoutPlugin, LayoutShellPlugin, ScrollSyncPlugin } from './plugins/layout';

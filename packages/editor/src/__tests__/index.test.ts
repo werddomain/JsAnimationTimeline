@@ -65,6 +65,7 @@ const V2_NAMES = [
   'ToolbarGroupOrders',
   'ToolbarMainPlugin',
   'ToolbarPlugin',
+  'UNKNOWN_PROPERTY',
   'createCommand',
   'createEditor',
   'createEmptyDocument',
