@@ -95,7 +95,11 @@ export class FramesSelectionPlugin implements EditorPlugin {
     this.ctx = ctx;
     const prune = (): void => this.prune();
     // Un autre document : la sélection (et son ancre) ne le concerne pas.
-    const reset = (): void => this.commit(EMPTY_FRAME_SELECTION);
+    const reset = (): void => {
+      // Un relâchement en attente concerne l'ancien document : il ne doit plus agir.
+      this.cancelRelease();
+      this.commit(EMPTY_FRAME_SELECTION);
+    };
     this.cleanups = [
       ctx.services.provide('frames.selection', {
         cells: () => this.state.cells,
