@@ -270,6 +270,69 @@ describe('inline editing review fixes', () => {
     expect(document.activeElement?.closest('[data-row-id]')?.getAttribute('data-row-id')).toBe('a');
   });
 
+  function renameWithChange(host: HTMLElement, editor: ReturnType<typeof mount>['editor']): HTMLInputElement {
+    focusableRow(host, 'a');
+    editor.getService('layers.selection')?.select(['a']);
+    doubleClick(nameElement(host, 'a'));
+    const input = inputOf(host);
+    input.focus();
+    input.value = 'Renommé';
+    return input;
+  }
+
+  it('commits with Tab and lets the focus land on the next element instead of the row', () => {
+    const { host, editor } = mount(tree);
+    const next = document.createElement('button');
+    document.body.appendChild(next);
+    renameWithChange(host, editor);
+
+    next.focus();
+
+    expect(nameOf(editor.document, 'a')).toBe('Renommé');
+    expect(document.activeElement).toBe(next);
+  });
+
+  it('also marks a Tab keydown, even when the focus has no known destination', () => {
+    const { host, editor } = mount(tree);
+    const input = renameWithChange(host, editor);
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+    input.blur();
+
+    expect(nameOf(editor.document, 'a')).toBe('Renommé');
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('marks a touch press (pointerdown only) and a mouse press (mousedown only)', () => {
+    ['pointerdown', 'mousedown'].forEach((type) => {
+      const { host, editor } = mount(tree);
+      const input = renameWithChange(host, editor);
+
+      document.body.dispatchEvent(new MouseEvent(type, { bubbles: true }));
+      input.blur();
+
+      expect(document.activeElement).toBe(document.body);
+      unmountAll();
+    });
+  });
+
+  it('removes its document listeners and timer on destroy', () => {
+    jest.useFakeTimers();
+    try {
+      const { editor } = mount(tree);
+      document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+      const pending = jest.getTimerCount();
+
+      editor.destroy();
+      document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+
+      expect(pending).toBeGreaterThan(0);
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('forgets an outside press once its task is over: a later removal refocuses a row', async () => {
     const { host, editor } = mount(tree);
     focusableRow(host, 'b');
