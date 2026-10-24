@@ -101,11 +101,19 @@ export class LivePreviewPlugin implements EditorPlugin {
     this.ctx = null;
   }
 
-  /** Ouvre la retenue d'un glisser (sauf en mode `'live'` ou pendant la lecture). */
+  /**
+   * Ouvre la retenue d'un glisser (sauf en mode `'live'`, pendant la lecture
+   * ou sans glisser réel de `layout.playhead` : un `playhead:scrubStart`
+   * émis par un autre plugin ne retient rien). Sans scène, la retenue est
+   * inerte : pas de session.
+   */
   private open(): void {
     const ctx = this.ctx;
     if (ctx === null || this.session !== null || this.mode === 'live' || ctx.playback.playing) return;
-    this.session = { hold: ctx.stage.hold(), lastRender: Number.NEGATIVE_INFINITY, timer: null };
+    if (ctx.services.get('layout.playhead')?.isScrubbing() !== true) return;
+    const hold = ctx.stage.hold();
+    if (!hold.active) return;
+    this.session = { hold, lastRender: Number.NEGATIVE_INFINITY, timer: null };
   }
 
   /** Ferme la retenue : rend l'image courante si un rendu a été retenu. */

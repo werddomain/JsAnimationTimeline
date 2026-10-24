@@ -287,9 +287,12 @@ export class PlayheadPlugin implements EditorPlugin {
       if (end.pointerId === pointerId) this.stopDrag?.();
     };
     const onBlur = (): void => this.stopDrag?.();
+    // Échap termine le glisser à l'image atteinte (sans revenir en arrière) et
+    // garde la touche pour lui : elle ne vide pas, en plus, une sélection.
     const onEscape = (escape: KeyboardEvent): void => {
       if (escape.key !== 'Escape') return;
       escape.preventDefault();
+      escape.stopPropagation();
       this.stopDrag?.();
     };
     doc.addEventListener('pointermove', onMove);

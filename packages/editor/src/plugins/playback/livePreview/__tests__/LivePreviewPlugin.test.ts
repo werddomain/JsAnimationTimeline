@@ -9,6 +9,7 @@
 
 import { cleanBody } from '../../../../core/editor/__tests__/fixtures';
 import { DEFAULT_PREVIEW_MAX_FPS, LIVE_PREVIEW_PLUGIN_ID, LivePreviewPlugin } from '../LivePreviewPlugin';
+import { remainingMs } from '../previewSettings';
 import type { PreviewChangedEvent } from '../types';
 import { DISPLAY_FRAME_MS, mountPreview } from './livePreviewFixtures';
 
@@ -285,6 +286,73 @@ describe('playback.livePreview toolbar control', () => {
 
     // Assert
     expect(editor.container.querySelector(`[data-toolbar-item="${LIVE_PREVIEW_PLUGIN_ID}"]`)).toBeNull();
+  });
+});
+
+describe('playback.livePreview hardening', () => {
+  it('waits at most one interval even if the clock went backwards', () => {
+    // Assert
+    expect(remainingMs(0, 5000, 10)).toBe(100);
+    expect(remainingMs(1000, 950, 10)).toBe(50);
+    expect(remainingMs(1000, 800, 10)).toBe(0);
+  });
+});
+
+describe('playback.livePreview timers and endings (review follow-ups)', () => {
+  it('clears the trailing timer when the drag ends', () => {
+    // Arrange
+    jest.useFakeTimers();
+    const { renders, down, move, up } = mountPreview({ mode: 'throttled', maxFps: 10 });
+    down(2);
+    move(3);
+    expect(jest.getTimerCount()).toBe(1);
+
+    // Act
+    up();
+
+    // Assert
+    expect(jest.getTimerCount()).toBe(0);
+    expect(renders()).toEqual(['render:2', 'render:3']);
+  });
+
+  it('clears the trailing timer when playback starts during a throttled drag', () => {
+    // Arrange
+    jest.useFakeTimers();
+    const { editor, down, move } = mountPreview({ mode: 'throttled', maxFps: 10 });
+    down(2);
+    move(3);
+
+    // Act
+    editor.playback.play();
+
+    // Assert
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('renders once when Escape ends an onRelease drag', () => {
+    // Arrange
+    const { renders, down, move } = mountPreview({ mode: 'onRelease' });
+    down(2);
+    move(6);
+
+    // Act
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+
+    // Assert
+    expect(renders()).toEqual(['render:6']);
+  });
+
+  it('renders once when the window loses focus during an onRelease drag', () => {
+    // Arrange
+    const { renders, down, move } = mountPreview({ mode: 'onRelease' });
+    down(2);
+    move(6);
+
+    // Act
+    window.dispatchEvent(new Event('blur'));
+
+    // Assert
+    expect(renders()).toEqual(['render:6']);
   });
 });
 

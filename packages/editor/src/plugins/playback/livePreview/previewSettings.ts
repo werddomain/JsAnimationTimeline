@@ -36,9 +36,13 @@ export function previewIntervalMs(maxFps: number): number {
   return 1000 / maxFps;
 }
 
-/** Temps restant avant le prochain rendu permis (0 : maintenant). */
+/**
+ * Temps restant avant le prochain rendu permis (0 : maintenant), au plus un
+ * intervalle (une horloge qui recule ne retarde jamais plus).
+ */
 export function remainingMs(now: number, lastRender: number, maxFps: number): number {
-  return Math.max(0, lastRender + previewIntervalMs(maxFps) - now);
+  const interval = previewIntervalMs(maxFps);
+  return Math.min(interval, Math.max(0, lastRender + interval - now));
 }
 
 /** Libellé français d'un mode (`'throttled'` avec sa fréquence). */
