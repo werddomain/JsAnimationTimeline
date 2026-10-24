@@ -69,7 +69,7 @@ function appendBlank(pieces: readonly ISpan[], from: number, to: number): ISpan[
 export function extractSpans(layer: ILayer, first: number, last: number, registry: PropertyRegistry): IClipSpan[] {
   const pieces = layer.spans
     .filter((span) => span.end >= first && span.start <= last)
-    .map((span) => slicePiece(layer, span, Math.max(span.start, first), Math.min(span.end, last), registry));
+    .map((span) => slicePiece(layer, span, Math.max(span.start, first), Math.min(span.end, last), registry, { inherit: true }));
   const covered = lastFrame(layer);
   const all = last > covered ? appendBlank(pieces, Math.max(first, covered + 1), last) : pieces;
   return all.map((piece) => toClipSpan(piece, first));

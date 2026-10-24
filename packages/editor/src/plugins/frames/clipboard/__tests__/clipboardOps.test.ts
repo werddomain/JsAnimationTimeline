@@ -18,6 +18,7 @@ import {
   shapeOf,
   spansOf
 } from '../../../../model/spans/__tests__/fixtures';
+import { extractSpans } from '../clipboardModel';
 import { pasteSpans } from '../clipboardOps';
 import type { IClipRun } from '../types';
 
@@ -312,3 +313,74 @@ describe('pasteSpans on a large layer', () => {
     expect(result.every((span, index) => index === 0 || span.start === result[index - 1].end + 1)).toBe(true);
   });
 });
+
+describe('pasteSpans keeps the frames after the pasted range', () => {
+  /** Source : fixe 1-10 (opacity 0,5), interpolation 11-30 sur x. */
+  const sourceLayer = (): ILayer =>
+    layer('src', [
+      { id: 'o1', start: 1, end: 10, kind: 'static', tracks: { opacity: [{ frame: 1, value: 0.5 }] } },
+      { id: 'o2', start: 11, end: 30, kind: 'tween', tracks: { x: [{ frame: 11, value: 0 }, { frame: 30, value: 200 }] } }
+    ]);
+
+  /**
+   * Valeurs affichées de `first` à `last` : une propriété absente vaut sa
+   * valeur par défaut du registre (c'est ce que la scène affiche).
+   */
+  function valuesFrom(target: ILayer, first: number, last: number): Record<string, number>[] {
+    return Array.from({ length: last - first + 1 }, (_, index) => {
+      const values = evaluateLayer(target, first + index, { registry }).values;
+      return { x: values.x ?? registry.require('x').defaultValue, opacity: values.opacity ?? registry.require('opacity').defaultValue };
+    });
+  }
+
+  it('does not let a pasted property leak into the frames after the paste', () => {
+    // Arrange : cible b fixe 1-30 (x 50), sans opacity ; copie src 11-20, collage en b5.
+    const target = layer('b', [{ id: 'b1', start: 1, end: 30, kind: 'static', tracks: { x: [{ frame: 1, value: 50 }] } }]);
+    const doc = createDoc([sourceLayer(), target], 30);
+    const spans = extractSpans(sourceLayer(), 11, 20, registry);
+    const before = valuesFrom(target, 15, 30);
+
+    // Act
+    const next = pasteSpans(doc, 'b', 5, { length: 10, spans }, registry);
+
+    // Assert : les images 15-30 n'ont pas changé ; les images collées ont l'opacité de la source.
+    expectValid(next);
+    expect(valuesFrom(layerOf(next, 'b'), 15, 30)).toEqual(before);
+    expect(evaluateLayer(layerOf(next, 'b'), 5, { registry }).values.opacity).toBe(0.5);
+  });
+
+  it('keeps the next span unchanged when the paste ends on a span boundary', () => {
+    // Arrange : cible fixe 1-14 (x 50) puis fixe 15-30 (x 80), sans opacity ; collage en 5-14.
+    const target = layer('b', [
+      { id: 'b1', start: 1, end: 14, kind: 'static', tracks: { x: [{ frame: 1, value: 50 }] } },
+      { id: 'b2', start: 15, end: 30, kind: 'static', tracks: { x: [{ frame: 15, value: 80 }] } }
+    ]);
+    const doc = createDoc([sourceLayer(), target], 30);
+    const spans = extractSpans(sourceLayer(), 11, 20, registry);
+    const before = valuesFrom(target, 15, 30);
+
+    // Act
+    const next = pasteSpans(doc, 'b', 5, { length: 10, spans }, registry);
+
+    // Assert
+    expectValid(next);
+    expect(valuesFrom(layerOf(next, 'b'), 15, 30)).toEqual(before);
+  });
+
+  it('keeps the own tracks of the part left before the paste', () => {
+    // Arrange : x posé par la plage 1-4, interpolation 5-20 sur y seulement.
+    const target = layer('b', [
+      { id: 'b1', start: 1, end: 4, kind: 'static', tracks: { x: [{ frame: 1, value: 3 }] } },
+      { id: 'b2', start: 5, end: 20, kind: 'tween', tracks: { y: [{ frame: 5, value: 0 }, { frame: 20, value: 15 }] } }
+    ]);
+    const doc = createDoc([target], 20);
+
+    // Act : collage en 15-16, la partie 5-14 de l'interpolation reste.
+    const next = pasteSpans(doc, 'b', 15, run(2, 'static', 9), registry);
+    const left = spansOf(next, 'b').find((span) => span.start === 5);
+
+    // Assert : pas de x épinglé sur la partie qui reste (elle suit toujours la plage 1-4).
+    expect(Object.keys(left?.tracks ?? {})).toEqual(['y']);
+  });
+});
+

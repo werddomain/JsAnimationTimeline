@@ -4,14 +4,19 @@
  * la partie [from, to] d'une plage, avec les mêmes règles de coupe que
  * l'insertion d'une image clé (F6 / F7, `model/spans/insertKeyframe.ts`) :
  * - plage vide : un morceau vide ;
- * - plage fixe : fixe, avec toutes les valeurs évaluées à `from`, y compris
- *   les propriétés héritées des plages précédentes (le morceau collé ailleurs
- *   garde la même apparence) ;
+ * - morceau copié (`inherit`) : une image clé au début pour chaque
+ *   propriété posée jusque-là dans le calque, héritées des plages
+ *   précédentes comprises (collé ailleurs, il garde la même apparence) ;
+ * - partie qui reste sur son calque (collage) : ses propres pistes ; coupée à
+ *   gauche, ses propres propriétés évaluées au bord ;
  * - interpolation : les images clés de propriété du morceau sont gardées ;
- *   au début du morceau, une image clé pour chaque propriété évaluée
- *   (héritées comprises) ; sur un bord droit coupé, une image clé pour
- *   chaque propriété interpolée, avec la valeur évaluée par le runtime
- *   (accélération comprise), pour que le morceau garde son allure.
+ *   sur un bord droit coupé, une image clé pour chaque propriété interpolée,
+ *   avec la valeur évaluée par le runtime (accélération comprise), pour que
+ *   le morceau garde son allure.
+ *
+ * Choix : une propriété que la source montre à sa valeur par défaut parce
+ * qu'elle n'est posée que plus loin n'est pas écrite ; collée sur un calque
+ * qui la pose déjà, elle garde la valeur de ce calque.
  *
  * Limite connue (la même que pour F6) : l'accélération s'applique à toute
  * la plage ; sur un morceau d'une interpolation accélérée, les images entre
@@ -79,15 +84,43 @@ function setSoFar(layer: ILayer, span: ISpan, values: PropertyValues): PropertyV
   return Object.fromEntries(Object.entries(values).filter(([name]) => names.has(name)));
 }
 
+/** Options de `slicePiece`. */
+export interface ISliceOptions {
+  /** Id du morceau (par défaut celui de la plage). */
+  readonly id?: string;
+  /**
+   * Vrai pour un morceau copié : une image clé au début pour chaque
+   * propriété posée jusque-là dans le calque (héritées comprises), pour que
+   * le morceau collé ailleurs garde son apparence. Faux pour une partie qui
+   * reste sur son calque (collage) : elle garde ses propres pistes et
+   * continue de suivre les plages précédentes.
+   */
+  readonly inherit?: boolean;
+}
+
+/** Valeurs à poser au début du morceau, ou `undefined` pour garder les pistes de la plage. */
+function startValues(
+  layer: ILayer,
+  span: ISpan,
+  from: number,
+  registry: PropertyRegistry,
+  inherit: boolean
+): PropertyValues | undefined {
+  if (inherit) return valuesAtStart(layer, span, from, registry);
+  if (from === span.start) return undefined;
+  const own = new Set(Object.keys(span.tracks ?? {}));
+  return Object.fromEntries(Object.entries(evaluateValues(layer, from, registry)).filter(([name]) => own.has(name)));
+}
+
 function staticTracks(
   layer: ILayer,
   span: ISpan,
   from: number,
   to: number,
-  registry: PropertyRegistry
+  registry: PropertyRegistry,
+  inherit: boolean
 ): PropertyTracks | undefined {
-  // Valeurs complètes à `from` : celles de la plage et celles héritées des plages précédentes.
-  const values = valuesAtStart(layer, span, from, registry);
+  const values = startValues(layer, span, from, registry, inherit);
   return values === undefined ? keyframesWithin(span.tracks, from, to) : tracksFromValues(values, from);
 }
 
@@ -96,20 +129,20 @@ function tweenTracks(
   span: ISpan,
   from: number,
   to: number,
-  registry: PropertyRegistry
+  registry: PropertyRegistry,
+  inherit: boolean
 ): PropertyTracks | undefined {
   const names = Object.keys(span.tracks ?? {});
   const kept = keyframesWithin(span.tracks, from, to);
-  // Début du morceau : une image clé pour chaque propriété évaluée (héritées comprises).
-  const startValues = valuesAtStart(layer, span, from, registry);
-  const withStart = startValues === undefined ? kept : withEdgeKeyframes(kept, Object.keys(startValues), from, startValues);
+  const values = startValues(layer, span, from, registry, inherit);
+  const withStart = values === undefined ? kept : withEdgeKeyframes(kept, Object.keys(values), from, values);
   // Bord droit coupé : seules les propriétés interpolées par la plage changent.
   return to < span.end ? withEdgeKeyframes(withStart, names, to, evaluateValues(layer, to, registry)) : withStart;
 }
 
 /**
- * Partie [from, to] de `span` (incluse dans la plage), sous l'id `id`.
- * Les valeurs aux bords coupés sont évaluées sur `layer`, le calque d'origine.
+ * Partie [from, to] de `span` (incluse dans la plage). Les valeurs aux bords
+ * coupés sont évaluées sur `layer`, le calque d'origine.
  */
 export function slicePiece(
   layer: ILayer,
@@ -117,10 +150,12 @@ export function slicePiece(
   from: number,
   to: number,
   registry: PropertyRegistry,
-  id: string = span.id
+  options: ISliceOptions = {}
 ): ISpan {
+  const id = options.id ?? span.id;
+  const inherit = options.inherit ?? false;
   const piece: ISpan = { ...span, id, start: from, end: to };
   if (span.kind === 'blank') return { id, start: from, end: to, kind: 'blank' };
-  if (span.kind === 'static') return withTracks(piece, staticTracks(layer, span, from, to, registry));
-  return withTracks(piece, tweenTracks(layer, span, from, to, registry));
+  if (span.kind === 'static') return withTracks(piece, staticTracks(layer, span, from, to, registry, inherit));
+  return withTracks(piece, tweenTracks(layer, span, from, to, registry, inherit));
 }

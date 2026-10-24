@@ -55,6 +55,36 @@ describe('extractSpans', () => {
     expect(xAt(fromTween, 10)).toBeCloseTo(evaluateLayer(layered, 20, { registry }).values.x);
   });
 
+  it('carries an earlier property into a static piece copied from its own keyframe', () => {
+    // Arrange : opacity posée par la plage 1-4, plage fixe 5-10 sur x seulement.
+    const earlier = layer('e', [
+      { id: 'e1', start: 1, end: 4, kind: 'static', tracks: { opacity: [{ frame: 1, value: 0.3 }] } },
+      { id: 'e2', start: 5, end: 10, kind: 'static', tracks: { x: [{ frame: 5, value: 7 }] } }
+    ]);
+
+    // Act : copie de 5-8, qui commence sur l'image clé de la plage.
+    const [piece] = extractSpans(earlier, 5, 8, registry);
+
+    // Assert
+    expect(piece?.tracks?.opacity?.[0]).toEqual({ frame: 1, value: 0.3 });
+    expect(piece?.tracks?.x?.[0]).toEqual({ frame: 1, value: 7 });
+  });
+
+  it('carries an earlier property into a tween piece copied from its start', () => {
+    // Arrange : opacity posée par la plage 1-4, interpolation 5-10 sur x.
+    const earlier = layer('e', [
+      { id: 'e1', start: 1, end: 4, kind: 'static', tracks: { opacity: [{ frame: 1, value: 0.3 }] } },
+      { id: 'e2', start: 5, end: 10, kind: 'tween', tracks: { x: [{ frame: 5, value: 0 }, { frame: 10, value: 50 }] } }
+    ]);
+
+    // Act
+    const piece = replay(extractSpans(earlier, 5, 10, registry));
+
+    // Assert
+    expect(evaluateLayer(piece, 1, { registry }).values.opacity).toBe(0.3);
+    expect(xAt(piece, 6)).toBeCloseTo(50);
+  });
+
   it('does not write properties that only later spans set', () => {
     // Arrange : x seulement sur la plage 1-5, opacity seulement sur la plage 6-10.
     const later = layer('l', [

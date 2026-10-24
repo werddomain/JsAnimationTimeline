@@ -19,7 +19,10 @@ import { FramesPlugin } from '../../FramesPlugin';
 import { FramesClipboardPlugin } from '../FramesClipboardPlugin';
 import type { FramesClipboardChangedEvent, IFramesClipboardService } from '../types';
 
-afterEach(cleanBody);
+afterEach(() => {
+  jest.restoreAllMocks();
+  cleanBody();
+});
 
 function layer(id: string, extra: Partial<ILayer> = {}): ILayer {
   return { id, type: 'layer', name: id, spans: [], ...extra };
@@ -186,6 +189,7 @@ describe('frames.clipboard keys on refusal and highlighted text', () => {
     // Assert
     expect(event.defaultPrevented).toBe(true);
     expect(refused).toHaveLength(1);
+    expect(refused[0]).toContain('verrouillé');
     expect(editor.toJSON()).toEqual(locked);
   });
 
@@ -201,6 +205,37 @@ describe('frames.clipboard keys on refusal and highlighted text', () => {
       element.remove();
     }
   }
+
+  it('takes the keys but does nothing during a history group', () => {
+    // Arrange
+    const captured: { ctx?: IEditorContext } = {};
+    const spy: EditorPlugin = { id: 'test.spy', dependencies: [], init: (ctx) => void (captured.ctx = ctx), destroy: () => undefined };
+    const { editor, select, clipboard } = setup(sample, [spy]);
+    select([['a', 1]]);
+    captured.ctx?.commands.beginGroup('Groupe');
+
+    // Act
+    const copyEvent = press(editor, 'c');
+    captured.ctx?.commands.cancelGroup();
+
+    // Assert
+    expect(copyEvent.defaultPrevented).toBe(true);
+    expect(clipboard.hasContent()).toBe(false);
+  });
+
+  it('leaves Ctrl+V to the browser when there is nowhere to paste', () => {
+    // Arrange
+    const { editor, select, clipboard } = setup();
+    select([['a', 1]]);
+    clipboard.copy();
+    editor.getService('frames.selection')?.clear();
+
+    // Act
+    const event = press(editor, 'v');
+
+    // Assert
+    expect(event.defaultPrevented).toBe(false);
+  });
 
   it('leaves Ctrl+C to the browser while text is highlighted in the page', () => {
     // Arrange
@@ -255,8 +290,8 @@ describe('frames.clipboard keys on refusal and highlighted text', () => {
     // Assert
     expect(event.defaultPrevented).toBe(true);
     expect(refused).toHaveLength(1);
+    expect(refused[0]).toContain('Impossible de calculer');
     expect(clipboard.hasContent()).toBe(false);
-    jest.restoreAllMocks();
   });
 
 });

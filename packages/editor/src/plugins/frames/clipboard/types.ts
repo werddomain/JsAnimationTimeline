@@ -61,8 +61,9 @@ export interface IFramesClipboardService {
   /** Copie la sélection d'images ; `false` (presse-papiers inchangé) s'il n'y a rien à copier. */
   copy(): boolean;
   /**
-   * Colle à `target` (sinon l'ancre de la sélection, la première image
-   * sélectionnée, ou la tête de lecture sur le premier calque sélectionné) ;
+   * Colle à `target` (sinon le coin haut gauche de la sélection : première
+   * ligne, plus petite image ; sinon la tête de lecture sur le premier
+   * calque sélectionné) ;
    * `false` si rien n'a été collé (presse-papiers vide, pas de cible, refus).
    */
   paste(target?: IFrameCell): boolean;

@@ -103,8 +103,9 @@ function hasTextSelection(container: HTMLElement): boolean {
   if (selection === null || selection === undefined || selection.isCollapsed || selection.toString().length === 0) {
     return false;
   }
-  const anchor = selection.anchorNode;
-  return anchor === null || !container.contains(anchor);
+  // Les deux bouts du texte surligné : un seul hors de l'éditeur suffit.
+  const ends = [selection.anchorNode, selection.focusNode];
+  return ends.some((node) => node === null || !container.contains(node));
 }
 
 /** Plugin `frames.clipboard` : Ctrl+C / Ctrl+V pour les images. */
@@ -147,7 +148,8 @@ export class FramesClipboardPlugin implements EditorPlugin {
             if (!ctx.commands.isGrouping) this.paste();
             return true;
           },
-          enabled: () => this.clip !== undefined
+          // Sans cible (ni image ni calque sélectionné), la touche reste au navigateur.
+          enabled: () => this.clip !== undefined && this.defaultTarget(ctx) !== undefined
         })
       );
     } catch (error) {
