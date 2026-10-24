@@ -34,12 +34,14 @@ import type { CancellableHandler, EventHandler, EventName } from '../events/Even
 import type { TimelineEventMap } from '../events/TimelineEventMap';
 import type { IEditorPlayback } from '../playback/types';
 import type { IPlugin } from '../plugin/IPlugin';
+import type { IEditorStage } from '../stage/types';
 import type { SlotRegistry } from '../plugin/SlotRegistry';
 // Import pour effet : garde les augmentations de TimelineEventMap (Store,
 // CommandStack et lecture) visibles pour tout fichier qui importe le contexte.
 import '../store/storeEvents';
 import '../commands/commandEvents';
 import '../playback/playbackEvents';
+import '../stage/stageEvents';
 
 /** Nom d'un événement de l'éditeur (clé de `TimelineEventMap`). */
 export type EditorEventName = EventName<TimelineEventMap>;
@@ -63,7 +65,8 @@ export type CoreEventName =
   | 'playback:play'
   | 'playback:pause'
   | 'playback:loop'
-  | 'playback:complete';
+  | 'playback:complete'
+  | 'stage:report';
 
 /** Événement qu'un plugin peut émettre : tout événement de l'éditeur sauf ceux du noyau. */
 export type PluginEventName = Exclude<EditorEventName, CoreEventName>;
@@ -198,6 +201,11 @@ export interface IEditorContext {
    * (`playhead:changed`, `frame:render`).
    */
   readonly playback: IEditorPlayback;
+  /**
+   * Scènes animées (HTML par défaut, celles du développeur, ou aucune) :
+   * cibles proposées, cibles manquantes, avertissements, `refreshTargets`.
+   */
+  readonly stage: IEditorStage;
   /**
    * Registre de propriétés de l'éditeur, figé : copie de `options.registry`
    * (ou du registre par défaut), construite avant le Store. `register` et

@@ -373,6 +373,57 @@ describe('mouse', () => {
     expect(h.selection.selected()).toEqual([]);
   });
 
+  it('emits exactly one event for a real row click (mousedown, native focus, click)', () => {
+    const h = setup();
+    h.selection.select(['a']);
+    h.events.length = 0;
+    mouseDown(row(h, 'c'));
+    row(h, 'c').focus();
+    click(row(h, 'c'));
+    expect(h.events).toEqual([{ ids: ['c'], previous: ['a'], anchor: 'c', focused: 'c' }]);
+  });
+
+  it('syncs the model focus with a press that never became a click, once the press ends', async () => {
+    const h = setup();
+    h.selection.select(['a']);
+    h.events.length = 0;
+    mouseDown(row(h, 'c'));
+    row(h, 'c').focus();
+    expect(h.selection.focused()).toBe('a');
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(h.selection.focused()).toBe('c');
+    expect(h.selection.selected()).toEqual(['a']);
+  });
+
+  it('forgets a stale press: mousedown without click, then a click without mousedown on the zone clears', async () => {
+    const h = setup();
+    h.selection.select(['a']);
+    mouseDown(row(h, 'a'));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    click((h.list.element() as HTMLElement).parentElement as Element);
+    expect(h.selection.selected()).toEqual([]);
+  });
+
+  it.each(['dragend', 'contextmenu'])('forgets the press on %s', (type) => {
+    const h = setup();
+    h.selection.select(['a']);
+    mouseDown(row(h, 'a'));
+    document.dispatchEvent(new Event(type, { bubbles: true }));
+    click(h.list.element() as Element);
+    expect(h.selection.selected()).toEqual([]);
+  });
+
+  it('forgets the press when the window loses focus', () => {
+    const h = setup();
+    h.selection.select(['a']);
+    mouseDown(row(h, 'a'));
+    window.dispatchEvent(new Event('blur'));
+    click(h.list.element() as Element);
+    expect(h.selection.selected()).toEqual([]);
+  });
+
   it('clears the selection on a click in the layers zone around the list', () => {
     const h = setup();
     h.selection.select(['a']);
@@ -581,6 +632,45 @@ describe('pruning', () => {
     expect(h.events).toEqual([{ ids: [], previous: ['a', 'c'] }]);
     expect(h.selection.selected()).toEqual([]);
     expect(row(h, 'a').getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('focuses the first row after a load when the list held the DOM focus', () => {
+    const h = setup();
+    click(row(h, 'b'));
+    h.editor.load(doc([layer('x'), layer('y')]));
+    expect(document.activeElement).toBe(row(h, 'x'));
+  });
+
+  it('does not move the focus on load when the list did not hold it', () => {
+    const h = setup();
+    h.selection.select(['b']);
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+    h.editor.load(doc([layer('x')]));
+    expect(document.activeElement).toBe(outside);
+  });
+
+  it('never exposes a hidden row as anchor or focus between rowsChanged and the prune', () => {
+    const seen: Array<[string | undefined, string | undefined]> = [];
+    const spy: EditorPlugin = {
+      id: 'test.spy',
+      dependencies: ['layers.selection'],
+      init: (ctx: IEditorContext) => {
+        ctx.events.on('layers:rowsChanged', () => {
+          const service = ctx.services.get('layers.selection');
+          seen.push([service?.anchor(), service?.focused()]);
+        });
+      },
+      destroy: () => undefined
+    };
+    const h = mount(tree, [spy]);
+    const selection = h.editor.getService('layers.selection') as ILayerSelectionService;
+    selection.select(['b']);
+    seen.length = 0;
+    collapse(h.editor, 'f', true);
+    expect(seen).toEqual([[undefined, undefined]]);
+    expect(selection.focused()).toBe('f');
   });
 
   it('emits nothing on document:loaded when there is nothing to clear', () => {

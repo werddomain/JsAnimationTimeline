@@ -42,15 +42,22 @@ describe('stepZoom', () => {
     expect(stepZoom(1.2, -1, DEFAULT_ZOOM_LEVELS, RANGE)).toBe(1);
   });
 
-  it('goes to the bound past the last level', () => {
+  it('stops at the first and last levels, leaving the wider bounds to setZoom', () => {
     // Assert
-    expect(stepZoom(4, 1, DEFAULT_ZOOM_LEVELS, RANGE)).toBe(8);
-    expect(stepZoom(0.25, -1, DEFAULT_ZOOM_LEVELS, RANGE)).toBe(0.1);
+    expect(stepZoom(4, 1, DEFAULT_ZOOM_LEVELS, RANGE)).toBe(4);
+    expect(stepZoom(0.25, -1, DEFAULT_ZOOM_LEVELS, RANGE)).toBe(0.25);
+  });
+
+  it('steps back into the levels from a zoom beyond them', () => {
+    // Assert
+    expect(stepZoom(6, -1, DEFAULT_ZOOM_LEVELS, RANGE)).toBe(4);
+    expect(stepZoom(6, 1, DEFAULT_ZOOM_LEVELS, RANGE)).toBe(6);
+    expect(stepZoom(0.1, 1, DEFAULT_ZOOM_LEVELS, RANGE)).toBe(0.25);
   });
 
   it('skips levels outside the range', () => {
     // Assert
-    expect(stepZoom(1, 1, DEFAULT_ZOOM_LEVELS, { min: 0.5, max: 1.2 })).toBe(1.2);
+    expect(stepZoom(1, 1, DEFAULT_ZOOM_LEVELS, { min: 0.5, max: 1.2 })).toBe(1);
     expect(stepZoom(1, -1, DEFAULT_ZOOM_LEVELS, { min: 0.6, max: 4 })).toBe(0.75);
   });
 });

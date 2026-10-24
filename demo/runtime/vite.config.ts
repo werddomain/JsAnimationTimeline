@@ -24,6 +24,13 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      // Deux pages : le lecteur HTML (index) et la scène sans HTML animé (R8).
+      input: {
+        main: fileURLToPath(new URL('index.html', import.meta.url)),
+        objectStage: fileURLToPath(new URL('object-stage.html', import.meta.url)),
+      },
+    },
   },
   preview: { port: RUNTIME_DEMO_PORT, strictPort: true },
 });

@@ -307,3 +307,38 @@ describe('history.undoRedo focus', () => {
     expect(document.activeElement).toBe(undoButton);
   });
 });
+
+describe('history.undoRedo focus after a shortcut', () => {
+  it('moves the focus to Rétablir when Ctrl+Z on the focused Annuler disables it', () => {
+    // Arrange
+    const { editor, undoButton, redoButton, frames } = mount();
+    editor.execute(lengthen());
+    undoButton.focus();
+
+    // Act
+    press(undoButton, { key: 'z', ctrlKey: true });
+
+    // Assert
+    expect(frames()).toBe(60);
+    expect(document.activeElement).toBe(redoButton);
+    press(redoButton, { key: 'y', ctrlKey: true });
+    expect(frames()).toBe(61);
+    expect(document.activeElement).toBe(undoButton);
+  });
+
+  it('leaves the focus where it was when the shortcut comes from elsewhere', () => {
+    // Arrange
+    const { editor } = mount();
+    editor.execute(lengthen());
+    const field = document.createElement('button');
+    editor.container.appendChild(field);
+    field.focus();
+
+    // Act
+    press(field, { key: 'z', ctrlKey: true });
+
+    // Assert
+    expect(document.activeElement).toBe(field);
+  });
+});
+

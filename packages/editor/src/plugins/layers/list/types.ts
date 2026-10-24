@@ -41,7 +41,11 @@ export interface ILayerRowControl {
   readonly render: (row: ILayerRow, element: HTMLElement) => void;
   /** Met à jour le contrôle quand la ligne ou son nœud a changé. */
   readonly update?: (row: ILayerRow, element: HTMLElement) => void;
-  /** Libère ce que `render` a créé hors de `element` ; l'élément est retiré ensuite par la liste. */
+  /**
+   * Libère ce que `render` a créé hors de `element`. Appelé quand la ligne
+   * ou le contrôle disparaît (l'élément est retiré ensuite), et aussi avant
+   * chaque nouveau rendu d'un contrôle sans `update` (l'élément reste en place).
+   */
   readonly dispose?: (row: ILayerRow, element: HTMLElement) => void;
   /**
    * En-tête de colonne facultatif (comme l'œil et le cadenas au-dessus des
@@ -100,7 +104,8 @@ export interface ILayerListService {
    */
   setCollapsed(folderId: string, collapsed: boolean): boolean;
   /**
-   * Inverse l'état replié du dossier `folderId` (commande annulable).
+   * Inverse l'état replié du dossier `folderId` (commande annulable) ;
+   * `true` si le document a changé (toujours le cas pour un dossier).
    * Lève une erreur si `folderId` n'est pas un dossier du document.
    */
   toggleCollapsed(folderId: string): boolean;

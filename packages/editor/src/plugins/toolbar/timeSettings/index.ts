@@ -18,6 +18,7 @@ export {
   createSetTotalFramesCommand,
   fpsError,
   lastUsedFrame,
+  maxTotalFrames,
   totalFramesError
 } from './timeSettingsCommands';
 export type { ILastUsedFrame } from './timeSettingsCommands';
