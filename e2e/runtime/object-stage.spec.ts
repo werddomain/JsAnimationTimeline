@@ -68,7 +68,6 @@ function layerValues(snapshot: IReceivedSnapshot | null, layerId: string): Recor
 
 function expectValues(received: Record<string, number>, expected: Record<string, number>): void {
   Object.entries(expected).forEach(([name, value]) => {
-    expect(received[name], name).toBeCloseTo(value, 6);
     expect(Math.abs(received[name] - value)).toBeLessThan(TOLERANCE);
   });
 }
@@ -90,7 +89,7 @@ test.describe('runtime object stages (scenario 11b)', () => {
     expect(problems).toEqual([]);
   });
 
-  for (const frame of [1, 10, 10.5, 24, 33.25, 48]) {
+  for (const frame of [1, 10, 10.5, 24, 33.25, 40]) {
     test(`canvas and audio stages receive the evaluated values at frame ${frame}`, async ({ page }) => {
       const check = await renderFrame(page, frame);
 
@@ -102,6 +101,18 @@ test.describe('runtime object stages (scenario 11b)', () => {
       // Each stage only receives its own layers.
       expect(check.canvas?.layers.map((layer) => layer.layerId)).toEqual(['hero']);
       expect(check.audio?.layers.map((layer) => layer.layerId)).toEqual(['music']);
+    });
+  }
+
+  for (const frame of [44, 48]) {
+    test(`the blank span of the music gives the audio stage its default volume at frame ${frame}`, async ({ page }) => {
+      const check = await renderFrame(page, frame);
+      const music = check.audio?.layers.find((layer) => layer.layerId === 'music');
+      expect(music?.active).toBe(false);
+      // No reset on the audio stage: an inactive layer receives the registry default (volume 1).
+      expect(music?.values.volume).toBe(1);
+      expectValues(layerValues(check.canvas, 'hero'), check.expected.hero);
+      expect(check.missingTargets).toEqual([]);
     });
   }
 

@@ -6,6 +6,8 @@
  * liste des cibles, de la remise à zéro et d'un seul `endFrame` par image.
  * Un calque inactif reçoit `reset` puis `apply` ; sans `reset`, `apply` reçoit
  * les valeurs par défaut du registre.
+ * `remove()` d'un objet déjà lié ne joue qu'au document suivant ou à
+ * `refreshTargets` : le calque garde l'objet résolu jusque-là.
  */
 
 import { isRefTarget } from '../../model/guards';
@@ -30,13 +32,19 @@ function targetInfo(stageId: string, entry: IObjectStageEntry<unknown>): ITarget
   };
 }
 
+/** What the stage remembers of a layer between `update` and `release`. */
+interface IBoundLayer {
+  readonly target: LayerTarget;
+  readonly names: readonly string[];
+}
+
 /** Creates a stage animating the `objects` with `apply`; see `IObjectStageOptions`. */
 export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectStage<T> {
   const stageId = options.id;
   const entries = new Map<string, IObjectStageEntry<T>>();
   const subscribers = new Set<() => void>();
   /** Layer id → target of the layers bound by the last `update` (needed by `release`). */
-  const bound = new Map<string, LayerTarget>();
+  const bound = new Map<string, IBoundLayer>();
   let registry: PropertyRegistry = defaultPropertyRegistry;
 
   const addEntry = (entry: IObjectStageEntry<T>): void => {
@@ -53,19 +61,25 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
   const entryOf = (target: LayerTarget): IObjectStageEntry<T> | undefined =>
     isRefTarget(target) ? entries.get(target.ref) : undefined;
 
-  /** Registry defaults of the properties of `object` (those it declares, else the stage's) and of `extra`. */
-  const defaultsFor = (object: T, extra: Iterable<string> = []): Record<string, number> => {
-    const entry = Array.from(entries.values()).find((candidate) => candidate.object === object);
-    const declared = entry?.properties?.map(propertyName) ?? (options.properties ?? []).map((p) => p.name);
+  /** Names of the properties a layer's object declares (else the stage's), fixed at `update`. */
+  const declaredNames = (object: T, target: LayerTarget): string[] => {
+    const entry = entryOf(target) ?? Array.from(entries.values()).find((candidate) => candidate.object === object);
+    return (entry?.properties?.map(propertyName) ?? (options.properties ?? []).map((p) => p.name));
+  };
+
+  const stageNames = (): string[] => (options.properties ?? []).map((p) => p.name);
+
+  /** Registry defaults of `names` and of `extra`. */
+  const defaultsFor = (names: readonly string[], extra: Iterable<string> = []): Record<string, number> => {
     const defaults: Record<string, number> = {};
-    [...declared, ...extra].forEach((name) => {
+    [...names, ...extra].forEach((name) => {
       defaults[name] = registry.get(name)?.defaultValue ?? 0;
     });
     return defaults;
   };
 
   const prepare = (state: IStageLayerState<T>): ObjectStageState<T> => {
-    const defaults = defaultsFor(state.object, Object.keys(state.values));
+    const defaults = defaultsFor(bound.get(state.layerId)?.names ?? stageNames(), Object.keys(state.values));
     if (state.active) {
       return { ...state, values: { ...defaults, ...state.values } };
     }
@@ -104,7 +118,9 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
     },
     update(_doc, layers: readonly IStageLayer<T>[]) {
       bound.clear();
-      layers.forEach((layer) => bound.set(layer.layerId, layer.target));
+      layers.forEach((layer) =>
+        bound.set(layer.layerId, { target: layer.target, names: declaredNames(layer.object, layer.target) })
+      );
     },
     render(time, states) {
       const prepared = states.map(prepare);
@@ -112,14 +128,17 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
       options.endFrame?.(time, prepared);
     },
     release(layerId, object) {
-      const target = bound.get(layerId) ?? { ref: layerId, stage: stageId };
+      const layer = bound.get(layerId);
       bound.delete(layerId);
       if (options.reset !== undefined) {
         options.reset(object);
         return;
       }
-      const values = defaultsFor(object);
-      options.apply(object, values, { layerId, target, object, values, active: false, editorVisible: true });
+      if (layer === undefined) {
+        return;
+      }
+      const values = defaultsFor(layer.names);
+      options.apply(object, values, { layerId, target: layer.target, object, values, active: false, editorVisible: true });
     },
     add(entry) {
       addEntry(entry);

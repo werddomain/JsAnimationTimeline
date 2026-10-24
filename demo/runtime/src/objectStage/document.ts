@@ -3,7 +3,7 @@
  * Animation de la démo « scène sans HTML animé », écrite à la main au format
  * JSON v2 : 48 images à 24 i/s (2 secondes).
  * - « Héros » (scène `canvas`) : position, rotation et numéro d'image du sprite ;
- * - « Musique » (scène `audio`) : volume qui monte puis redescend ;
+ * - « Musique » (scène `audio`) : volume qui monte puis redescend, silence (plage vide) aux images 41 à 48 ;
  * - « Bandeau » (scène HTML par défaut) : fondu d'entrée.
  */
 
@@ -47,10 +47,11 @@ export const OBJECT_STAGE_DOCUMENT: ITimelineDocument = {
         {
           id: 'music-volume',
           start: 1,
-          end: 48,
+          end: 40,
           kind: 'tween',
-          tracks: { volume: [{ frame: 1, value: 0 }, { frame: 16, value: 1 }, { frame: 48, value: 0.2 }] }
-        }
+          tracks: { volume: [{ frame: 1, value: 0 }, { frame: 16, value: 1 }, { frame: 40, value: 0.2 }] }
+        },
+        { id: 'music-silence', start: 41, end: 48, kind: 'blank' }
       ]
     },
     {

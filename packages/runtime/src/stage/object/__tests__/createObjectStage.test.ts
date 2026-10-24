@@ -232,6 +232,27 @@ describe('createObjectStage inactive layers and release', () => {
     expect(applied).toEqual([{ name: 'hero', values: { x: 0, y: 0, frameIndex: 0 }, active: false }]);
   });
 
+  it('releases with the bound target and the properties remembered at update, even after remove', () => {
+    const targets: LayerTarget[] = [];
+    const { host, stage, applied } = setUp({ apply: (sprite, values, state) => {
+      targets.push(state.target);
+      applied.push({ name: sprite.name, values, active: state.active });
+    } });
+    host.load(docOf([refLayer('l1', 'hero')]));
+    stage.remove('hero');
+    applied.length = 0;
+    targets.length = 0;
+    host.load(docOf([]));
+    expect(targets).toEqual([{ ref: 'hero' }]);
+    expect(applied[0].values).toEqual({ x: 0, y: 0, frameIndex: 0 });
+  });
+
+  it('does not apply on release for a layer it never saw', () => {
+    const { stage, hero, applied } = setUp();
+    stage.release?.('unknown', hero);
+    expect(applied).toHaveLength(0);
+  });
+
   it('uses the stage properties when an object declares none', () => {
     const { host, applied } = setUp();
     host.load(docOf([refLayer('l1', 'villain', 'canvas', { x: [{ frame: 1, value: 2 }] })]));

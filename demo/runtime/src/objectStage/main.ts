@@ -90,6 +90,11 @@ function setUp(): void {
     );
   });
 
+  window.addEventListener('pagehide', () => {
+    player.destroy();
+    track.dispose();
+  });
+
   showFrame(player.frame);
   showState();
 }

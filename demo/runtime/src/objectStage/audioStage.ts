@@ -22,12 +22,20 @@ export class AudioTrack {
   volume = 0;
   private context: AudioContext | null = null;
   private gain: GainNode | null = null;
+  private oscillator: OscillatorNode | null = null;
+  /** Whether the timeline is playing; the context only runs while it is. */
+  private playing = false;
+  /** Resume/suspend calls run one after the other, so a fast play/pause cannot race. */
+  private queue: Promise<void> = Promise.resolve();
 
   get started(): boolean {
     return this.context !== null;
   }
 
-  /** Builds the graph (oscillator, gain, output); call it from a user gesture. */
+  /**
+   * Builds the graph (oscillator, gain, output); call it from a user gesture.
+   * The context runs only if the timeline is playing, else it stays suspended.
+   */
   async start(): Promise<void> {
     if (this.context === null) {
       const context = new AudioContext();
@@ -40,8 +48,9 @@ export class AudioTrack {
       oscillator.start();
       this.context = context;
       this.gain = gain;
+      this.oscillator = oscillator;
     }
-    await this.context.resume();
+    await this.enqueuePlayState();
   }
 
   /** Remembers `volume` and, once started, moves the gain to it smoothly. */
@@ -52,12 +61,39 @@ export class AudioTrack {
     }
   }
 
-  /** Suspends the sound while the timeline is paused. */
+  /** Runs the sound while the timeline plays and suspends it otherwise. */
   setPlaying(playing: boolean): void {
-    if (this.context === null) {
+    this.playing = playing;
+    void this.enqueuePlayState();
+  }
+
+  /** Stops the oscillator and closes the context; the track cannot be started again. */
+  dispose(): void {
+    const { context, oscillator } = this;
+    this.context = null;
+    this.gain = null;
+    this.oscillator = null;
+    oscillator?.stop();
+    if (context !== null && context.state !== 'closed') {
+      context.close().catch(() => undefined);
+    }
+  }
+
+  private enqueuePlayState(): Promise<void> {
+    this.queue = this.queue.then(() => this.applyPlayState()).catch(() => undefined);
+    return this.queue;
+  }
+
+  private async applyPlayState(): Promise<void> {
+    const context = this.context;
+    if (context === null || context.state === 'closed') {
       return;
     }
-    void (playing ? this.context.resume() : this.context.suspend());
+    if (this.playing && context.state !== 'running') {
+      await context.resume();
+    } else if (!this.playing && context.state === 'running') {
+      await context.suspend();
+    }
   }
 }
 
