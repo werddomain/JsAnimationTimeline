@@ -205,6 +205,24 @@ describe('pasteSpans past the last frame of the layer', () => {
     expectValid(next);
   });
 
+  it('does not stretch an eased tween ending before a paste past the end', () => {
+    // Arrange : interpolation accélérée 1-10 (x 0 -> 100), collage en 15.
+    const eased = layer('e', [
+      { id: 'e1', start: 1, end: 10, kind: 'tween', easing: 'ease-in', tracks: { x: [{ frame: 1, value: 0 }, { frame: 10, value: 100 }] } }
+    ]);
+    const doc = createDoc([eased], 20);
+    const before = Array.from({ length: 10 }, (_, index) => xAt(eased, index + 1));
+
+    // Act
+    const next = pasteSpans(doc, 'e', 15, run(2, 'static', 7), registry);
+    const after = layerOf(next, 'e');
+
+    // Assert : images 1-10 inchangées, 11-14 gardent la valeur de fin.
+    expectValid(next);
+    expect(Array.from({ length: 10 }, (_, index) => xAt(after, index + 1))).toEqual(before);
+    expect([11, 12, 13, 14].map((frame) => xAt(after, frame))).toEqual([100, 100, 100, 100]);
+  });
+
   it('does not extend anything when the paste starts right after the last span', () => {
     // Arrange
     const doc = createDoc([shortLayer()]);

@@ -49,10 +49,19 @@ function assertPasteRange(at: number, length: number): void {
   }
 }
 
-/** Prolonge la dernière plage jusqu'à `frame` (plage vide 1 à `frame` sur un calque vide). Origine : `frames.ts`. */
+/**
+ * Prolonge le calque jusqu'à `frame` (plage vide 1 à `frame` sur un calque
+ * vide). Origine : `frames.ts`. Une dernière plage fixe ou vide est
+ * prolongée ; une interpolation ne l'est pas (son accélération s'étirerait
+ * et changerait ses images existantes) : une plage fixe sans piste la suit,
+ * qui garde les valeurs de fin de l'interpolation.
+ */
 function extendTo(layer: ILayer, frame: number, nextId: () => string): ILayer {
   if (layer.spans.length === 0) return withSpans(layer, [{ id: nextId(), start: 1, end: frame, kind: 'blank' }]);
   const last = layer.spans[layer.spans.length - 1];
+  if (last.kind === 'tween') {
+    return withSpans(layer, [...layer.spans, { id: nextId(), start: last.end + 1, end: frame, kind: 'static' }]);
+  }
   return withSpans(layer, [...layer.spans.slice(0, -1), { ...last, end: frame }]);
 }
 
