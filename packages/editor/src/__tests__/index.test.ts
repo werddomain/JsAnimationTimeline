@@ -54,6 +54,8 @@ const V2_NAMES = [
   'LAYOUT_ZONES',
   'LayoutPlugin',
   'LayoutShellPlugin',
+  'PERSISTENCE_JSON_PLUGIN_ID',
+  'PersistenceError',
   'PluginError',
   'ROOT_SLOT',
   'ScrollSyncPlugin',
@@ -69,6 +71,7 @@ const V2_NAMES = [
   'createCommand',
   'createEditor',
   'createEmptyDocument',
+  'createPersistenceJsonPlugin',
   'createShortcutsPlugin',
   'createToolbarMainPlugin',
   'defaultPlugins'
