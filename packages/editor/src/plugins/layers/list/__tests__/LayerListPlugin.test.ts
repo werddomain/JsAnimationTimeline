@@ -233,9 +233,10 @@ describe('layers.list row controls', () => {
   }
 
   function controlIds(row: HTMLElement): string[] {
-    return Array.from(row.querySelectorAll<HTMLElement>(`.${LAYER_ROW_CLASSES.control}`)).map(
-      (cell) => cell.dataset.controlId ?? ''
-    );
+    // Les contrôles des autres plugins par défaut (couleur...) sont ignorés : seuls ceux du test comptent.
+    return Array.from(row.querySelectorAll<HTMLElement>(`.${LAYER_ROW_CLASSES.control}`))
+      .map((cell) => cell.dataset.controlId ?? '')
+      .filter((id) => id.startsWith('test.'));
   }
 
   it('renders controls on every row, ordered by order, with header cells', () => {
@@ -247,7 +248,7 @@ describe('layers.list row controls', () => {
     expect(controlIds(rowElement(host, 'a'))).toEqual(['test.eye', 'test.lock']);
     expect(eye.renders).toEqual(['f', 'a', 'g', 'b', 'c']);
     const headerCells = Array.from(host.querySelectorAll<HTMLElement>('.jt-layers-header__control'));
-    expect(headerCells.map((cell) => cell.textContent)).toEqual(['test.eye', 'test.lock']);
+    expect(headerCells.map((cell) => cell.textContent).filter((text) => text !== '')).toEqual(['test.eye', 'test.lock']);
   });
 
   it('renders controls on rows that appear later', () => {

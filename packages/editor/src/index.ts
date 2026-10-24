@@ -124,9 +124,13 @@ export type {
 
 // Plugins des calques (epic `layers`) : liste des calques et contrôles de ligne.
 export {
+  LAYERS_COLOR_PLUGIN_ID,
+  LAYERS_ICON_PLUGIN_ID,
   LAYERS_LIST_PLUGIN_ID,
   LAYER_LIST_CLASSES,
   LAYER_ROW_CLASSES,
+  LayerColorPlugin,
+  LayerIconPlugin,
   LayerListPlugin,
   LayersPlugin,
   NAME_EDITING_ATTRIBUTE,
@@ -135,6 +139,8 @@ export {
   updateLayerNode
 } from './plugins/layers';
 export type {
+  ILayerColorService,
+  ILayerIconService,
   ILayerListService,
   ILayerRow,
   ILayerRowControl,
