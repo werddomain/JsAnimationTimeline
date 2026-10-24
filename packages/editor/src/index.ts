@@ -152,6 +152,16 @@ export type {
   LayerRowsChangedEvent
 } from './plugins/layers';
 
+// Plugins des images (epic `frames`) : grille des plages et des images clés.
+export { FRAMES_GRID_CLASSES, FRAMES_GRID_PLUGIN_ID, FramesGridPlugin, FramesPlugin } from './plugins/frames';
+export type {
+  FramesGridRenderedEvent,
+  IFramesGridService,
+  IGridCell,
+  IGridWindow
+} from './plugins/frames';
+export type { ZoomChangedEvent } from './plugins/layout/zoom/zoomEvents';
+
 // Plugin interaction.shortcuts (raccourcis clavier déclarés par les plugins).
 export { SHORTCUTS_PLUGIN_ID, ShortcutError, createShortcutsPlugin } from './plugins/interaction/shortcuts';
 export type {

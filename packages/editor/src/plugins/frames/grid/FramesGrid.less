@@ -1,0 +1,122 @@
+// Grille des images (frames.grid), couleurs reprises du legacy (JsTimeLine.less,
+// .grid-frame*, .grid-keyframe*) et du motion tween de Flash CS4.
+//   --jt-grid-frame-width  largeur d'une image, posée par le plugin sur .jt-grid
+// Les traits des images et la teinte toutes les 5 images sont des fonds CSS :
+// un seul élément par plage, quelle que soit sa longueur.
+
+@jt-grid-line: #e0e0e0;
+@jt-grid-row-line: #d8d8d8;
+@jt-grid-key: #333;
+
+.JsTimeLine {
+  .jt-grid {
+    position: relative;
+    min-width: 100%;
+    background-color: #fff;
+  }
+
+  .jt-grid__rows {
+    position: absolute;
+    inset: 0;
+  }
+
+  .jt-grid__row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
+    border-bottom: 1px solid @jt-grid-row-line;
+  }
+
+  .jt-grid__span {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    box-sizing: border-box;
+    // Trait à droite de chaque image ; le fond de la plage passe dessous.
+    background-image: linear-gradient(to left, @jt-grid-line 1px, transparent 1px);
+    background-size: var(--jt-grid-frame-width, 15px) 100%;
+    background-position: left top;
+  }
+
+  // Images après la dernière plage : une teinte toutes les 5 images, comme Flash.
+  .jt-grid__span--empty,
+  .jt-grid__span--folder {
+    background-image:
+      linear-gradient(to left, @jt-grid-line 1px, transparent 1px),
+      linear-gradient(to right, transparent calc(var(--jt-grid-frame-width, 15px) * 4), #f2f2f2 0);
+    background-size:
+      var(--jt-grid-frame-width, 15px) 100%,
+      calc(var(--jt-grid-frame-width, 15px) * 5) 100%;
+  }
+
+  .jt-grid__span--folder {
+    background-color: #f4f4f4;
+  }
+
+  .jt-grid__span--static {
+    background-color: #e5e5e5;
+    border-left: 1px solid #b0b0b0;
+  }
+
+  .jt-grid__span--blank {
+    background-color: #fafafa;
+    border-left: 1px solid #b0b0b0;
+  }
+
+  .jt-grid__span--tween {
+    background-color: #d0e8ff;
+    border-left: 1px solid #80c0ff;
+  }
+
+  .jt-grid__mark {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 5px;
+    box-sizing: border-box;
+    pointer-events: none;
+
+    &::before {
+      content: '';
+      box-sizing: border-box;
+    }
+  }
+
+  // Image clé de contenu : rond plein.
+  .jt-grid__mark--keyframe::before {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: @jt-grid-key;
+  }
+
+  // Image clé vide : rond creux.
+  .jt-grid__mark--blankKeyframe::before {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    border: 1px solid @jt-grid-key;
+    background-color: #fff;
+  }
+
+  // Image clé de propriété dans une interpolation : losange.
+  .jt-grid__mark--propertyKeyframe::before {
+    width: 6px;
+    height: 6px;
+    margin-bottom: 1px;
+    background-color: @jt-grid-key;
+    transform: rotate(45deg);
+  }
+
+  // Fin d'une plage statique ou vide : petit rectangle creux.
+  .jt-grid__mark--spanEnd::before {
+    width: 6px;
+    height: 9px;
+    border: 1px solid @jt-grid-key;
+    background-color: #fff;
+  }
+}
