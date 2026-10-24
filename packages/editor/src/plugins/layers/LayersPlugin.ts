@@ -24,7 +24,9 @@ export class LayersPlugin implements EditorPlugin {
   readonly children: readonly EditorPlugin[];
 
   constructor() {
-    this.children = [new LayerListPlugin()];
+    this.children = [
+      new LayerListPlugin(),
+    ];
   }
 
   readonly init = (): void => {};
