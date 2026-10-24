@@ -65,6 +65,8 @@ interface IDragSession {
   dragged: HTMLElement[];
   indicator: DropIndicator | undefined;
   stop: () => void;
+  /** Retire l'écouteur de Échap (dès l'annulation : Échap redevient libre). */
+  stopKey: () => void;
 }
 
 /** Contrôleur du glisser-déposer des lignes, attaché à l'élément de la liste. */
@@ -96,6 +98,7 @@ export class DragController {
       return;
     }
     this.teardownVisuals(session);
+    session.stopKey();
     session.cancelled = true;
   }
 
@@ -123,11 +126,12 @@ export class DragController {
     doc.addEventListener('pointerup', onEnd);
     doc.addEventListener('pointercancel', onEnd);
     doc.addEventListener('keydown', onKey, true);
+    const stopKey = (): void => doc.removeEventListener('keydown', onKey, true);
     const stop = (): void => {
       doc.removeEventListener('pointermove', onMove);
       doc.removeEventListener('pointerup', onEnd);
       doc.removeEventListener('pointercancel', onEnd);
-      doc.removeEventListener('keydown', onKey, true);
+      stopKey();
     };
     this.session = {
       pointerId: event.pointerId,
@@ -140,7 +144,8 @@ export class DragController {
       placement: undefined,
       dragged: [],
       indicator: undefined,
-      stop
+      stop,
+      stopKey
     };
   };
 
@@ -172,7 +177,8 @@ export class DragController {
   }
 
   private onKeyDown(event: KeyboardEvent): void {
-    if (event.key !== 'Escape' || this.session === undefined) return;
+    // Avant le seuil, l'appui est un clic : Échap passe (Y5 vide la sélection).
+    if (event.key !== 'Escape' || !this.dragging) return;
     event.preventDefault();
     event.stopPropagation();
     this.cancel();
@@ -260,9 +266,13 @@ export class DragController {
     this.teardownVisuals(session);
   }
 
-  /** Supprime le prochain clic sur la liste (celui qui suit le relâchement d'un glisser). */
+  /**
+   * Supprime le prochain clic du document (celui qui suit le relâchement d'un
+   * glisser) : sur le document, il couvre aussi un dépôt sous la dernière ligne,
+   * dont le clic vise la zone vide et vide la sélection (Y5).
+   */
   private armClickSuppression(): void {
-    const element = this.listElement;
+    const element = this.listElement?.ownerDocument;
     if (element === undefined) return;
     this.suppressClick?.();
     const onClick = (event: MouseEvent): void => {

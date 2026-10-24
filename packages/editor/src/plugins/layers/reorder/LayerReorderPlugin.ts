@@ -21,7 +21,8 @@
  *
  * Clavier : Ctrl+Alt+Haut / Bas déplace la sélection (ou la ligne qui a le
  * focus) d'une ligne, en entrant dans un dossier ou en en sortant au bord
- * (voir `keyboardMove`).
+ * (voir `keyboardMove`). Le résultat est annoncé dans une zone `aria-live`
+ * polie, propre au plugin et retirée à la destruction.
  *
  * Service `layers.reorder` : voir `ILayerReorderService`. Les opérations sur
  * l'arbre (`treeMoves`, `moveNodes`) sont exportées pour les groupes (Y7) et
@@ -34,6 +35,7 @@ import type { ILayerSelectionService } from '../selection';
 import { DragController } from './dragController';
 import { keyboardMoveTarget } from './keyboardMove';
 import type { MoveDirection } from './keyboardMove';
+import { describeMove } from './moveAnnouncement';
 import { moveNodes } from './moveNodes';
 import type { ILayerDropTarget } from './moveNodes';
 import { createMoveLayersCommand } from './reorderCommand';
@@ -42,6 +44,9 @@ import './LayerReorder.less';
 
 /** Identifiant du plugin et de son service. */
 export const LAYERS_REORDER_PLUGIN_ID = 'layers.reorder';
+
+/** Classe de la zone d'annonce (masquée à l'écran, lue par les lecteurs d'écran). */
+export const LIVE_REGION_CLASS = 'jt-layer-reorder-live';
 
 const KEY_DIRECTIONS: Readonly<Record<string, MoveDirection>> = Object.freeze({ ArrowUp: 'up', ArrowDown: 'down' });
 
@@ -56,6 +61,7 @@ export class LayerReorderPlugin implements EditorPlugin {
   private drag: DragController | undefined;
   private cleanups: Array<() => void> = [];
   private renderCleanups: Array<() => void> = [];
+  private liveRegion: HTMLElement | undefined;
 
   readonly init = (ctx: IEditorContext): void => {
     this.ctx = ctx;
@@ -80,6 +86,7 @@ export class LayerReorderPlugin implements EditorPlugin {
     const element = this.requireList().element();
     if (element === undefined) return;
     this.drag?.attach(element);
+    this.liveRegion = this.createLiveRegion(element);
     const onKeyDown = (event: KeyboardEvent): void => this.onKeyDown(event);
     element.addEventListener('keydown', onKeyDown);
     this.renderCleanups.push(() => element.removeEventListener('keydown', onKeyDown));
@@ -102,6 +109,8 @@ export class LayerReorderPlugin implements EditorPlugin {
     this.renderCleanups = [];
     cleanups.forEach((cleanup) => cleanup());
     this.drag?.destroy();
+    this.liveRegion?.remove();
+    this.liveRegion = undefined;
   }
 
   private move(ids: readonly string[], target: ILayerDropTarget): boolean {
@@ -125,7 +134,23 @@ export class LayerReorderPlugin implements EditorPlugin {
     const target = keyboardMoveTarget(this.requireContext().document, list.rows(), ids, direction);
     if (target === undefined) return;
     event.preventDefault();
-    if (this.move(ids, target) && focused !== undefined) list.rowElement(focused)?.focus();
+    if (!this.move(ids, target)) return;
+    if (focused !== undefined) list.rowElement(focused)?.focus();
+    this.announce(describeMove(this.requireContext().document, ids));
+  }
+
+  /** Zone d'annonce polie, à côté de la liste (jamais dans la liste : la liste range ses lignes par index). */
+  private createLiveRegion(list: HTMLElement): HTMLElement {
+    const region = list.ownerDocument.createElement('div');
+    region.classList.add(LIVE_REGION_CLASS);
+    region.setAttribute('role', 'status');
+    region.setAttribute('aria-live', 'polite');
+    list.after(region);
+    return region;
+  }
+
+  private announce(text: string): void {
+    if (this.liveRegion !== undefined) this.liveRegion.textContent = text;
   }
 
   private requireList(): ILayerListService {

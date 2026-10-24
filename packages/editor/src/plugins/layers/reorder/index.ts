@@ -1,7 +1,7 @@
 // packages/editor/src/plugins/layers/reorder/index.ts
 /** Plugin `layers.reorder` : glisser-déposer des calques et opérations de déplacement dans l'arbre. */
 
-export { LAYERS_REORDER_PLUGIN_ID, LayerReorderPlugin } from './LayerReorderPlugin';
+export { LAYERS_REORDER_PLUGIN_ID, LIVE_REGION_CLASS, LayerReorderPlugin } from './LayerReorderPlugin';
 export { DRAG_THRESHOLD } from './dragController';
 export { REORDER_CLASSES } from './dropIndicator';
 export {

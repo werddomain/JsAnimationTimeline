@@ -8,6 +8,11 @@
     position: relative;
   }
 
+  // Sans cela, le navigateur garde le geste tactile pour le défilement et le glisser ne démarre pas.
+  .jt-layer-row {
+    touch-action: none;
+  }
+
   .jt-layer-list--dragging,
   .jt-layer-list--dragging .jt-layer-row {
     cursor: grabbing;
@@ -34,5 +39,15 @@
     &[hidden] {
       display: none;
     }
+  }
+
+  // Zone d'annonce : hors écran mais lue par les lecteurs d'écran.
+  .jt-layer-reorder-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 }

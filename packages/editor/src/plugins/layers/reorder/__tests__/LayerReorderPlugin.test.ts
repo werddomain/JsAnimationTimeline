@@ -14,6 +14,7 @@ import { doc, domRowIds, folder, layer, mount, unmountAll } from '../../list/__t
 import type { IListHarness } from '../../list/__tests__/fixtures';
 import { DRAG_THRESHOLD } from '../dragController';
 import { REORDER_CLASSES } from '../dropIndicator';
+import { LIVE_REGION_CLASS } from '../LayerReorderPlugin';
 import type { ILayerSelectionService } from '../../selection';
 import type { ILayerReorderService } from '../types';
 
@@ -421,6 +422,51 @@ describe('click versus drag', () => {
   });
 });
 
+describe('click suppression and Escape details', () => {
+  it('swallows the click after a drop below the last row, so the empty-area click does not clear the selection', () => {
+    const h = setup();
+    dragRow(h, 'a', y(9));
+    const zone = h.list.element()?.parentElement;
+    if (zone === null || zone === undefined) throw new Error('zone absente');
+
+    const swallowed = click(zone);
+
+    expect(swallowed.defaultPrevented).toBe(true);
+    expect(h.selection.selected()).toEqual(['a']);
+  });
+
+  it('lets Escape through for a press that has not passed the threshold', () => {
+    const h = setup();
+    h.selection.select(['c'], 'replace');
+    press(h, 'c', y(4));
+    moveTo(y(4) + 1);
+
+    const escape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    row(h, 'c').dispatchEvent(escape);
+    release(y(4) + 1);
+
+    // Y5 a traité Échap (selection vidée) : le glisser ne l'a pas avalé.
+    expect(h.selection.selected()).toEqual([]);
+  });
+
+  it('swallows only the first Escape of a drag: once cancelled, Escape is free again', () => {
+    const h = setup();
+    h.selection.select(['c'], 'replace');
+    press(h, 'c', y(4));
+    moveTo(y(1, 0.1));
+
+    const first = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    row(h, 'c').dispatchEvent(first);
+    const second = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    row(h, 'c').dispatchEvent(second);
+
+    expect(first.defaultPrevented).toBe(true);
+    expect(h.selection.selected()).toEqual([]);
+    expect(second.cancelBubble).toBe(false);
+    release(y(1, 0.1));
+  });
+});
+
 describe('cancelling', () => {
   it('cancels with Escape: nothing moves, visuals are gone, the selection is kept and the release click is swallowed', () => {
     const h = setup();
@@ -544,6 +590,39 @@ describe('keyboard', () => {
     row(h, 'c').dispatchEvent(key('ArrowDown'));
 
     expect(show(h.editor.document.layers)).toBe('f(a,g(b)),d,c');
+  });
+
+  function live(): HTMLElement | null {
+    return document.querySelector<HTMLElement>(`.${LIVE_REGION_CLASS}`);
+  }
+
+  it('announces the move in a polite live region, removed on destroy', () => {
+    const h = setup();
+    h.selection.select(['c'], 'replace');
+
+    row(h, 'c').dispatchEvent(key('ArrowUp'));
+    const into = live()?.textContent;
+    row(h, 'c').dispatchEvent(key('ArrowDown'));
+    row(h, 'c').dispatchEvent(key('ArrowDown'));
+
+    expect(live()?.getAttribute('aria-live')).toBe('polite');
+    expect(live()?.getAttribute('role')).toBe('status');
+    expect(into).toBe('« c » déplacé dans « g » : position 2 sur 2');
+    expect(live()?.textContent).toBe('« c » déplacé : position 2 sur 3');
+    h.editor.destroy();
+    expect(live()).toBeNull();
+  });
+
+  it('announces several moved layers and stays silent when nothing moves', () => {
+    const h = setup();
+    h.selection.select(['c', 'd'], 'replace');
+
+    row(h, 'd').dispatchEvent(key('ArrowDown'));
+    const silent = live()?.textContent;
+    row(h, 'c').dispatchEvent(key('ArrowUp'));
+
+    expect(silent).toBe('');
+    expect(live()?.textContent).toBe('2 calques déplacés dans « g » : position 2 sur 3');
   });
 
   it('moves the focused row when nothing is selected', () => {
