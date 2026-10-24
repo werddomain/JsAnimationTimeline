@@ -13,5 +13,5 @@
       "../js/timeline-runtime.mjs": ["../../packages/runtime/src/index.ts"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts"]
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "../JsTimeline.Blazor/wwwroot/stage/*.js"]
 }
