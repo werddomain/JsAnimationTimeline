@@ -25,7 +25,7 @@ export interface IStage<T = unknown> {
   readonly id: string;                                 // unique : 'html', 'canvas', 'audio'...
   readonly properties?: readonly PropertyDescriptor[]; // ajoutées au registre de l'éditeur ou du lecteur
   readonly targets?: { list(): readonly ITargetInfo[]; describe?(t: LayerTarget): ITargetInfo | undefined;
-                       pick?(signal?: AbortSignal): Promise<LayerTarget | null>; subscribe?(onChange: () => void): () => void };
+                       pick?(signal?: AbortSignal): Promise<LayerTarget | null>; subscribe?(onChange: (affected?: readonly LayerTarget[]) => void): () => void };
   accepts(target: LayerTarget): boolean;
   resolve(target: LayerTarget): T | null;              // null : calque dans missingTargets
   attach?(ctx: IStageContext): void;                   // une seule fois
@@ -44,9 +44,9 @@ Une scène implémente `sync`, `render` ou les deux, mais au moins un des deux (
 1. `attach` est appelé une fois.
 2. À chaque document (premier chargement, `update(doc)`, annuler/rétablir), le cœur compare les calques par id et par cible.
 3. Pour un calque supprimé ou dont la cible a changé : `release(layerId, ancienObjet)`, puis un nouveau `resolve`.
-4. `resolve` est mis en cache. Un échec est retenu et réessayé quand `targets.subscribe` signale un changement, ou sur `player.refreshTargets(layerId?)` / `editor.refreshTargets()`. Cela couvre un modèle GLTF chargé plus tard ou une entité créée à l'image 200.
+4. `resolve` est mis en cache. Un échec est retenu et réessayé quand `targets.subscribe` signale un changement, ou sur `player.refreshTargets(layerId?)` / `editor.refreshTargets()`. Cela couvre un modèle GLTF chargé plus tard ou une entité créée à l'image 200. Si la notification nomme des cibles touchées (`onChange([{ ref: 'logo', stage: 'html' }])`, par exemple après `bind`), les calques déjà résolus sur ces cibles sont résolus à nouveau : nouvel objet, puis `release` de l'ancien (`null` : le calque passe dans `missingTargets`). Les refs se comparent par `ref`, quelle que soit l'écriture de `stage`.
 5. `resolve` n'est jamais appelé à chaque image.
-6. Ensuite `update(doc, calquesLiés)`, puis `sync` et/ou `render` de l'image courante. Fin : `release` de chaque calque, puis `detach`.
+6. Ensuite `update(doc, calquesLiés)`, puis `sync` et/ou `render` de l'image courante. `editorVisible` vient de l'option `isEditorVisible(layerId)` de l'hôte (toujours vrai sans elle). Fin : `release` de chaque calque, puis `detach` des seules scènes dont `attach` a été appelé.
 
 ### Routage entre plusieurs scènes
 
@@ -108,7 +108,7 @@ gameLoop(deltaMs => clock.advance(deltaMs));        // en millisecondes
 ## HTML reste le défaut
 
 - `createHtmlStage({ root, mode, exclude, refs })` reprend le code actuel (`targets.ts`, `keyframes.ts`, `buildAnimations`, `syncAnimations`, `cancelAnimations`).
-- Mode `'waapi'` (défaut du lecteur) : Web Animations, comme aujourd'hui. Mode `'frame'` (défaut de l'éditeur) : styles en ligne écrits par le même `computeCssDeclarations`. Cela évite de reconstruire les animations à chaque commande pendant un glisser.
+- Mode `'waapi'` (défaut du lecteur) : Web Animations, comme aujourd'hui. Mode `'frame'` (défaut de l'éditeur) : styles en ligne écrits par le même `computeCssDeclarations`. Cela évite de reconstruire les animations à chaque commande pendant un glisser. Seules les propriétés que la scène écrit sont sauvegardées puis remises (pour un raccourci, les sous-propriétés qu'il change) : un style que la page pose ailleurs sur l'élément est gardé.
 - Sauvegarde des styles **par élément** avec un compteur : deux calques sur le même élément ne s'effacent pas. Ce cas est signalé `duplicate-target`.
 - Parité testée **aux images entières** (images clés calculées contre le mode `frame`). Entre deux images, un calque échantillonné peut différer en mode `waapi`, parce que le navigateur interpole en ligne droite. L'écart est documenté.
 - L'éditeur passe son propre conteneur dans `exclude` : un sélecteur comme `div` ne touche jamais la timeline, et `targets.list()` ne la propose pas. Un test le vérifie.

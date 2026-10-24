@@ -16,6 +16,10 @@ export {
 } from './list';
 export type { LayerNodeUpdater } from './list';
 export type { ILayerListService, ILayerRow, ILayerRowControl, LayerRowsChangedEvent } from './list';
+export { LAYERS_COLOR_PLUGIN_ID, LayerColorPlugin, createSetColorCommand, normalizeLayerColor } from './color';
+export type { ILayerColorService } from './color';
+export { LAYERS_ICON_PLUGIN_ID, LayerIconPlugin, createSetIconCommand, validateLayerIcon } from './icon';
+export type { ILayerIconService } from './icon';
 export {
   LAYERS_RENAME_PLUGIN_ID,
   RENAME_LABEL,

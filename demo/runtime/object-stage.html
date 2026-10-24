@@ -7,6 +7,7 @@
 </head>
 <body>
   <main class="object-stage-demo">
+    <p class="muted"><a href="./index.html">← Démo du lecteur runtime</a></p>
     <h1>Scène sans HTML animé : canvas et audio</h1>
     <p class="intro">
       La même timeline anime un sprite dessiné dans un <code>&lt;canvas&gt;</code>, un volume audio
@@ -24,10 +25,12 @@
       <button id="pause" type="button">Pause</button>
       <button id="step" type="button" hidden>Avancer d’une image</button>
       <button id="sound" type="button">Activer le son</button>
+      <label><input id="loop" type="checkbox" autocomplete="off"> Boucle</label>
       <label for="seek">Aller à l’image</label>
       <input id="seek" type="range" min="1" max="48" value="1">
       <output id="frame" for="seek">Image 1 / 48</output>
     </div>
+    <p class="muted">Volume : <output id="volume" aria-live="off">0,00</output></p>
     <p id="clock-mode" class="muted"></p>
     <p id="sound-state" class="muted" aria-live="polite">Son désactivé.</p>
   </main>

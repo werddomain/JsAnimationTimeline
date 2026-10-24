@@ -1,7 +1,7 @@
 # @werddomain/tools-conventions
 
 Vérifie les conventions du dépôt. Exécuté par `npm test` (test `src/__tests__/repo.test.ts`).
-Fichiers couverts : `packages/*/src/**/*.ts` (y compris `.d.ts`), `tools/**/*.ts`, `e2e/**/*.ts`
+Fichiers couverts : `packages/*/src/**/*.ts` (y compris `.d.ts`), `tools/**/*.ts`, `e2e/**/*.ts`, `demo/*/src/**/*.ts` et `demo/*/*.ts` (mêmes globs qu'ESLint)
 (hors `node_modules`, `dist*`, `coverage`).
 
 ## Règle A : en-tête de chemin

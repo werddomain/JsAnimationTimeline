@@ -9,17 +9,21 @@
  * Epic des calques. Il ne fait rien lui-même : il regroupe ses plugins de
  * fonctionnalité, enregistrés avec lui par l'hôte (et toujours initialisés
  * après lui) :
- * - `layers.list` : la liste des calques, ses lignes et leurs contrôles.
+ * - `layers.list` : la liste des calques, ses lignes et leurs contrôles ;
+ * - `layers.color` : la couleur des calques et dossiers ;
+ * - `layers.icon` : l'icône des calques ;
  * - `layers.rename` : renommage sur place des calques et des dossiers.
  * - `layers.visibility` : œil de visibilité (ligne et en-tête).
  * - `layers.lock` : cadenas de verrouillage (ligne et en-tête).
  * - `layers.selection` : la sélection multiple des calques et la navigation au clavier.
  * - `layers.groups` : les dossiers et « grouper la sélection ».
  *
- * Les tâches suivantes (Y3, Y4, Y6 à Y8) ajoutent leur plugin à `children`.
+ * Les tâches suivantes (Y4, Y6 à Y8) ajoutent leur plugin à `children`.
  */
 
 import type { EditorPlugin } from '../../core/context/IEditorContext';
+import { LayerColorPlugin } from './color/LayerColorPlugin';
+import { LayerIconPlugin } from './icon/LayerIconPlugin';
 import { LayerListPlugin } from './list/LayerListPlugin';
 import { LockPlugin } from './lock/LockPlugin';
 import { RenamePlugin } from './rename/RenamePlugin';
@@ -36,6 +40,8 @@ export class LayersPlugin implements EditorPlugin {
   constructor() {
     this.children = [
       new LayerListPlugin(),
+      new LayerColorPlugin(),
+      new LayerIconPlugin(),
       new RenamePlugin(),
       new VisibilityPlugin(),
       new LockPlugin(),

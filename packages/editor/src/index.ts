@@ -146,11 +146,15 @@ export type {
 // Plugins des calques (epic `layers`) : liste des calques, contrôles de ligne et sélection.
 export {
   LAYERS_GROUPS_PLUGIN_ID,
+  LAYERS_COLOR_PLUGIN_ID,
+  LAYERS_ICON_PLUGIN_ID,
   LAYERS_LIST_PLUGIN_ID,
   LAYER_LIST_CLASSES,
   LAYERS_SELECTION_PLUGIN_ID,
   LAYER_ROW_CLASSES,
   LayerGroupsPlugin,
+  LayerColorPlugin,
+  LayerIconPlugin,
   LayerListPlugin,
   LayerSelectionPlugin,
   LayersPlugin,
@@ -162,6 +166,8 @@ export {
 } from './plugins/layers';
 export type {
   ILayerGroupsService,
+  ILayerColorService,
+  ILayerIconService,
   ILayerListService,
   ILayerRow,
   ILayerRowControl,
@@ -173,9 +179,22 @@ export type {
 } from './plugins/layers';
 
 // Plugins des images (epic `frames`) : grille des plages et des images clés.
-export { FRAMES_GRID_CLASSES, FRAMES_GRID_PLUGIN_ID, FramesGridPlugin, FramesPlugin } from './plugins/frames';
+export {
+  FRAMES_GRID_CLASSES,
+  FRAMES_GRID_PLUGIN_ID,
+  FRAMES_SELECTION_CLASSES,
+  FRAMES_SELECTION_PLUGIN_ID,
+  FramesGridPlugin,
+  FramesPlugin,
+  FramesSelectionPlugin
+} from './plugins/frames';
 export type {
   FramesGridRenderedEvent,
+  FramesSelectionChangedEvent,
+  IFrameCell,
+  IFramesSelectionService,
+  ISelectedKeyframe,
+  SelectedKeyframeKind,
   GridMarkKind,
   GridSegmentKind,
   IFrameRange,
@@ -268,3 +287,11 @@ export {
   PlaybackPlugin,
   createPlaybackControlsPlugin
 } from './plugins/playback';
+
+// Plugin toolbar.zoomControl : liste et curseur du zoom de la règle.
+export {
+  FIT_OPTION_VALUE,
+  ZOOM_CONTROL_PLUGIN_ID,
+  ZoomControlPlugin,
+  createZoomControlPlugin
+} from './plugins/toolbar';
