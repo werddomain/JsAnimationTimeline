@@ -136,13 +136,15 @@ describe('createEditor root element and context', () => {
     expect(ctx.document).toBe(data);
     expect(ctx.container).toBe(editor.container);
     expect(ctx.slots.get(ROOT_SLOT)).toBe(editor.container);
-    expect(ctx.root).toBe(document);
+    expect(ctx.playback).toBe(editor.playback);
+    expect(ctx.registry).toBe(editor.registry);
+    expect('root' in ctx).toBe(false);
     expect(typeof ctx.events.on).toBe('function');
     expect(typeof ctx.commands.execute).toBe('function');
     expect(typeof ctx.services.provide).toBe('function');
   });
 
-  it('passes options.root to the context', () => {
+  it('no longer gives plugins a DOM root, even with options.root', () => {
     // Arrange
     const root = document.createElement('main');
     const { plugin, context } = captureContext();
@@ -151,7 +153,7 @@ describe('createEditor root element and context', () => {
     createEditor(createContainer(), { root, plugins: [plugin] });
 
     // Assert
-    expect(context().root).toBe(root);
+    expect(Object.keys(context())).not.toContain('root');
   });
 
   it('initialises plugins in dependency order, whatever the given order', () => {

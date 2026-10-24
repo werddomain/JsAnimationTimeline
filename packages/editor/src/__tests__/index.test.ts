@@ -60,6 +60,7 @@ const V2_NAMES = [
   'SHORTCUTS_PLUGIN_ID',
   'ShortcutError',
   'StoreError',
+  'UNKNOWN_PROPERTY',
   'createCommand',
   'createEditor',
   'createEmptyDocument',
