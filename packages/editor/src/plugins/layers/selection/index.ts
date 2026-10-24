@@ -20,4 +20,4 @@ export {
 } from './selectionModel';
 export type { SelectionRowRef, SelectionState } from './selectionModel';
 export { SELECTED_ROW_CLASS } from './selectionView';
-export type { ILayerSelectionService, SelectionChangedEvent, SelectionMode } from './types';
+export type { ILayerSelectionService, LayerSelectionChangedEvent, SelectionMode } from './types';
