@@ -1,6 +1,6 @@
 # Plan d'intégration v2
 
-Ce plan découpe la v2 (voir [rapport-analyse.md](rapport-analyse.md)) en **61 tâches** avec leurs dépendances, pour pouvoir les répartir entre plusieurs sessions de travail en parallèle.
+Ce plan découpe la v2 (voir [rapport-analyse.md](rapport-analyse.md)) en **62 tâches** avec leurs dépendances, pour pouvoir les répartir entre plusieurs sessions de travail en parallèle.
 
 ## Branches
 
@@ -45,7 +45,7 @@ Toutes les tâches d'une même vague peuvent tourner en parallèle, dès que leu
 | 5 | R5, R6, Y1, G1, T1, S2, X2, B1 |
 | 6 | C5, R7, C6, Y2, Y3, Y5, G2, T3, B2 |
 | 7 | R8, C7, L2, Y6, Y7, K2, K3, W1, P1 |
-| 8 | L3, Y4, Y8, W2, W3, T2, P2 |
+| 8 | L3, Y4, Y8, W2, W3, T2, P2, B3a |
 | 9 | T4, I1, S1 |
 | 10 | E1 |
 | 11 | B3, Z1 |
@@ -82,9 +82,9 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **F06** | 2b | 4 | **Contrat** : cible sérialisable `{ ref, stage? }` à côté de `{ selector }`, propriétés de type `value` sans nom CSS (+ `label`, `group`, interpolateurs `step` / `floor` / `round`), option `unknownProperties` de l'évaluation, contrôle de forme dans `validateDocument` (version, fps 1 à 240, totalFrames, cibles, noms) comparé à ajv | F05, R1, R2 | R7, C6, S2, B1 | `schema/`, `packages/runtime/src/model/`, `runtime/src/properties/`, `runtime/src/evaluate/`, `runtime/src/player/keyframes.ts` | ☑ |
 | **R6** | 2b | 5 | **Contrat** : `Transport` sans DOM extrait de `Player.ts` (temps → image, boucle, vitesse), événement `tick`, `createManualClock()` ; `IPlayer` étendu sans rien casser | R3 | R7, C6 | `packages/runtime/src/transport/`, `runtime/src/player/`, `runtime/src/index.ts` | ☑ |
 | **R7** | 2b | 6 | **Contrat** : interface `IStage` (cycle de vie, routage entre scènes, cibles manquantes signalées, erreur de scène signalée une fois) ; le code Web Animations devient `createHtmlStage({ root, mode: 'waapi' \| 'frame' })`, scène par défaut de `createPlayer` | R6, F06 | R8, C7 | `packages/runtime/src/stage/`, `runtime/src/player/`, `runtime/src/index.ts` | ☑ |
-| **R8** | 2b | 7 | Aide `createObjectStage()` + page de démo sans HTML animé (sprite canvas + volume audio, avec un calque HTML) + scénario Playwright 11b | R7, R5 | E1, D1 | `packages/runtime/src/stage/object/`, `demo/runtime/`, `e2e/runtime/` | ☑ |
+| **R8** | 2b | 7 | Aide `createObjectStage()` + page de démo sans HTML animé (sprite canvas + volume audio, avec un calque HTML) + scénario Playwright 11b | R7, R5 | E1, D1, B3a | `packages/runtime/src/stage/object/`, `demo/runtime/`, `e2e/runtime/` | ☑ |
 | **C6** | 2b | 6 | **Contrat** : lecture et registre dans le cœur de l'éditeur (`ctx.playback` sur le `Transport`, `ctx.registry`, `editor.sample()` / `onFrame()`, `playhead:changed`, déplacements de la tête regroupés une fois par image d'affichage) ; `ctx.root` retiré ; le Store refuse les cibles vivantes | C4, R6, F06 | C7, L2, W1, P1 | `packages/editor/src/core/playback/`, `core/context/`, `core/editor/`, `core/store/`, `src/index.ts` | ☑ |
-| **C7** | 2b | 7 | **Contrat** : scène pluggable dans l'éditeur (option `stage` : HTML par défaut, `false` = timeline seule, ou la scène du développeur ; `ctx.stage`, `editor.refreshTargets()`, événement `stage:report`) | C6, R7 | Y4, W2, P2, S1, E1, B3 | `packages/editor/src/core/stage/`, `core/editor/`, `core/context/`, `src/index.ts` | ☑ |
+| **C7** | 2b | 7 | **Contrat** : scène pluggable dans l'éditeur (option `stage` : HTML par défaut, `false` = timeline seule, ou la scène du développeur ; `ctx.stage`, `editor.refreshTargets()`, événement `stage:report`) | C6, R7 | Y4, W2, P2, S1, E1, B3, B3a | `packages/editor/src/core/stage/`, `core/editor/`, `core/context/`, `src/index.ts` | ☑ |
 | **I2** | 5 | 4 | Plugin `interaction.shortcuts` : registre de raccourcis où chaque plugin déclare les siens (limité au conteneur de l'éditeur, plus les éléments que le développeur y ajoute, comme sa scène) | C4 | C5, K2, K3, P1 | `plugins/interaction/shortcuts/` | ☑ |
 | **L1** | 3 | 4 | Plugin `layout.shell` (4 zones + emplacements) + `layout.scrollSync` (repris de `legacy`) | C4 | L2, Y1, G1, T1 | `plugins/layout/shell/`, `layout/scrollSync/` | ☑ |
 | **L2** | 3 | 7 | Plugins `layout.ruler` + `layout.playhead` (repris de `TimeRuler`) ; la tête de lecture passe par `ctx.playback` | L1, C6 | L3, P2 | `plugins/layout/ruler/`, `layout/playhead/` | ☑ |
@@ -103,7 +103,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **K1** | 4 | 4 | **Cœur CS4** : opérations pures sur les plages (insérer une image clé avec valeurs interpolées, supprimer/fusionner, insérer/supprimer une image, déplacer) + refus si verrouillé, sous forme de commandes ; le registre de propriétés est passé en paramètre | C3, R2 | K2, K3, W1 | `packages/editor/src/model/spans/` | ☑ |
 | **K2** | 4 | 7 | Plugin `frames.keyframes` (F5 / F6 / F7, glisser pour déplacer) | K1, G2, I2 | T2, I1 | `plugins/frames/keyframes/` | ☑ |
 | **K3** | 4 | 7 | Plugin `frames.clipboard` (Ctrl+C / Ctrl+V) | K1, G2, I2 | E1 | `plugins/frames/clipboard/` | ☑ |
-| **W1** | 4 | 7 | Plugin `tweens.motion` : créer un motion tween depuis 1 ou 2 images clés, le supprimer | K1, G2, C6 | W2, W3, T2, I1 | `plugins/tweens/motion/` | ☐ |
+| **W1** | 4 | 7 | Plugin `tweens.motion` : créer un motion tween depuis 1 ou 2 images clés, le supprimer (la suppression fonctionne sur plusieurs calques à la fois) | K1, G2, C6 | W2, W3, T2, I1 | `plugins/tweens/motion/` | ☑ |
 | **W2** | 4 | 8 | Plugin `tweens.propertyKeyframes` + API `editor.setProperty()` (crée les losanges ; nom vérifié dans le registre et dans les propriétés de l'objet) | W1, C7 | S1 | `plugins/tweens/propertyKeyframes/` | ☐ |
 | **W3** | 4 | 8 | Plugin `tweens.easing` (préréglages, remplace `TweenPropertiesDialog`) | W1 | E1 | `plugins/tweens/easing/` | ☐ |
 | **T1** | 5 | 5 | Plugin `toolbar.main` (zone « Scene 1 », API d'ajout de boutons) | L1 | C5, T2, T3, T4, P1 | `plugins/toolbar/main/` | ☑ |
@@ -118,9 +118,10 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **E1** | 6 | 10 | Démo de l'éditeur v2, dont une page « timeline seule + votre scène » (canvas + audio, et `stage: false`) + scénarios Playwright 1 à 10 et 9b | T2, T3, T4, P1, P2, C5, Y2, Y3, Y4, Y6, K3, W3, I1, S1, S2, C7, R8 | B3, Z1 | `demo/editor/`, `e2e/editor/` | ☐ |
 | **X1** | 7 | 4 | Package `export-css` (`@keyframes` + avertissements ; calques sans sélecteur et propriétés non CSS ignorés avec un avertissement) | R2 | X2 | `packages/export-css/` | ☑ |
 | **X2** | 7 | 5 | Scénario Playwright 12 (CSS exporté = `runtime` à l'image N) | X1, R3, F04 | D1 | `e2e/export-css/` | ☑ |
-| **B1** | 8 | 5 | Razor Class Library : squelette, copie des builds dans `wwwroot`, modèle C# généré depuis le schéma (cible `Selector` / `Ref` / `Stage`) | F02, F05, F06 | B2, B3 | `dotnet/` | ☑ |
+| **B1** | 8 | 5 | Razor Class Library : squelette, copie des builds dans `wwwroot`, modèle C# généré depuis le schéma (cible `Selector` / `Ref` / `Stage`) | F02, F05, F06 | B2, B3, B3a | `dotnet/` | ☑ |
 | **B2** | 8 | 6 | Composant Blazor `TimelinePlayer` | B1, R3 | B4 | `dotnet/JsTimeline.Blazor/Player/` | ☑ |
-| **B3** | 8 | 11 | Composant Blazor `TimelineEditor` (liaison des données, callbacks d'événements, paramètre `Stage` : HTML, module JS, scène C# `ITimelineStage` ou aucune) | B1, S2, E1, C7 | B4 | `dotnet/JsTimeline.Blazor/Editor/` | ☐ |
+| **B3a** | 8 | 8 | Pont Blazor vers les scènes : contrat C# `ITimelineStage` (`Targets`, `Properties` avec interpolation par nom, `RenderAsync`), état compact par calque, `FrameCallbackMode`, module JS `wwwroot/stage/dotnetStage.js` qui fait d'une scène .NET une `IStage` du runtime (un seul appel à la fois, la dernière image gagne), description C# des choix `Stage` (`Html`, `JsModule`, `DotNet`, `None`) | B1, R8, C7 | B3 | `dotnet/JsTimeline.Blazor/Stage/`, `dotnet/JsTimeline.Blazor/wwwroot/stage/`, `dotnet/JsTimeline.Blazor.JsTests/` | ☑ |
+| **B3** | 8 | 11 | Composant Blazor `TimelineEditor` (liaison des données, callbacks d'événements, paramètre `Stage` : HTML, module JS, scène C# `ITimelineStage` ou aucune) | B1, B3a, S2, E1, C7 | B4 | `dotnet/JsTimeline.Blazor/Editor/` | ☐ |
 | **B4** | 8 | 12 | Appli Blazor d'exemple (dont une page où un composant C# reçoit les images) + tests bUnit + `dotnet pack` en CI | B2, B3 | D1 | `dotnet/samples/`, `dotnet/*.Tests/` | ☐ |
 | **Z1** | 9 | 11 | Suppression de `packages/editor/src/legacy` et de l'ancienne démo | E1 | D1 | `packages/editor/src/legacy/` | ☐ |
 | **D1** | 9 | 13 | README réécrit (CS4, nouvelle API, « utiliser la timeline avec votre propre scène »), doc d'API, démo GitHub Pages | Z1, X2, B4, R5, R8 | D2 | `README.md`, `doc/`, `demo/` | ☐ |
@@ -205,6 +206,7 @@ flowchart LR
   subgraph P8["Phase 8 : NuGet / Blazor"]
     B1
     B2
+    B3a
     B3
     B4
   end
@@ -332,6 +334,10 @@ flowchart LR
   S2 --> B3
   E1 --> B3
   C7 --> B3
+  B1 --> B3a
+  R8 --> B3a
+  C7 --> B3a
+  B3a --> B3
   B2 --> B4
   B3 --> B4
   E1 --> Z1

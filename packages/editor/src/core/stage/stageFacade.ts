@@ -3,12 +3,13 @@
  * Façade `IEditorStage` donnée aux plugins (`ctx.stage`) et à l'hôte
  * (`editor.stage`) : objet figé de fermetures, sans référence vers le
  * `StageHost`. `refreshTargets` passe par `assertActive` (erreur après la
- * destruction de l'éditeur) ; les lectures restent permises.
+ * destruction de l'éditeur) ; les lectures restent permises, et `hold()`
+ * rend alors une retenue inerte.
  */
 
 import type { IStage, IStageReport, ITargetInfo, LayerTarget } from '@werddomain/timeline-runtime';
 import type { EditorStageHost } from './EditorStageHost';
-import type { IEditorStage } from './types';
+import type { IEditorStage, IStageHold } from './types';
 
 /** Construit la façade de `host`, gardée par `assertActive(operation)`. */
 export function createStageFacade(host: EditorStageHost, assertActive: (operation: string) => void): IEditorStage {
@@ -27,6 +28,7 @@ export function createStageFacade(host: EditorStageHost, assertActive: (operatio
     refreshTargets: (layerId?: string): void => {
       assertActive('stage.refreshTargets');
       host.refreshTargets(layerId);
-    }
+    },
+    hold: (): IStageHold => host.hold()
   });
 }

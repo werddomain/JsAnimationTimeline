@@ -157,6 +157,11 @@ export class PlaybackController {
     else this.play();
   }
 
+  /** Instant de l'horloge de l'éditeur, en millisecondes. */
+  clockNow(): number {
+    return this.clock.now();
+  }
+
   seek(frame: number): void {
     this.move(() => this.transport.seek(frame));
     this.schedule();

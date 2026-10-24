@@ -6,7 +6,7 @@
 
 import type { LayerNode } from '@werddomain/timeline-runtime';
 import { createDoc, layer } from '../../../../model/spans/__tests__/fixtures';
-import { keyframeTargets, lockedLayerIds } from '../keyframeTargets';
+import { insertFrameTargets, keyframeTargets, lockedLayerIds } from '../keyframeTargets';
 
 const folder = (id: string, children: readonly LayerNode[], locked?: boolean): LayerNode => ({
   id,
@@ -136,5 +136,22 @@ describe('lockedLayerIds', () => {
 
     // Assert
     expect(Array.from(locked).sort()).toEqual(['b', 'd', 'e']);
+  });
+});
+
+describe('insertFrameTargets', () => {
+  it('keeps one cell past the end per row (the rightmost) and every cell inside the spans', () => {
+    // Arrange : a couvre 1-5, b couvre 1-2 ; cibles déjà en ordre décroissant par ligne.
+    const doc = createDoc(
+      [layer('a', [{ id: 'a1', start: 1, end: 5, kind: 'static' }]), layer('b', [{ id: 'b1', start: 1, end: 2, kind: 'static' }])],
+      20
+    );
+    const targets = [9, 8, 7, 5, 4].map((frame) => ({ rowId: 'a', frame })).concat([4, 3, 2].map((frame) => ({ rowId: 'b', frame })));
+
+    // Act
+    const kept = insertFrameTargets(doc, targets);
+
+    // Assert
+    expect(kept.map((cell) => `${cell.rowId}:${cell.frame}`)).toEqual(['a:9', 'a:5', 'a:4', 'b:4', 'b:2']);
   });
 });
