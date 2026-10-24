@@ -155,3 +155,13 @@ export type {
   ToolbarErrorCode,
   ToolbarOptions
 } from './plugins/toolbar';
+
+// Epic history : annuler / rétablir (boutons et raccourcis).
+export {
+  HistoryPlugin,
+  UNDO_REDO_PLUGIN_ID,
+  UndoRedoIds,
+  UndoRedoKeys,
+  UndoRedoPlugin,
+  createUndoRedoPlugin
+} from './plugins/history';
