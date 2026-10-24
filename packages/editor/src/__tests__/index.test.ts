@@ -85,6 +85,7 @@ const V2_NAMES = [
   'SHORTCUTS_PLUGIN_ID',
   'ShortcutError',
   'StoreError',
+  'ZoomPlugin',
   'TOOLBAR_MAIN_PLUGIN_ID',
   'UNDO_REDO_PLUGIN_ID',
   'UndoRedoIds',

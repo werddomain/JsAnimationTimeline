@@ -3,8 +3,8 @@
  * Plugin : layout.playhead
  * Epic : layout
  * Dépend de : layout.shell, layout.ruler, layout.scrollSync
- * Écoute : playhead:changed, playback:pause, document:loaded, document:changed, layout:scrolled
- * Émet : —
+ * Écoute : playhead:changed, playback:pause, playback:complete, document:loaded, document:changed, layout:scrolled, zoom:changed
+ * Émet : playhead:scrubStart, playhead:scrubEnd
  *
  * Tête de lecture, reprise de `legacy/ui/TimeRuler.ts` (déplacement) : un
  * repère sur la règle et une ligne verticale dans la zone des images, au
@@ -19,21 +19,52 @@
  *
  * - Cliquer ou glisser sur la règle (bouton principal) place la tête ; la
  *   lecture en cours est mise en pause au début du glisser, comme dans Flash.
+ *   Le glisser est annoncé par `playhead:scrubStart` / `playhead:scrubEnd`
+ *   (et lisible avec le service `layout.playhead`), par exemple pour régler
+ *   l'aperçu pendant un glisser.
+ * - Le glisser capture le pointeur et ne suit que lui : un deuxième doigt est
+ *   ignoré, et une capture perdue termine le glisser.
  * - Le repère est un curseur accessible (`role="slider"`) : flèches (une
- *   image), Page précédente / suivante (10 images), Début / Fin.
+ *   image), Page précédente / suivante (10 images), Début / Fin. Pendant la
+ *   lecture, sa valeur n'est mise à jour qu'à l'arrêt (pause ou fin).
  * - Quand la tête sort de la partie visible (lecture, clavier, `seek` d'un
- *   autre plugin), la zone des images défile pour la montrer ; pas pendant
- *   un glisser, qui suit le pointeur.
- * - Un glisser suit un seul pointeur : un deuxième doigt est ignoré.
- * - Pendant la lecture, la valeur du curseur accessible n'est mise à jour
- *   qu'à la pause (pas soixante annonces par seconde).
+ *   autre plugin, focus au clavier), la zone des images défile pour la
+ *   montrer ; pas pendant un glisser, qui suit le pointeur.
+ * - Après un zoom (`zoom:changed`), la tête se replace à la nouvelle largeur.
  */
 
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import { LAYOUT_SLOTS } from '../shell/layoutSlots';
 import { clampFrame, frameCenter, frameLeft } from '../ruler/frameGeometry';
 import type { IRulerApi } from '../ruler/RulerPlugin';
+// Import pour effet : rend `zoom:changed` visible ici (la tête l'écoute sans dépendre du zoom).
+import '../zoom/zoomEvents';
 import './Playhead.less';
+
+/** Charge utile de `playhead:scrubStart` et `playhead:scrubEnd`. */
+export interface PlayheadScrubEvent {
+  /** Image visée au début ou à la fin du glisser (`ctx.playback.frame`). */
+  readonly frame: number;
+}
+
+/** API publiée sous le service `layout.playhead`. */
+export interface IPlayheadApi {
+  /** Vrai pendant un glisser de la tête sur la règle. */
+  readonly isScrubbing: () => boolean;
+}
+
+declare module '../../../core/events/TimelineEventMap' {
+  interface TimelineEventMap {
+    'playhead:scrubStart': PlayheadScrubEvent;
+    'playhead:scrubEnd': PlayheadScrubEvent;
+  }
+}
+
+declare module '../../../core/context/IEditorContext' {
+  interface EditorServiceMap {
+    'layout.playhead': IPlayheadApi;
+  }
+}
 
 /** Classe du repère de la tête, sur la règle. */
 export const PLAYHEAD_HEAD_CLASS = 'jt-playhead__head';
@@ -79,6 +110,17 @@ function keyTarget(key: string, frame: number, totalFrames: number): number | un
   }
 }
 
+/** Capture `pointerId` sur `element` si possible (absent de jsdom, refusé pour un pointeur inactif). */
+function capturePointer(element: HTMLElement, pointerId: number): boolean {
+  if (typeof element.setPointerCapture !== 'function') return false;
+  try {
+    element.setPointerCapture(pointerId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Tête de lecture : repère sur la règle, ligne dans les images, glisser et clavier. */
 export class PlayheadPlugin implements EditorPlugin {
   readonly id = 'layout.playhead';
@@ -87,19 +129,25 @@ export class PlayheadPlugin implements EditorPlugin {
 
   private ctx: IEditorContext | undefined;
   private elements: IPlayheadElements | undefined;
-  private stopDrag: (() => void) | undefined;
+  /** Termine le glisser en cours ; `announce` à faux pendant la destruction (aucun événement). */
+  private stopDrag: ((announce?: boolean) => void) | undefined;
   private cleanups: Array<() => void> = [];
 
   readonly init = (ctx: IEditorContext): void => {
     this.ctx = ctx;
+    const replace = (): void => this.place(ctx.playback.frame);
     this.cleanups = [
+      ctx.services.provide('layout.playhead', { isScrubbing: () => this.stopDrag !== undefined }),
       ctx.events.on('playhead:changed', (event) => {
-        this.place(event.frame);
+        // Lecture de la mise en page (défilement) avant les écritures de `place`.
         if (this.stopDrag === undefined) this.follow(event.frame);
+        this.place(event.frame);
       }),
-      ctx.events.on('playback:pause', () => this.place(ctx.playback.frame)),
-      ctx.events.on('document:loaded', () => this.place(ctx.playback.frame)),
-      ctx.events.on('document:changed', () => this.place(ctx.playback.frame)),
+      ctx.events.on('playback:pause', replace),
+      ctx.events.on('playback:complete', replace),
+      ctx.events.on('document:loaded', replace),
+      ctx.events.on('document:changed', replace),
+      ctx.events.on('zoom:changed', replace),
       ctx.events.on('layout:scrolled', (state) => this.alignLine(state.scrollTop))
     ];
   };
@@ -127,7 +175,7 @@ export class PlayheadPlugin implements EditorPlugin {
   }
 
   destroy(): void {
-    this.stopDrag?.();
+    this.stopDrag?.(false);
     const cleanups = this.cleanups;
     this.cleanups = [];
     cleanups.forEach((cleanup) => cleanup());
@@ -140,15 +188,18 @@ export class PlayheadPlugin implements EditorPlugin {
   private listen(elements: IPlayheadElements): void {
     const onPointerDown = (event: PointerEvent): void => this.startDrag(event);
     const onKeyDown = (event: KeyboardEvent): void => this.onKey(event);
+    const onFocus = (): void => this.onFocus();
     elements.ruler.addEventListener('pointerdown', onPointerDown);
     elements.head.addEventListener('keydown', onKeyDown);
+    elements.head.addEventListener('focus', onFocus);
     this.cleanups.push(() => {
       elements.ruler.removeEventListener('pointerdown', onPointerDown);
       elements.head.removeEventListener('keydown', onKeyDown);
+      elements.head.removeEventListener('focus', onFocus);
     });
   }
 
-  /** Place le repère et la ligne sur l'image `frame` et met à jour le curseur accessible. */
+  /** Place le repère et la ligne sur l'image `frame` ; met à jour le curseur accessible hors lecture. */
   private place(frame: number): void {
     const elements = this.elements;
     const ctx = this.ctx;
@@ -183,6 +234,18 @@ export class PlayheadPlugin implements EditorPlugin {
     scroll.scrollTo({ left: Math.max(0, left - FOLLOW_MARGIN_FRAMES * width) });
   }
 
+  /**
+   * Focus au clavier : le navigateur a pu faire défiler la règle (sans barre
+   * de défilement) pour montrer le repère. On montre la tête dans la zone des
+   * images, puis on recale la règle sur elle.
+   */
+  private onFocus(): void {
+    const ctx = this.ctx;
+    if (ctx === undefined) return;
+    this.follow(ctx.playback.frame);
+    ctx.services.get('layout.scrollSync')?.scrollTo({});
+  }
+
   private seek(frame: number): void {
     const ctx = this.ctx;
     if (ctx !== undefined) ctx.playback.seek(clampFrame(frame, ctx.playback.totalFrames));
@@ -199,8 +262,10 @@ export class PlayheadPlugin implements EditorPlugin {
     if (ctx.playback.playing) ctx.playback.pause();
     elements.head.focus({ preventScroll: true });
     this.seek(this.ruler().frameAtClientX(event.clientX));
-    const doc = elements.ruler.ownerDocument;
+    const { ruler, head } = elements;
+    const doc = ruler.ownerDocument;
     const pointerId = event.pointerId;
+    const captured = capturePointer(ruler, pointerId);
     const onMove = (move: PointerEvent): void => {
       if (move.pointerId === pointerId) this.seek(this.ruler().frameAtClientX(move.clientX));
     };
@@ -210,14 +275,19 @@ export class PlayheadPlugin implements EditorPlugin {
     doc.addEventListener('pointermove', onMove);
     doc.addEventListener('pointerup', onEnd);
     doc.addEventListener('pointercancel', onEnd);
-    elements.head.classList.add(PLAYHEAD_DRAGGING_CLASS);
-    this.stopDrag = () => {
+    ruler.addEventListener('lostpointercapture', onEnd);
+    head.classList.add(PLAYHEAD_DRAGGING_CLASS);
+    this.stopDrag = (announce = true) => {
+      this.stopDrag = undefined;
       doc.removeEventListener('pointermove', onMove);
       doc.removeEventListener('pointerup', onEnd);
       doc.removeEventListener('pointercancel', onEnd);
-      elements.head.classList.remove(PLAYHEAD_DRAGGING_CLASS);
-      this.stopDrag = undefined;
+      ruler.removeEventListener('lostpointercapture', onEnd);
+      if (captured && ruler.hasPointerCapture(pointerId)) ruler.releasePointerCapture(pointerId);
+      head.classList.remove(PLAYHEAD_DRAGGING_CLASS);
+      if (announce) this.ctx?.events.emit('playhead:scrubEnd', { frame: this.ctx.playback.frame });
     };
+    ctx.events.emit('playhead:scrubStart', { frame: ctx.playback.frame });
   }
 
   /** Clavier du curseur. */
