@@ -4,6 +4,10 @@
  * icône, nom, couleur et cellules des contrôles de ligne. La vue garde le
  * même élément tant que la ligne reste affichée : les classes ajoutées par
  * d'autres plugins (sélection...) et le focus survivent aux mises à jour.
+ *
+ * Les appels aux contrôles (`update`, `dispose`) sont isolés : une erreur
+ * d'un contrôle n'empêche pas la mise à jour des autres. Les erreurs sont
+ * retournées à la liste, qui les relance une fois son travail fini.
  */
 
 import { isFolder, resolveCollapsed, resolveVisible } from '@werddomain/timeline-runtime';
@@ -36,17 +40,33 @@ export const TOGGLE_LABELS = Object.freeze({
 /** Retrait par niveau d'imbrication, en pixels. */
 export const DEPTH_INDENT = 16;
 
+/**
+ * Attribut posé sur l'élément du nom pendant une saisie (renommage, Y2) :
+ * tant qu'il est présent, la liste ne réécrit pas le nom.
+ */
+export const NAME_EDITING_ATTRIBUTE = 'data-editing';
+
 interface IControlCell {
   readonly control: ILayerRowControl;
   readonly element: HTMLElement;
 }
 
+/** Exécute `action` ; ajoute son erreur éventuelle à `errors` au lieu de la lever. */
+export function collectError(errors: unknown[], action: () => void): void {
+  try {
+    action();
+  } catch (error) {
+    errors.push(error);
+  }
+}
+
 /** Vue d'une ligne. */
 export class LayerRowView {
   readonly element: HTMLElement;
+  /** Élément du nom (texte du nœud), pour le renommage sur place. */
+  readonly nameElement: HTMLElement;
   private readonly toggleSlot: HTMLElement;
   private readonly icon: HTMLElement;
-  private readonly name: HTMLElement;
   private readonly controls: HTMLElement;
   private readonly cells = new Map<string, IControlCell>();
   private current: ILayerRow;
@@ -61,11 +81,11 @@ export class LayerRowView {
     this.toggleSlot = doc.createElement('span');
     this.icon = doc.createElement('span');
     this.icon.classList.add(LAYER_ROW_CLASSES.icon);
-    this.name = doc.createElement('span');
-    this.name.classList.add(LAYER_ROW_CLASSES.name);
+    this.nameElement = doc.createElement('span');
+    this.nameElement.classList.add(LAYER_ROW_CLASSES.name);
     this.controls = doc.createElement('span');
     this.controls.classList.add(LAYER_ROW_CLASSES.controls);
-    element.append(this.toggleSlot, this.icon, this.name, this.controls);
+    element.append(this.toggleSlot, this.icon, this.nameElement, this.controls);
     this.element = element;
     this.paint(row, true);
   }
@@ -75,22 +95,26 @@ export class LayerRowView {
     return this.current;
   }
 
-  /** Met à jour la ligne et ses contrôles. */
-  update(row: ILayerRow): void {
+  /** Met à jour la ligne et ses contrôles ; retourne les erreurs des contrôles. */
+  update(row: ILayerRow): unknown[] {
     const kindChanged = row.kind !== this.current.kind;
     this.current = row;
     this.paint(row, kindChanged);
-    this.cells.forEach(({ control, element }) => {
-      if (control.update !== undefined) {
-        control.update(row, element);
-      } else {
-        element.replaceChildren();
-        control.render(row, element);
-      }
-    });
+    const errors: unknown[] = [];
+    this.cells.forEach(({ control, element }) =>
+      collectError(errors, () => {
+        if (control.update !== undefined) {
+          control.update(row, element);
+        } else {
+          element.replaceChildren();
+          control.render(row, element);
+        }
+      })
+    );
+    return errors;
   }
 
-  /** Ajoute la cellule du contrôle, à sa place selon `order`, et la rend. */
+  /** Ajoute la cellule du contrôle, à sa place selon `order`, et la rend (lève si `render` lève). */
   addControl(control: ILayerRowControl, before: string | undefined): void {
     const element = this.element.ownerDocument.createElement('span');
     element.classList.add(LAYER_ROW_CLASSES.control);
@@ -101,19 +125,22 @@ export class LayerRowView {
     control.render(this.current, element);
   }
 
-  /** Retire la cellule du contrôle `id` (après son `dispose`). */
-  removeControl(id: string): void {
+  /** Retire la cellule du contrôle `id` (après son `dispose`) ; retourne l'erreur de `dispose`. */
+  removeControl(id: string): unknown[] {
     const cell = this.cells.get(id);
-    if (cell === undefined) return;
+    if (cell === undefined) return [];
     this.cells.delete(id);
-    cell.control.dispose?.(this.current, cell.element);
+    const errors: unknown[] = [];
+    collectError(errors, () => cell.control.dispose?.(this.current, cell.element));
     cell.element.remove();
+    return errors;
   }
 
-  /** Retire tous les contrôles puis l'élément. */
-  dispose(): void {
-    Array.from(this.cells.keys()).forEach((id) => this.removeControl(id));
+  /** Retire tous les contrôles puis l'élément ; retourne les erreurs des `dispose`. */
+  dispose(): unknown[] {
+    const errors = Array.from(this.cells.keys()).flatMap((id) => this.removeControl(id));
     this.element.remove();
+    return errors;
   }
 
   private paint(row: ILayerRow, rebuildToggle: boolean): void {
@@ -138,8 +165,14 @@ export class LayerRowView {
     if (rebuildToggle) this.buildToggle(folder);
     if (folder) this.paintToggle(collapsed);
     renderLayerIcon(node, this.icon);
-    if (this.name.textContent !== node.name) this.name.textContent = node.name;
-    this.name.title = node.name;
+    this.paintName(node.name);
+  }
+
+  private paintName(name: string): void {
+    const element = this.nameElement;
+    element.title = name;
+    if (element.hasAttribute(NAME_EDITING_ATTRIBUTE) || element.textContent === name) return;
+    element.textContent = name;
   }
 
   private buildToggle(folder: boolean): void {
@@ -149,6 +182,8 @@ export class LayerRowView {
       replacement.type = 'button';
       replacement.classList.add(LAYER_ROW_CLASSES.toggle);
       replacement.dataset.action = 'toggle';
+      // Hors de l'ordre de tabulation : le clavier passe par la sélection (Y5),
+      // qui replie et déplie avec les flèches via le service `layers.list`.
       replacement.tabIndex = -1;
     } else {
       replacement.classList.add(LAYER_ROW_CLASSES.spacer);

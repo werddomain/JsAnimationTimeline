@@ -58,7 +58,9 @@ export const LayerListCommandLabels = Object.freeze({
 function withCollapsed(folder: IFolder, collapsed: boolean | undefined): IFolder {
   if (folder.collapsed === collapsed) return folder;
   if (collapsed !== undefined) return { ...folder, collapsed };
-  return Object.fromEntries(Object.entries(folder).filter(([key]) => key !== 'collapsed')) as unknown as IFolder;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- retire le champ pour rendre le dossier d'origine
+  const { collapsed: _removed, ...rest } = folder;
+  return rest;
 }
 
 /**

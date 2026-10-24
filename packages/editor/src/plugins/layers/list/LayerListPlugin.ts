@@ -17,9 +17,12 @@
  *
  * Service `layers.list` : lignes affichées, éléments des lignes et API des
  * contrôles de ligne (œil, cadenas, couleur...), pour que les plugins de Y2
- * à Y4 s'ajoutent sans toucher à la liste. La sélection (Y5), le
- * glisser-déposer (Y6) et le renommage (Y2) passent par `element()`,
- * `rowElement()` et `rowIdAt()`.
+ * à Y4 s'ajoutent sans toucher à la liste. La sélection (Y5, avec la
+ * navigation au clavier), le glisser-déposer (Y6) et le renommage (Y2)
+ * passent par `element()`, `rowElement()`, `nameElement()` et `rowIdAt()`.
+ *
+ * Une erreur d'un contrôle n'interrompt pas la mise à jour de la liste ni
+ * l'envoi de `layers:rowsChanged` : la première erreur est relancée à la fin.
  */
 
 import type { ITimelineDocument } from '@werddomain/timeline-runtime';
@@ -27,7 +30,7 @@ import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditor
 import { LAYOUT_SLOTS } from '../../layout/shell/layoutSlots';
 import { layerRows, sameRowLayout } from './layerRows';
 import { createSetCollapsedCommand, createToggleCollapsedCommand, findFolder } from './layerTree';
-import { LayerRowView } from './LayerRowView';
+import { LayerRowView, collectError } from './LayerRowView';
 import type { ILayerListService, ILayerRow, ILayerRowControl } from './types';
 import './LayerList.less';
 
@@ -50,7 +53,13 @@ export const LAYER_LIST_TEXTS = Object.freeze({
   empty: 'Aucun calque'
 });
 
-const CONTROL_ID_PATTERN = /^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)*$/;
+/** Forme d'un identifiant de contrôle : segments pointés en camelCase (`layers.lock`, `myApp.solo`). */
+export const CONTROL_ID_PATTERN = /^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)*$/;
+
+/** Lève la première erreur de `errors`, s'il y en a. */
+function rethrowFirst(errors: readonly unknown[]): void {
+  if (errors.length > 0) throw errors[0];
+}
 
 /** Liste des calques : arbre des calques, en-tête et contrôles de ligne. */
 export class LayerListPlugin implements EditorPlugin {
@@ -77,6 +86,7 @@ export class LayerListPlugin implements EditorPlugin {
       rows: () => this.rows(),
       row: (id) => this.rows().find((row) => row.id === id),
       rowElement: (id) => this.views.get(id)?.element,
+      nameElement: (id) => this.views.get(id)?.nameElement,
       rowIdAt: (target) => this.rowIdAt(target),
       element: () => this.list,
       addRowControl: (control) => this.addRowControl(control),
@@ -121,7 +131,9 @@ export class LayerListPlugin implements EditorPlugin {
     const cleanups = this.cleanups;
     this.cleanups = [];
     cleanups.forEach((cleanup) => cleanup());
-    this.views.forEach((view) => view.dispose());
+    const errors: unknown[] = [];
+    this.views.forEach((view) => errors.push(...view.dispose()));
+    this.controls.forEach((control) => this.removeHeaderCell(control, errors));
     this.views.clear();
     this.headerCells.clear();
     this.list?.remove();
@@ -132,13 +144,17 @@ export class LayerListPlugin implements EditorPlugin {
     this.header = undefined;
     this.headerControls = undefined;
     this.controls = [];
+    this.rowsDocument = undefined;
+    this.currentRows = [];
+    this.emittedRows = undefined;
     this.ctx = undefined;
+    rethrowFirst(errors);
   }
 
   private rows(): readonly ILayerRow[] {
     const doc = this.requireContext().document;
     if (doc !== this.rowsDocument) {
-      this.currentRows = layerRows(doc);
+      this.currentRows = layerRows(doc, this.currentRows);
       this.rowsDocument = doc;
     }
     return this.currentRows;
@@ -153,33 +169,40 @@ export class LayerListPlugin implements EditorPlugin {
   private refresh(): void {
     const rows = this.rows();
     if (this.list === undefined) return;
-    this.reconcile(this.list, rows);
+    const errors = this.reconcile(this.list, rows);
     const previous = this.emittedRows;
     this.emittedRows = rows;
-    if (previous !== undefined && sameRowLayout(previous, rows)) return;
-    this.requireContext().events.emit('layers:rowsChanged', { rows, previous: previous ?? [] });
+    if (previous === undefined || !sameRowLayout(previous, rows)) {
+      this.requireContext().events.emit('layers:rowsChanged', { rows, previous: previous ?? [] });
+    }
+    rethrowFirst(errors);
   }
 
-  /** Garde les vues des lignes encore affichées, crée les nouvelles, retire les autres, remet l'ordre. */
-  private reconcile(list: HTMLElement, rows: readonly ILayerRow[]): void {
+  /**
+   * Garde les vues des lignes encore affichées, crée les nouvelles, retire
+   * les autres, remet l'ordre. Retourne les erreurs des contrôles.
+   */
+  private reconcile(list: HTMLElement, rows: readonly ILayerRow[]): unknown[] {
+    const errors: unknown[] = [];
     const kept = new Set(rows.map((row) => row.id));
     this.views.forEach((view, id) => {
       if (kept.has(id)) return;
-      view.dispose();
+      errors.push(...view.dispose());
       this.views.delete(id);
     });
     rows.forEach((row, index) => {
-      const view = this.views.get(row.id) ?? this.createView(list, row);
-      if (view.row !== row) view.update(row);
+      const view = this.views.get(row.id) ?? this.createView(list, row, errors);
+      if (view.row !== row) errors.push(...view.update(row));
       if (list.children[index] !== view.element) list.insertBefore(view.element, list.children[index] ?? null);
     });
     if (this.empty !== undefined) this.empty.hidden = rows.length > 0;
+    return errors;
   }
 
-  private createView(list: HTMLElement, row: ILayerRow): LayerRowView {
+  private createView(list: HTMLElement, row: ILayerRow, errors: unknown[]): LayerRowView {
     const view = new LayerRowView(list.ownerDocument, row);
     this.views.set(row.id, view);
-    this.controls.forEach((control) => view.addControl(control, undefined));
+    this.controls.forEach((control) => collectError(errors, () => view.addControl(control, undefined)));
     return view;
   }
 
@@ -191,19 +214,30 @@ export class LayerListPlugin implements EditorPlugin {
       throw new Error(`layers.list : le contrôle « ${control.id} » est déjà ajouté.`);
     }
     const controls = [...this.controls, control].sort((a, b) => a.order - b.order);
-    this.controls = controls;
     const before = controls[controls.indexOf(control) + 1]?.id;
-    this.views.forEach((view) => view.addControl(control, before));
-    this.addHeaderCell(control, before);
+    this.controls = controls;
+    try {
+      this.views.forEach((view) => view.addControl(control, before));
+      this.addHeaderCell(control, before);
+    } catch (error) {
+      this.detachControl(control);
+      throw error;
+    }
     let removed = false;
     return () => {
       if (removed) return;
       removed = true;
-      this.controls = this.controls.filter((existing) => existing !== control);
-      this.views.forEach((view) => view.removeControl(control.id));
-      this.headerCells.get(control.id)?.remove();
-      this.headerCells.delete(control.id);
+      rethrowFirst(this.detachControl(control));
     };
+  }
+
+  /** Retire le contrôle des lignes et de l'en-tête ; retourne les erreurs de ses `dispose`. */
+  private detachControl(control: ILayerRowControl): unknown[] {
+    const errors: unknown[] = [];
+    this.controls = this.controls.filter((existing) => existing !== control);
+    this.views.forEach((view) => errors.push(...view.removeControl(control.id)));
+    this.removeHeaderCell(control, errors);
+    return errors;
   }
 
   private renderHeader(slot: HTMLElement): void {
@@ -232,6 +266,14 @@ export class LayerListPlugin implements EditorPlugin {
     container.insertBefore(cell, before === undefined ? null : (this.headerCells.get(before) ?? null));
     this.headerCells.set(control.id, cell);
     control.renderHeader?.(cell);
+  }
+
+  private removeHeaderCell(control: ILayerRowControl, errors: unknown[]): void {
+    const cell = this.headerCells.get(control.id);
+    if (cell === undefined) return;
+    this.headerCells.delete(control.id);
+    collectError(errors, () => control.disposeHeader?.(cell));
+    cell.remove();
   }
 
   private onListClick(event: MouseEvent): void {

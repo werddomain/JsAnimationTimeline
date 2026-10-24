@@ -8,6 +8,7 @@
 import { isFolder, resolveLocked } from '@werddomain/timeline-runtime';
 import type { ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
 import { visibleRows } from '../../../model/rows';
+import type { IVisibleRow } from '../../../model/rows';
 import type { ILayerRow } from './types';
 
 interface INodeInfo {
@@ -23,14 +24,32 @@ function indexNodes(nodes: readonly LayerNode[], lockedAbove: boolean, into: Map
   }
 }
 
-/** Lignes affichées de `doc`, en ordre d'affichage, avec leur nœud. */
-export function layerRows(doc: ITimelineDocument): readonly ILayerRow[] {
+function sameRow(row: ILayerRow, visible: IVisibleRow, info: INodeInfo): boolean {
+  return (
+    row.node === info.node &&
+    row.lockedByAncestor === info.lockedByAncestor &&
+    row.kind === visible.kind &&
+    row.depth === visible.depth &&
+    row.parentId === visible.parentId &&
+    row.index === visible.index
+  );
+}
+
+/**
+ * Lignes affichées de `doc`, en ordre d'affichage, avec leur nœud. Une ligne
+ * de `previous` identique (même nœud, même place, même verrou) est reprise
+ * telle quelle : `===` suffit pour savoir qu'une ligne n'a pas changé.
+ */
+export function layerRows(doc: ITimelineDocument, previous: readonly ILayerRow[] = []): readonly ILayerRow[] {
   const infos = new Map<string, INodeInfo>();
   indexNodes(doc.layers, false, infos);
-  return visibleRows(doc).map((row) => {
-    const info = infos.get(row.id);
-    if (info === undefined) throw new Error(`layers.list : nœud « ${row.id} » absent du document.`);
-    return { ...row, node: info.node, lockedByAncestor: info.lockedByAncestor };
+  const before = new Map(previous.map((row) => [row.id, row]));
+  return visibleRows(doc).map((visible) => {
+    const info = infos.get(visible.id);
+    if (info === undefined) throw new Error(`layers.list : nœud « ${visible.id} » absent du document.`);
+    const old = before.get(visible.id);
+    if (old !== undefined && sameRow(old, visible, info)) return old;
+    return { ...visible, node: info.node, lockedByAncestor: info.lockedByAncestor };
   });
 }
 

@@ -43,9 +43,19 @@ export interface ILayerRowControl {
    * colonnes dans Flash), rendu dans la zone `layersHeader`.
    */
   readonly renderHeader?: (element: HTMLElement) => void;
+  /** Libère ce que `renderHeader` a créé hors de `element` (retrait du contrôle ou destruction). */
+  readonly disposeHeader?: (element: HTMLElement) => void;
 }
 
-/** Charge utile de `layers:rowsChanged`. */
+/**
+ * Charge utile de `layers:rowsChanged`. L'événement part au rendu de la
+ * liste (premier envoi, `previous` vide), puis chaque fois que la
+ * disposition des lignes change (ids, ordre, profondeur, parent), après la
+ * mise à jour du DOM. Un changement qui garde la disposition (nom, couleur,
+ * verrou...) ne le déclenche pas : pour le contenu des nœuds, écouter
+ * `document:changed` et relire `rows()` du service. Les lignes sont celles
+ * du document au moment de l'envoi : ne pas les garder en cache.
+ */
 export interface LayerRowsChangedEvent {
   /** Lignes affichées, en ordre d'affichage. */
   readonly rows: readonly ILayerRow[];
@@ -61,6 +71,11 @@ export interface ILayerListService {
   row(id: string): ILayerRow | undefined;
   /** Élément DOM de la ligne `id`, ou `undefined` (non affichée, ou avant le rendu). */
   rowElement(id: string): HTMLElement | undefined;
+  /**
+   * Élément du nom de la ligne `id` (renommage sur place) ; tant qu'il porte
+   * l'attribut `data-editing`, la liste ne réécrit pas son texte.
+   */
+  nameElement(id: string): HTMLElement | undefined;
   /** Id de la ligne qui contient `target` (délégation d'événements), ou `undefined`. */
   rowIdAt(target: EventTarget | null): string | undefined;
   /** Élément de la liste (`role="tree"`), ou `undefined` avant le rendu et après la destruction. */

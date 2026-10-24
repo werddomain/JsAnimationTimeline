@@ -326,6 +326,102 @@ describe('layers.list row controls', () => {
   });
 });
 
+describe('layers.list robustness', () => {
+  function rename(id: string, name: string) {
+    return createCommand(
+      'Renommer',
+      (current) => updateLayerNode(current, id, (node) => ({ ...node, name })),
+      (current) => updateLayerNode(current, id, (node) => ({ ...node, name: id }))
+    );
+  }
+
+  it('keeps the row icon class when the icon changes', () => {
+    const { host, editor } = mount(doc([layer('a', { icon: 'fa fa-star' })]));
+    editor.load(doc([layer('a', { icon: 'audio' })]));
+    const icon = rowElement(host, 'a').querySelector(`.${LAYER_ROW_CLASSES.icon}`);
+    expect(icon?.classList.contains('jt-layer-icon--audio')).toBe(true);
+    expect(icon?.classList.contains('fa')).toBe(false);
+  });
+
+  it('does not touch the controls of rows that did not change', () => {
+    const { list, editor } = mount(doc([layer('a'), layer('b')]));
+    const renders: string[] = [];
+    list.addRowControl({ id: 'test.plain', order: 0, render: (row) => void renders.push(row.id) });
+    renders.length = 0;
+    editor.execute(rename('b', 'B'));
+    expect(renders).toEqual(['b']);
+  });
+
+  it('leaves a name being edited alone and exposes the name element', () => {
+    const { host, list, editor } = mount(doc([layer('a')]));
+    const name = list.nameElement('a');
+    expect(name).toBe(rowElement(host, 'a').querySelector(`.${LAYER_ROW_CLASSES.name}`));
+    name?.setAttribute('data-editing', '');
+    if (name !== undefined) name.textContent = 'en cours';
+    editor.execute(rename('a', 'A'));
+    expect(name?.textContent).toBe('en cours');
+    name?.removeAttribute('data-editing');
+    editor.undo();
+    expect(name?.textContent).toBe('a');
+    expect(list.nameElement('missing')).toBeUndefined();
+  });
+
+  it('keeps updating the list when a control update throws, then reports the error', () => {
+    const events: LayerRowsChangedEvent[] = [];
+    const { host, list, editor } = mount(doc([layer('a'), folder('f', [layer('b')])]), [rowsRecorder(events)]);
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const updates: string[] = [];
+    list.addRowControl({
+      id: 'test.broken',
+      order: 0,
+      render: () => undefined,
+      update: () => {
+        throw new Error('contrôle en panne');
+      }
+    });
+    list.addRowControl({ id: 'test.healthy', order: 1, render: () => undefined, update: (row) => void updates.push(row.id) });
+    editor.execute(rename('a', 'A'));
+    list.setCollapsed('f', true);
+    expect(updates).toEqual(['a', 'f']);
+    expect(rowElement(host, 'a').querySelector(`.${LAYER_ROW_CLASSES.name}`)?.textContent).toBe('A');
+    expect(domRowIds(host)).toEqual(['a', 'f']);
+    expect(events).toHaveLength(2);
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it('rolls back a control whose render throws', () => {
+    const { host, list } = mount(doc([layer('a'), layer('b')]));
+    let calls = 0;
+    const broken: ILayerRowControl = {
+      id: 'test.broken',
+      order: 0,
+      render: () => {
+        calls += 1;
+        if (calls === 2) throw new Error('rendu en panne');
+      }
+    };
+    expect(() => list.addRowControl(broken)).toThrow('rendu en panne');
+    expect(host.querySelector('[data-control-id="test.broken"]')).toBeNull();
+    expect(() => list.addRowControl({ id: 'test.broken', order: 0, render: () => undefined })).not.toThrow();
+  });
+
+  it('disposes header cells on removal and on destroy', () => {
+    const { list, editor } = mount(doc([layer('a')]));
+    const disposed: string[] = [];
+    const remove = list.addRowControl({
+      id: 'test.one',
+      order: 0,
+      render: () => undefined,
+      disposeHeader: () => void disposed.push('one')
+    });
+    list.addRowControl({ id: 'test.two', order: 1, render: () => undefined, disposeHeader: () => void disposed.push('two') });
+    remove();
+    editor.destroy();
+    expect(disposed).toEqual(['one', 'two']);
+  });
+});
+
 describe('layers.list cleanup', () => {
   it('removes its DOM and service on destroy', () => {
     const { host, editor } = mount(tree);

@@ -39,6 +39,24 @@ describe('layerRows', () => {
   });
 });
 
+describe('layerRows reuse', () => {
+  it('reuses unchanged rows from the previous list and rebuilds changed ones', () => {
+    const before = layerRows(doc([layer('a'), layer('b')]));
+    const source = doc([before[0]?.node ?? layer('a'), layer('b', { name: 'B' })]);
+    const after = layerRows(source, before);
+    expect(after[0]).toBe(before[0]);
+    expect(after[1]).not.toBe(before[1]);
+  });
+
+  it('rebuilds a row whose index or inherited lock changed', () => {
+    const a = layer('a');
+    const before = layerRows(doc([a, layer('b')]));
+    expect(layerRows(doc([layer('z'), a]), before)[1]).not.toBe(before[0]);
+    const inFolder = layerRows(doc([folder('f', [a])]));
+    expect(layerRows(doc([folder('f', [a], { locked: true })]), inFolder)[1]?.lockedByAncestor).toBe(true);
+  });
+});
+
 describe('sameRowLayout', () => {
   it('ignores node content but not order, depth or parent', () => {
     const base = layerRows(doc([layer('a'), layer('b')]));
@@ -59,6 +77,18 @@ describe('layer icons', () => {
     expect(classifyLayerIcon('javascript:alert(1)')).toBe('invalid');
     expect(classifyLayerIcon('<b>')).toBe('invalid');
     expect(classifyLayerIcon('toString')).toBe('class');
+    expect(classifyLayerIcon('//evil.example/x.png')).toBe('invalid');
+    expect(classifyLayerIcon('/icons/a.png')).toBe('url');
+    expect(classifyLayerIcon('jt-layer-row--hidden')).toBe('invalid');
+    expect(classifyLayerIcon('fa jt-shell')).toBe('invalid');
+  });
+
+  it('keeps the classes it did not add when the icon changes', () => {
+    const element = document.createElement('span');
+    element.classList.add('host-class');
+    renderLayerIcon(layer('a', { icon: 'fa fa-star' }), element);
+    renderLayerIcon(layer('a', { icon: 'audio' }), element);
+    expect(Array.from(element.classList).sort()).toEqual(['host-class', LAYER_ICON_CLASS, `${LAYER_ICON_CLASS}--audio`].sort());
   });
 
   it('defaults by node type and folder state', () => {
