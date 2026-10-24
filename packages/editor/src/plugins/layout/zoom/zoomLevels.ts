@@ -4,9 +4,18 @@
  * et position de défilement qui garde un point d'ancrage immobile.
  */
 
-/** Facteur de zoom minimal par défaut. */
+/*
+ * Deux plages, à ne pas confondre :
+ * - les paliers (`DEFAULT_ZOOM_LEVELS`, 25 % à 400 %) servent au zoom avant /
+ *   arrière (boutons, Ctrl + molette) et à la liste déroulante de T4 : les pas
+ *   s'arrêtent au premier et au dernier palier ;
+ * - les bornes (`DEFAULT_MIN_ZOOM` à `DEFAULT_MAX_ZOOM`, 10 % à 800 %) limitent
+ *   `setZoom` : ajustement à la fenêtre, curseur de T4, pincement.
+ */
+
+/** Facteur de zoom minimal par défaut (`setZoom`, ajustement à la fenêtre, pincement). */
 export const DEFAULT_MIN_ZOOM = 0.1;
-/** Facteur de zoom maximal par défaut. */
+/** Facteur de zoom maximal par défaut (`setZoom`, ajustement à la fenêtre, pincement). */
 export const DEFAULT_MAX_ZOOM = 8;
 /**
  * Paliers par défaut du zoom avant / arrière (et de la liste déroulante de
@@ -35,8 +44,9 @@ export function clampZoom(zoom: number, range: IZoomRange): number {
 
 /**
  * Palier suivant (`direction` 1) ou précédent (`direction` -1) de `zoom`
- * parmi `levels` triés, borné à `range`. Hors des paliers, on va au plus
- * proche dans la direction ; au-delà du dernier, à la borne.
+ * parmi les `levels` triés compris dans `range`. Hors des paliers, on va au
+ * plus proche dans la direction. Au-delà du dernier palier (ou avant le
+ * premier), le zoom ne bouge pas : les bornes plus larges restent à `setZoom`.
  */
 export function stepZoom(zoom: number, direction: 1 | -1, levels: readonly number[], range: IZoomRange): number {
   const candidates = levels.filter((level) => level >= range.min - EPSILON && level <= range.max + EPSILON);
@@ -44,7 +54,7 @@ export function stepZoom(zoom: number, direction: 1 | -1, levels: readonly numbe
     direction === 1
       ? candidates.find((level) => level > zoom + EPSILON)
       : [...candidates].reverse().find((level) => level < zoom - EPSILON);
-  return clampZoom(next ?? (direction === 1 ? range.max : range.min), range);
+  return clampZoom(next ?? zoom, range);
 }
 
 /**
