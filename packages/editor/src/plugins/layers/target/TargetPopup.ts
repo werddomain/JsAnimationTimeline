@@ -261,6 +261,8 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
       picked = await targets.pick(controller.signal);
     } catch {
       if (!controller.signal.aborted && !closed) {
+        // Deferred rebuilds must observe an idle picker, even before the finally cleanup.
+        if (pickController === controller) pickController = null;
         parts.status.textContent = TargetPopupLabels.pickFailed;
         backToPickButton();
         pickEnded();

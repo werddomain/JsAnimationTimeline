@@ -14,7 +14,7 @@ import { createEditor } from '../../../../core/editor/createEditor';
 import { defaultPlugins } from '../../../../core/editor/defaultPlugins';
 import { LayersPlugin } from '../../LayersPlugin';
 import { TargetPlugin } from '../TargetPlugin';
-import { createFakeStage, createTargetDocument, mountTarget, popup, press, targetButton, unmountTargets } from './fixtures';
+import { createFakeStage, createTargetDocument, flushPromises, mountTarget, popup, press, targetButton, unmountTargets } from './fixtures';
 
 afterEach(unmountTargets);
 
@@ -224,6 +224,35 @@ describe('#87 regressions', () => {
     expect(staleDuringPick).toBe(true);
     expect(rebuilt).not.toBe(dialog);
     expect(rebuilt === null ? '' : field<HTMLInputElement>(rebuilt, 'text').value).toBe('tree');
+  });
+
+  it('rebuilds after a rejected pick following undo without discarding redo', async () => {
+    // Arrange
+    const stage = createFakeStage();
+    const { editor, host, service } = mountTarget({ stage });
+    expect(service.setTarget('hero', { ref: 'sun', stage: 'canvas' })).toBe(true);
+    const dialog = open(host, 'hero');
+    expect(field<HTMLInputElement>(dialog, 'text').value).toBe('sun');
+    field<HTMLButtonElement>(dialog, 'pick').click();
+    expect(stage.picks).toHaveLength(1);
+
+    // Act
+    expect(editor.undo()).toBe(true);
+    expect(editor.canRedo).toBe(true);
+    stage.picks[0]?.reject(new Error('Stage pick failed'));
+    await flushPromises();
+    const rebuilt = popup(host);
+    if (rebuilt === null) throw new Error('fenêtre absente après le choix');
+
+    // Assert
+    expect(field<HTMLInputElement>(rebuilt, 'text').value).toBe('hero');
+    expect(rebuilt === dialog).toBe(false);
+    expect(document.activeElement).toBe(field<HTMLButtonElement>(rebuilt, 'pick'));
+    submit(rebuilt);
+    expect(editor.document.layers[0]).toMatchObject({ target: { ref: 'hero', stage: 'canvas' } });
+    expect(editor.canRedo).toBe(true);
+    expect(editor.redo()).toBe(true);
+    expect(editor.document.layers[0]).toMatchObject({ target: { ref: 'sun', stage: 'canvas' } });
   });
 
   it('preselects the first stage for a stageless ref that no stage accepts', () => {
