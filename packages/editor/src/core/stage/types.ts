@@ -59,8 +59,8 @@ export interface IEditorStage {
    * (`playback.livePreview`). Pendant une retenue :
    * - les scènes ne reçoivent ni `sync` ni `render` ; la position, elle,
    *   suit (`playhead:changed`, `frame:render` et `onFrame` continuent) ;
-   * - un document est chargé comme d'habitude (acceptation ou retour
-   *   arrière, avertissements, `stage:targetsChanged`) : seul son rendu est
+   * - un document est chargé comme d'habitude (acceptation,
+   *   avertissements, `stage:targetsChanged`) : seul son rendu est
    *   retenu ;
    * - la lecture passe outre (une retenue oubliée ne fige jamais la
    *   lecture), et l'arrêt de la lecture rend l'image d'arrêt ;

@@ -205,10 +205,71 @@ describe('createMotionTweenBetween', () => {
     expect(spansOf(next, 'l1')[0].tracks).toEqual({ x: [{ frame: 1, value: 0 }, { frame: 6, value: 100 }, { frame: 10, value: 100 }] });
   });
 
-  it('refuses a range that is already exactly one tween', () => {
+  it('aims a one-span tween at k2 instead of refusing it', () => {
+    // Arrange
+    const doc = createDoc([layer('l1', [stat('a', 1, 4, { x: [{ frame: 1, value: 0 }] }), stat('b', 5, 8, { x: [{ frame: 5, value: 100 }] })])]);
+    const single = createMotionTweenFromSpan(doc, 'l1', 1);
+
+    // Act
+    const next = createMotionTweenBetween(single, 'l1', 1, 5, registry);
+
+    // Assert
+    expectValid(next);
+    expect(spansOf(next, 'l1')[0].tracks).toEqual({ x: [{ frame: 1, value: 0 }, { frame: 4, value: 100 }] });
+  });
+
+  it('keeps the easing of a single absorbed tween when aiming it at k2', () => {
+    // Arrange: eased tween [1, 4] holding x = 0, then a static x = 100 at 5.
+    const doc = createDoc([
+      layer('l1', [{ id: 't', start: 1, end: 4, kind: 'tween', easing: 'ease-in', tracks: { x: [{ frame: 1, value: 0 }] } }, stat('b', 5, 8, { x: [{ frame: 5, value: 100 }] })])
+    ]);
+
+    // Act
+    const next = createMotionTweenBetween(doc, 'l1', 1, 5, registry);
+
+    // Assert
+    expectValid(next);
+    expect(spansOf(next, 'l1')[0]).toEqual({
+      id: 't',
+      start: 1,
+      end: 4,
+      kind: 'tween',
+      easing: 'ease-in',
+      tracks: { x: [{ frame: 1, value: 0 }, { frame: 4, value: 100 }] }
+    });
+  });
+
+  it('refuses to re-create an eased tween whose merge changes nothing', () => {
     // Arrange
     const doc = createDoc([
-      layer('l1', [{ id: 't', start: 1, end: 5, kind: 'tween', easing: 'ease-in', tracks: { x: [{ frame: 1, value: 0 }, { frame: 5, value: 9 }] } }, stat('b', 6, 8)])
+      layer('l1', [{ id: 't', start: 1, end: 5, kind: 'tween', easing: 'ease-in', tracks: { x: [{ frame: 1, value: 0 }, { frame: 5, value: 9 }] } }, stat('b', 6, 8, { x: [{ frame: 6, value: 9 }] })])
+    ]);
+
+    // Assert
+    expect(codeOf(() => createMotionTweenBetween(doc, 'l1', 1, 6, registry))).toBe(MotionTweenCodes.ALREADY_TWEEN);
+  });
+
+  it('drops the easing when several spans are absorbed', () => {
+    // Arrange
+    const doc = createDoc([
+      layer('l1', [
+        { id: 't', start: 1, end: 4, kind: 'tween', easing: 'ease-in', tracks: { x: [{ frame: 1, value: 0 }] } },
+        stat('b', 5, 8, { x: [{ frame: 5, value: 100 }] }),
+        stat('c', 9, 12, { x: [{ frame: 9, value: 200 }] })
+      ])
+    ]);
+
+    // Act
+    const next = createMotionTweenBetween(doc, 'l1', 1, 9, registry);
+
+    // Assert
+    expect(spansOf(next, 'l1')[0].easing).toBeUndefined();
+  });
+
+  it('refuses a range whose merge would leave the tween unchanged', () => {
+    // Arrange
+    const doc = createDoc([
+      layer('l1', [{ id: 't', start: 1, end: 5, kind: 'tween', tracks: { x: [{ frame: 1, value: 0 }, { frame: 5, value: 9 }] } }, stat('b', 6, 8, { x: [{ frame: 6, value: 9 }] })])
     ]);
 
     // Act
