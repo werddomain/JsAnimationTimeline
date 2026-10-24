@@ -11,6 +11,7 @@
 
 import { findNodeById, flattenLayers, isLayer, resolveLocked } from '@werddomain/timeline-runtime';
 import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { lastFrame } from '../../../model/spans/tracks';
 import type { IFrameCell } from '../selection/frameSelection';
 
 /** Sources des cibles d'une action. */
@@ -67,4 +68,23 @@ export function keyframeTargets(doc: ITimelineDocument, sources: IKeyframeTarget
   const locked = lockedLayerIds(doc);
   const editable = ordered.filter((cell) => !locked.has(cell.rowId));
   return editable.length > 0 ? editable : ordered.slice(0, 1);
+}
+
+/**
+ * Cibles de F5 : sur chaque ligne, les images après la dernière plage sont
+ * réunies en une seule, la plus à droite. Insérer une image après la fin ne
+ * fait que prolonger la dernière plage jusqu'à elle ; les autres images
+ * au-delà de la fin seraient ensuite dans la plage et l'allongeraient
+ * chacune d'une image de trop.
+ */
+export function insertFrameTargets(doc: ITimelineDocument, targets: readonly IFrameCell[]): IFrameCell[] {
+  const seenPastEnd = new Set<string>();
+  return targets.filter((cell) => {
+    const node = findNodeById(doc.layers, cell.rowId);
+    if (node === undefined || !isLayer(node) || cell.frame <= lastFrame(node)) return true;
+    // Les cibles d'une ligne sont en images décroissantes : la première au-delà de la fin est la plus haute.
+    if (seenPastEnd.has(cell.rowId)) return false;
+    seenPastEnd.add(cell.rowId);
+    return true;
+  });
 }

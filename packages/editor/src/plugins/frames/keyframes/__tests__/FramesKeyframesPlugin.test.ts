@@ -297,3 +297,50 @@ describe('frames.keyframes service', () => {
     expect(h.editor.toJSON()).toEqual(data());
   });
 });
+
+describe('frames.keyframes F5 past the end of a layer', () => {
+  const short = (): ITimelineDocument => createDoc([layer('a', [{ id: 'a1', start: 1, end: 5, kind: 'static' }])], 10);
+
+  it('extends the layer once to the rightmost selected frame', () => {
+    // Arrange
+    const h = setupKeyframes(short());
+    h.selection.set([8, 9, 10].map((frame) => ({ rowId: 'a', frame })));
+
+    // Act
+    press(h, 'F5');
+
+    // Assert
+    expect(shape(h, 'a')).toEqual(['static 1-10']);
+    expect(h.editor.document.settings.totalFrames).toBe(10);
+  });
+
+  it('inserts one frame per selected frame inside the span and extends once past the end', () => {
+    // Arrange : images 4 à 8 sur une plage 1-5 (4 et 5 dans la plage, 6 à 8 après).
+    const h = setupKeyframes(short());
+    h.selection.set([4, 5, 6, 7, 8].map((frame) => ({ rowId: 'a', frame })));
+
+    // Act
+    press(h, 'F5');
+
+    // Assert : prolongée jusqu'à 8, puis deux images insérées dans la plage.
+    expect(shape(h, 'a')).toEqual(['static 1-10']);
+    expect(h.editor.document.settings.totalFrames).toBe(10);
+  });
+});
+
+describe('frames.keyframes refused moves', () => {
+  it('announces a move refused because every selected keyframe is on a locked row', () => {
+    // Arrange
+    const h = setupKeyframes(data());
+    h.selection.set([{ rowId: 'lock', frame: 1 }]);
+    h.refused.length = 0;
+
+    // Act
+    const moved = h.keyframes.move(2);
+
+    // Assert
+    expect(moved).toBe(false);
+    expect(h.refused).toHaveLength(1);
+    expect(h.editor.toJSON()).toEqual(data());
+  });
+});
