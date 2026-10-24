@@ -6,6 +6,7 @@
  */
 
 import type { ILayerRow, ILayerRowControl } from '../list/types';
+import { normalizeLayerColor } from './layerColor';
 
 /** Ordre du contrôle : après l'œil (10) et le cadenas (20). */
 export const LAYER_COLOR_CONTROL_ORDER = 30;
@@ -36,7 +37,8 @@ interface ColorCell {
 
 /** Repeint le carré et l'entrée selon la couleur de la ligne. */
 function paint(cell: ColorCell, row: ILayerRow): void {
-  const color = row.node.color;
+  // Le document est une donnée utilisateur : seule une couleur `#rrggbb` est peinte.
+  const color = row.node.color === undefined ? undefined : normalizeLayerColor(row.node.color);
   const text = color ?? LAYER_COLOR_TEXTS.none;
   cell.rowId = row.id;
   cell.swatch.classList.toggle(LAYER_COLOR_CLASSES.swatchEmpty, color === undefined);

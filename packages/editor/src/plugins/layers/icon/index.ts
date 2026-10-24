@@ -14,3 +14,5 @@ export {
 } from './iconCommand';
 export type { LayerIconValidation } from './iconCommand';
 export type { ILayerIconService } from './types';
+export { clampMenuPosition } from './menuPosition';
+export type { IMenuPosition, IRectLike } from './menuPosition';

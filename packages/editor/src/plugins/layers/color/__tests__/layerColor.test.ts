@@ -54,4 +54,12 @@ describe('createSetColorCommand', () => {
     expect(() => createSetColorCommand(source, 'zzz', '#000000')).toThrow(/introuvable/);
     expect(() => createSetColorCommand(source, 'a', 'red')).toThrow(/invalide/);
   });
+
+  it('restores the absent field of a folder on undo and redoes', () => {
+    const plain = doc([folder('f', [layer('b')])]);
+    const command = createSetColorCommand(plain, 'f', '#123456');
+    const undone = command.undo(command.do(plain));
+    expect(findNodeById(undone.layers, 'f')).toStrictEqual(findNodeById(plain.layers, 'f'));
+    expect(findNodeById(command.do(undone).layers, 'f')?.color).toBe('#123456');
+  });
 });

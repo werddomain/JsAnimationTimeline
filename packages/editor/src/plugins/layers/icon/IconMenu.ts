@@ -1,19 +1,26 @@
 // packages/editor/src/plugins/layers/icon/IconMenu.ts
 /**
- * Menu contextuel du choix d'icône (`role="menu"`) : rendu dans le conteneur
- * de l'éditeur, ancré sous l'icône cliquée. Il se ferme avec Échap, un clic
- * à l'extérieur ou un choix ; les flèches, Début et Fin déplacent le focus.
- * « Personnalisée… » ouvre un champ de saisie validé par `validateLayerIcon`.
+ * Menu de choix d'icône : une boîte `role="dialog"` rendue dans le conteneur
+ * de l'éditeur, ancrée sous l'icône cliquée et ramenée dans la fenêtre. Elle
+ * contient la liste `role="menu"` des entrées et, dans un groupe frère, la
+ * saisie de « Personnalisée… » (validée par `validateLayerIcon`).
+ *
+ * Fermeture : Échap, Tab, choix (le focus revient où il était), clic ou
+ * focus à l'extérieur (le focus n'est pas rendu). Les flèches, Début et Fin
+ * déplacent le focus. Toute touche pressée dans le menu est arrêtée pour que
+ * les raccourcis de l'éditeur ne la voient pas.
  */
 
 import { BUILTIN_LAYER_ICONS } from '../list/layerIcon';
 import { validateLayerIcon } from './iconCommand';
 import { LAYER_ICON_TEXTS } from './iconChoices';
 import type { IconChoice } from './iconChoices';
+import { clampMenuPosition } from './menuPosition';
 
 /** Classes du menu. */
 export const ICON_MENU_CLASSES = Object.freeze({
   menu: 'jt-icon-menu',
+  list: 'jt-icon-menu__list',
   item: 'jt-icon-menu__item',
   glyph: 'jt-icon-menu__glyph',
   custom: 'jt-icon-menu__custom',
@@ -21,12 +28,18 @@ export const ICON_MENU_CLASSES = Object.freeze({
   error: 'jt-icon-menu__error'
 });
 
-/** Rappels du menu. */
+/** Rappels et réglages du menu. */
 export interface IconMenuHandlers {
   /** Choix fait : `undefined` pour l'icône par défaut. Le menu se ferme ensuite. */
   readonly onPick: (icon: string | undefined) => void;
   /** Fermeture du menu (quelle qu'en soit la cause), appelée une seule fois. */
   readonly onClose: () => void;
+  /** Élément qui reprend le focus à la fermeture par choix, Échap ou Tab. */
+  readonly returnFocus?: HTMLElement;
+  /** Vrai pour une cible dont le mousedown ne doit pas fermer le menu (l'icône d'ancrage). */
+  readonly ignoreOutside?: (target: Node) => boolean;
+  /** Valeur de la saisie personnalisée à préremplir (icône personnalisée actuelle). */
+  readonly customValue?: string;
 }
 
 function choiceLabel(choice: IconChoice): string {
@@ -52,33 +65,52 @@ export class IconMenu {
     private readonly handlers: IconMenuHandlers
   ) {
     this.doc = container.ownerDocument;
-    const menu = this.doc.createElement('div');
-    menu.classList.add(ICON_MENU_CLASSES.menu);
-    menu.setAttribute('role', 'menu');
-    menu.setAttribute('aria-label', LAYER_ICON_TEXTS.menuLabel);
-    choices.forEach((choice) => this.addItem(menu, choice));
+    const box = this.doc.createElement('div');
+    box.classList.add(ICON_MENU_CLASSES.menu);
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-label', LAYER_ICON_TEXTS.dialogLabel);
+    const list = this.doc.createElement('div');
+    list.classList.add(ICON_MENU_CLASSES.list);
+    list.setAttribute('role', 'menu');
+    list.setAttribute('aria-label', LAYER_ICON_TEXTS.menuLabel);
+    choices.forEach((choice) => this.addItem(list, choice));
     this.custom = this.doc.createElement('div');
     this.input = this.doc.createElement('input');
     this.error = this.doc.createElement('p');
     this.buildCustom();
-    menu.appendChild(this.custom);
-    menu.style.left = `${anchor?.left ?? 0}px`;
-    menu.style.top = `${anchor?.bottom ?? 0}px`;
-    this.element = menu;
-    menu.addEventListener('keydown', this.onKeyDown);
+    box.append(list, this.custom);
+    this.element = box;
+    box.addEventListener('keydown', this.onKeyDown);
+    box.addEventListener('focusout', this.onFocusOut);
     this.doc.addEventListener('mousedown', this.onOutside, true);
-    container.appendChild(menu);
+    container.appendChild(box);
+    this.place(anchor);
     this.items[0]?.focus();
   }
 
-  /** Ferme le menu (sans effet s'il est déjà fermé). */
-  close(): void {
+  /** Ferme le menu (sans effet s'il est déjà fermé) ; `restoreFocus` rend le focus à `returnFocus`. */
+  close(restoreFocus = false): void {
     if (this.closed) return;
     this.closed = true;
     this.element.removeEventListener('keydown', this.onKeyDown);
+    this.element.removeEventListener('focusout', this.onFocusOut);
     this.doc.removeEventListener('mousedown', this.onOutside, true);
     this.element.remove();
+    if (restoreFocus) this.handlers.returnFocus?.focus();
     this.handlers.onClose();
+  }
+
+  /** Pose le menu sous l'ancre, dans la fenêtre (taille mesurée une fois dans le DOM). */
+  private place(anchor: DOMRect | undefined): void {
+    const view = this.doc.defaultView;
+    const size = this.element.getBoundingClientRect();
+    const position = clampMenuPosition(
+      anchor,
+      { width: size.width, height: size.height },
+      { width: view?.innerWidth ?? 0, height: view?.innerHeight ?? 0 }
+    );
+    this.element.style.left = `${position.left}px`;
+    this.element.style.top = `${position.top}px`;
   }
 
   private addItem(menu: HTMLElement, choice: IconChoice): void {
@@ -101,11 +133,14 @@ export class IconMenu {
 
   private buildCustom(): void {
     this.custom.classList.add(ICON_MENU_CLASSES.custom);
+    this.custom.setAttribute('role', 'group');
+    this.custom.setAttribute('aria-label', LAYER_ICON_TEXTS.custom);
     this.custom.hidden = true;
     this.input.type = 'text';
     this.input.classList.add(ICON_MENU_CLASSES.input);
     this.input.setAttribute('aria-label', LAYER_ICON_TEXTS.customLabel);
     this.input.placeholder = LAYER_ICON_TEXTS.customLabel;
+    this.input.value = this.handlers.customValue ?? '';
     this.error.classList.add(ICON_MENU_CLASSES.error);
     this.error.setAttribute('role', 'alert');
     this.error.hidden = true;
@@ -120,10 +155,11 @@ export class IconMenu {
     if (choice.kind === 'custom') {
       this.custom.hidden = false;
       this.input.focus();
+      this.input.select();
       return;
     }
     this.handlers.onPick(choice.kind === 'builtin' ? choice.icon : undefined);
-    this.close();
+    this.close(true);
   }
 
   private applyCustom(): void {
@@ -136,27 +172,45 @@ export class IconMenu {
       return;
     }
     this.handlers.onPick(result.icon);
-    this.close();
+    this.close(true);
   }
 
   private readonly onOutside = (event: Event): void => {
-    if (!(event.target instanceof Node) || !this.element.contains(event.target)) this.close();
+    const target = event.target;
+    if (target instanceof Node && (this.element.contains(target) || this.handlers.ignoreOutside?.(target) === true)) return;
+    this.close();
+  };
+
+  /** Le focus sort du menu vers un autre élément : on ferme sans rendre le focus. */
+  private readonly onFocusOut = (event: FocusEvent): void => {
+    const next = event.relatedTarget;
+    if (next instanceof Node && !this.element.contains(next)) this.close();
   };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
-    if (event.key === 'Escape') {
+    event.stopPropagation();
+    if (event.key === 'Escape' || event.key === 'Tab') {
       event.preventDefault();
-      event.stopPropagation();
-      this.close();
+      this.close(true);
     } else if (event.target === this.input) {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        this.applyCustom();
-      }
+      this.onInputKey(event);
     } else {
       this.moveFocus(event);
     }
   };
+
+  private onInputKey(event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.applyCustom();
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.items[0]?.focus();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.items[this.items.length - 1]?.focus();
+    }
+  }
 
   private moveFocus(event: KeyboardEvent): void {
     const last = this.items.length - 1;

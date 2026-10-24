@@ -1,6 +1,7 @@
 // packages/editor/src/plugins/layers/color/__tests__/LayerColorPlugin.test.ts
 import { findNodeById } from '@werddomain/timeline-runtime';
-import { LAYER_COLOR_CLASSES } from '..';
+import { LAYER_COLOR_CLASSES, createLayerColorControl } from '..';
+import type { ILayerRow } from '../../list/types';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';
 import type { IListHarness } from '../../list/__tests__/fixtures';
 
@@ -86,5 +87,19 @@ describe('layers.color', () => {
     input.value = '#123456';
     expect(() => input.dispatchEvent(new Event('change'))).not.toThrow();
     expect(h.host.querySelector(`.${LAYER_COLOR_CLASSES.wrapper}`)).toBeNull();
+  });
+
+  it('paints only a valid #rrggbb color (anything else shows empty)', () => {
+    const control = createLayerColorControl('layers.color', () => undefined);
+    const element = document.createElement('span');
+    const row = (color: string): ILayerRow => ({ node: layer('x', { color }) }) as unknown as ILayerRow;
+    control.render(row('url(javascript:x)'), element);
+    const swatchEl = element.querySelector<HTMLElement>(`.${LAYER_COLOR_CLASSES.swatch}`);
+    expect(swatchEl?.classList.contains(LAYER_COLOR_CLASSES.swatchEmpty)).toBe(true);
+    expect(swatchEl?.style.backgroundColor).toBe('');
+    control.update?.(row('#ABCDEF'), element);
+    expect(swatchEl?.classList.contains(LAYER_COLOR_CLASSES.swatchEmpty)).toBe(false);
+    expect(element.querySelector<HTMLInputElement>(`.${LAYER_COLOR_CLASSES.input}`)?.value).toBe('#abcdef');
+    control.dispose?.(row('#ABCDEF'), element);
   });
 });

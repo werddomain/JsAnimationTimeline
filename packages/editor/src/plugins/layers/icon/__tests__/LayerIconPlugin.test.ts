@@ -69,8 +69,12 @@ describe('layers.icon chooser', () => {
     const h = mount(source);
     iconSpan(h, 'a').click();
     const element = menu(h);
-    expect(element?.getAttribute('role')).toBe('menu');
-    expect(element?.querySelectorAll('[role="menuitem"]').length).toBeGreaterThan(5);
+    expect(element?.getAttribute('role')).toBe('dialog');
+    expect(element?.getAttribute('aria-label')).toBe("Choisir l'icône");
+    const itemList = element?.querySelector('[role="menu"]');
+    expect(itemList?.querySelectorAll('[role="menuitem"]').length).toBeGreaterThan(5);
+    expect(itemList?.querySelector(`.${ICON_MENU_CLASSES.custom}`)).toBeNull();
+    expect(element?.querySelector(`:scope > .${ICON_MENU_CLASSES.custom}[role="group"]`)).not.toBeNull();
     item(h, 'sprite').click();
     expect(iconOf(h, 'a')).toBe('sprite');
     expect(menu(h)).toBeNull();

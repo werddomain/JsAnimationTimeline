@@ -9,6 +9,7 @@ import { BUILTIN_LAYER_ICONS } from '../list/layerIcon';
 /** Textes du menu (en français). */
 export const LAYER_ICON_TEXTS = Object.freeze({
   menuLabel: 'Icône du calque',
+  dialogLabel: "Choisir l'icône",
   defaultIcon: 'Icône par défaut',
   custom: 'Personnalisée…',
   customLabel: 'URL ou classes CSS',

@@ -6,7 +6,7 @@
  */
 
 import type { ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
-import { findNodeById } from '@werddomain/timeline-runtime';
+import { findNodeById, isFolder } from '@werddomain/timeline-runtime';
 import { createCommand } from '../../../core/commands/createCommand';
 import type { ICommand } from '../../../core/commands/ICommand';
 import { updateLayerNode } from '../list/layerTree';
@@ -26,9 +26,15 @@ export function normalizeLayerColor(value: string): string | undefined {
 function withColor(node: LayerNode, color: string | undefined): LayerNode {
   if (node.color === color) return node;
   if (color !== undefined) return { ...node, color };
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- retire le champ pour rendre le nœud d'origine
+  // Une branche par type de nœud : le reste d'une union ne serait pas un `LayerNode` sans conversion.
+  if (isFolder(node)) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- retire le champ pour rendre le dossier d'origine
+    const { color: _removedFromFolder, ...rest } = node;
+    return rest;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- retire le champ pour rendre le calque d'origine
   const { color: _removed, ...rest } = node;
-  return rest as LayerNode;
+  return rest;
 }
 
 /**
