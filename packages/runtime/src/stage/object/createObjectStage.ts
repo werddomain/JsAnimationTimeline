@@ -10,13 +10,17 @@
  * relâchement).
  * `add()` et `remove()` signalent la cible touchée (`{ ref, stage }`) : l'hôte
  * relâche l'ancien objet et résout de nouveau les calques liés à ce `ref`,
- * qu'ils soient écrits avec ou sans `stage`. Avec un `resolve` personnalisé, un
- * autre `ref` peut mener au même objet : tous les calques liés sont aussi
- * signalés.
+ * qu'ils soient écrits avec ou sans `stage`. Un `add()` ne signale que cette
+ * cible ; un `remove()` signale aussi les calques liés à l'objet retiré, même
+ * par un autre `ref` (alias d'un `resolve` personnalisé). Les autres calques ne
+ * sont pas résolus de nouveau : un `resolve` personnalisé doit rendre le même
+ * objet pour un même `ref` (sinon l'hôte remplace l'objet à chaque résolution).
+ * À `update`, les propriétés qu'un calque animait et que le nouveau document
+ * n'anime plus reçoivent leurs valeurs par défaut (`reset` s'il est fourni).
  */
 
 import { isRefTarget } from '../../model/guards';
-import type { ILayer } from '../../model/layer';
+import { collectLayerProperties } from '../../evaluate/evaluateLayer';
 import type { LayerTarget } from '../../model/target';
 import { defaultPropertyRegistry } from '../../properties/PropertyRegistry';
 import type { PropertyRegistry } from '../../properties/PropertyRegistry';
@@ -39,15 +43,11 @@ function targetInfo(stageId: string, entry: IObjectStageEntry<unknown>): ITarget
 }
 
 /** What the stage remembers of a layer between `update` and `release`. */
-interface IBoundLayer {
+interface IBoundLayer<T> {
   readonly target: LayerTarget;
+  readonly object: T;
   /** Declared properties of the object and properties animated by the layer's tracks. */
   readonly names: readonly string[];
-}
-
-/** Names of the properties animated by the tracks of `layer`'s spans. */
-function trackNames(layer: ILayer): string[] {
-  return Array.from(new Set(layer.spans.flatMap((span) => Object.keys(span.tracks ?? {}))));
 }
 
 /** `targets` without duplicates: a `{ ref, stage }` target is kept once; other targets are kept as is. */
@@ -66,20 +66,37 @@ function uniqueRefTargets(targets: readonly LayerTarget[]): LayerTarget[] {
   });
 }
 
+/** Runs every task even if some throw, then rethrows the first error. */
+function runAll(tasks: ReadonlyArray<() => void>): void {
+  const errors: unknown[] = [];
+  tasks.forEach((task) => {
+    try {
+      task();
+    } catch (error) {
+      errors.push(error);
+    }
+  });
+  if (errors.length > 0) {
+    throw errors[0];
+  }
+}
+
 /** Creates a stage animating the `objects` with `apply`; see `IObjectStageOptions`. */
 export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectStage<T> {
   const stageId = options.id;
   const entries = new Map<string, IObjectStageEntry<T>>();
   const subscribers = new Set<(affected?: readonly LayerTarget[]) => void>();
-  const notify = (id: string): void => {
+  /** Notifies `{ ref: id, stage }`, then the targets of the bound layers holding one of `objects`. */
+  const notify = (id: string, objects: readonly T[] = []): void => {
     const own: LayerTarget = { ref: id, stage: stageId };
-    // A custom `resolve` may map other refs to this object: notify every bound target too.
-    const affected: readonly LayerTarget[] =
-      options.resolve === undefined ? [own] : uniqueRefTargets([own, ...Array.from(bound.values(), (layer) => layer.target)]);
+    const holders = Array.from(bound.values())
+      .filter((layer) => objects.includes(layer.object))
+      .map((layer) => layer.target);
+    const affected = uniqueRefTargets([own, ...holders]);
     Array.from(subscribers).forEach((listener) => listener(affected));
   };
-  /** Layer id → target of the layers bound by the last `update` (needed by `release`). */
-  const bound = new Map<string, IBoundLayer>();
+  /** Layer id → what the layers bound by the last `update` need (target, names; needed by `release`). */
+  const bound = new Map<string, IBoundLayer<T>>();
   let registry: PropertyRegistry = defaultPropertyRegistry;
 
   const addEntry = (entry: IObjectStageEntry<T>): void => {
@@ -114,7 +131,7 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
   };
 
   const prepare = (state: IStageLayerState<T>): ObjectStageState<T> => {
-    const defaults = defaultsFor(bound.get(state.layerId)?.names ?? stageNames(), Object.keys(state.values));
+    const defaults = defaultsFor(bound.get(state.layerId)?.names ?? stageNames());
     if (state.active) {
       return { ...state, values: { ...defaults, ...state.values } };
     }
@@ -123,6 +140,16 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
       return { ...state, values: { ...defaults, ...state.values } };
     }
     return { ...state, values: defaults };
+  };
+
+  /** Gives `object` the registry defaults of `names` (or calls `reset` when provided). */
+  const restoreDefaults = (layerId: string, target: LayerTarget, object: T, names: readonly string[]): void => {
+    if (options.reset !== undefined) {
+      options.reset(object);
+      return;
+    }
+    const values = defaultsFor(names);
+    options.apply(object, values, { layerId, target, object, values, active: false, editorVisible: true });
   };
 
   const stage: IObjectStage<T> = {
@@ -152,13 +179,20 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
       registry = ctx.registry;
     },
     update(_doc, layers: readonly IStageLayer<T>[]) {
+      const previous = new Map(bound);
       bound.clear();
-      layers.forEach((layer) =>
-        bound.set(layer.layerId, {
-          target: layer.target,
-          names: Array.from(new Set([...declaredNames(layer.object, layer.target), ...trackNames(layer.layer)]))
-        })
-      );
+      const restores: Array<() => void> = [];
+      layers.forEach((layer) => {
+        const declared = declaredNames(layer.object, layer.target);
+        const names = Array.from(new Set([...declared, ...collectLayerProperties(layer.layer)]));
+        bound.set(layer.layerId, { target: layer.target, object: layer.object, names });
+        const before = previous.get(layer.layerId);
+        const dropped = before === undefined || before.object !== layer.object ? [] : before.names.filter((name) => !names.includes(name));
+        if (dropped.length > 0) {
+          restores.push(() => restoreDefaults(layer.layerId, layer.target, layer.object, [...declared, ...dropped]));
+        }
+      });
+      runAll(restores);
     },
     render(time, states) {
       const prepared = states.map(prepare);
@@ -175,17 +209,17 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
       if (layer === undefined) {
         return;
       }
-      const values = defaultsFor(layer.names);
-      options.apply(object, values, { layerId, target: layer.target, object, values, active: false, editorVisible: true });
+      restoreDefaults(layerId, layer.target, object, layer.names);
     },
     add(entry) {
       addEntry(entry);
       notify(entry.id);
     },
     remove(id) {
+      const entry = entries.get(id);
       const removed = entries.delete(id);
-      if (removed) {
-        notify(id);
+      if (entry !== undefined) {
+        notify(id, [entry.object]);
       }
       return removed;
     }

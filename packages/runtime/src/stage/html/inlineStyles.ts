@@ -8,7 +8,7 @@
  * il n'y en avait pas) : un style que la page pose ailleurs sur l'élément
  * n'est jamais effacé. Pour un raccourci (`border-radius`, `margin`), toutes ses
  * sous-propriétés sont sauvegardées (trouvées une fois par une écriture
- * d'essai sur un élément jetable du même type, gardées par document), qu'il
+ * d'essai sur un élément jetable de même espace de noms et de nom fixe, gardées par document), qu'il
  * les change ou non à cette première écriture : les images suivantes les
  * réécrivent sans les sauvegarder. Celles posées en partie par la page, ou
  * avec des `!important` mêlés, reviennent telles quelles. Le
@@ -65,16 +65,21 @@ const expandsShorthands = new WeakMap<Document, boolean>();
 /** Per document and property name: the longhands a shorthand sets (found with a probe write). */
 const longhandsByName = new WeakMap<Document, Map<string, readonly string[]>>();
 
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+
 /**
- * Inline style of a throw-away element of the same kind as `element` (same
- * namespace and local name: `createElement('div')` has no `style` in an
- * XMLDocument). `undefined` when the probe has no inline style.
+ * Inline style of a throw-away element in the namespace of `element`
+ * (`createElement('div')` has no `style` in an XMLDocument). The probe has a
+ * fixed name per namespace ('g' for SVG, 'div' otherwise), never the page's:
+ * creating a custom element could run its constructor. `undefined` when the
+ * probe has no inline style.
  */
 function scratchStyle(element: Element): CSSStyleDeclaration | undefined {
   const doc = element.ownerDocument;
+  const namespace = element.namespaceURI;
   const probe =
-    element.namespaceURI && element.localName && typeof doc.createElementNS === 'function'
-      ? doc.createElementNS(element.namespaceURI, element.localName)
+    namespace && typeof doc.createElementNS === 'function'
+      ? doc.createElementNS(namespace, namespace === SVG_NAMESPACE ? 'g' : 'div')
       : doc.createElement('div');
   return hasInlineStyle(probe) ? probe.style : undefined;
 }
@@ -194,6 +199,8 @@ function writeSaving(entry: IHeldStyle, element: StyledElement, name: string, va
   const style = element.style;
   const longhands = longhandsOf(element, name, value);
   const before = snapshot(style);
+  // A page shorthand written with var() is not listed by item(): read it as such.
+  const pageShorthand: ISavedProperty = { value: style.getPropertyValue(name), priority: style.getPropertyPriority(name) };
   style.setProperty(name, value);
   const changed = changedNames(before, snapshot(style));
   if (changed.size === 0) {
@@ -203,7 +210,7 @@ function writeSaving(entry: IHeldStyle, element: StyledElement, name: string, va
   const keys = new Set<string>([name, ...longhands, ...changed]);
   keys.forEach((key) => {
     if (!entry.saved.has(key)) {
-      entry.saved.set(key, before.get(key) ?? UNSET);
+      entry.saved.set(key, before.get(key) ?? (key === name ? pageShorthand : UNSET));
     }
   });
   entry.written.set(name, Array.from(keys));
