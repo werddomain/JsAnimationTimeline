@@ -18,3 +18,13 @@ export { LAYERS_COLOR_PLUGIN_ID, LayerColorPlugin, createSetColorCommand, normal
 export type { ILayerColorService } from './color';
 export { LAYERS_ICON_PLUGIN_ID, LayerIconPlugin, createSetIconCommand, validateLayerIcon } from './icon';
 export type { ILayerIconService } from './icon';
+export {
+  LAYERS_SELECTION_PLUGIN_ID,
+  LayerSelectionPlugin,
+  SELECTED_ROW_CLASS
+} from './selection';
+export type {
+  ILayerSelectionService,
+  SelectionChangedEvent,
+  SelectionMode
+} from './selection';
