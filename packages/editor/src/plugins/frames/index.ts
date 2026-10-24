@@ -33,7 +33,14 @@ export type {
   ISelectedKeyframe,
   SelectedKeyframeKind
 } from './selection';
-export { FRAMES_CLIPBOARD_PLUGIN_ID, FramesClipboardPlugin } from './clipboard';
+export {
+  FRAME_CLIP_FORMAT,
+  FRAME_CLIP_VERSION,
+  FRAMES_CLIPBOARD_PLUGIN_ID,
+  FramesClipboardIds,
+  FramesClipboardKeys,
+  FramesClipboardPlugin
+} from './clipboard';
 export type {
   FramesClipboardChangedEvent,
   IClipRow,

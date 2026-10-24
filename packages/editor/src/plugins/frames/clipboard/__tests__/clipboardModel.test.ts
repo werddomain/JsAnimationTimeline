@@ -38,6 +38,23 @@ function xAt(target: ILayer, frame: number): number {
 }
 
 describe('extractSpans', () => {
+  it('carries the properties set by earlier spans into a copied tween piece', () => {
+    // Arrange : fixe 1-10 (opacity 0,5), puis interpolation 11-30 sur x seulement.
+    const layered = layer('o', [
+      { id: 'o1', start: 1, end: 10, kind: 'static', tracks: { opacity: [{ frame: 1, value: 0.5 }] } },
+      { id: 'o2', start: 11, end: 30, kind: 'tween', tracks: { x: [{ frame: 11, value: 0 }, { frame: 30, value: 200 }] } }
+    ]);
+
+    // Act : deux copies, l'une dans l'interpolation, l'autre dans la plage fixe.
+    const fromTween = replay(extractSpans(layered, 11, 20, registry));
+    const fromStatic = replay(extractSpans(layered, 5, 10, registry));
+
+    // Assert : les deux copies gardent l'opacité de la source.
+    expect(evaluateLayer(fromTween, 1, { registry }).values.opacity).toBe(0.5);
+    expect(evaluateLayer(fromStatic, 1, { registry }).values.opacity).toBe(0.5);
+    expect(xAt(fromTween, 10)).toBeCloseTo(evaluateLayer(layered, 20, { registry }).values.x);
+  });
+
   it('keeps a whole span untouched, relative to the first copied frame', () => {
     // Act
     const spans = extractSpans(source, 12, 16, registry);

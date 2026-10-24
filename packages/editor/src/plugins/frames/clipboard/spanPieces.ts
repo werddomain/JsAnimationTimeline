@@ -4,10 +4,14 @@
  * la partie [from, to] d'une plage, avec les mêmes règles de coupe que
  * l'insertion d'une image clé (F6 / F7, `model/spans/insertKeyframe.ts`) :
  * - plage vide : un morceau vide ;
- * - plage fixe coupée à gauche : fixe, avec les valeurs évaluées à `from` ;
- * - interpolation : les images clés de propriété du morceau sont gardées, et
- *   une image clé est posée sur chaque bord coupé avec la valeur évaluée par
- *   le runtime (accélération comprise), pour que le morceau garde son allure.
+ * - plage fixe : fixe, avec toutes les valeurs évaluées à `from`, y compris
+ *   les propriétés héritées des plages précédentes (le morceau collé ailleurs
+ *   garde la même apparence) ;
+ * - interpolation : les images clés de propriété du morceau sont gardées ;
+ *   au début du morceau, une image clé pour chaque propriété évaluée
+ *   (héritées comprises) ; sur un bord droit coupé, une image clé pour
+ *   chaque propriété interpolée, avec la valeur évaluée par le runtime
+ *   (accélération comprise), pour que le morceau garde son allure.
  *
  * Limite connue (la même que pour F6) : l'accélération s'applique à toute
  * la plage ; sur un morceau d'une interpolation accélérée, les images entre
@@ -19,6 +23,7 @@
 
 import type { ILayer, ISpan, PropertyRegistry, PropertyTracks, PropertyValues } from '@werddomain/timeline-runtime';
 import { evaluateValues } from '../../../model/spans/layerAccess';
+import { SpanOperationError } from '../../../model/spans/SpanOperationError';
 import { mapKeyframes, tracksFromValues, withTracks } from '../../../model/spans/tracks';
 
 /** Images clés de propriété comprises entre `from` et `to` (bornes incluses). */
@@ -44,6 +49,22 @@ function withEdgeKeyframes(
   return Object.keys(next).length > 0 ? next : undefined;
 }
 
+/**
+ * Valeurs du calque à `from`, début d'un morceau. Un morceau qui commence à
+ * l'image clé de sa plage n'a aucune image à recalculer : si l'évaluation
+ * échoue (propriété inconnue du registre), ses pistes sont gardées telles
+ * quelles (`undefined`). Un bord coupé, lui, doit être évalué.
+ */
+function valuesAtStart(layer: ILayer, span: ISpan, from: number, registry: PropertyRegistry): PropertyValues | undefined {
+  if (from > span.start) return evaluateValues(layer, from, registry);
+  try {
+    return evaluateValues(layer, from, registry);
+  } catch (error) {
+    if (error instanceof SpanOperationError) return undefined;
+    throw error;
+  }
+}
+
 function staticTracks(
   layer: ILayer,
   span: ISpan,
@@ -51,8 +72,9 @@ function staticTracks(
   to: number,
   registry: PropertyRegistry
 ): PropertyTracks | undefined {
-  if (from === span.start) return keyframesWithin(span.tracks, from, to);
-  return tracksFromValues(evaluateValues(layer, from, registry), from);
+  // Valeurs complètes à `from` : celles de la plage et celles héritées des plages précédentes.
+  const values = valuesAtStart(layer, span, from, registry);
+  return values === undefined ? keyframesWithin(span.tracks, from, to) : tracksFromValues(values, from);
 }
 
 function tweenTracks(
@@ -63,12 +85,12 @@ function tweenTracks(
   registry: PropertyRegistry
 ): PropertyTracks | undefined {
   const names = Object.keys(span.tracks ?? {});
-  const edges = [from > span.start ? from : undefined, to < span.end ? to : undefined];
-  return edges.reduce<PropertyTracks | undefined>(
-    (tracks, frame) =>
-      frame === undefined ? tracks : withEdgeKeyframes(tracks, names, frame, evaluateValues(layer, frame, registry)),
-    keyframesWithin(span.tracks, from, to)
-  );
+  const kept = keyframesWithin(span.tracks, from, to);
+  // Début du morceau : une image clé pour chaque propriété évaluée (héritées comprises).
+  const startValues = valuesAtStart(layer, span, from, registry);
+  const withStart = startValues === undefined ? kept : withEdgeKeyframes(kept, Object.keys(startValues), from, startValues);
+  // Bord droit coupé : seules les propriétés interpolées par la plage changent.
+  return to < span.end ? withEdgeKeyframes(withStart, names, to, evaluateValues(layer, to, registry)) : withStart;
 }
 
 /**

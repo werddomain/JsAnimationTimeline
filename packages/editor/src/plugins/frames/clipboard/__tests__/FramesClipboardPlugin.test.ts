@@ -169,6 +169,47 @@ describe('frames.clipboard keyboard', () => {
   });
 });
 
+describe('frames.clipboard keys on refusal and highlighted text', () => {
+  it('takes Ctrl+V even when the paste is refused, and announces the refusal', () => {
+    // Arrange
+    const locked = doc([source('a'), source('b', { locked: true })]);
+    const { editor, select } = setup(locked);
+    const refused: string[] = [];
+    editor.on('command:refused', (event) => refused.push(event.reason));
+    select([['a', 1]]);
+    press(editor, 'c');
+    select([['b', 5]]);
+
+    // Act
+    const event = press(editor, 'v');
+
+    // Assert
+    expect(event.defaultPrevented).toBe(true);
+    expect(refused).toHaveLength(1);
+    expect(editor.toJSON()).toEqual(locked);
+  });
+
+  it('leaves Ctrl+C to the browser while text is highlighted in the page', () => {
+    // Arrange
+    const { editor, select, clipboard } = setup();
+    select([['a', 1]]);
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Texte de la page';
+    document.body.appendChild(paragraph);
+    const range = document.createRange();
+    range.selectNodeContents(paragraph);
+    window.getSelection()?.addRange(range);
+
+    // Act
+    const event = press(editor, 'c');
+    window.getSelection()?.removeAllRanges();
+
+    // Assert
+    expect(event.defaultPrevented).toBe(false);
+    expect(clipboard.hasContent()).toBe(false);
+  });
+});
+
 describe('frames.clipboard paste', () => {
   it('pastes a rectangle over several layers, skipping the folder between them', () => {
     // Arrange
@@ -230,20 +271,72 @@ describe('frames.clipboard paste', () => {
     ]);
   });
 
-  it('pastes at the anchor of a selection of several cells', () => {
-    // Arrange
+  it('pastes at the top-left of the selection, not at its anchor', () => {
+    // Arrange : l'ancre de `set` est la dernière cellule (c:9).
     const { clipboard, select, editor, spans } = setup();
     select([['a', 1]]);
     clipboard.copy();
     select([['c', 8], ['c', 9]]);
-    const selection = editor.getService('frames.selection');
-    expect(selection?.anchor()).toEqual({ rowId: 'c', frame: 9 });
+    expect(editor.getService('frames.selection')?.anchor()).toEqual({ rowId: 'c', frame: 9 });
 
     // Act
     clipboard.paste();
 
     // Assert
-    expect(spans('c')).toEqual(['blank 1-8', 'static 9-9']);
+    expect(spans('c')).toEqual(['blank 1-7', 'static 8-8']);
+  });
+
+  it('pastes twice at the same place', () => {
+    // Arrange : copie a1-a3, collage en c10.
+    const { clipboard, select, spans } = setup();
+    select(range('a', 1, 3));
+    clipboard.copy();
+    select([['c', 10]]);
+    clipboard.paste();
+    const once = spans('c');
+
+    // Act : la sélection est maintenant c10-c12 (ancre en c12).
+    clipboard.paste();
+
+    // Assert
+    expect(once).toEqual(['blank 1-9', 'static 10-12']);
+    expect(spans('c')).toEqual(once);
+  });
+
+  it('pastes a clip of several rows twice at the same rows', () => {
+    // Arrange : copie a1-a2 et b1-b2 (le dossier entre les deux est sauté), collage en b5.
+    const data = doc([source('a'), { id: 'f', type: 'folder', name: 'f', children: [] }, source('b'), layer('c'), layer('d')]);
+    const { clipboard, select, spans } = setup(data);
+    select([...range('a', 1, 2), ...range('b', 1, 2)]);
+    clipboard.copy();
+    select([['c', 5]]);
+    clipboard.paste();
+    const once = { c: spans('c'), d: spans('d') };
+
+    // Act
+    clipboard.paste();
+
+    // Assert : toujours sur c et d, toujours à l'image 5.
+    expect(once).toEqual({ c: ['blank 1-4', 'static 5-6'], d: ['blank 1-4', 'static 5-6'] });
+    expect({ c: spans('c'), d: spans('d') }).toEqual(once);
+  });
+
+  it('pastes at the top-left of a range selected right to left', () => {
+    // Arrange : sélection de c9 vers c6 (l'ancre reste en c9).
+    const { clipboard, select, editor, spans } = setup();
+    select([['a', 1]]);
+    clipboard.copy();
+    const selection = editor.getService('frames.selection');
+    selection?.select({ rowId: 'c', frame: 9 });
+    selection?.selectRange({ rowId: 'c', frame: 6 });
+    const anchorBefore = selection?.anchor();
+
+    // Act
+    clipboard.paste();
+
+    // Assert
+    expect(anchorBefore).toEqual({ rowId: 'c', frame: 9 });
+    expect(spans('c')).toEqual(['blank 1-5', 'static 6-6']);
   });
 
   it('falls back to the playhead on the first selected layer', () => {

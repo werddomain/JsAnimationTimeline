@@ -13,17 +13,21 @@
  * - Ctrl+V les colle en écrasant les images visées (voir `clipboardOps.ts`),
  *   en UNE entrée d'historique « Coller des images ».
  *
- * Cible du collage : l'image passée à `paste(target)`, sinon l'ancre de la
- * sélection, sinon sa première image, sinon la tête de lecture sur le premier
+ * Cible du collage : l'image passée à `paste(target)`, sinon le coin haut
+ * gauche de la sélection (première ligne, plus petite image : coller deux
+ * fois colle au même endroit), sinon la tête de lecture sur le premier
  * calque sélectionné (`layers.selection`, facultatif). Les lignes du contenu
  * se placent sur les lignes de calque visibles à partir de celle de la cible
  * (les dossiers sont sautés) ; celles qui dépassent la dernière ligne sont
  * abandonnées. Après un collage réussi, les images collées sont sélectionnées.
  * Un calque verrouillé (ou dans un dossier verrouillé) refuse tout le collage.
  *
- * Quand une touche est inutile (rien de sélectionné, presse-papiers vide),
- * le raccourci est inactif : la touche reste au navigateur. Dans un champ de
- * saisie, Ctrl+C et Ctrl+V gardent leur sens (pas de `allowInEditable`).
+ * Quand une touche est inutile (rien de sélectionné, presse-papiers vide,
+ * texte surligné dans la page pour Ctrl+C), le raccourci est inactif : la
+ * touche reste au navigateur. Sinon il prend toujours la touche, même sur
+ * un refus (annoncé par `command:refused`), et ne fait rien pendant un
+ * regroupement de l'historique. Dans un champ de saisie, Ctrl+C et Ctrl+V
+ * gardent leur sens (pas de `allowInEditable`).
  *
  * Le contenu vit seulement dans la mémoire du plugin : l'API asynchrone du
  * presse-papiers du système ne se lit pas de façon synchrone dans un
@@ -44,6 +48,8 @@
  */
 
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
+import { CommandRefusedError } from '../../../core/commands/CommandRefusedError';
+import { createCommand } from '../../../core/commands/createCommand';
 import { SpanOperationError } from '../../../model/spans/SpanOperationError';
 // Types seulement : services utilisés et événement émis.
 import type {} from '../grid/types';
@@ -71,6 +77,28 @@ export const FramesClipboardKeys = {
   PASTE: 'Mod+V'
 } as const;
 
+/** Libellé du refus d'une copie (valeurs impossibles à évaluer). */
+const COPY_LABEL = 'Copier les images';
+
+/** Exécute une commande qui refuse avec `reason` : `command:refused` annonce le refus, sans historique. */
+function refuse(ctx: IEditorContext, label: string, reason: string): void {
+  ctx.commands.execute(
+    createCommand(
+      label,
+      () => {
+        throw new CommandRefusedError(label, reason);
+      },
+      (doc) => doc
+    )
+  );
+}
+
+/** Vrai si du texte est surligné dans la page (hors champ de saisie de l'éditeur, non concerné ici). */
+function hasTextSelection(container: HTMLElement): boolean {
+  const selection = container.ownerDocument.defaultView?.getSelection();
+  return selection !== null && selection !== undefined && !selection.isCollapsed && selection.toString().length > 0;
+}
+
 /** Plugin `frames.clipboard` : Ctrl+C / Ctrl+V pour les images. */
 export class FramesClipboardPlugin implements EditorPlugin {
   readonly id = 'frames.clipboard';
@@ -92,9 +120,14 @@ export class FramesClipboardPlugin implements EditorPlugin {
         shortcuts.register({
           id: FramesClipboardIds.COPY,
           keys: FramesClipboardKeys.COPY,
-          label: 'Copier les images',
-          run: () => this.copy(),
-          enabled: () => selection.cells().length > 0
+          label: COPY_LABEL,
+          // Une fois actif, le raccourci prend toujours la touche (même sur un refus).
+          run: () => {
+            if (!ctx.commands.isGrouping) this.copy();
+            return true;
+          },
+          // Texte surligné dans la page : Ctrl+C copie ce texte, pas les images.
+          enabled: () => selection.cells().length > 0 && !hasTextSelection(ctx.container)
         })
       );
       cleanups.push(
@@ -102,7 +135,10 @@ export class FramesClipboardPlugin implements EditorPlugin {
           id: FramesClipboardIds.PASTE,
           keys: FramesClipboardKeys.PASTE,
           label: 'Coller les images',
-          run: () => this.paste(),
+          run: () => {
+            if (!ctx.commands.isGrouping) this.paste();
+            return true;
+          },
           enabled: () => this.clip !== undefined
         })
       );
@@ -148,8 +184,9 @@ export class FramesClipboardPlugin implements EditorPlugin {
     try {
       return buildClip(ctx.document, ctx.services.require('frames.grid').rows(), cells, ctx.registry);
     } catch (error) {
-      if (error instanceof SpanOperationError) return undefined;
-      throw error;
+      if (!(error instanceof SpanOperationError)) throw error;
+      refuse(ctx, COPY_LABEL, error.message);
+      return undefined;
     }
   }
 
@@ -168,11 +205,20 @@ export class FramesClipboardPlugin implements EditorPlugin {
     return true;
   }
 
-  /** Ancre, sinon première image sélectionnée, sinon tête de lecture sur le premier calque sélectionné. */
+  /**
+   * Coin haut gauche de la sélection (première ligne, plus petite image),
+   * comme Flash CS4 : coller deux fois de suite colle au même endroit, quel
+   * que soit le sens de la sélection (l'ancre peut être en bas à droite).
+   * Sans sélection : la tête de lecture sur le premier calque sélectionné.
+   */
   private defaultTarget(ctx: IEditorContext): IFrameCell | undefined {
-    const selection = ctx.services.require('frames.selection');
-    const selected = selection.anchor() ?? selection.cells()[0];
-    if (selected !== undefined) return selected;
+    const cells = ctx.services.require('frames.selection').cells();
+    const first = cells[0];
+    if (first !== undefined) {
+      let frame = first.frame;
+      for (const cell of cells) frame = Math.min(frame, cell.frame);
+      return { rowId: first.rowId, frame };
+    }
     const layerIds = new Set(
       ctx.services
         .require('frames.grid')

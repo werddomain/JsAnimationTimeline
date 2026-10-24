@@ -202,7 +202,11 @@ export type {
 
 // Plugins des images (epic `frames`) : grille des plages et des images clés.
 export {
+  FRAME_CLIP_FORMAT,
+  FRAME_CLIP_VERSION,
   FRAMES_CLIPBOARD_PLUGIN_ID,
+  FramesClipboardIds,
+  FramesClipboardKeys,
   FRAMES_GRID_CLASSES,
   FRAMES_GRID_PLUGIN_ID,
   FRAMES_KEYFRAMES_CLASSES,
