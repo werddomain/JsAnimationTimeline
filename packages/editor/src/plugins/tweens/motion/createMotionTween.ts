@@ -18,11 +18,13 @@
  * - les valeurs évaluées de k2, à l'image k2 - 1 (celles évaluées à k2 - 1 si
  *   k2 est une image clé vide).
  * k2 reste une image clé de contenu, inchangée : les valeurs à k2 et hors de
- * [k1, k2] ne bougent pas. L'accélération est perdue quand plusieurs plages sont absorbées ; celle d'une
- * seule interpolation absorbée est conservée.
+ * [k1, k2] ne bougent pas. L'accélération est perdue quand plusieurs plages
+ * sont absorbées ; celle d'une seule interpolation absorbée est conservée.
  * Quand k2 est une image clé vide, l'interpolation finit sur les valeurs
  * évaluées à k2 - 1 dans le calque d'origine (pas de saut ni de retour en
- * arrière) : la cible garde ces valeurs puis disparaît à k2.
+ * arrière) : la cible garde ces valeurs puis disparaît à k2. Une image clé de
+ * propriété déjà posée à k2 - 1 est gardée telle quelle (pas de recalcul
+ * dans l'interpolation, dont l'arrondi ne rendrait pas la valeur stockée).
  * Si [k1, k2 - 1] est déjà une interpolation et que la fusion donnerait la
  * même plage (mêmes pistes, même accélération), la demande est refusée
  * (ALREADY_TWEEN) : rien à changer. Sinon la fusion s'applique (par exemple
@@ -116,8 +118,13 @@ function mergedTracks(
   absorbed.slice(1).forEach((span) => setValues(points, evaluateValues(layer, span.start, registry), span.start));
   const startValues = evaluateValues(layer, range.from, registry);
   setValues(points, startValues, range.from);
-  const endValues = evaluateValues(layer, range.endsBlank ? range.to - 1 : range.to, registry);
-  setValues(points, endValues, range.to - 1);
+  const endFrame = range.to - 1;
+  const endValues = evaluateValues(layer, range.endsBlank ? endFrame : range.to, registry);
+  Object.entries(endValues).forEach(([name, value]) => {
+    // Image clé vide : une valeur déjà posée à k2 - 1 est exactement la valeur de fin.
+    if (range.endsBlank && points.get(name)?.has(endFrame) === true) return;
+    setPoint(points, name, endFrame, value);
+  });
   return toTracks(points);
 }
 

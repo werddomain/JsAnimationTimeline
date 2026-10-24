@@ -143,11 +143,13 @@ export class LayerGroupsPlugin implements EditorPlugin {
     const command: ICommand = ungroupCommand(ctx.document, folderId);
     const hadFocus = this.listHasFocus();
     const childIds = folder.children.map((child) => child.id);
+    // Sélection d'avant : le dossier n'est plus une ligne quand on sélectionne les enfants.
+    const previous = this.requireSelection().selected();
     // Les enfants ne sont des lignes qu'une fois la commande appliquée : on les sélectionne dans un
     // `layers:rowsChanged` à usage unique, installé autour de `execute` et retiré juste après quoi qu'il arrive.
     // Commande refusée, ou dossier caché dans un dossier replié (les lignes ne changent pas) : aucun
     // événement, la sélection d'avant reste intacte. Dossier vide : l'élagage de `layers.selection` suffit.
-    const stop = childIds.length > 0 ? ctx.events.once('layers:rowsChanged', () => this.requireSelection().select(childIds)) : undefined;
+    const stop = childIds.length > 0 ? ctx.events.once('layers:rowsChanged', () => this.requireSelection().select(childIds, 'replace', { previous })) : undefined;
     let done: boolean;
     try {
       done = ctx.commands.execute(command);

@@ -11,6 +11,7 @@ import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixt
 import { RENAME_INPUT_CLASS } from '../inlineEdit';
 import { RENAME_LABEL, createRenameCommand, normalizeLayerName } from '../renameCommands';
 
+afterEach(() => jest.restoreAllMocks());
 afterEach(unmountAll);
 
 const tree = doc([folder('f', [layer('a')]), layer('b', { locked: true })]);
@@ -256,9 +257,16 @@ describe('inline editing review fixes', () => {
     const input = inputOf(host);
     input.focus();
 
-    // Chromium envoie blur puis focusout (relatedTarget nul) à l'élément retiré, avant de le détacher.
-    input.dispatchEvent(new FocusEvent('blur'));
-    input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    // Chromium envoie blur puis focusout (relatedTarget nul) à l'élément retiré, PENDANT le rendu de la
+    // suppression de la ligne (la liste a déjà recalculé ses lignes), juste avant de le détacher.
+    const rowElement = host.querySelector<HTMLElement>('[data-row-id="b"]');
+    if (rowElement === null) throw new Error('ligne b absente');
+    const detach = rowElement.remove.bind(rowElement);
+    rowElement.remove = () => {
+      input.dispatchEvent(new FocusEvent('blur'));
+      input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+      detach();
+    };
     editor.execute(
       createCommand(
         'Supprimer',
@@ -279,6 +287,16 @@ describe('inline editing review fixes', () => {
     input.value = 'Renommé';
     return input;
   }
+
+  it('treats a blur with no destination and no press as focus leaving when the row is still listed (click into an iframe)', () => {
+    const { host, editor } = mount(tree);
+    const input = renameWithChange(host, editor);
+
+    input.blur();
+
+    expect(nameOf(editor.document, 'a')).toBe('Renommé');
+    expect(document.activeElement).toBe(document.body);
+  });
 
   it('commits with Tab and lets the focus land on the next element instead of the row', () => {
     const { host, editor } = mount(tree);
@@ -313,6 +331,28 @@ describe('inline editing review fixes', () => {
 
       expect(document.activeElement).toBe(document.body);
       unmountAll();
+    });
+  });
+
+  it('removes every document listener it added once destroyed', () => {
+    const added: Array<[string, unknown, unknown]> = [];
+    const removed: Array<[string, unknown, unknown]> = [];
+    const capture = (options: unknown): unknown => (typeof options === 'object' && options !== null ? (options as { capture?: boolean }).capture === true : options === true);
+    jest.spyOn(document, 'addEventListener').mockImplementation(function (this: Document, type: string, listener: unknown, options?: unknown) {
+      added.push([type, listener, capture(options)]);
+      EventTarget.prototype.addEventListener.call(this, type, listener as EventListener, options as boolean);
+    });
+    jest.spyOn(document, 'removeEventListener').mockImplementation(function (this: Document, type: string, listener: unknown, options?: unknown) {
+      removed.push([type, listener, capture(options)]);
+      EventTarget.prototype.removeEventListener.call(this, type, listener as EventListener, options as boolean);
+    });
+    const { editor } = mount(tree);
+
+    editor.destroy();
+
+    expect(added.length).toBeGreaterThan(0);
+    added.forEach(([type, listener, cap]) => {
+      expect(removed.some(([t, l, c]) => t === type && l === listener && c === cap)).toBe(true);
     });
   });
 
