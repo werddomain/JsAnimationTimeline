@@ -118,7 +118,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **E1** | 6 | 10 | Démo de l'éditeur v2, dont une page « timeline seule + votre scène » (canvas + audio, et `stage: false`) + scénarios Playwright 1 à 10 et 9b | T2, T3, T4, P1, P2, C5, Y2, Y3, Y4, Y6, K3, W3, I1, S1, S2, C7, R8 | B3, Z1 | `demo/editor/`, `e2e/editor/` | ☐ |
 | **X1** | 7 | 4 | Package `export-css` (`@keyframes` + avertissements ; calques sans sélecteur et propriétés non CSS ignorés avec un avertissement) | R2 | X2 | `packages/export-css/` | ☑ |
 | **X2** | 7 | 5 | Scénario Playwright 12 (CSS exporté = `runtime` à l'image N) | X1, R3, F04 | D1 | `e2e/export-css/` | ☑ |
-| **B1** | 8 | 5 | Razor Class Library : squelette, copie des builds dans `wwwroot`, modèle C# généré depuis le schéma (cible `Selector` / `Ref` / `Stage`) | F02, F05, F06 | B2, B3 | `dotnet/` | ☐ |
+| **B1** | 8 | 5 | Razor Class Library : squelette, copie des builds dans `wwwroot`, modèle C# généré depuis le schéma (cible `Selector` / `Ref` / `Stage`) | F02, F05, F06 | B2, B3 | `dotnet/` | ☑ |
 | **B2** | 8 | 6 | Composant Blazor `TimelinePlayer` | B1, R3 | B4 | `dotnet/JsTimeline.Blazor/Player/` | ☐ |
 | **B3** | 8 | 11 | Composant Blazor `TimelineEditor` (liaison des données, callbacks d'événements, paramètre `Stage` : HTML, module JS, scène C# `ITimelineStage` ou aucune) | B1, S2, E1, C7 | B4 | `dotnet/JsTimeline.Blazor/Editor/` | ☐ |
 | **B4** | 8 | 12 | Appli Blazor d'exemple (dont une page où un composant C# reçoit les images) + tests bUnit + `dotnet pack` en CI | B2, B3 | D1 | `dotnet/samples/`, `dotnet/*.Tests/` | ☐ |
