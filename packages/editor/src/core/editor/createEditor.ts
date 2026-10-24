@@ -82,11 +82,7 @@ const reportStageError: StageErrorHandler = (error) => {
   console.error("[JsTimeLine] Erreur d'une scène :", error);
 };
 
-/**
- * Branche les scènes (celles du développeur, ou la scène HTML par défaut qui
- * exclut `element`) ; en cas de refus du document initial, arrête la lecture,
- * retire l'élément et relance l'erreur.
- */
+/** Branche les scènes : celles du développeur, ou la scène HTML par défaut qui exclut `element`. */
 function createStageHost(
   parts: Pick<IEditorParts, 'bus' | 'store' | 'registry' | 'playback' | 'element'>,
   userStages: ReturnType<typeof resolveUserStages>,
@@ -94,17 +90,11 @@ function createStageHost(
   container: HTMLElement
 ): EditorStageHost {
   const { bus, store, registry, playback, element } = parts;
-  try {
-    const stages = userStages ?? [createDefaultHtmlStage(options.root ?? container.ownerDocument, element)];
-    const onError = options.onStageError ?? reportStageError;
-    const stageHost = new EditorStageHost({ bus, store, stages, registry, onError, now: () => playback.now });
-    playback.attachStage(stageHost);
-    return stageHost;
-  } catch (error) {
-    playback.destroy();
-    element.remove();
-    throw error;
-  }
+  const stages = userStages ?? [createDefaultHtmlStage(options.root ?? container.ownerDocument, element)];
+  const onError = options.onStageError ?? reportStageError;
+  const stageHost = new EditorStageHost({ bus, store, stages, registry, onError, now: () => playback.now });
+  playback.attachStage(stageHost);
+  return stageHost;
 }
 
 /** Crée les pièces du noyau ; ne touche au DOM qu'une fois les plugins enregistrés. */
@@ -125,16 +115,25 @@ function createParts(container: HTMLElement, options: EditorOptions): IEditorPar
   const clock = options.clock ?? createDefaultClock();
   const playback = new PlaybackController({ bus, store, registry, clock });
   const element = createRootElement(container);
-  const stageHost = createStageHost({ bus, store, registry, playback, element }, userStages, options, container);
-  host.slots.define(ROOT_SLOT, element);
-  const lifecycle = new EditorLifecycle();
-  const assertActive = (operation: string): void => lifecycle.assertActive(operation);
-  const playbackFacade = createPlaybackFacade(playback, assertActive);
-  const stageFacade = createStageFacade(stageHost, assertActive);
-  const services = new ServiceRegistry();
-  return {
-    bus, store, commands, host, services, registry, playback, playbackFacade, stageHost, stageFacade, element, lifecycle
-  };
+  let stageHost: EditorStageHost | undefined;
+  try {
+    stageHost = createStageHost({ bus, store, registry, playback, element }, userStages, options, container);
+    host.slots.define(ROOT_SLOT, element);
+    const lifecycle = new EditorLifecycle();
+    const assertActive = (operation: string): void => lifecycle.assertActive(operation);
+    const playbackFacade = createPlaybackFacade(playback, assertActive);
+    const stageFacade = createStageFacade(stageHost, assertActive);
+    const services = new ServiceRegistry();
+    return {
+      bus, store, commands, host, services, registry, playback, playbackFacade, stageHost, stageFacade, element, lifecycle
+    };
+  } catch (error) {
+    // Rien ne doit rester : lecture arrêtée, scènes relâchées et détachées, élément retiré.
+    playback.destroy();
+    stageHost?.destroy();
+    element.remove();
+    throw error;
+  }
 }
 
 /** Démarre les plugins ; en cas d'échec, libère les pièces et relance l'erreur. */

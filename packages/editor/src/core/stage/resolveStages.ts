@@ -15,6 +15,10 @@ export interface IStageChoice {
   readonly root?: ParentNode;
 }
 
+function isStageList(option: IStage | readonly IStage[]): option is readonly IStage[] {
+  return Array.isArray(option);
+}
+
 /** Scènes du développeur, `[]` pour `stage: false`, ou `null` pour la scène HTML par défaut. */
 export function resolveUserStages(options: IStageChoice): readonly IStage[] | null {
   const option = options.stage;
@@ -23,7 +27,7 @@ export function resolveUserStages(options: IStageChoice): readonly IStage[] | nu
     throw new Error('createEditor : donnez « root » ou « stage », pas les deux (root sert seulement à la scène HTML par défaut).');
   }
   if (option === false) return [];
-  const stages: readonly IStage[] = Array.isArray(option) ? option.slice() : [option as IStage];
+  const stages: readonly IStage[] = isStageList(option) ? option.slice() : [option];
   if (stages.length === 0) {
     throw new Error('createEditor : « stage » demande au moins une scène (ou false pour la timeline seule).');
   }

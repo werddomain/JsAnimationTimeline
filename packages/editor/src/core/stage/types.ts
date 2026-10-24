@@ -24,14 +24,20 @@ export type EditorStageOption = IStage | readonly IStage[] | false;
 
 /** Scènes de l'éditeur vues par un plugin (`ctx.stage`) et par l'hôte (`editor.stage`). */
 export interface IEditorStage {
-  /** Scènes branchées, dans l'ordre de routage (vide avec `stage: false`). */
+  /**
+   * Scènes branchées, dans l'ordre de routage (vide avec `stage: false`). En
+   * lecture seule : leurs méthodes de cycle de vie appartiennent à l'éditeur.
+   */
   readonly stages: readonly IStage[];
   /**
    * Ids des calques sans objet animé (pas de cible, scène inconnue, aucune
    * scène ne l'accepte, ou `resolve` a échoué), dans l'ordre du document.
    */
   readonly missingTargets: readonly string[];
-  /** Avertissements des scènes pour le document courant (aussi émis un par un par `stage:report`). */
+  /**
+   * Avertissements des scènes pour le document courant. Chacun est aussi émis
+   * par `stage:report` (ceux du document initial, juste avant `editor:ready`).
+   */
   readonly warnings: readonly IStageReport[];
   /** Cibles proposées par toutes les scènes (`targets.list()`), dans l'ordre des scènes. */
   listTargets(): readonly ITargetInfo[];
@@ -39,7 +45,8 @@ export interface IEditorStage {
   describe(target: LayerTarget): ITargetInfo | undefined;
   /**
    * Réessaie les résolutions qui ont échoué (du calque `layerId` seulement
-   * s'il est donné), par exemple après le chargement d'un modèle.
+   * s'il est donné), par exemple après le chargement d'un modèle. Lève si
+   * elle est appelée pendant le chargement d'un document (depuis une scène).
    */
   refreshTargets(layerId?: string): void;
 }

@@ -11,7 +11,12 @@
  * - Une scène qui refuse un document de commande (`StageDocumentError`)
  *   garde le document précédent ; l'erreur va à `onError`, le Store garde le
  *   nouveau. Seul le document initial, refusé, fait échouer `createEditor()`.
- * - Chaque avertissement nouveau est émis par `stage:report`.
+ * - Un document annoncé pendant un chargement (une scène ou un gestionnaire de
+ *   `stage:report` qui exécute une commande) est chargé juste après celui en
+ *   cours ; seul le dernier compte. `refreshTargets` lève pendant un chargement.
+ * - Chaque avertissement nouveau est émis par `stage:report` ; ceux du
+ *   document initial, relevés avant l'abonnement des plugins, sont émis de
+ *   nouveau juste avant `editor:ready` (dans son premier gestionnaire).
  * - `destroy` relâche chaque calque puis détache chaque scène ; les objets
  *   restent au développeur.
  */
@@ -62,6 +67,9 @@ export class EditorStageHost implements IStageRenderer {
   private readonly onError: StageErrorHandler;
   private readonly unsubscribes: (() => void)[];
   private destroyed = false;
+  private loading = false;
+  /** Dernier document annoncé pendant un chargement, chargé ensuite. */
+  private queued: ITimelineDocument | null = null;
 
   /** Charge le document courant du Store ; lève l'erreur d'une scène qui le refuse (après avoir tout relâché). */
   constructor(options: IEditorStageHostOptions) {
@@ -75,16 +83,18 @@ export class EditorStageHost implements IStageRenderer {
       onReport: (report) => bus.emit('stage:report', report),
       now: options.now
     });
-    try {
-      this.host.load(store.document);
-    } catch (error) {
-      this.host.destroy();
-      throw error;
-    }
     this.unsubscribes = [
       bus.on('document:changed', ({ document }) => this.load(document)),
-      bus.on('document:loaded', ({ document }) => this.load(document))
+      bus.on('document:loaded', ({ document }) => this.load(document)),
+      bus.once('editor:ready', () => this.host.warnings.forEach((report) => bus.emit('stage:report', report)))
     ];
+    try {
+      this.loadNow(store.document);
+    } catch (error) {
+      this.destroy();
+      throw error;
+    }
+    this.flushQueued();
   }
 
   get missingTargets(): readonly string[] {
@@ -125,11 +135,31 @@ export class EditorStageHost implements IStageRenderer {
 
   private load(doc: ITimelineDocument): void {
     if (this.destroyed) return;
+    if (this.loading) {
+      this.queued = doc;
+      return;
+    }
     try {
-      this.host.load(doc);
+      this.loadNow(doc);
     } catch (error) {
       this.onError(error);
     }
+    this.flushQueued();
+  }
+
+  private loadNow(doc: ITimelineDocument): void {
+    this.loading = true;
+    try {
+      this.host.load(doc);
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  private flushQueued(): void {
+    const next = this.queued;
+    this.queued = null;
+    if (next !== null) this.load(next);
   }
 
   /** Exécute une méthode de scène hors cycle de vie ; son erreur va à `onError`. */
