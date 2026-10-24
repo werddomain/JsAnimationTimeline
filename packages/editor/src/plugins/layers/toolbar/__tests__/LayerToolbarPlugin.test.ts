@@ -68,7 +68,7 @@ describe('rendering', () => {
   it('renders four labelled buttons in a toolbar in the layers footer', () => {
     const h = setup();
     const bar = h.host.querySelector('.jt-layer-toolbar[role="toolbar"]');
-    expect(bar?.getAttribute('aria-label')).toBe('Outils des calques');
+    expect(bar?.getAttribute('aria-label')).toBe('Actions sur les calques');
     expect(bar?.closest('.jt-zone--layersFooter')).not.toBeNull();
     const buttons = Array.from(bar?.querySelectorAll('button') ?? []);
     expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual([
@@ -253,6 +253,50 @@ describe('deleteSelection', () => {
     expect(h.editor.document.layers).toBe(data.layers);
     h.editor.redo();
     expect(shapeOf(h)).toBe('b');
+  });
+});
+
+describe('keyboard focus', () => {
+  it('moves DOM focus to the row that took the place after Delete (rows A to E)', () => {
+    const h = setup(doc([layer('a'), layer('b'), layer('c'), layer('d'), layer('e')]));
+    h.selection.select(['b', 'd']);
+    const row = focusRow(h, 'd');
+    press(row, 'Delete');
+    expect(h.selection.selected()).toEqual(['c']);
+    expect(document.activeElement).toBe(h.list.rowElement('c'));
+    press(document.activeElement as Element, 'ArrowDown');
+    expect(h.selection.selected()).toEqual(['e']);
+  });
+
+  it('moves DOM focus to the new layer row after Ctrl+Alt+L', () => {
+    const h = setup();
+    h.selection.select(['c']);
+    press(focusRow(h, 'c'), 'l', { ctrlKey: true, altKey: true });
+    expect(document.activeElement).toBe(h.list.rowElement('layer-1'));
+  });
+
+  it('moves focus to the first toolbar button when Delete removes every row', () => {
+    const h = setup(doc([layer('only')]));
+    h.selection.select(['only']);
+    press(focusRow(h, 'only'), 'Delete');
+    expect(h.editor.document.layers).toHaveLength(0);
+    expect(document.activeElement).toBe(button(h, 'Nouveau calque'));
+  });
+
+  it('keeps focus on a toolbar button after clicking it', () => {
+    const h = setup();
+    const create = button(h, 'Nouveau dossier');
+    create.focus();
+    create.click();
+    expect(document.activeElement).toBe(create);
+  });
+
+  it('does not steal focus when the list had none', () => {
+    const h = setup();
+    h.selection.select(['c']);
+    (document.activeElement as HTMLElement | null)?.blur();
+    h.toolbar.newLayer();
+    expect(document.activeElement).toBe(document.body);
   });
 });
 

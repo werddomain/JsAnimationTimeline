@@ -36,7 +36,7 @@ interface ITimerHost {
 }
 
 /** Rethrows outside the caller's stack. */
-function rethrowAsync(error: unknown): void {
+export function rethrowAsync(error: unknown): void {
   (globalThis as unknown as ITimerHost).setTimeout(() => {
     throw error;
   }, 0);

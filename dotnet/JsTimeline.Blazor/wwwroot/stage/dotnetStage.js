@@ -111,6 +111,8 @@ export function createDotNetStage(description, receiver) {
   // Detached: only the last frame may still go, and nothing is reported any more.
   let closing = false;
   let lastTime = { timeMs: 0, frame: 1, integerFrame: 1 };
+  // The last frame queued by `detach`, told apart by identity (an ordinary frame may have no layers).
+  let lastFrame = null;
   // Target of each bound layer, to tell .NET which object a released layer had.
   const boundTargets = new Map();
   let inFlight = false;
@@ -147,10 +149,11 @@ export function createDotNetStage(description, receiver) {
             released = mergeReleased(frame.released, released);
           }
           changed = true;
-        } else if (!stopped && closing && frame.layers.length > 0 && frame.released.length > 0) {
+        } else if (!stopped && closing && frame !== lastFrame && frame.released.length > 0) {
           // Detached meanwhile: the last frame carries them (it is created here when there was none).
           const carried = pending === null ? [] : pending.released;
-          pending = toFrame(lastTime, [], mergeReleased(frame.released, carried));
+          lastFrame = toFrame(lastTime, [], mergeReleased(frame.released, carried));
+          pending = lastFrame;
         }
         report(error);
       })
@@ -234,7 +237,8 @@ export function createDotNetStage(description, receiver) {
       if (!stopped && !closing && sends) {
         const last = mergeReleased(pending === null ? [] : pending.released, released);
         if (last.length > 0) {
-          pending = toFrame(lastTime, [], last);
+          lastFrame = toFrame(lastTime, [], last);
+          pending = lastFrame;
           released = [];
           send();
         } else {

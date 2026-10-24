@@ -1,4 +1,6 @@
 // dotnet/JsTimeline.Blazor/Stage/TimelineStageOption.cs
+using System.Runtime.CompilerServices;
+
 namespace JsTimeline.Blazor.Stage;
 
 /// <summary>
@@ -51,6 +53,13 @@ public abstract class TimelineStageOption : IEquatable<TimelineStageOption>
 
     /// <inheritdoc />
     public abstract override int GetHashCode();
+
+    /// <summary>Same choice (see <see cref="Equals(TimelineStageOption?)"/>), not same instance.</summary>
+    public static bool operator ==(TimelineStageOption? left, TimelineStageOption? right) =>
+        left is null ? right is null : left.Equals(right);
+
+    /// <summary>Different choices.</summary>
+    public static bool operator !=(TimelineStageOption? left, TimelineStageOption? right) => !(left == right);
 }
 
 /// <summary>The default HTML stage.</summary>
@@ -117,5 +126,6 @@ public sealed class DotNetStageOption : TimelineStageOption
         other is DotNetStageOption dotNet && ReferenceEquals(dotNet.Stage, Stage) && dotNet.Mode == Mode;
 
     /// <inheritdoc />
-    public override int GetHashCode() => HashCode.Combine(Stage, Mode);
+    // By reference, like Equals: a stage overriding GetHashCode must not change the option's hash.
+    public override int GetHashCode() => HashCode.Combine(RuntimeHelpers.GetHashCode(Stage), Mode);
 }
