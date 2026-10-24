@@ -4,7 +4,7 @@
  * précisé (ou vaut `true`).
  *
  * Les tâches du plan y ajoutent leurs plugins au fur et à mesure (L1
- * `layout.*` : fait ; Y1 `layers.list` et Y5 `layers.selection` : faits ; G1 `frames.grid` et G2 `frames.selection` : faits ; Y* `layers.*`, G* `frames.*`, T* `toolbar.*`,
+ * `layout.*` : fait ; Y1 `layers.list` et Y5 `layers.selection` : faits ; G1 `frames.grid`, G2 `frames.selection` et K2 `frames.keyframes` : faits ; Y* `layers.*`, G* `frames.*`, T* `toolbar.*`,
  * P* `playback.*`...). Déjà présents : I2 `interaction.shortcuts`,
  * T1 `toolbar` (`toolbar.main`), P1 `playback` (`playback.controls`),
  * S2 `persistence.json` et C5 `history` (`history.undoRedo`). Les plugins optionnels

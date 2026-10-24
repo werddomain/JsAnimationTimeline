@@ -153,16 +153,20 @@ export type {
 
 // Plugins des calques (epic `layers`) : liste des calques, contrôles de ligne et sélection.
 export {
+  LAYERS_GROUPS_PLUGIN_ID,
   LAYERS_COLOR_PLUGIN_ID,
   LAYERS_ICON_PLUGIN_ID,
   LAYERS_LIST_PLUGIN_ID,
   LAYER_LIST_CLASSES,
   LAYERS_SELECTION_PLUGIN_ID,
+  LAYERS_TOOLBAR_PLUGIN_ID,
   LAYER_ROW_CLASSES,
+  LayerGroupsPlugin,
   LayerColorPlugin,
   LayerIconPlugin,
   LayerListPlugin,
   LayerSelectionPlugin,
+  LayerToolbarPlugin,
   LayersPlugin,
   LAYERS_REORDER_PLUGIN_ID,
   LayerReorderPlugin,
@@ -179,6 +183,7 @@ export {
   updateLayerNode
 } from './plugins/layers';
 export type {
+  ILayerGroupsService,
   ILayerDropTarget,
   ILayerColorService,
   ILayerIconService,
@@ -187,6 +192,7 @@ export type {
   ILayerRow,
   ILayerRowControl,
   ILayerSelectionService,
+  ILayerToolbarService,
   LayerNodeUpdater,
   LayerRowsChangedEvent,
   LayerSelectionChangedEvent,
@@ -197,9 +203,12 @@ export type {
 export {
   FRAMES_GRID_CLASSES,
   FRAMES_GRID_PLUGIN_ID,
+  FRAMES_KEYFRAMES_CLASSES,
+  FRAMES_KEYFRAMES_PLUGIN_ID,
   FRAMES_SELECTION_CLASSES,
   FRAMES_SELECTION_PLUGIN_ID,
   FramesGridPlugin,
+  FramesKeyframesPlugin,
   FramesPlugin,
   FramesSelectionPlugin
 } from './plugins/frames';
@@ -214,6 +223,7 @@ export type {
   GridSegmentKind,
   IFrameRange,
   IFramesGridService,
+  IFramesKeyframesService,
   IGridCell,
   IGridMark,
   IGridSegment,

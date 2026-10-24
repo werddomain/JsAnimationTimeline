@@ -148,11 +148,32 @@ function assertZoom(value: number, name: string): void {
 }
 
 /**
+ * Paliers par défaut `inBounds` (déjà limités aux bornes et triés) complétés
+ * par les bornes qui les coupent : `min` si un palier par défaut est sous
+ * `min`, `max` si un palier est au-dessus de `max` ; les deux s'il resterait
+ * moins de deux paliers.
+ */
+function withCutBounds(
+  inBounds: readonly number[],
+  defaults: readonly number[],
+  min: number,
+  max: number
+): readonly number[] {
+  const cutLow = defaults.some((level) => level < min);
+  const cutHigh = defaults.some((level) => level > max);
+  const levels = Array.from(new Set([...(cutLow ? [min] : []), ...inBounds, ...(cutHigh ? [max] : [])]));
+  return levels.length < 2 ? Array.from(new Set([min, ...levels, max])) : levels;
+}
+
+/**
  * Options vérifiées : bornes cohérentes ; paliers triés et limités aux
- * bornes (`levels()` ne propose jamais une valeur que `setZoom` bornerait),
- * au moins un. Sans paliers donnés, si les bornes coupent les paliers par
- * défaut, les bornes s'y ajoutent ; avec des paliers donnés hors des bornes,
- * une `RangeError`.
+ * bornes (`levels()` ne propose jamais une valeur que `setZoom` bornerait).
+ * - Sans paliers donnés : une borne n'est ajoutée aux paliers par défaut que
+ *   du côté où elle les coupe (`{ maxZoom: 2 }` ajoute 2, pas 0,1) ; s'il
+ *   reste moins de deux paliers, l'autre borne s'ajoute aussi, pour que la
+ *   molette puisse encore bouger (`{ minZoom: 4 }` donne [4, 8]).
+ * - Avec des paliers donnés : ceux hors des bornes sont écartés, sans borne
+ *   ajoutée ; seule une liste entièrement hors des bornes lève une `RangeError`.
  */
 function resolveOptions(options: ZoomOptions): { range: IZoomRange; levels: readonly number[]; initial: number } {
   const min = options.minZoom ?? DEFAULT_MIN_ZOOM;
@@ -168,10 +189,7 @@ function resolveOptions(options: ZoomOptions): { range: IZoomRange; levels: read
   if (inBounds.length === 0 && options.levels !== undefined) {
     throw new RangeError(`layout.zoom : aucun palier entre minZoom (${min}) et maxZoom (${max}).`);
   }
-  // Sans paliers donnés, si des paliers par défaut sortent des bornes, les bornes deviennent des
-  // paliers : `{ minZoom: 4 }` donne [4, 8], la molette peut encore aller de l'un à l'autre.
-  const trimmed = options.levels === undefined && inBounds.length < given.length;
-  const levels = trimmed ? Array.from(new Set([min, ...inBounds, max])) : inBounds;
+  const levels = options.levels === undefined ? withCutBounds(inBounds, given, min, max) : inBounds;
   const range = { min, max };
   return { range, levels: Object.freeze(levels), initial: clampZoom(initial, range) };
 }
