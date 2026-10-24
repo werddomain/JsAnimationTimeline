@@ -1,6 +1,8 @@
 // packages/export-css/src/index.ts
 /**
- * Point d'entrée public du package export-css.
- * Vide pour l'instant : l'export arrive avec X1.
+ * Point d'entrée public du package export-css : document timeline → CSS pur
+ * (`@keyframes`), avec la liste de ce qui n'a pas pu être exporté.
  */
-export {};
+
+export { DEFAULT_PREFIX, exportCss } from './exportCss';
+export type { ExportCssWarningCode, IExportCssOptions, IExportCssResult, IExportCssWarning } from './types';
