@@ -311,6 +311,10 @@ describe('createObjectStage inactive layers and release', () => {
   it('binds every layer and runs every restore even when one apply throws during update', () => {
     let failOn: string | null = null;
     const { host, applied, errors } = setUp({
+      objects: [
+        { id: 'a', label: 'A', object: { name: 'a', log: [] } },
+        { id: 'b', label: 'B', object: { name: 'b', log: [] } }
+      ],
       apply: (sprite, values, state) => {
         if (state.active === false && sprite.name === failOn) {
           throw new Error('boom');
@@ -320,19 +324,19 @@ describe('createObjectStage inactive layers and release', () => {
     });
     const xTrack = { x: [{ frame: 1, value: 5 }] };
     const frameTrack = { frameIndex: [{ frame: 1, value: 3 }] };
-    host.load(docOf([refLayer('l1', 'hero', 'canvas', xTrack), refLayer('l2', 'villain', 'canvas', xTrack)]));
-    failOn = 'hero';
+    host.load(docOf([refLayer('l1', 'a', 'canvas', xTrack), refLayer('l2', 'b', 'canvas', xTrack)]));
+    failOn = 'a';
     errors.length = 0;
     applied.length = 0;
-    host.load(docOf([refLayer('l1', 'hero', 'canvas', frameTrack), refLayer('l2', 'villain', 'canvas', frameTrack)]));
+    host.load(docOf([refLayer('l1', 'a', 'canvas', frameTrack), refLayer('l2', 'b', 'canvas', frameTrack)]));
     expect(errors).toHaveLength(1);
-    // The villain restore ran although the hero one threw.
-    expect(applied.some((entry) => entry.name === 'villain' && entry.values.x === 0 && !entry.active)).toBe(true);
+    // The b restore ran although the a one threw.
+    expect(applied.some((entry) => entry.name === 'b' && entry.values.x === 0 && !entry.active)).toBe(true);
     failOn = null;
     applied.length = 0;
     host.load(docOf([]));
     // Both layers were bound: both are released with defaults.
-    expect(applied.map((entry) => entry.name).sort()).toEqual(['hero', 'villain']);
+    expect(applied.map((entry) => entry.name).sort()).toEqual(['a', 'b']);
   });
 
   it('does not reset on update a layer whose object changed (the host released the old one)', () => {
