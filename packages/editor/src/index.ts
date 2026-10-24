@@ -90,3 +90,15 @@ export type {
 } from './core/commands';
 export { StoreError } from './core/store';
 export type { DocumentChangeCause, DocumentChangedEvent, DocumentLoadedEvent } from './core/store';
+
+// Plugin interaction.shortcuts (raccourcis clavier déclarés par les plugins).
+export { SHORTCUTS_PLUGIN_ID, ShortcutError, createShortcutsPlugin } from './plugins/interaction/shortcuts';
+export type {
+  IShortcutDefinition,
+  IShortcutInfo,
+  IShortcutsOptions,
+  IShortcutsService,
+  ShortcutErrorCode,
+  ShortcutTriggeredEvent,
+  ShortcutsPlugin
+} from './plugins/interaction/shortcuts';

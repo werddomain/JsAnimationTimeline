@@ -205,7 +205,7 @@ describe('createEditor root element and context', () => {
     const late = makeEditorPlugin([], 'late', ['listener']);
 
     // Act
-    createEditor(createContainer(), { plugins: [late, listener] });
+    createEditor(createContainer(), { defaultPlugins: false, plugins: [late, listener] });
 
     // Assert
     expect(payloads).toEqual([['listener', 'late']]);
@@ -213,13 +213,15 @@ describe('createEditor root element and context', () => {
 });
 
 describe('createEditor plugin sets', () => {
-  it('returns an empty default set for now (filled by later tasks)', () => {
+  it('returns new instances of the default set on each call', () => {
     // Act
     const first = defaultPlugins();
+    const second = defaultPlugins();
 
     // Assert
-    expect(first).toEqual([]);
-    expect(defaultPlugins()).not.toBe(first);
+    expect(first.map((plugin) => plugin.id)).toEqual(['interaction.shortcuts']);
+    expect(second).not.toBe(first);
+    first.forEach((plugin, index) => expect(second[index]).not.toBe(plugin));
   });
 
   it('uses the default set, then options.plugins, when defaultPlugins is omitted or true', () => {
