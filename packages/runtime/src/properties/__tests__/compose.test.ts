@@ -73,7 +73,7 @@ describe('computeCssDeclarations', () => {
 
   it('uses the default of a property named like an Object method', () => {
     const odd = createPropertyRegistry([
-      { name: 'constructor', kind: 'transform', step: 'rotate', cssName: 'rotateZ', unit: 'deg', defaultValue: 3 }
+      { name: 'toString', kind: 'transform', step: 'rotate', cssName: 'rotateZ', unit: 'deg', defaultValue: 3 }
     ]);
     expect(composeTransform({}, odd)).toContain('rotateZ(3deg)');
   });

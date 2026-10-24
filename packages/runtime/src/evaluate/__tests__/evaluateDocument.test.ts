@@ -62,6 +62,8 @@ describe('evaluateDocument', () => {
 describe('evaluate entry point', () => {
   it('exports the evaluation values', () => {
     expect(Object.keys(evaluate).sort()).toEqual([
+      'EvaluateIssueCodes',
+      'applyUnknownPropertyPolicy',
       'clampFrame',
       'collectLayerProperties',
       'collectLayers',
@@ -70,6 +72,7 @@ describe('evaluate entry point', () => {
       'evaluateDocument',
       'evaluateLayer',
       'findSpanAt',
+      'findUnknownProperties',
       'valueAtFrame',
       'withImplicitStart'
     ]);

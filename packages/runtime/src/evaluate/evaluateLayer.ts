@@ -16,6 +16,8 @@ import type { PropertyRegistry } from '../properties/PropertyRegistry';
 import type { PropertyValues } from '../properties/types';
 import { createEasingFunction } from './easingFunction';
 import { valueAtFrame, withImplicitStart } from './track';
+import { applyUnknownPropertyPolicy, assertUnknownPropertyPolicy } from './unknownProperties';
+import type { EvaluateIssueListener, UnknownPropertyPolicy } from './unknownProperties';
 
 /** State of one layer at one frame. */
 export interface ILayerFrameState {
@@ -36,6 +38,13 @@ export interface ILayerFrameState {
 export interface IEvaluateOptions {
   /** Defaults to `defaultPropertyRegistry`. */
   readonly registry?: PropertyRegistry;
+  /**
+   * What to do with a track unknown to the registry: `throw` (default) or
+   * `skip` (only that track is dropped and reported to `onIssue`).
+   */
+  readonly unknownProperties?: UnknownPropertyPolicy;
+  /** Receives the issues of a `skip` evaluation (`unknown-property`), on every call. */
+  readonly onIssue?: EvaluateIssueListener;
 }
 
 /**
@@ -121,13 +130,16 @@ function defaultValues(names: readonly string[], registry: PropertyRegistry): Pr
 
 /**
  * State of `layer` at `frame` (1-based, fractional frames allowed). Throws for
- * a non-finite frame, a property unknown to the registry or an invalid easing.
+ * a non-finite frame, an invalid easing or a property unknown to the registry
+ * (unless `unknownProperties` is `skip`).
  */
-export function evaluateLayer(layer: ILayer, frame: number, options: IEvaluateOptions = {}): ILayerFrameState {
+export function evaluateLayer(source: ILayer, frame: number, options: IEvaluateOptions = {}): ILayerFrameState {
   if (!Number.isFinite(frame)) {
     throw new Error(`Frame must be a finite number (got ${frame}).`);
   }
+  assertUnknownPropertyPolicy(options.unknownProperties);
   const registry = options.registry ?? defaultPropertyRegistry;
+  const layer = applyUnknownPropertyPolicy(source, registry, options.unknownProperties ?? 'throw', options.onIssue);
   let carried = defaultValues(collectLayerProperties(layer), registry);
   for (const span of layer.spans) {
     if (frame < span.start) {

@@ -18,6 +18,9 @@
  * - Le navigateur ne connaît ni les `interpolate` personnalisés ni les bornes
  *   appliquées pendant l'interpolation : un calque qui en dépend est
  *   échantillonné à chaque image dans toutes ses interpolations.
+ * - Seules les pistes CSS (`transform`, `style`) décident de l'échantillonnage
+ *   et des images clés : les propriétés `value` ne sont pas écrites en CSS, un
+ *   calque qui n'a qu'elles ne donne aucune image clé (sauf pour la visibilité).
  */
 
 import { resolveEasing, resolveTracks } from '../model/defaults';
@@ -29,7 +32,9 @@ import { collectLayerProperties, evaluateLayer } from '../evaluate/evaluateLayer
 import type { ILayerFrameState } from '../evaluate/evaluateLayer';
 import { computeCssDeclarations, cssNameToCamelCase } from '../properties/compose';
 import type { PropertyRegistry } from '../properties/PropertyRegistry';
+import { isCssProperty } from '../properties/types';
 import type { PropertyDescriptor } from '../properties/types';
+import { lerp } from '../properties/values';
 
 /** Offset of the start of `frame` in the animation, in [0, 1). */
 export function frameToOffset(frame: number, totalFrames: number): number {
@@ -49,10 +54,18 @@ function isLinear(easing: string): boolean {
   return curve !== null && curve.x1 === curve.y1 && curve.x2 === curve.y2;
 }
 
-/** Frames strictly inside the span where a track has a keyframe (or starts late). */
-function innerKeyframeFrames(span: ISpan): number[] {
+/** Names of the CSS properties (`transform`, `style`) used by the tracks of `layer`. */
+function collectCssProperties(layer: ILayer, registry: PropertyRegistry): Set<string> {
+  return new Set(collectLayerProperties(layer).filter((name) => isCssProperty(registry.require(name))));
+}
+
+/** Frames strictly inside the span where a CSS track has a keyframe (or starts late). */
+function innerKeyframeFrames(span: ISpan, cssNames: ReadonlySet<string>): number[] {
   const frames = new Set<number>();
-  for (const track of Object.values(resolveTracks(span))) {
+  for (const [name, track] of Object.entries(resolveTracks(span))) {
+    if (!cssNames.has(name)) {
+      continue;
+    }
     track.forEach(({ frame }) => {
       if (frame > span.start && frame < span.end) {
         frames.add(frame);
@@ -67,28 +80,34 @@ function isOutOfBounds(descriptor: PropertyDescriptor, value: number): boolean {
 }
 
 /**
- * True when the browser's own interpolation would differ from `evaluateLayer`:
- * a custom interpolator, or a keyframe value outside the property bounds.
+ * True when the browser's own interpolation would differ from `evaluateLayer`
+ * on a CSS property: a custom interpolator, or a keyframe value outside the
+ * property bounds. `value` properties never force sampling.
  */
-function needsFrameSampling(layer: ILayer, registry: PropertyRegistry): boolean {
-  const descriptors = collectLayerProperties(layer).map((name) => registry.require(name));
-  if (descriptors.some((d) => d.interpolate !== undefined)) {
+function needsFrameSampling(layer: ILayer, cssNames: ReadonlySet<string>, registry: PropertyRegistry): boolean {
+  const descriptors = Array.from(cssNames, (name) => registry.require(name));
+  if (descriptors.some((d) => d.interpolate !== undefined && d.interpolate !== lerp)) {
     return true;
   }
   return layer.spans.some((span) =>
     Object.entries(resolveTracks(span)).some(([name, track]) =>
-      track.some(({ value }) => isOutOfBounds(registry.require(name), value))
+      cssNames.has(name) && track.some(({ value }) => isOutOfBounds(registry.require(name), value))
     )
   );
 }
 
 /** Frames of a span where a keyframe is needed, with the easing of the segment that starts there. */
-function spanFrames(span: ISpan, end: number, sampleAll: boolean): Array<{ frame: number; easing: string }> {
+function spanFrames(
+  span: ISpan,
+  end: number,
+  sampleAll: boolean,
+  cssNames: ReadonlySet<string>
+): Array<{ frame: number; easing: string }> {
   if (span.kind !== 'tween' || end <= span.start) {
     return [{ frame: span.start, easing: 'linear' }];
   }
   const easing = resolveEasing(span);
-  const inner = innerKeyframeFrames(span).filter((frame) => frame < end);
+  const inner = innerKeyframeFrames(span, cssNames).filter((frame) => frame < end);
   if (sampleAll) {
     return Array.from({ length: end - span.start + 1 }, (_, i) => ({ frame: span.start + i, easing: 'linear' }));
   }
@@ -101,13 +120,18 @@ function spanFrames(span: ISpan, end: number, sampleAll: boolean): Array<{ frame
   return Array.from({ length: end - span.start + 1 }, (_, i) => ({ frame: span.start + i, easing: 'linear' }));
 }
 
-function collectPoints(layer: ILayer, totalFrames: number, registry: PropertyRegistry): ITimelinePoint[] {
+function collectPoints(
+  layer: ILayer,
+  totalFrames: number,
+  registry: PropertyRegistry,
+  cssNames: ReadonlySet<string>
+): ITimelinePoint[] {
   const evaluate = (frame: number): ILayerFrameState => evaluateLayer(layer, frame, { registry });
   const points: ITimelinePoint[] = [];
   const add = (frame: number, stateFrame: number, easing = 'linear'): void => {
     points.push({ offset: frameToOffset(frame, totalFrames), state: evaluate(stateFrame), easing });
   };
-  const sampleAll = needsFrameSampling(layer, registry);
+  const sampleAll = needsFrameSampling(layer, cssNames, registry);
   let covered = 0;
   for (const span of layer.spans) {
     if (span.start > totalFrames) {
@@ -117,7 +141,7 @@ function collectPoints(layer: ILayer, totalFrames: number, registry: PropertyReg
       add(span.start, span.start - 1);
     }
     const end = Math.min(span.end, totalFrames);
-    spanFrames(span, end, sampleAll).forEach(({ frame, easing }) => add(frame, frame, easing));
+    spanFrames(span, end, sampleAll, cssNames).forEach(({ frame, easing }) => add(frame, frame, easing));
     covered = end;
   }
   if (covered < totalFrames) {
@@ -158,8 +182,8 @@ function toKeyframe(point: ITimelinePoint, registry: PropertyRegistry, withVisib
 
 /**
  * Web Animations keyframes of a layer over the whole timeline, or `null` when
- * the layer never changes anything (no tracked property, always visible).
- * Only animated properties are written, so other styles of the target stay.
+ * the layer never changes anything in CSS (no CSS track, always visible).
+ * Only animated CSS properties are written, so other styles of the target stay.
  */
 export function buildLayerKeyframes(
   layer: ILayer,
@@ -167,8 +191,9 @@ export function buildLayerKeyframes(
   registry: PropertyRegistry
 ): Keyframe[] | null {
   const withVisibility = needsVisibility(layer, settings.totalFrames);
-  if (!withVisibility && collectLayerProperties(layer).length === 0) {
+  const cssNames = collectCssProperties(layer, registry);
+  if (!withVisibility && cssNames.size === 0) {
     return null;
   }
-  return collectPoints(layer, settings.totalFrames, registry).map((point) => toKeyframe(point, registry, withVisibility));
+  return collectPoints(layer, settings.totalFrames, registry, cssNames).map((point) => toKeyframe(point, registry, withVisibility));
 }

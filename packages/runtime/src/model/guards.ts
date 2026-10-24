@@ -4,7 +4,7 @@
  */
 
 import type { IFolder, ILayer, LayerNode } from './layer';
-import type { IElementTarget, ISelectorTarget, LayerTarget } from './target';
+import type { IElementTarget, IRefTarget, ISelectorTarget, LayerTarget } from './target';
 
 export function isLayer(node: LayerNode): node is ILayer {
   return node.type === 'layer';
@@ -16,6 +16,10 @@ export function isFolder(node: LayerNode): node is IFolder {
 
 export function isSelectorTarget(target: LayerTarget | undefined): target is ISelectorTarget {
   return target !== undefined && 'selector' in target;
+}
+
+export function isRefTarget(target: LayerTarget | undefined): target is IRefTarget {
+  return target !== undefined && 'ref' in target;
 }
 
 export function isElementTarget(target: LayerTarget | undefined): target is IElementTarget {

@@ -9,6 +9,7 @@ import type { ILayer } from '../model/layer';
 import { walkLayers } from '../model/traverse';
 import { evaluateLayer } from './evaluateLayer';
 import type { IEvaluateOptions, ILayerFrameState } from './evaluateLayer';
+import { assertUnknownPropertyPolicy } from './unknownProperties';
 
 /** Every layer of the document (folders skipped), in display order. */
 export function collectLayers(doc: ITimelineDocument): ILayer[] {
@@ -28,7 +29,8 @@ export function clampFrame(doc: ITimelineDocument, frame: number): number {
 
 /**
  * State of every layer at `frame`, clamped to [1, totalFrames]. Folders are
- * skipped; layers come in display order.
+ * skipped; layers come in display order. With `unknownProperties: 'skip'`,
+ * each unknown track is reported to `onIssue` with its layer id.
  */
 export function evaluateDocument(
   doc: ITimelineDocument,
@@ -38,6 +40,7 @@ export function evaluateDocument(
   if (!Number.isFinite(frame)) {
     throw new Error(`Frame must be a finite number (got ${frame}).`);
   }
+  assertUnknownPropertyPolicy(options.unknownProperties);
   const at = clampFrame(doc, frame);
   return collectLayers(doc).map((layer) => evaluateLayer(layer, at, options));
 }

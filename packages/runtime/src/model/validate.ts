@@ -1,9 +1,10 @@
 // packages/runtime/src/model/validate.ts
 /**
- * Vérification des invariants sémantiques qu'un schéma JSON ne sait pas
- * exprimer (ids uniques, plages contiguës, images clés dans leur plage...).
- * Le document est supposé déjà conforme au schéma ; les noms de propriétés
- * ne sont pas vérifiés ici (c'est le rôle du registre de propriétés).
+ * Validation d'un document : contrôle de forme (voir `shape.ts`), puis
+ * invariants sémantiques qu'un schéma JSON ne sait pas exprimer (ids
+ * uniques, plages contiguës, images clés dans leur plage...). Les noms de
+ * propriétés suivent la règle commune, mais ne sont pas cherchés dans le
+ * registre ici (c'est le rôle du registre de propriétés).
  */
 
 import type { ITimelineDocument } from './document';
@@ -11,47 +12,17 @@ import { parseEasing } from './easing';
 import { isLayer } from './guards';
 import type { ILayer } from './layer';
 import type { IPropertyKeyframe, ISpan } from './span';
+import { escapePointerToken, ValidationCodes } from './issues';
+import type { IValidationIssue, ValidationCode } from './issues';
+import { checkDocumentShape } from './shape';
+import type { IShapeOptions } from './shape';
 import { walkLayers } from './traverse';
 
-/** Issue codes, one per invariant. */
-export const ValidationCodes = {
-  /** An id is used by more than one layer, folder or span. */
-  DUPLICATE_ID: 'duplicate-id',
-  /** `span.end < span.start`. */
-  SPAN_INVALID_RANGE: 'span-invalid-range',
-  /** A span starts before the previous one. */
-  SPANS_UNSORTED: 'spans-unsorted',
-  /** Gap or overlap between two consecutive spans (`next.start !== prev.end + 1`). */
-  SPANS_NOT_CONTIGUOUS: 'spans-not-contiguous',
-  /** The first span of a layer does not start at frame 1. */
-  FIRST_SPAN_NOT_AT_FRAME_1: 'first-span-not-at-frame-1',
-  /** A span ends after `settings.totalFrames`. */
-  SPAN_EXCEEDS_TOTAL_FRAMES: 'span-exceeds-total-frames',
-  /** A property keyframe lies outside its span [start, end]. */
-  KEYFRAME_OUT_OF_SPAN: 'keyframe-out-of-span',
-  /** Keyframe frames of a track are not strictly increasing (or duplicated). */
-  KEYFRAMES_NOT_INCREASING: 'keyframes-not-increasing',
-  /** A keyframe of a static span is not at `span.start`. */
-  STATIC_KEYFRAME_NOT_AT_START: 'static-keyframe-not-at-start',
-  /** A blank span has tracks. */
-  TRACKS_NOT_ALLOWED: 'tracks-not-allowed',
-  /** A non-tween span has an easing. */
-  EASING_NOT_ALLOWED: 'easing-not-allowed',
-  /** The easing string does not parse (see `parseEasing`). */
-  INVALID_EASING: 'invalid-easing',
-  /** A property value is NaN or infinite. */
-  NON_FINITE_VALUE: 'non-finite-value'
-} as const;
+export { ValidationCodes } from './issues';
+export type { IValidationIssue, ValidationCode } from './issues';
 
-export type ValidationCode = (typeof ValidationCodes)[keyof typeof ValidationCodes];
-
-/** One broken invariant. */
-export interface IValidationIssue {
-  /** JSON-pointer-like path of the faulty value, e.g. `/layers/0/spans/1/start`. */
-  readonly path: string;
-  readonly code: ValidationCode;
-  readonly message: string;
-}
+/** Options of `validateDocument`. */
+export type IValidateOptions = IShapeOptions;
 
 interface IValidationContext {
   readonly totalFrames: number;
@@ -62,10 +33,6 @@ interface IValidationContext {
 
 function report(ctx: IValidationContext, path: string, code: ValidationCode, message: string): void {
   ctx.issues.push({ path, code, message });
-}
-
-function escapePointerToken(token: string): string {
-  return token.replace(/~/g, '~0').replace(/\//g, '~1');
 }
 
 function checkUniqueId(ctx: IValidationContext, id: string, path: string): void {
@@ -106,9 +73,6 @@ function checkKeyframe(ctx: IValidationContext, span: ISpan, keyframe: IProperty
   } else if (span.kind === 'static' && keyframe.frame !== span.start) {
     report(ctx, `${path}/frame`, ValidationCodes.STATIC_KEYFRAME_NOT_AT_START,
       `Keyframes of a static span must be at frame ${span.start}.`);
-  }
-  if (!Number.isFinite(keyframe.value)) {
-    report(ctx, `${path}/value`, ValidationCodes.NON_FINITE_VALUE, `Value ${keyframe.value} is not a finite number.`);
   }
 }
 
@@ -162,12 +126,26 @@ function checkLayer(ctx: IValidationContext, layer: ILayer, pointer: string): vo
   layer.spans.forEach((span, index) => checkSpan(ctx, span, `${spansPath}/${index}`));
 }
 
+/** Runs the shape check; `true` (and no issue added) when `doc` has the document form. */
+function hasDocumentShape(doc: unknown, issues: IValidationIssue[], options: IValidateOptions): doc is ITimelineDocument {
+  issues.push(...checkDocumentShape(doc, options));
+  return issues.length === 0;
+}
+
 /**
- * Returns every semantic issue of a schema-valid document (empty when the
- * document is consistent). Paths are JSON-pointer-like, from the root.
+ * Returns every issue of `doc` (empty when the document is valid). `doc` may
+ * be any value, e.g. a parsed JSON file: the shape check runs first (what the
+ * JSON schema describes, see `checkDocumentShape`); only a well-formed
+ * document then gets its semantic invariants checked. Paths are
+ * JSON-pointer-like, from the root. `{ element }` targets pass unless
+ * `allowLiveTargets` is `false`.
  */
-export function validateDocument(doc: ITimelineDocument): IValidationIssue[] {
-  const ctx: IValidationContext = { totalFrames: doc.settings.totalFrames, issues: [], seenIds: new Map() };
+export function validateDocument(doc: unknown, options: IValidateOptions = {}): IValidationIssue[] {
+  const issues: IValidationIssue[] = [];
+  if (!hasDocumentShape(doc, issues, options)) {
+    return issues;
+  }
+  const ctx: IValidationContext = { totalFrames: doc.settings.totalFrames, issues, seenIds: new Map() };
   walkLayers(doc.layers, ({ node, pointer }) => {
     checkUniqueId(ctx, node.id, `${pointer}/id`);
     if (isLayer(node)) {
