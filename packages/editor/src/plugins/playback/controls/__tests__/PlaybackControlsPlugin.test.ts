@@ -413,3 +413,29 @@ describe('playback.controls speed options', () => {
   });
 });
 
+describe('playback.controls custom speed labels (round 4)', () => {
+  it('gives 1.001 its own label after 1.0005 took "×1,001"', () => {
+    // Arrange
+    const { editor, speed } = mount();
+
+    // Act
+    editor.playback.speed = 1.0005;
+    editor.playback.play();
+    editor.playback.pause();
+    editor.playback.speed = 1.001;
+    editor.playback.play();
+
+    // Assert
+    const labels = Array.from(speed.options).map((option) => option.textContent);
+    expect(new Set(labels).size).toBe(labels.length);
+    expect(labels).toContain('×1,001');
+    expect(labels).toContain('×1,0010');
+  });
+
+  it('never pads a label into the value of another option', () => {
+    // Assert
+    expect(formatSpeed(1.00004, ['×1'], [1])).not.toBe('×1,000');
+    expect(formatSpeed(1.001, ['×1', '×1,001'], [1, 1.0005])).toBe('×1,0010');
+  });
+});
+

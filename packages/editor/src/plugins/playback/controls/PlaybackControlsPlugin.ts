@@ -49,21 +49,53 @@ export const PLAYBACK_SPEEDS: readonly number[] = Object.freeze([0.25, 0.5, 1, 1
 const MIN_SPEED_DIGITS = 4;
 const MAX_SPEED_DIGITS = 17;
 
-/** Vitesse en français, avec `digits` chiffres significatifs au plus, sans exposant. */
+/**
+ * Vitesse en français avec exactement `digits` chiffres significatifs, sans
+ * exposant : les zéros de fin sont gardés (`1.001` sur 5 chiffres ->
+ * `1,0010`), pour qu'un chiffre de plus donne toujours un autre libellé.
+ */
 function speedNumber(speed: number, digits: number): string {
-  return new Intl.NumberFormat('fr-FR', { maximumSignificantDigits: digits, useGrouping: false }).format(speed);
+  return new Intl.NumberFormat('fr-FR', {
+    minimumSignificantDigits: digits,
+    maximumSignificantDigits: digits,
+    useGrouping: false
+  }).format(speed);
+}
+
+/** Vitesse lue dans un libellé (`×1,25` -> 1.25). */
+function labelValue(label: string): number {
+  return Number(label.replace('×', '').replace(',', '.'));
+}
+
+/** Libellé court d'un préréglage : 4 chiffres significatifs au plus, sans zéros de fin. */
+function presetLabel(speed: number): string {
+  return `×${new Intl.NumberFormat('fr-FR', { maximumSignificantDigits: MIN_SPEED_DIGITS, useGrouping: false }).format(speed)}`;
 }
 
 /**
- * Libellé français d'une vitesse (`1.5` -> `×1,5`, `1 / 3` -> `×0,3333`) :
- * 4 chiffres significatifs, ou davantage si le libellé est déjà pris par
- * une autre option de `taken` (`1.0005` à côté de `×1` -> `×1,0005`). Pas
- * d'exposant (`1e-7` -> `×0,0000001`).
+ * Libellé français d'une vitesse (`1.5` -> `×1,5`, `1 / 3` -> `×0,3333`).
+ *
+ * Sans autre option, c'est le libellé court (4 chiffres significatifs au
+ * plus, sans zéros de fin). À côté d'autres options (`taken`, leurs libellés,
+ * et `otherSpeeds`, leurs vitesses, lues dans les libellés par défaut), il prend le moins de chiffres possible,
+ * à partir de 4, pour un libellé qui n'est pris par aucune option et qui ne
+ * se lit pas comme la vitesse d'une autre option. Par exemple, `1.0005` à
+ * côté de `×1` donne `×1,001`, puis `1.001` à côté de `×1` et `×1,001` donne
+ * `×1,0010`. Pas d'exposant (`1e-7` -> `×0,0000001`).
  */
-export function formatSpeed(speed: number, taken: readonly string[] = []): string {
+export function formatSpeed(
+  speed: number,
+  taken: readonly string[] = [],
+  otherSpeeds: readonly number[] = taken.map(labelValue)
+): string {
+  const short = presetLabel(speed);
+  const others = otherSpeeds.filter((other) => Math.abs(other - speed) >= SPEED_EPSILON);
+  const free = (label: string): boolean =>
+    !taken.includes(label) && !others.some((other) => Math.abs(labelValue(label) - other) < SPEED_EPSILON);
+  if (free(short)) return short;
   for (let digits = MIN_SPEED_DIGITS; digits <= MAX_SPEED_DIGITS; digits += 1) {
     const label = `×${speedNumber(speed, digits)}`;
-    if (!taken.includes(label)) return label;
+    if (free(label)) return label;
   }
   return `×${speedNumber(speed, MAX_SPEED_DIGITS)}`;
 }
@@ -102,10 +134,15 @@ function createButton(doc: Document, role: string, icon: string): { button: HTML
   return { button, icon: iconElement };
 }
 
-function speedOption(doc: Document, speed: number, taken: readonly string[] = []): HTMLOptionElement {
+function speedOption(
+  doc: Document,
+  speed: number,
+  taken: readonly string[] = [],
+  otherSpeeds: readonly number[] = []
+): HTMLOptionElement {
   const option = doc.createElement('option');
   option.value = String(speed);
-  option.textContent = formatSpeed(speed, taken);
+  option.textContent = formatSpeed(speed, taken, otherSpeeds);
   return option;
 }
 
@@ -236,7 +273,8 @@ export class PlaybackControlsPlugin implements EditorPlugin {
     if (match === undefined) {
       // Vitesse fixée ailleurs : nouvelle option rangée à sa place, libellé distinct.
       const taken = options.map((option) => option.textContent ?? '');
-      match = speedOption(view.speed.ownerDocument, playback.speed, taken);
+      const otherSpeeds = options.map((option) => Number(option.value));
+      match = speedOption(view.speed.ownerDocument, playback.speed, taken, otherSpeeds);
       const next = options.find((option) => Number(option.value) > playback.speed) ?? null;
       view.speed.insertBefore(match, next);
     }

@@ -94,3 +94,19 @@ describe('zoom labels', () => {
     expect(formatCustomZoom(0.24996, LEVELS)).toBe('24,996\u00a0%');
   });
 });
+
+describe('custom zoom labels against level labels', () => {
+  it('does not reuse the whole-percent label of a level such as 12,5 % ("13 %")', () => {
+    // Arrange
+    const levels = [0.125, 0.25, 0.5, 1];
+
+    // Act
+    const label = formatCustomZoom(0.13, levels);
+
+    // Assert
+    expect(formatZoom(0.125)).toBe('13\u00a0%');
+    expect(label).not.toBe('13\u00a0%');
+    expect(label).toBe('13,0\u00a0%');
+  });
+});
+
