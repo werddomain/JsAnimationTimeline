@@ -249,3 +249,44 @@ describe('layout.zoom options and lifecycle', () => {
     expect(act).toThrow('layout.zoom : render appelé avant init.');
   });
 });
+
+describe('layout.zoom gestures and re-entrancy', () => {
+  it('adds up small pinch movements before stepping one level', () => {
+    // Arrange
+    const { zone, api } = setup();
+
+    // Act
+    [-10, -10, -10, -10].forEach((deltaY) => zone('frames').dispatchEvent(ctrlWheel(deltaY, 150)));
+    const before = api.zoom();
+    zone('frames').dispatchEvent(ctrlWheel(-10, 150));
+    zone('frames').dispatchEvent(ctrlWheel(30, 150));
+
+    // Assert
+    expect(before).toBe(1);
+    expect(api.zoom()).toBe(1.5);
+  });
+
+  it('counts wheel lines as 16 pixels', () => {
+    // Arrange
+    const { zone, api } = setup();
+
+    // Act
+    zone('frames').dispatchEvent(ctrlWheel(-4, 150, { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_LINE }));
+
+    // Assert
+    expect(api.zoom()).toBe(1.5);
+  });
+
+  it('ignores a zoom asked from a zoom:changed listener', () => {
+    // Arrange
+    const { editor, api, events } = setup();
+    editor.on('zoom:changed', () => api.setZoom(4));
+
+    // Act
+    api.setZoom(2);
+
+    // Assert
+    expect(api.zoom()).toBe(2);
+    expect(events).toHaveLength(1);
+  });
+});

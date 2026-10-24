@@ -21,7 +21,9 @@
  *   lecture en cours est mise en pause au début du glisser, comme dans Flash.
  *   Le glisser est annoncé par `playhead:scrubStart` / `playhead:scrubEnd`
  *   (et lisible avec le service `layout.playhead`), par exemple pour régler
- *   l'aperçu pendant un glisser.
+ *   l'aperçu pendant un glisser. `playhead:scrubStart` part avant le premier
+ *   `seek` ; un glisser coupé par la destruction de l'éditeur n'émet pas
+ *   `playhead:scrubEnd` (aucun événement pendant la destruction).
  * - Le glisser capture le pointeur et ne suit que lui : un deuxième doigt est
  *   ignoré, et une capture perdue termine le glisser.
  * - Le repère est un curseur accessible (`role="slider"`) : flèches (une
@@ -241,7 +243,8 @@ export class PlayheadPlugin implements EditorPlugin {
    */
   private onFocus(): void {
     const ctx = this.ctx;
-    if (ctx === undefined) return;
+    // Focus donné par un clic sur la règle : le glisser s'en occupe.
+    if (ctx === undefined || this.stopDrag !== undefined) return;
     this.follow(ctx.playback.frame);
     ctx.services.get('layout.scrollSync')?.scrollTo({});
   }
@@ -260,8 +263,8 @@ export class PlayheadPlugin implements EditorPlugin {
     if (this.stopDrag !== undefined) return;
     event.preventDefault();
     if (ctx.playback.playing) ctx.playback.pause();
-    elements.head.focus({ preventScroll: true });
-    this.seek(this.ruler().frameAtClientX(event.clientX));
+    // Image visée lue avant tout changement (focus, défilement).
+    const target = this.ruler().frameAtClientX(event.clientX);
     const { ruler, head } = elements;
     const doc = ruler.ownerDocument;
     const pointerId = event.pointerId;
@@ -287,7 +290,10 @@ export class PlayheadPlugin implements EditorPlugin {
       head.classList.remove(PLAYHEAD_DRAGGING_CLASS);
       if (announce) this.ctx?.events.emit('playhead:scrubEnd', { frame: this.ctx.playback.frame });
     };
-    ctx.events.emit('playhead:scrubStart', { frame: ctx.playback.frame });
+    // Glisser installé avant le focus (`onFocus` l'ignore) et avant le premier `seek`.
+    ctx.events.emit('playhead:scrubStart', { frame: clampFrame(target, ctx.playback.totalFrames) });
+    head.focus({ preventScroll: true });
+    this.seek(target);
   }
 
   /** Clavier du curseur. */

@@ -2,7 +2,7 @@
 /**
  * Plugin : layout.zoom
  * Epic : layout
- * Dépend de : layout.ruler, layout.scrollSync
+ * Dépend de : layout.shell, layout.ruler, layout.scrollSync
  * Écoute : —
  * Émet : zoom:changed
  *
@@ -19,9 +19,16 @@
  *    pointeur pour Ctrl + molette, sinon la tête de lecture si elle est
  *    visible, sinon le milieu de la vue.
  *
+ * Contrat des écouteurs de `zoom:changed` : redimensionner leur contenu tout
+ * de suite (dans l'écouteur, pas à l'image suivante), sinon le navigateur
+ * borne le défilement de l'étape 3 et le point d'ancrage glisse ; ne pas
+ * faire défiler ni rezoomer (un `setZoom` pendant l'annonce est ignoré).
+ *
  * Ctrl (ou Cmd) + molette au-dessus de la règle ou des images zoome d'un
- * palier ; `layout.scrollSync` laisse ce geste au zoom. Le service
- * `layout.zoom` sert à la commande de zoom de la barre d'outils (T4).
+ * palier par cran : les petits mouvements (pincement d'un pavé tactile) sont
+ * cumulés jusqu'à `WHEEL_STEP_PX`. `layout.scrollSync` laisse ce geste au
+ * zoom. Le service `layout.zoom` sert à la commande de zoom de la barre
+ * d'outils (T4).
  */
 
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
@@ -40,6 +47,13 @@ import {
 } from './zoomLevels';
 import type { IZoomRange } from './zoomLevels';
 import './zoomEvents';
+
+/** Mouvement de molette (Ctrl / Cmd) qui fait un palier, en pixels : un cran de souris usuel. */
+export const WHEEL_STEP_PX = 50;
+/** `WheelEvent.DOM_DELTA_LINE`. */
+const WHEEL_DELTA_LINE = 1;
+/** Hauteur d'une ligne de molette, en pixels. */
+const WHEEL_LINE_PX = 16;
 
 /**
  * Point gardé immobile pendant un zoom : une position de la fenêtre
@@ -119,7 +133,7 @@ function resolveOptions(options: ZoomOptions): { range: IZoomRange; levels: read
 /** Zoom horizontal de la timeline. */
 export class ZoomPlugin implements EditorPlugin {
   readonly id = 'layout.zoom';
-  readonly dependencies: readonly string[] = ['layout.ruler', 'layout.scrollSync'];
+  readonly dependencies: readonly string[] = ['layout.shell', 'layout.ruler', 'layout.scrollSync'];
   readonly slot = LAYOUT_SLOTS.frames;
 
   private ctx: IEditorContext | undefined;
@@ -130,6 +144,10 @@ export class ZoomPlugin implements EditorPlugin {
   private readonly levels: readonly number[];
   private readonly initial: number;
   private readonly wheel: boolean;
+  /** Vrai pendant l'émission de `zoom:changed`. */
+  private announcing = false;
+  /** Mouvement de molette cumulé (Ctrl / Cmd), en pixels. */
+  private wheelTotal = 0;
   private cleanups: Array<() => void> = [];
 
   constructor(options: ZoomOptions = {}) {
@@ -185,7 +203,8 @@ export class ZoomPlugin implements EditorPlugin {
     const ctx = this.ctx;
     if (ctx === undefined) return;
     const next = clampZoom(zoom, this.range);
-    if (next === this.current) return;
+    // Un écouteur de `zoom:changed` qui rezoome est ignoré (voir le contrat en tête).
+    if (next === this.current || this.announcing) return;
     const ruler = ctx.services.require('layout.ruler');
     const scroll = ctx.services.require('layout.scrollSync');
     const before = scroll.getScroll();
@@ -195,7 +214,12 @@ export class ZoomPlugin implements EditorPlugin {
     this.current = next;
     ruler.setFrameWidth(this.base * next);
     const frameWidth = ruler.frameWidth();
-    ctx.events.emit('zoom:changed', { zoom: next, frameWidth, previousZoom, previousFrameWidth });
+    this.announcing = true;
+    try {
+      ctx.events.emit('zoom:changed', { zoom: next, frameWidth, previousZoom, previousFrameWidth });
+    } finally {
+      this.announcing = false;
+    }
     scroll.scrollTo({ left: anchoredScrollLeft(offset, before.scrollLeft, previousFrameWidth, frameWidth) });
   }
 
@@ -213,11 +237,20 @@ export class ZoomPlugin implements EditorPlugin {
     return Math.min(state.viewportWidth, Math.max(0, anchor.clientX - left));
   }
 
-  /** Ctrl / Cmd + molette : un palier, ancré sous le pointeur. */
+  /**
+   * Ctrl / Cmd + molette : un palier par `WHEEL_STEP_PX` de mouvement cumulé
+   * (un cran de souris ; plusieurs petits mouvements de pincement), ancré
+   * sous le pointeur. Un changement de sens repart de zéro.
+   */
   private onWheel(event: WheelEvent): void {
     if (!(event.ctrlKey || event.metaKey) || event.deltaY === 0) return;
     event.preventDefault();
-    const direction = event.deltaY < 0 ? 1 : -1;
+    const delta = event.deltaMode === WHEEL_DELTA_LINE ? event.deltaY * WHEEL_LINE_PX : event.deltaY;
+    const sameDirection = Math.sign(delta) === Math.sign(this.wheelTotal);
+    this.wheelTotal = (sameDirection ? this.wheelTotal : 0) + delta;
+    if (Math.abs(this.wheelTotal) < WHEEL_STEP_PX) return;
+    const direction = this.wheelTotal < 0 ? 1 : -1;
+    this.wheelTotal = 0;
     this.setZoom(stepZoom(this.current, direction, this.levels, this.range), { clientX: event.clientX });
   }
 

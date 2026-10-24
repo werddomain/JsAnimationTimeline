@@ -458,3 +458,24 @@ describe('layout.playhead zoom and end of playback', () => {
     expect(zone('ruler').scrollLeft).toBe(expected);
   });
 });
+
+describe('layout.playhead click with the head out of view', () => {
+  it('seeks to the clicked frame without first scrolling back to the old head', () => {
+    // Arrange
+    const { editor, zone, tick } = setup();
+    makeScrollable(zone('frames'), { scrollWidth: 1500, scrollHeight: 200, clientWidth: 150, clientHeight: 200 });
+    const order: string[] = [];
+    editor.on('playhead:scrubStart', (event) => order.push(`start:${event.frame}`));
+    editor.on('playhead:changed', (event) => order.push(`changed:${event.frame}`));
+    editor.getService('layout.scrollSync')?.scrollTo({ left: 600 });
+
+    // Act : image 1 hors de vue ; clic à 3 images du bord, soit l'image 44.
+    zone('ruler').dispatchEvent(pointer('pointerdown', 100 + 15 * 3 + 2));
+    tick();
+
+    // Assert
+    expect(zone('frames').scrollLeft).toBe(600);
+    expect(editor.playback.frame).toBe(44);
+    expect(order).toEqual(['start:44', 'changed:44']);
+  });
+});
