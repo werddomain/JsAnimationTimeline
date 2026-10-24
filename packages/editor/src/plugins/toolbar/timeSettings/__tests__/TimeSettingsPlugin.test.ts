@@ -197,3 +197,20 @@ describe('toolbar.timeSettings destroy', () => {
     expect(host?.querySelector(`.${TIME_SETTINGS_CLASS}`)).toBeNull();
   });
 });
+
+describe('toolbar.timeSettings message', () => {
+  it('clears an old refusal when the document changes by undo', () => {
+    // Arrange
+    const { editor, fps, message } = mount();
+    enter(fps, '30');
+    enter(fps, '999');
+    expect(message().hidden).toBe(false);
+
+    // Act
+    editor.undo();
+
+    // Assert
+    expect(message().hidden).toBe(true);
+    expect(fps.value).toBe('24');
+  });
+});

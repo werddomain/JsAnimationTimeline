@@ -85,7 +85,11 @@ export class TimeSettingsPlugin implements EditorPlugin {
   private cleanups: Array<() => void> = [];
 
   readonly init = (ctx: IEditorContext): void => {
-    const sync = (): void => this.syncFields();
+    // Un nouveau document (annuler, rétablir, chargement) efface aussi un ancien motif de refus.
+    const sync = (): void => {
+      this.showMessage(undefined);
+      this.syncFields();
+    };
     const cleanups = [
       ctx.events.on('document:loaded', sync),
       ctx.events.on('document:changed', sync),
