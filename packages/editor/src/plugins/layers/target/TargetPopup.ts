@@ -85,6 +85,8 @@ export interface ITargetPopupDraft {
   readonly stage: string | null;
   /** Partie qui avait le focus (`option:2`, `text`, `pick`...), `null` si le focus était ailleurs. */
   readonly focus: string | null;
+  /** Vrai si l'utilisateur a modifié la saisie (type, texte ou scène) : seule une saisie modifiée est reprise. */
+  readonly edited: boolean;
 }
 
 /** Ce que la fenêtre reçoit du plugin. */
@@ -102,6 +104,8 @@ export interface ITargetPopupOptions {
   readonly onClose: () => void;
   /** Saisie à reprendre (reconstruction) ; le focus n'est donné que si `draft.focus` est connu. */
   readonly draft?: ITargetPopupDraft;
+  /** Appelé quand un choix sur la scène se termine sans fermer la fenêtre (annulé, échoué, refusé). */
+  readonly onPickEnd?: () => void;
 }
 
 /** Fenêtre ouverte. */
@@ -132,6 +136,8 @@ interface IFormParts {
   readonly kind: HTMLSelectElement;
   readonly text: HTMLInputElement;
   readonly stageSelect: HTMLSelectElement | null;
+  /** Vrai si l'utilisateur a modifié le type, le texte ou la scène. */
+  readonly isEdited: () => boolean;
 }
 
 /** Nom de la partie `element` de la fenêtre (`option:i` pour une cible de la liste), pour la retrouver. */
@@ -239,6 +245,10 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
     close(true);
   };
 
+  const pickEnded = (): void => {
+    if (!closed) options.onPickEnd?.();
+  };
+
   const startPick = async (): Promise<void> => {
     if (pickController !== null || closed) return;
     const controller = new AbortController();
@@ -253,6 +263,7 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
       if (!controller.signal.aborted && !closed) {
         parts.status.textContent = TargetPopupLabels.pickFailed;
         backToPickButton();
+        pickEnded();
       }
       return;
     } finally {
@@ -263,6 +274,7 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
     // Hors du `try` : une erreur d'enregistrement n'est pas prise pour un échec du choix.
     if (picked !== null) finish(picked);
     backToPickButton();
+    pickEnded();
   };
 
   const abortPick = (): void => {
@@ -271,6 +283,7 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
     pickController = null;
     parts.status.textContent = '';
     backToPickButton();
+    pickEnded();
   };
 
   const parts = buildPopup(doc, options, finish, () => void startPick());
@@ -295,7 +308,8 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
       kind: parts.form.kind.value === 'ref' ? 'ref' : 'selector',
       text: parts.form.text.value,
       stage: parts.form.stageSelect?.value ?? null,
-      focus: partOf(parts.element, doc.activeElement)
+      focus: partOf(parts.element, doc.activeElement),
+      edited: parts.form.isEdited()
     })
   };
 }
@@ -416,10 +430,20 @@ function currentRefStage(current: LayerTarget | undefined): string | undefined {
  */
 function refStageOf(stage: IEditorStage, current: LayerTarget | undefined, select: HTMLSelectElement | null, text: string): string | undefined {
   if (select !== null) return select.value === '' ? undefined : select.value;
-  const only = stage.stages.length === 1 ? stage.stages[0]?.id : undefined;
+  const only = stage.stages.length === 1 ? stage.stages[0] : undefined;
   if (only === undefined) return currentRefStage(current);
   const unchangedStageless = current !== undefined && 'ref' in current && current.stage === undefined && current.ref === text;
-  return unchangedStageless ? undefined : only;
+  // Gardée sans scène seulement si la scène la prend telle quelle ; sinon rattachée (l'alerte disparaît).
+  return unchangedStageless && acceptsTarget(only, { ref: text }) ? undefined : only.id;
+}
+
+/** `stage.accepts(target)`, faux si la scène lève. */
+function acceptsTarget(stage: { accepts(target: LayerTarget): boolean }, target: LayerTarget): boolean {
+  try {
+    return stage.accepts(target) === true;
+  } catch {
+    return false;
+  }
 }
 
 /** Saisie libre : type, texte, scène (voir `buildStageSelect`), bouton Appliquer. */
@@ -446,7 +470,8 @@ function buildForm(
   form.append(kind, text);
   const stageSelect = buildStageSelect(doc, options.stage, current);
   const draft = options.draft;
-  if (draft !== undefined) {
+  // Seule une saisie modifiée est reprise : sinon la nouvelle cible remplit le formulaire.
+  if (draft !== undefined && draft.edited) {
     kind.value = draft.kind;
     text.value = draft.text;
     // Une scène qui n'est plus dans la liste (« (inconnue) » devenue connue) garde le préréglage.
@@ -479,7 +504,14 @@ function buildForm(
     }
     finish(target);
   });
-  return { element: form, kind, text, stageSelect };
+  let edited = draft?.edited === true;
+  const markEdited = (): void => {
+    edited = true;
+  };
+  kind.addEventListener('change', markEdited);
+  text.addEventListener('input', markEdited);
+  stageSelect?.addEventListener('change', markEdited);
+  return { element: form, kind, text, stageSelect, isEdited: () => edited };
 }
 
 /**
@@ -499,8 +531,10 @@ function buildStageSelect(doc: Document, stage: IEditorStage, current: LayerTarg
   ids.forEach((id) => select.appendChild(option(doc, id, id)));
   if (unknown) select.appendChild(option(doc, TargetPopupLabels.unknownStage(currentStage), currentStage));
   select.appendChild(option(doc, TargetPopupLabels.anyStage, ''));
-  const isStagelessRef = current !== undefined && 'ref' in current && currentStage === undefined;
-  select.value = currentStage ?? (isStagelessRef ? '' : ids[0] ?? '');
+  // « Automatique » seulement pour une ref sans scène qu'une scène prend telle quelle.
+  const keepsStageless = current !== undefined && 'ref' in current && currentStage === undefined &&
+    stage.stages.some((candidate) => acceptsTarget(candidate, current));
+  select.value = currentStage ?? (keepsStageless ? '' : ids[0] ?? '');
   return select;
 }
 
