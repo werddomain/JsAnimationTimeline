@@ -396,6 +396,113 @@ describe('mouse', () => {
     expect(h.selection.selected()).toEqual(['a']);
   });
 
+  it('replays the focus received during a press whose click does nothing (released elsewhere)', () => {
+    const h = setup();
+    h.selection.select(['a']);
+    h.events.length = 0;
+    mouseDown(row(h, 'c'));
+    row(h, 'c').focus();
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    click(h.list.element() as Element);
+    expect(h.selection.selected()).toEqual(['a']);
+    expect(h.selection.focused()).toBe('c');
+    expect(row(h, 'c').tabIndex).toBe(0);
+    expect(row(h, 'a').tabIndex).toBe(-1);
+    expect(h.events).toEqual([{ ids: ['a'], previous: ['a'], anchor: 'a', focused: 'c' }]);
+  });
+
+  it('keeps the selection when a press on empty space is released over a row', () => {
+    const h = setup();
+    h.selection.select(['a', 'c']);
+    mouseDown(h.list.element() as Element);
+    row(h, 'b').dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    click((h.list.element() as HTMLElement).parentElement as Element);
+    expect(h.selection.selected()).toEqual(['a', 'c']);
+    mouseDown(h.list.element() as Element);
+    row(h, 'b').dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    click(h.list.element() as Element);
+    expect(h.selection.selected()).toEqual(['a', 'c']);
+  });
+
+  it('still clears when the press starts and ends on empty space', () => {
+    const h = setup();
+    h.selection.select(['a']);
+    mouseDown(h.list.element() as Element);
+    (h.list.element() as Element).dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    click(h.list.element() as Element);
+    expect(h.selection.selected()).toEqual([]);
+  });
+
+  it('replays the pending focus from the zone click handler', () => {
+    const h = setup();
+    h.selection.select(['a']);
+    mouseDown(row(h, 'c'));
+    row(h, 'c').focus();
+    click((h.list.element() as HTMLElement).parentElement as Element);
+    expect(h.selection.selected()).toEqual(['a']);
+    expect(h.selection.focused()).toBe('c');
+  });
+
+  it.each(['dragend', 'contextmenu'])('%s flushes the pending focus once and resets the release state', (type) => {
+    const h = setup();
+    h.selection.select(['a']);
+    mouseDown(row(h, 'a'));
+    row(h, 'c').focus();
+    row(h, 'b').dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    document.dispatchEvent(new Event(type, { bubbles: true }));
+    expect(h.selection.focused()).toBe('c');
+    h.events.length = 0;
+    click(row(h, 'a'));
+    expect(h.selection.focused()).toBe('a');
+    expect(h.events).toHaveLength(1);
+    mouseDown(h.list.element() as Element);
+    row(h, 'b').dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    document.dispatchEvent(new Event(type, { bubbles: true }));
+    click(h.list.element() as Element);
+    expect(h.selection.selected()).toEqual([]);
+  });
+
+  it('leaves no stale press state or timer after destroy', () => {
+    jest.useFakeTimers();
+    try {
+      const h = setup();
+      const base = jest.getTimerCount();
+      mouseDown(row(h, 'a'));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      expect(jest.getTimerCount()).toBe(base + 1);
+      h.editor.destroy();
+      expect(jest.getTimerCount()).toBeLessThanOrEqual(base);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('leaves no stale press state or timer after a second render', () => {
+    jest.useFakeTimers();
+    try {
+      const events: LayerSelectionChangedEvent[] = [];
+      const layers = new LayersPlugin();
+      const plugin = layers.children.find((child) => child instanceof LayerSelectionPlugin) as LayerSelectionPlugin;
+      const host = document.createElement('div');
+      document.body.appendChild(host);
+      const editor = createEditor(host, { data: tree, defaultPlugins: [new LayoutPlugin(), layers], plugins: [recorder(events)] });
+      const list = editor.getService('layers.list');
+      const selection = editor.getService('layers.selection') as ILayerSelectionService;
+      selection.select(['a']);
+      const base = jest.getTimerCount();
+      mouseDown(list?.rowElement('a') as Element);
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      expect(jest.getTimerCount()).toBe(base + 1);
+      plugin.render();
+      expect(jest.getTimerCount()).toBe(base);
+      click(list?.element() as Element);
+      expect(selection.selected()).toEqual([]);
+      editor.destroy();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('forgets a stale press: mousedown without click, then a click without mousedown on the zone clears', async () => {
     const h = setup();
     h.selection.select(['a']);
@@ -637,7 +744,85 @@ describe('pruning', () => {
   it('focuses the first row after a load when the list held the DOM focus', () => {
     const h = setup();
     click(row(h, 'b'));
+    h.events.length = 0;
     h.editor.load(doc([layer('x'), layer('y')]));
+    expect(document.activeElement).toBe(row(h, 'x'));
+    expect(h.events).toEqual([{ ids: [], previous: ['b'], focused: 'x' }]);
+    expect(row(h, 'x').tabIndex).toBe(0);
+  });
+
+  it('emits exactly one event on load with several rows selected and list focus, focused = first row', () => {
+    const h = setup();
+    click(row(h, 'a'));
+    click(row(h, 'c'), { ctrl: true });
+    h.events.length = 0;
+    h.editor.load(doc([layer('x'), layer('c')]));
+    expect(h.events).toEqual([{ ids: [], previous: ['a', 'c'], focused: 'x' }]);
+  });
+
+  it('keeps restoring the focus when the focused row is removed after a Chromium-style focusout', () => {
+    const h = setup();
+    click(row(h, 'b'));
+    // Chromium : focusout (relatedTarget null) part avant le détachement de la ligne retirée.
+    row(h, 'b').dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }));
+    h.editor.execute(
+      createCommand(
+        'Supprimer',
+        (current) => ({ ...current, layers: [folder('f', [layer('a'), folder('g', [])]), layer('c')] }),
+        () => tree
+      )
+    );
+    const focused = h.selection.focused() as string;
+    expect(focused).toBe('c');
+    expect(document.activeElement).toBe(row(h, focused));
+  });
+
+  it('focuses the first row on load after a Chromium-style focusout on the removed focused row', () => {
+    const h = setup();
+    click(row(h, 'b'));
+    row(h, 'b').dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }));
+    h.editor.load(doc([layer('x'), layer('y')]));
+    expect(document.activeElement).toBe(row(h, 'x'));
+  });
+
+  it('does not steal the focus on load when focusedElement is stale and focus is elsewhere', () => {
+    const h = setup();
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+    // focusin signalé sur une ligne alors que le focus réel est ailleurs : seul le garde le détecte.
+    row(h, 'b').dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    h.editor.load(doc([layer('x')]));
+    expect(document.activeElement).toBe(outside);
+  });
+
+  it('does not steal the focus on load when it moved elsewhere', () => {
+    const h = setup();
+    click(row(h, 'b'));
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+    h.editor.load(doc([layer('x')]));
+    expect(document.activeElement).toBe(outside);
+  });
+
+  it('does not steal the focus on load after it left to nothing', async () => {
+    const h = setup();
+    click(row(h, 'b'));
+    row(h, 'b').blur();
+    await Promise.resolve();
+    h.editor.load(doc([layer('x')]));
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('keeps tracking a row blurred and refocused in the same stack', async () => {
+    const h = setup();
+    click(row(h, 'b'));
+    row(h, 'b').focus();
+    row(h, 'b').blur();
+    row(h, 'b').focus();
+    await Promise.resolve();
+    h.editor.load(doc([layer('x')]));
     expect(document.activeElement).toBe(row(h, 'x'));
   });
 
