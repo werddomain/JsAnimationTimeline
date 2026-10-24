@@ -3,7 +3,7 @@
  * Implémentation de `IEditor` : délègue au Store, à la `CommandStack`, à
  * l'`EventBus`, à la lecture et au registre des services créés par
  * `createEditor()`, et gère la destruction (ordre : `editor:destroying`,
- * `destroy` des plugins en ordre inverse, lecture, services, abonnements,
+ * `destroy` des plugins en ordre inverse, lecture, scènes, services, abonnements,
  * emplacement racine, élément racine).
  *
  * Interne au noyau : l'application ne reçoit que le type `IEditor`.
@@ -24,6 +24,8 @@ import type { EditorDestroyingEvent, TimelineEventMap } from '../events/Timeline
 import type { PlaybackController } from '../playback/PlaybackController';
 import type { FrameListener, IEditorPlayback, IFrameSample } from '../playback/types';
 import type { PluginHost } from '../plugin/PluginHost';
+import type { EditorStageHost } from '../stage/EditorStageHost';
+import type { IEditorStage } from '../stage/types';
 import { ROOT_SLOT } from '../plugin/SlotRegistry';
 import type { Store } from '../store/Store';
 import type { EditorLifecycle } from './EditorLifecycle';
@@ -42,6 +44,10 @@ export interface IEditorParts {
   readonly playback: PlaybackController;
   /** Façade de la lecture (`ctx.playback`, `editor.playback`). */
   readonly playbackFacade: IEditorPlayback;
+  /** Scènes branchées. */
+  readonly stageHost: EditorStageHost;
+  /** Façade des scènes (`ctx.stage`, `editor.stage`). */
+  readonly stageFacade: IEditorStage;
   /** Élément racine (classe `JsTimeLine`), défini comme `ROOT_SLOT`. */
   readonly element: HTMLElement;
   readonly lifecycle: EditorLifecycle;
@@ -49,11 +55,12 @@ export interface IEditorParts {
 
 /**
  * Libère ce que l'éditeur a mis en place hors des plugins : lecture,
- * services, abonnements, emplacement racine et élément racine. Sert à
+ * scènes (chaque calque relâché, puis chaque scène détachée), services, abonnements, emplacement racine et élément racine. Sert à
  * `destroy` et à l'annulation d'un démarrage raté.
  */
 export function releaseEditorParts(parts: IEditorParts): void {
   parts.playback.destroy();
+  parts.stageHost.destroy();
   parts.services.clear();
   parts.bus.clear();
   parts.host.slots.remove(ROOT_SLOT);
@@ -81,6 +88,11 @@ export class Editor implements IEditor {
   get playback(): IEditorPlayback {
     this.assertActive('playback');
     return this.parts.playbackFacade;
+  }
+
+  get stage(): IEditorStage {
+    this.assertActive('stage');
+    return this.parts.stageFacade;
   }
 
   get registry(): PropertyRegistry {
@@ -141,6 +153,11 @@ export class Editor implements IEditor {
   sample(frame?: number): IFrameSample {
     this.assertActive('sample');
     return this.parts.playback.sample(frame);
+  }
+
+  refreshTargets(layerId?: string): void {
+    this.assertActive('refreshTargets');
+    this.parts.stageHost.refreshTargets(layerId);
   }
 
   onFrame(listener: FrameListener): () => void {

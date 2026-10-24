@@ -10,7 +10,9 @@
  *   parents) est calculée une fois par document et mise en cache : les
  *   documents sont immuables, une nouvelle référence veut dire un nouveau
  *   document.
- * - L'échantillon rendu est figé.
+ * - L'échantillon rendu est figé, et calculé à la première lecture de
+ *   `layers` ou de `layer()` : un `frame:render` que personne ne lit ne
+ *   coûte aucune évaluation (les scènes évaluent leurs calques elles-mêmes).
  */
 
 import {
@@ -45,13 +47,17 @@ function collectEntries(doc: ITimelineDocument): readonly ILayerEntry[] {
   return Object.freeze(entries);
 }
 
-function createSample(time: ITransportTime, layers: readonly ILayerSample[]): IFrameSample {
+function createSample(time: ITransportTime, evaluate: () => ILayerSample[]): IFrameSample {
+  let layers: readonly ILayerSample[] | undefined;
   let byId: ReadonlyMap<string, ILayerSample> | undefined;
+  const all = (): readonly ILayerSample[] => (layers ??= Object.freeze(evaluate()));
   return Object.freeze<IFrameSample>({
     time: Object.freeze({ ...time }),
-    layers: Object.freeze(layers),
+    get layers(): readonly ILayerSample[] {
+      return all();
+    },
     layer: (layerId) => {
-      byId ??= new Map(layers.map((sample) => [sample.layerId, sample]));
+      byId ??= new Map(all().map((sample) => [sample.layerId, sample]));
       return byId.get(layerId);
     }
   });
@@ -72,11 +78,15 @@ export class FrameSampler {
     return toTransportTime(frameToTime(at, doc.settings.fps), doc.settings);
   }
 
-  /** Échantillon figé de `doc` à `time` (l'image fractionnaire est bornée à 1..totalFrames). */
+  /** Échantillon figé de `doc` à `time` (l'image fractionnaire est bornée à 1..totalFrames), évalué à la première lecture. */
   sample(doc: ITimelineDocument, time: ITransportTime): IFrameSample {
+    return createSample(time, () => this.evaluate(doc, time));
+  }
+
+  private evaluate(doc: ITimelineDocument, time: ITransportTime): ILayerSample[] {
     const at = clampFrame(doc, time.frame);
     const options = { registry: this.registry, unknownProperties: 'skip' as const };
-    const layers = this.layersOf(doc).map(({ layer, editorVisible }): ILayerSample => {
+    return this.layersOf(doc).map(({ layer, editorVisible }): ILayerSample => {
       const state = evaluateLayer(layer, at, options);
       return Object.freeze({
         layerId: layer.id,
@@ -87,7 +97,6 @@ export class FrameSampler {
         editorVisible
       });
     });
-    return createSample(time, layers);
   }
 
   private layersOf(doc: ITimelineDocument): readonly ILayerEntry[] {
