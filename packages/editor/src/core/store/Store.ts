@@ -18,15 +18,20 @@
  * `load` ni le Store brut.
  *
  * Validation : le document initial et chaque document chargé passent par
- * `validateDocument` du runtime ; un document invalide lève une `StoreError`.
- * Les documents produits par les commandes ne sont pas revalidés.
+ * `validateDocument` du runtime avec `allowLiveTargets: false` ; un document
+ * invalide lève une `StoreError`. Les cibles vivantes `{ element }` sont donc
+ * refusées : le document est gelé en profondeur, ce qui gèlerait un nœud DOM
+ * ou un objet three.js. Les pistes dont le nom est inconnu du registre sont
+ * signalées à `onWarning` (par défaut `console.warn`), ou refusées avec
+ * `strictProperties`. Les documents produits par les commandes ne sont pas
+ * revalidés.
  *
  * Événements : `document:changed` à chaque écriture d'une commande ;
  * `load` vide l'historique (`history:changed`) puis émet `document:loaded`.
  */
 
-import { validateDocument } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { defaultPropertyRegistry, validateDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
 import { CommandStack } from '../commands/CommandStack';
 import type { CommandStackOptions } from '../commands/CommandStack';
 import type { IDocumentChange, IDocumentWriter } from '../commands/documentChange';
@@ -35,22 +40,44 @@ import type { EventBus } from '../events/EventBus';
 import './storeEvents';
 import type { DocumentChangedEvent } from './storeEvents';
 import { StoreError } from './StoreError';
+import { findUnknownTracks } from './unknownTracks';
+import type { IUnknownPropertyIssue } from './unknownTracks';
 
-function assertValid(doc: ITimelineDocument): void {
-  const issues = validateDocument(doc);
-  if (issues.length > 0) throw new StoreError(issues);
+/** Reçoit les pistes inconnues d'un document accepté. */
+export type StoreWarningHandler = (issues: readonly IUnknownPropertyIssue[]) => void;
+
+/** Options du Store. */
+export interface StoreOptions {
+  /** Registre où chercher les noms de pistes. Par défaut : `defaultPropertyRegistry`. */
+  readonly registry?: PropertyRegistry;
+  /** Refuse (`StoreError`) un document qui a une piste inconnue du registre, au lieu d'avertir. */
+  readonly strictProperties?: boolean;
+  /** Reçoit les pistes inconnues d'un document accepté. Par défaut : `console.warn`. */
+  readonly onWarning?: StoreWarningHandler;
 }
+
+const warnInConsole: StoreWarningHandler = (issues) => {
+  const lines = issues.map((issue) => `- ${issue.path} : ${issue.message}`);
+  console.warn(`Pistes inconnues du registre de l'éditeur (ignorées au rendu) :\n${lines.join('\n')}`);
+};
 
 /** Conteneur du document v2 courant. */
 export class Store {
   private current: ITimelineDocument;
   private stack: CommandStack | undefined;
+  private readonly registry: PropertyRegistry;
+  private readonly strictProperties: boolean;
+  private readonly onWarning: StoreWarningHandler;
 
   constructor(
     private readonly bus: EventBus,
-    initial: ITimelineDocument
+    initial: ITimelineDocument,
+    options: StoreOptions = {}
   ) {
-    assertValid(initial);
+    this.registry = options.registry ?? defaultPropertyRegistry;
+    this.strictProperties = options.strictProperties ?? false;
+    this.onWarning = options.onWarning ?? warnInConsole;
+    this.accept(initial);
     this.current = initial;
   }
 
@@ -65,7 +92,7 @@ export class Store {
    * cours (`history:changed`), puis émet `document:loaded`.
    */
   load(doc: ITimelineDocument): void {
-    assertValid(doc);
+    this.accept(doc);
     const previous = this.current;
     this.current = doc;
     this.stack?.clear();
@@ -83,6 +110,16 @@ export class Store {
     }
     this.stack = new CommandStack(this.bus, this.createWriter(), options);
     return this.stack;
+  }
+
+  /** Valide `doc` (lève `StoreError`), puis signale ou refuse ses pistes inconnues. */
+  private accept(doc: ITimelineDocument): void {
+    const issues = validateDocument(doc, { allowLiveTargets: false });
+    if (issues.length > 0) throw new StoreError(issues);
+    const unknown = findUnknownTracks(doc, this.registry);
+    if (unknown.length === 0) return;
+    if (this.strictProperties) throw new StoreError(unknown);
+    this.onWarning(Object.freeze(unknown));
   }
 
   private createWriter(): IDocumentWriter {

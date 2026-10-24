@@ -5,10 +5,13 @@
  *
  * Le contexte ne donne que des façades : les événements sans `clear`, le
  * document en lecture seule, l'historique sans `clear` ni `load`, les
- * emplacements de rendu, l'élément racine de l'éditeur, la racine de
- * recherche des cibles et le registre des services entre plugins. Le Store,
- * la `CommandStack` et l'`EventBus` bruts restent la propriété de
- * `createEditor()`.
+ * emplacements de rendu, l'élément racine de l'éditeur, la lecture (posée
+ * sur le `Transport` du runtime), le registre de propriétés figé et le
+ * registre des services entre plugins. Le Store, la `CommandStack`,
+ * l'`EventBus` et le `Transport` bruts restent la propriété de
+ * `createEditor()`. Le contexte ne donne aucune racine DOM de recherche des
+ * cibles : la timeline peut animer autre chose que du HTML (voir
+ * `doc/v2/scene-developpeur.md`).
  *
  * Après `editor.destroy()`, les méthodes qui agissent (abonnement, émission,
  * exécution, fourniture d'un service) lèvent une erreur ; les lectures, `off`
@@ -25,16 +28,18 @@
  * commandes le changent.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
 import type { ICommand } from '../commands/ICommand';
 import type { CancellableHandler, EventHandler, EventName } from '../events/EventBus';
 import type { TimelineEventMap } from '../events/TimelineEventMap';
+import type { IEditorPlayback } from '../playback/types';
 import type { IPlugin } from '../plugin/IPlugin';
 import type { SlotRegistry } from '../plugin/SlotRegistry';
-// Import pour effet : garde les augmentations de TimelineEventMap (Store et
-// CommandStack) visibles pour tout fichier qui importe le contexte.
+// Import pour effet : garde les augmentations de TimelineEventMap (Store,
+// CommandStack et lecture) visibles pour tout fichier qui importe le contexte.
 import '../store/storeEvents';
 import '../commands/commandEvents';
+import '../playback/playbackEvents';
 
 /** Nom d'un événement de l'éditeur (clé de `TimelineEventMap`). */
 export type EditorEventName = EventName<TimelineEventMap>;
@@ -52,7 +57,13 @@ export type CoreEventName =
   | 'document:changed'
   | 'command:before'
   | 'command:refused'
-  | 'history:changed';
+  | 'history:changed'
+  | 'playhead:changed'
+  | 'frame:render'
+  | 'playback:play'
+  | 'playback:pause'
+  | 'playback:loop'
+  | 'playback:complete';
 
 /** Événement qu'un plugin peut émettre : tout événement de l'éditeur sauf ceux du noyau. */
 export type PluginEventName = Exclude<EditorEventName, CoreEventName>;
@@ -181,8 +192,18 @@ export interface IEditorContext {
   readonly slots: SlotRegistry;
   /** Élément racine de l'éditeur (classe `JsTimeLine`), enfant du conteneur hôte. */
   readonly container: HTMLElement;
-  /** Racine où chercher les cibles des calques (par défaut, le document du conteneur). */
-  readonly root: ParentNode;
+  /**
+   * Lecture : tête de lecture, play / pause / seek, boucle, vitesse et
+   * échantillons. Rendu regroupé une fois par image d'affichage
+   * (`playhead:changed`, `frame:render`).
+   */
+  readonly playback: IEditorPlayback;
+  /**
+   * Registre de propriétés de l'éditeur, figé : copie de `options.registry`
+   * (ou du registre par défaut), construite avant le Store. `register` et
+   * `unregister` lèvent une erreur.
+   */
+  readonly registry: PropertyRegistry;
   /** Services entre plugins (API typées par `EditorServiceMap`). */
   readonly services: IEditorServices;
 }

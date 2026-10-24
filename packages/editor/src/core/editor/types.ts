@@ -4,7 +4,7 @@
  * `IEditor` qu'il retourne à l'application hôte.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { IPlayerClock, ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
 import type { ICommand } from '../commands/ICommand';
 import type {
   EditorEventName,
@@ -14,6 +14,8 @@ import type {
 } from '../context/IEditorContext';
 import type { EventHandler } from '../events/EventBus';
 import type { TimelineEventMap } from '../events/TimelineEventMap';
+import type { FrameListener, IEditorPlayback, IFrameSample } from '../playback/types';
+import type { StoreWarningHandler } from '../store/Store';
 
 /** Options de `createEditor()`. */
 export interface EditorOptions {
@@ -28,8 +30,31 @@ export interface EditorOptions {
    * copie (`structuredClone(data)`) pour garder un original modifiable.
    */
   readonly data?: ITimelineDocument;
-  /** Racine où les plugins cherchent les cibles des calques. Par défaut : le document du conteneur. */
+  /**
+   * Racine de la scène HTML par défaut (C7). Par défaut : le document du
+   * conteneur. Les plugins ne la reçoivent plus (`ctx.root` est retiré) : ils
+   * passent par la scène.
+   */
   readonly root?: ParentNode;
+  /**
+   * Registre de propriétés. L'éditeur en garde une copie figée, construite
+   * avant le Store (`ctx.registry`) : un `registerProperty()` fait après
+   * `createEditor()` n'y entre pas. Par défaut : `defaultPropertyRegistry`.
+   */
+  readonly registry?: PropertyRegistry;
+  /**
+   * Horloge de la lecture (`now`, `requestFrame`, `cancelFrame`). Par défaut :
+   * celle du navigateur (`performance.now`, `requestAnimationFrame`). Une
+   * horloge manuelle (`createManualClock()`) sert aux boucles de jeu et aux tests.
+   */
+  readonly clock?: IPlayerClock;
+  /**
+   * Refuse (`StoreError`) un document dont une piste a un nom inconnu du
+   * registre, au lieu d'avertir. Faux par défaut.
+   */
+  readonly strictProperties?: boolean;
+  /** Reçoit les pistes inconnues du registre d'un document accepté. Par défaut : `console.warn`. */
+  readonly onWarning?: StoreWarningHandler;
   /** Plugins ajoutés après le jeu par défaut (l'ordre d'init suit les dépendances). */
   readonly plugins?: readonly EditorPlugin[];
   /**
@@ -59,6 +84,10 @@ export interface IEditor {
   readonly canRedo: boolean;
   /** Vrai une fois `destroy()` terminé. */
   readonly isDestroyed: boolean;
+  /** Lecture (même façade que `ctx.playback`). */
+  readonly playback: IEditorPlayback;
+  /** Registre de propriétés figé de l'éditeur (même objet que `ctx.registry`). */
+  readonly registry: PropertyRegistry;
 
   /** S'abonne à un événement de l'éditeur ; retourne la fonction de désabonnement. */
   on<K extends EditorEventName>(name: K, handler: EventHandler<TimelineEventMap[K]>): () => void;
@@ -81,6 +110,16 @@ export interface IEditor {
    * Comme `options.data`, `doc` est gelé en profondeur (en place) une fois validé.
    */
   load(doc: ITimelineDocument): void;
+  /**
+   * Valeurs de chaque calque à l'image `frame` (fractionnaire permise,
+   * bornée), ou à la position courante. Synchrone, sans événement.
+   */
+  sample(frame?: number): IFrameSample;
+  /**
+   * Appelé une fois par image rendue (après chaque `frame:render`), avec
+   * l'échantillon. Retourne la fonction de désabonnement.
+   */
+  onFrame(listener: FrameListener): () => void;
   /** API d'un service fourni par un plugin, ou `undefined`. */
   getService<K extends EditorServiceId>(id: K): EditorServiceMap[K] | undefined;
 
