@@ -37,10 +37,13 @@ describe('StageReportFeed', () => {
     // Act
     feed.beginLoad([]);
     feed.add(unknownStage);
+    feed.completePass();
     feed.beginLoad([unknownStage]);
     feed.add(unknownStage);
     feed.add(unrouted);
+    feed.completePass();
     feed.beginLoad([unknownStage, unrouted]);
+    feed.completePass();
     feed.beginLoad([]);
     feed.add(unknownStage);
 

@@ -22,7 +22,7 @@
  *   le précédent pendant le retour arrière d'un document refusé).
  * - `stage:report` n'émet que les avertissements absents du document
  *   précédent, y compris ceux relevés après son chargement (erreur de
- *   `render` ou de `sync`), et les erreurs de scène reportées jusqu'au
+ *   `render` ou de `sync`), et ceux des listes reportées jusqu'au
  *   prochain passage `sync` puis `render` (plusieurs documents dans une même
  *   image) ; ceux qui existent à `editor:ready` sont émis à ce moment-là
  *   (voir `StageReportFeed`).

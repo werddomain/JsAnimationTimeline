@@ -137,3 +137,31 @@ describe('StageHost onTargetsChanged errors', () => {
     }
   });
 });
+
+describe('StageHost destroy', () => {
+  it('releases and detaches even when a stage unsubscribe throws', () => {
+    // Arrange
+    const fake = createFakeStage('canvas', { subscribe: true });
+    fake.objects.set('a', { name: 'a' });
+    const errors: unknown[] = [];
+    const targets = fake.stage.targets as { subscribe: (onChange: () => void) => () => void };
+    targets.subscribe = () => () => {
+      throw new Error('désabonnement');
+    };
+    const host = new StageHost({
+      stages: [fake.stage],
+      registry: defaultPropertyRegistry,
+      onError: (error) => errors.push(error),
+      now: () => ({ time: timeAt(1), state: { playing: false, speed: 1 } })
+    });
+    host.load(docOf([refLayer('a', 'a', 'canvas')]));
+    fake.calls.length = 0;
+
+    // Act
+    host.destroy();
+
+    // Assert
+    expect(fake.calls).toEqual(['release a a', 'detach']);
+    expect(errors).toHaveLength(1);
+  });
+});
