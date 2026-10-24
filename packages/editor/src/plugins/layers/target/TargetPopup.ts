@@ -6,10 +6,14 @@
  * - bouton « Choisir sur la scène » : `targets.pick(signal)` de la première
  *   scène qui en a un (désactivé sinon), abandonné par la fermeture, Échap ou
  *   la destruction ; un résultat tardif ou annulé (`null`) ne change rien ;
- * - saisie libre : sélecteur CSS ou référence. Une référence est rattachée à
- *   la scène choisie (liste affichée quand il y a plusieurs scènes), sinon à
- *   la seule scène quand il n'y en a qu'une, sinon garde la scène de la cible
- *   courante : appliquer le texte prérempli ne change donc rien.
+ * - saisie libre : sélecteur CSS ou référence. La liste des scènes s'affiche
+ *   quand il y en a plusieurs, ou quand la cible courante nomme une scène
+ *   inconnue (« (inconnue) », pour pouvoir la corriger). Elle est préréglée
+ *   sur la scène de la cible courante, sinon sur la première scène ;
+ *   « Automatique » (aucune scène) reste un choix explicite. Sans liste, une
+ *   référence va à la seule scène, sauf la référence préremplie d'une cible
+ *   sans scène, gardée telle quelle : appliquer le texte prérempli ne change
+ *   donc jamais rien.
  *
  * Fenêtre `role="dialog"` ajoutée dans l'élément de l'éditeur, placée comme
  * le menu de `layers.icon`. Elle se ferme sur Échap (focus rendu au bouton de
@@ -73,6 +77,16 @@ export type ITargetApplyResult =
   | { readonly kind: 'applied' | 'unchanged' }
   | { readonly kind: 'refused'; readonly message: string };
 
+/** Saisie en cours et partie qui a le focus, reprises quand la fenêtre est reconstruite. */
+export interface ITargetPopupDraft {
+  readonly kind: 'selector' | 'ref';
+  readonly text: string;
+  /** Valeur de la liste des scènes, `null` sans liste. */
+  readonly stage: string | null;
+  /** Partie qui avait le focus (`option:2`, `text`, `pick`...), `null` si le focus était ailleurs. */
+  readonly focus: string | null;
+}
+
 /** Ce que la fenêtre reçoit du plugin. */
 export interface ITargetPopupOptions {
   readonly stage: IEditorStage;
@@ -86,6 +100,8 @@ export interface ITargetPopupOptions {
   readonly apply: (target: unknown) => ITargetApplyResult;
   /** Appelé une fois, à la fermeture. */
   readonly onClose: () => void;
+  /** Saisie à reprendre (reconstruction) ; le focus n'est donné que si `draft.focus` est connu. */
+  readonly draft?: ITargetPopupDraft;
 }
 
 /** Fenêtre ouverte. */
@@ -97,6 +113,10 @@ export interface ITargetPopup {
    * a disparu).
    */
   close(restoreFocus: boolean, anchorGone?: boolean): void;
+  /** Vrai pendant un choix sur la scène. */
+  readonly picking: boolean;
+  /** Saisie en cours et partie qui a le focus. */
+  draft(): ITargetPopupDraft;
 }
 
 interface IPopupParts {
@@ -104,6 +124,34 @@ interface IPopupParts {
   readonly status: HTMLElement;
   readonly pickButton: HTMLButtonElement;
   readonly firstFocus: HTMLElement;
+  readonly form: IFormParts;
+}
+
+interface IFormParts {
+  readonly element: HTMLFormElement;
+  readonly kind: HTMLSelectElement;
+  readonly text: HTMLInputElement;
+  readonly stageSelect: HTMLSelectElement | null;
+}
+
+/** Nom de la partie `element` de la fenêtre (`option:i` pour une cible de la liste), pour la retrouver. */
+function partOf(popup: HTMLElement, element: Element | null): string | null {
+  if (element === null || !popup.contains(element)) return null;
+  const options = Array.from(popup.querySelectorAll(`.${TARGET_POPUP_CLASS}__option`));
+  const index = options.indexOf(element);
+  if (index >= 0) return `option:${index}`;
+  const prefix = `${TARGET_POPUP_CLASS}__`;
+  const name = Array.from(element.classList).find((className) => className.startsWith(prefix));
+  return name === undefined ? null : name.slice(prefix.length);
+}
+
+/** Élément de la partie `part` (voir `partOf`), ou `null`. */
+function partElement(popup: HTMLElement, part: string): HTMLElement | null {
+  if (part.startsWith('option:')) {
+    const options = popup.querySelectorAll<HTMLElement>(`.${TARGET_POPUP_CLASS}__option`);
+    return options[Number(part.slice('option:'.length))] ?? null;
+  }
+  return popup.querySelector<HTMLElement>(`.${TARGET_POPUP_CLASS}__${part}`);
 }
 
 interface IClosingHooks {
@@ -234,8 +282,22 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
 
   options.parent.appendChild(parts.element);
   position(parts.element, options.anchor);
-  parts.firstFocus.focus();
-  return { element: parts.element, close };
+  const draft = options.draft;
+  if (draft === undefined) parts.firstFocus.focus();
+  else if (draft.focus !== null) (partElement(parts.element, draft.focus) ?? parts.firstFocus).focus();
+  return {
+    element: parts.element,
+    close,
+    get picking(): boolean {
+      return pickController !== null;
+    },
+    draft: (): ITargetPopupDraft => ({
+      kind: parts.form.kind.value === 'ref' ? 'ref' : 'selector',
+      text: parts.form.text.value,
+      stage: parts.form.stageSelect?.value ?? null,
+      focus: partOf(parts.element, doc.activeElement)
+    })
+  };
 }
 
 /** Échap, Tab hors de la fenêtre, clic extérieur ; touches gardées hors des raccourcis. */
@@ -250,6 +312,13 @@ function wireClosing(element: HTMLElement, anchor: HTMLElement, doc: Document, s
     if (!isField(event.target)) event.preventDefault();
   }, { signal });
   element.addEventListener('keydown', (event) => {
+    if (event.key === 'Tab' && leavesByTab(element, event)) {
+      // Comme le menu d'icônes : Tab hors de la fenêtre la ferme et rend le focus au bouton de la ligne.
+      event.preventDefault();
+      event.stopPropagation();
+      hooks.close(true);
+      return;
+    }
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
@@ -275,6 +344,14 @@ function wireClosing(element: HTMLElement, anchor: HTMLElement, doc: Document, s
   }, { capture: true, signal });
 }
 
+/** Vrai si Tab (ou Maj+Tab) sort de la fenêtre : focus sur son dernier (ou premier) élément focalisable. */
+function leavesByTab(element: HTMLElement, event: KeyboardEvent): boolean {
+  const focusable = Array.from(element.querySelectorAll<HTMLElement>('button, input, select'))
+    .filter((candidate) => !(candidate as HTMLButtonElement).disabled && !candidate.hidden);
+  const edge = event.shiftKey ? focusable[0] : focusable[focusable.length - 1];
+  return edge !== undefined && event.target === edge;
+}
+
 /** Construit le contenu de la fenêtre. */
 function buildPopup(
   doc: Document,
@@ -298,7 +375,7 @@ function buildPopup(
   });
   const form = buildForm(doc, options, finish, status);
   element.append(list.element, pickButton, form.element, status);
-  return { element, status, pickButton, firstFocus: list.first ?? form.text };
+  return { element, status, pickButton, firstFocus: list.first ?? form.text, form };
 }
 
 /** Liste des cibles proposées : un bouton par cible. */
@@ -326,25 +403,32 @@ function buildList(
   return { element, first: buttons[0] };
 }
 
-/**
- * Scène d'une ref saisie : celle de la liste quand elle est affichée
- * (« Automatique » : aucune) ; sinon la scène de la cible courante, sinon la
- * seule scène quand il n'y en a qu'une.
- */
-function refStageOf(stage: IEditorStage, current: LayerTarget | undefined, select: HTMLSelectElement | null): string | undefined {
-  if (select !== null) return select.value === '' ? undefined : select.value;
-  const currentStage = current !== undefined && 'ref' in current ? current.stage : undefined;
-  if (currentStage !== undefined) return currentStage;
-  return stage.stages.length === 1 ? stage.stages[0]?.id : undefined;
+/** Scène de la cible courante si c'est une ref (`undefined` sinon ou sans scène). */
+function currentRefStage(current: LayerTarget | undefined): string | undefined {
+  return current !== undefined && 'ref' in current ? current.stage : undefined;
 }
 
-/** Saisie libre : type, texte, scène (plusieurs scènes seulement), bouton Appliquer. */
+/**
+ * Scène d'une ref saisie (`text` rogné) : celle de la liste quand elle est
+ * affichée (« Automatique » : aucune). Sans liste : la seule scène, sauf la
+ * ref préremplie d'une cible sans scène, gardée sans scène ; sans aucune
+ * scène (timeline seule), la scène de la cible courante.
+ */
+function refStageOf(stage: IEditorStage, current: LayerTarget | undefined, select: HTMLSelectElement | null, text: string): string | undefined {
+  if (select !== null) return select.value === '' ? undefined : select.value;
+  const only = stage.stages.length === 1 ? stage.stages[0]?.id : undefined;
+  if (only === undefined) return currentRefStage(current);
+  const unchangedStageless = current !== undefined && 'ref' in current && current.stage === undefined && current.ref === text;
+  return unchangedStageless ? undefined : only;
+}
+
+/** Saisie libre : type, texte, scène (voir `buildStageSelect`), bouton Appliquer. */
 function buildForm(
   doc: Document,
   options: ITargetPopupOptions,
   finish: (target: unknown) => void,
   status: HTMLElement
-): { element: HTMLFormElement; text: HTMLInputElement } {
+): IFormParts {
   const form = el(doc, 'form', `${TARGET_POPUP_CLASS}__form`);
   const kind = el(doc, 'select', `${TARGET_POPUP_CLASS}__kind`);
   kind.setAttribute('aria-label', TargetPopupLabels.kind);
@@ -361,6 +445,12 @@ function buildForm(
   }
   form.append(kind, text);
   const stageSelect = buildStageSelect(doc, options.stage, current);
+  const draft = options.draft;
+  if (draft !== undefined) {
+    kind.value = draft.kind;
+    text.value = draft.text;
+    if (stageSelect !== null && draft.stage !== null) stageSelect.value = draft.stage;
+  }
   if (stageSelect !== null) {
     form.appendChild(stageSelect);
     const showStage = (): void => {
@@ -378,7 +468,7 @@ function buildForm(
     const input: ITargetInput = {
       kind: isRef ? 'ref' : 'selector',
       text: text.value,
-      stage: isRef ? refStageOf(options.stage, current, stageSelect) : undefined
+      stage: isRef ? refStageOf(options.stage, current, stageSelect, text.value.trim()) : undefined
     };
     const target = targetFromInput(input);
     if (target === undefined) {
@@ -387,27 +477,28 @@ function buildForm(
     }
     finish(target);
   });
-  return { element: form, text };
+  return { element: form, kind, text, stageSelect };
 }
 
 /**
- * Choix de la scène d'une ref, seulement quand il y a plusieurs scènes. Une
- * scène courante absente de la liste y est ajoutée (et choisie) pour ne pas
- * être perdue.
+ * Choix de la scène d'une ref : affiché quand il y a plusieurs scènes, ou
+ * quand la cible courante nomme une scène inconnue (ajoutée « (inconnue) »).
+ * Préréglé sur la scène de la cible courante (« Automatique » pour une ref
+ * sans scène), sinon sur la première scène ; « Automatique » (aucune scène)
+ * reste un choix explicite, en dernier.
  */
 function buildStageSelect(doc: Document, stage: IEditorStage, current: LayerTarget | undefined): HTMLSelectElement | null {
-  if (stage.stages.length < 2) return null;
+  const ids = stage.stages.map((candidate) => candidate.id);
+  const currentStage = currentRefStage(current);
+  const unknown = currentStage !== undefined && !ids.includes(currentStage);
+  if (ids.length === 0 || (ids.length === 1 && !unknown)) return null;
   const select = el(doc, 'select', `${TARGET_POPUP_CLASS}__stage`);
   select.setAttribute('aria-label', TargetPopupLabels.stage);
+  ids.forEach((id) => select.appendChild(option(doc, id, id)));
+  if (unknown) select.appendChild(option(doc, TargetPopupLabels.unknownStage(currentStage), currentStage));
   select.appendChild(option(doc, TargetPopupLabels.anyStage, ''));
-  stage.stages.forEach((candidate) => select.appendChild(option(doc, candidate.id, candidate.id)));
-  const currentStage = current !== undefined && 'ref' in current ? current.stage : undefined;
-  if (currentStage !== undefined) {
-    if (!stage.stages.some((candidate) => candidate.id === currentStage)) {
-      select.appendChild(option(doc, TargetPopupLabels.unknownStage(currentStage), currentStage));
-    }
-    select.value = currentStage;
-  }
+  const isStagelessRef = current !== undefined && 'ref' in current && currentStage === undefined;
+  select.value = currentStage ?? (isStagelessRef ? '' : ids[0] ?? '');
   return select;
 }
 
