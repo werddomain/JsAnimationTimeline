@@ -5,14 +5,9 @@
 
 import type { ITimelineDocument } from '../model/document';
 import type { PropertyRegistry } from '../properties/PropertyRegistry';
+import type { IPlayerClock, ITransportEventMap, ITransportTime } from '../transport/types';
 
-/** Time source and frame scheduler (injectable for tests). */
-export interface IPlayerClock {
-  /** Milliseconds, monotonic. */
-  now(): number;
-  requestFrame(callback: () => void): number;
-  cancelFrame(handle: number): void;
-}
+export type { IFrameEvent, IPlayerClock } from '../transport/types';
 
 /** Options of `createPlayer`. */
 export interface IPlayerOptions {
@@ -35,23 +30,11 @@ export interface IPlayerOptions {
   readonly onListenerError?: (error: unknown) => void;
 }
 
-/** Payload of the `frame` event. */
-export interface IFrameEvent {
-  /** Current frame, 1..totalFrames. */
-  readonly frame: number;
-}
-
-/** Events of the player and their payloads. */
-export interface IPlayerEventMap {
-  /** The displayed frame changed (during playback, or after `seek`/`update`). */
-  frame: IFrameEvent;
-  play: Record<string, never>;
-  pause: Record<string, never>;
-  /** The last frame was reached without `loop`; playback stopped. */
-  complete: Record<string, never>;
-  /** The last frame was reached with `loop`; playback restarted at frame 1. */
-  loop: Record<string, never>;
-}
+/**
+ * Events of the player and their payloads: those of the transport (`frame`,
+ * `tick` with the fractional time, `play`, `pause`, `complete`, `loop`).
+ */
+export type IPlayerEventMap = ITransportEventMap;
 
 export type PlayerEventName = keyof IPlayerEventMap;
 
@@ -61,6 +44,8 @@ export type PlayerListener<K extends PlayerEventName> = (event: IPlayerEventMap[
 export interface IPlayer {
   /** Current frame, 1..totalFrames. */
   readonly frame: number;
+  /** Current position: milliseconds, fractional frame and integer frame. */
+  readonly time: ITransportTime;
   readonly totalFrames: number;
   readonly fps: number;
   /** Length in milliseconds: totalFrames / fps. */
@@ -73,9 +58,9 @@ export interface IPlayer {
   readonly missingTargets: readonly string[];
   play(): void;
   pause(): void;
-  /** Goes to a frame (clamped to 1..totalFrames), playing or not. */
+  /** Goes to a frame (clamped to 1..totalFrames), playing or not; emits `tick` and `frame` right away. */
   seek(frame: number): void;
-  /** Replaces the document, keeping the current time and play state. */
+  /** Replaces the document, keeping the current time and play state; emits `tick` and `frame` right away. */
   update(doc: ITimelineDocument): void;
   /** Adds a listener; returns a function that removes it. */
   on<K extends PlayerEventName>(event: K, listener: PlayerListener<K>): () => void;

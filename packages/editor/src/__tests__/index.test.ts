@@ -48,12 +48,20 @@ const V2_NAMES = [
   'DEFAULT_HISTORY_LIMIT',
   'DEFAULT_TOTAL_FRAMES',
   'EDITOR_ROOT_CLASS',
+  'LAYOUT_SLOTS',
+  'LAYOUT_ZONES',
+  'LayoutPlugin',
+  'LayoutShellPlugin',
   'PluginError',
   'ROOT_SLOT',
+  'ScrollSyncPlugin',
+  'SHORTCUTS_PLUGIN_ID',
+  'ShortcutError',
   'StoreError',
   'createCommand',
   'createEditor',
   'createEmptyDocument',
+  'createShortcutsPlugin',
   'defaultPlugins'
 ];
 
