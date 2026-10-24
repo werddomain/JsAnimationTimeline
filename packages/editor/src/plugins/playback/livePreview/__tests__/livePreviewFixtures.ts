@@ -60,6 +60,11 @@ function pointer(type: string, frame: number, buttons: number): MouseEvent {
 /** Éditeurs montés, détruits par `cleanPreviews` (un test peut s'arrêter en plein glisser). */
 const mountedEditors: IEditor[] = [];
 
+/** Confie un éditeur créé hors fixture à `cleanPreviews`. */
+export function trackEditor(editor: IEditor): void {
+  mountedEditors.push(editor);
+}
+
 /** Détruit les éditeurs montés puis retire les conteneurs (à appeler dans `afterEach`). */
 export function cleanPreviews(): void {
   mountedEditors.splice(0).forEach((editor) => {
@@ -72,6 +77,15 @@ export function cleanPreviews(): void {
 export interface IPreviewShell {
   /** `false` : sans `toolbar.main` (éditeur sans barre d'outils). */
   readonly withToolbar?: boolean;
+  /** `true` : l'epic playback est enregistrée avant l'epic de la barre d'outils. */
+  readonly toolbarAfterPlayback?: boolean;
+}
+
+/** Epics barre d'outils et playback, dans l'ordre demandé par la coquille. */
+function shellEpics(options: ILivePreviewOptions, shell: IPreviewShell): EditorPlugin[] {
+  const toolbar = shell.withToolbar === false ? [] : [epic('toolbar', [new ToolbarMainPlugin()])];
+  const playback = epic('playback', [new LivePreviewPlugin(options)]);
+  return shell.toolbarAfterPlayback === true ? [playback, ...toolbar] : [...toolbar, playback];
 }
 
 /** Monte l'éditeur avec la coquille, les raccourcis, la barre d'outils et `playback.livePreview`. */
@@ -87,8 +101,7 @@ export function mountPreview(options: ILivePreviewOptions = {}, shell: IPreviewS
     defaultPlugins: [
       new LayoutPlugin({ scrollSync: { scheduler: createManualScheduler() }, ruler: { frameWidth: FRAME_WIDTH } }),
       createShortcutsPlugin(),
-      ...(shell.withToolbar === false ? [] : [epic('toolbar', [new ToolbarMainPlugin()])]),
-      epic('playback', [new LivePreviewPlugin(options)])
+      ...shellEpics(options, shell)
     ]
   });
   mountedEditors.push(editor);

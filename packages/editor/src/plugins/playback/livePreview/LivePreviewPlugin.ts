@@ -20,7 +20,7 @@
  * début de la lecture, un changement de mode et `destroy` libèrent la
  * retenue, ce qui rend l'image courante. Si le relâchement arrive avant le
  * rendu d'affichage de la dernière image atteinte, la libération attend ce
- * `frame:render` : l'image n'est rendue qu'une fois. Après une lecture
+ * `frame:render` : l'image n'est rendue qu'une fois (en mode `'throttled'`, le rendu de fin peut l'avoir déjà rendue : même sortie, deux fois). Après une lecture
  * arrêtée pendant le même glisser (pause ou fin), la retenue est rouverte. Les calques masqués dans l'éditeur
  * (œil) le restent : c'est la scène qui les cache (`editorVisible`).
  *
@@ -85,18 +85,14 @@ export class LivePreviewPlugin implements EditorPlugin {
       cleanups.push(ctx.events.on('playback:complete', () => this.open()));
       cleanups.push(ctx.events.on('frame:render', () => this.onFrame()));
       cleanups.push(ctx.services.provide(LIVE_PREVIEW_PLUGIN_ID, this.createService()));
-      // Barre d'outils facultative : sans `toolbar.main`, pas de contrôle.
-      const toolbar = this.toolbar ? ctx.services.get('toolbar.main') : undefined;
-      if (toolbar !== undefined) {
-        cleanups.push(
-          toolbar.addControl({
-            id: LIVE_PREVIEW_PLUGIN_ID,
-            label: 'Aperçu',
-            group: 'playback',
-            order: ToolbarGroupOrders.playback + 2,
-            render: (element) => renderLivePreviewControl(element, this.requireService(), ctx.events)
-          })
-        );
+      // Barre d'outils facultative : sans `toolbar.main`, pas de contrôle. Si
+      // son epic est enregistrée après celle-ci, un nouvel essai à `editor:ready`.
+      if (this.toolbar && !this.addToolbarControl(ctx, cleanups)) {
+        const off = ctx.events.on('editor:ready', () => {
+          off();
+          this.addToolbarControl(ctx, this.cleanups);
+        });
+        cleanups.push(off);
       }
     } catch (error) {
       cleanups.forEach((cleanup) => cleanup());
@@ -105,6 +101,22 @@ export class LivePreviewPlugin implements EditorPlugin {
     }
     this.cleanups = cleanups;
   };
+
+  /** Ajoute la liste « Aperçu » si `toolbar.main` est monté ; `false` sinon. */
+  private addToolbarControl(ctx: IEditorContext, cleanups: Array<() => void>): boolean {
+    const toolbar = ctx.services.get('toolbar.main');
+    if (toolbar === undefined) return false;
+    cleanups.push(
+      toolbar.addControl({
+        id: LIVE_PREVIEW_PLUGIN_ID,
+        label: 'Aperçu',
+        group: 'playback',
+        order: ToolbarGroupOrders.playback + 2,
+        render: (element) => renderLivePreviewControl(element, this.requireService(), ctx.events)
+      })
+    );
+    return true;
+  }
 
   destroy(): void {
     this.close();
