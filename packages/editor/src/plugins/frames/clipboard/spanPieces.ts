@@ -56,13 +56,27 @@ function withEdgeKeyframes(
  * quelles (`undefined`). Un bord coupé, lui, doit être évalué.
  */
 function valuesAtStart(layer: ILayer, span: ISpan, from: number, registry: PropertyRegistry): PropertyValues | undefined {
-  if (from > span.start) return evaluateValues(layer, from, registry);
+  if (from > span.start) return setSoFar(layer, span, evaluateValues(layer, from, registry));
   try {
-    return evaluateValues(layer, from, registry);
+    return setSoFar(layer, span, evaluateValues(layer, from, registry));
   } catch (error) {
     if (error instanceof SpanOperationError) return undefined;
     throw error;
   }
+}
+
+/**
+ * `values` réduites aux propriétés posées par `span` ou par une plage
+ * précédente : une propriété animée seulement plus loin dans le calque vaut
+ * ici sa valeur par défaut, et l'écrire forcerait cette valeur à l'endroit
+ * du collage.
+ */
+function setSoFar(layer: ILayer, span: ISpan, values: PropertyValues): PropertyValues {
+  const names = new Set<string>();
+  layer.spans
+    .filter((candidate) => candidate.start <= span.start)
+    .forEach((candidate) => Object.keys(candidate.tracks ?? {}).forEach((name) => names.add(name)));
+  return Object.fromEntries(Object.entries(values).filter(([name]) => names.has(name)));
 }
 
 function staticTracks(

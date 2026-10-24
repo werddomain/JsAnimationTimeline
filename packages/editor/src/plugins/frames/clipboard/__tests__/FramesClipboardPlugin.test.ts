@@ -189,6 +189,19 @@ describe('frames.clipboard keys on refusal and highlighted text', () => {
     expect(editor.toJSON()).toEqual(locked);
   });
 
+  /** Surligne le texte de `element` le temps de `act`, puis nettoie (même en cas d'échec). */
+  function withHighlighted<T>(element: HTMLElement, act: () => T): T {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    window.getSelection()?.addRange(range);
+    try {
+      return act();
+    } finally {
+      window.getSelection()?.removeAllRanges();
+      element.remove();
+    }
+  }
+
   it('leaves Ctrl+C to the browser while text is highlighted in the page', () => {
     // Arrange
     const { editor, select, clipboard } = setup();
@@ -196,18 +209,56 @@ describe('frames.clipboard keys on refusal and highlighted text', () => {
     const paragraph = document.createElement('p');
     paragraph.textContent = 'Texte de la page';
     document.body.appendChild(paragraph);
-    const range = document.createRange();
-    range.selectNodeContents(paragraph);
-    window.getSelection()?.addRange(range);
 
     // Act
-    const event = press(editor, 'c');
-    window.getSelection()?.removeAllRanges();
+    const event = withHighlighted(paragraph, () => press(editor, 'c'));
 
     // Assert
     expect(event.defaultPrevented).toBe(false);
     expect(clipboard.hasContent()).toBe(false);
   });
+
+  it('still copies the frames when the highlighted text is inside the editor', () => {
+    // Arrange
+    const { editor, select, clipboard } = setup();
+    select([['a', 1]]);
+    const label = document.createElement('span');
+    label.textContent = 'Nom du calque';
+    editor.container.appendChild(label);
+
+    // Act
+    const event = withHighlighted(label, () => press(editor, 'c'));
+
+    // Assert
+    expect(event.defaultPrevented).toBe(true);
+    expect(clipboard.hasContent()).toBe(true);
+  });
+
+  it('announces a copy that cannot evaluate a cut edge, and keeps the key', () => {
+    // Arrange : interpolation sur une propriété inconnue du registre, coupée par la sélection.
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const broken = doc([
+      layer('u', {
+        spans: [
+          { id: 'u1', start: 1, end: 10, kind: 'tween', tracks: { unknownThing: [{ frame: 1, value: 0 }, { frame: 10, value: 9 }] } }
+        ]
+      })
+    ]);
+    const { editor, select, clipboard } = setup(broken);
+    const refused: string[] = [];
+    editor.on('command:refused', (event) => refused.push(event.reason));
+    select(range('u', 3, 5));
+
+    // Act
+    const event = press(editor, 'c');
+
+    // Assert
+    expect(event.defaultPrevented).toBe(true);
+    expect(refused).toHaveLength(1);
+    expect(clipboard.hasContent()).toBe(false);
+    jest.restoreAllMocks();
+  });
+
 });
 
 describe('frames.clipboard paste', () => {
@@ -284,6 +335,22 @@ describe('frames.clipboard paste', () => {
 
     // Assert
     expect(spans('c')).toEqual(['blank 1-7', 'static 8-8']);
+  });
+
+  it('pastes a ragged selection from its top-left corner', () => {
+    // Arrange : a5-a6 puis b3-b4 ; le coin haut gauche est (a, 3).
+    const data = doc([source('a'), { id: 'f', type: 'folder', name: 'f', children: [] }, source('b'), layer('c'), layer('d')]);
+    const { clipboard, select, spans } = setup(data);
+    select([...range('a', 1, 2), ...range('b', 1, 1)]);
+    clipboard.copy();
+    select([...range('c', 5, 6), ...range('d', 3, 4)]);
+
+    // Act
+    clipboard.paste();
+
+    // Assert : ligne 1 du contenu en c à partir de 3, ligne 2 en d à partir de 3.
+    expect(spans('c')).toEqual(['blank 1-2', 'static 3-4']);
+    expect(spans('d')).toEqual(['blank 1-2', 'static 3-3']);
   });
 
   it('pastes twice at the same place', () => {

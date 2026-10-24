@@ -93,10 +93,18 @@ function refuse(ctx: IEditorContext, label: string, reason: string): void {
   );
 }
 
-/** Vrai si du texte est surligné dans la page (hors champ de saisie de l'éditeur, non concerné ici). */
+/**
+ * Vrai si du texte est surligné dans la page, hors de l'éditeur : Ctrl+C
+ * doit alors copier ce texte. Un texte surligné dans l'éditeur (nom d'un
+ * calque, numéros de la règle) ne bloque pas la copie des images.
+ */
 function hasTextSelection(container: HTMLElement): boolean {
   const selection = container.ownerDocument.defaultView?.getSelection();
-  return selection !== null && selection !== undefined && !selection.isCollapsed && selection.toString().length > 0;
+  if (selection === null || selection === undefined || selection.isCollapsed || selection.toString().length === 0) {
+    return false;
+  }
+  const anchor = selection.anchorNode;
+  return anchor === null || !container.contains(anchor);
 }
 
 /** Plugin `frames.clipboard` : Ctrl+C / Ctrl+V pour les images. */

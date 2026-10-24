@@ -55,6 +55,20 @@ describe('extractSpans', () => {
     expect(xAt(fromTween, 10)).toBeCloseTo(evaluateLayer(layered, 20, { registry }).values.x);
   });
 
+  it('does not write properties that only later spans set', () => {
+    // Arrange : x seulement sur la plage 1-5, opacity seulement sur la plage 6-10.
+    const later = layer('l', [
+      { id: 'l1', start: 1, end: 5, kind: 'static', tracks: { x: [{ frame: 1, value: 4 }] } },
+      { id: 'l2', start: 6, end: 10, kind: 'static', tracks: { opacity: [{ frame: 6, value: 0.2 }] } }
+    ]);
+
+    // Act
+    const [piece] = extractSpans(later, 2, 4, registry);
+
+    // Assert
+    expect(Object.keys(piece?.tracks ?? {})).toEqual(['x']);
+  });
+
   it('keeps a whole span untouched, relative to the first copied frame', () => {
     // Act
     const spans = extractSpans(source, 12, 16, registry);
