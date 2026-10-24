@@ -72,7 +72,7 @@ describe('layers.icon chooser', () => {
     expect(element?.getAttribute('role')).toBe('dialog');
     expect(element?.getAttribute('aria-label')).toBe("Choisir l'icône");
     const itemList = element?.querySelector('[role="menu"]');
-    expect(itemList?.querySelectorAll('[role="menuitem"]').length).toBeGreaterThan(5);
+    expect(itemList?.querySelectorAll('[role="menuitemradio"]').length).toBeGreaterThan(5);
     expect(itemList?.querySelector(`.${ICON_MENU_CLASSES.custom}`)).toBeNull();
     expect(element?.querySelector(`:scope > .${ICON_MENU_CLASSES.custom}[role="group"]`)).not.toBeNull();
     item(h, 'sprite').click();
@@ -158,7 +158,7 @@ describe('layers.icon chooser', () => {
   it('moves focus with arrows, Home and End, wrapping around', () => {
     const h = mount(source);
     h.editor.getService('layers.icon')?.openChooser('a');
-    const items = Array.from(menu(h)?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
+    const items = Array.from(menu(h)?.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]') ?? []);
     expect(document.activeElement).toBe(items[0]);
     key(items[0] as HTMLElement, 'ArrowDown');
     expect(document.activeElement).toBe(items[1]);

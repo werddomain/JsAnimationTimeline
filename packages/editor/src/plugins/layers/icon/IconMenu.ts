@@ -13,7 +13,7 @@
 
 import { BUILTIN_LAYER_ICONS } from '../list/layerIcon';
 import { validateLayerIcon } from './iconCommand';
-import { LAYER_ICON_TEXTS } from './iconChoices';
+import { LAYER_ICON_TEXTS, builtinIconLabel } from './iconChoices';
 import type { IconChoice } from './iconChoices';
 import { clampMenuPosition } from './menuPosition';
 
@@ -45,7 +45,7 @@ export interface IconMenuHandlers {
 function choiceLabel(choice: IconChoice): string {
   if (choice.kind === 'default') return LAYER_ICON_TEXTS.defaultIcon;
   if (choice.kind === 'custom') return LAYER_ICON_TEXTS.custom;
-  return choice.icon;
+  return builtinIconLabel(choice.icon);
 }
 
 /** Un menu d'icônes ouvert ; `close()` le retire et libère ses écouteurs. */
@@ -56,6 +56,7 @@ export class IconMenu {
   private readonly custom: HTMLElement;
   private readonly input: HTMLInputElement;
   private readonly error: HTMLElement;
+  private readonly anchor: DOMRect | undefined;
   private closed = false;
 
   constructor(
@@ -82,10 +83,13 @@ export class IconMenu {
     this.element = box;
     box.addEventListener('keydown', this.onKeyDown);
     box.addEventListener('focusout', this.onFocusOut);
+    box.addEventListener('mousedown', this.onInsideMouseDown);
     this.doc.addEventListener('mousedown', this.onOutside, true);
+    this.anchor = anchor;
     container.appendChild(box);
-    this.place(anchor);
-    this.items[0]?.focus();
+    this.place();
+    const currentIndex = choices.findIndex((choice) => choice.current);
+    this.items[Math.max(0, currentIndex)]?.focus();
   }
 
   /** Ferme le menu (sans effet s'il est déjà fermé) ; `restoreFocus` rend le focus à `returnFocus`. */
@@ -94,6 +98,7 @@ export class IconMenu {
     this.closed = true;
     this.element.removeEventListener('keydown', this.onKeyDown);
     this.element.removeEventListener('focusout', this.onFocusOut);
+    this.element.removeEventListener('mousedown', this.onInsideMouseDown);
     this.doc.removeEventListener('mousedown', this.onOutside, true);
     this.element.remove();
     if (restoreFocus) this.handlers.returnFocus?.focus();
@@ -101,11 +106,11 @@ export class IconMenu {
   }
 
   /** Pose le menu sous l'ancre, dans la fenêtre (taille mesurée une fois dans le DOM). */
-  private place(anchor: DOMRect | undefined): void {
+  private place(): void {
     const view = this.doc.defaultView;
     const size = this.element.getBoundingClientRect();
     const position = clampMenuPosition(
-      anchor,
+      this.anchor,
       { width: size.width, height: size.height },
       { width: view?.innerWidth ?? 0, height: view?.innerHeight ?? 0 }
     );
@@ -117,7 +122,8 @@ export class IconMenu {
     const item = this.doc.createElement('button');
     item.type = 'button';
     item.tabIndex = -1;
-    item.setAttribute('role', 'menuitem');
+    item.setAttribute('role', 'menuitemradio');
+    item.setAttribute('aria-checked', String(choice.current));
     item.classList.add(ICON_MENU_CLASSES.item);
     item.dataset.choice = choice.kind === 'builtin' ? choice.icon : choice.kind;
     if (choice.current) item.dataset.current = 'true';
@@ -154,6 +160,7 @@ export class IconMenu {
   private choose(choice: IconChoice): void {
     if (choice.kind === 'custom') {
       this.custom.hidden = false;
+      this.place();
       this.input.focus();
       this.input.select();
       return;
@@ -167,6 +174,7 @@ export class IconMenu {
     if (!result.ok) {
       this.error.textContent = result.message;
       this.error.hidden = false;
+      this.place();
       this.input.setAttribute('aria-invalid', 'true');
       this.input.focus();
       return;
@@ -181,10 +189,21 @@ export class IconMenu {
     this.close();
   };
 
+  /**
+   * Un mousedown dans le menu ne déplace pas le focus (Safari et Firefox macOS
+   * ne focalisent pas les boutons ; une zone vide donnerait le focus au
+   * conteneur). Seule la saisie texte le garde, pour poser le curseur.
+   */
+  private readonly onInsideMouseDown = (event: MouseEvent): void => {
+    if (event.target !== this.input) event.preventDefault();
+  };
+
   /** Le focus sort du menu vers un autre élément : on ferme sans rendre le focus. */
   private readonly onFocusOut = (event: FocusEvent): void => {
     const next = event.relatedTarget;
-    if (next instanceof Node && !this.element.contains(next)) this.close();
+    // Un ancêtre (le conteneur de l'éditeur, focalisable) reçoit le focus quand on clique une zone
+    // non focalisable du menu : ce n'est pas une sortie. Les vrais clics extérieurs passent par onOutside.
+    if (next instanceof Node && !this.element.contains(next) && !next.contains(this.element)) this.close();
   };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {

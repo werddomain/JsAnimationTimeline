@@ -51,7 +51,11 @@ export function createSetColorCommand(doc: ITimelineDocument, id: string, color:
     throw new Error(`layers.color : couleur invalide ${JSON.stringify(color)} (attendu #rrggbb).`);
   }
   const original = node.color;
-  const set = (value: string | undefined) => (current: ITimelineDocument): ITimelineDocument =>
-    updateLayerNode(current, id, (target) => withColor(target, value));
-  return createCommand(LAYER_COLOR_COMMAND_LABEL, set(next), set(original));
+  // `do` compare les couleurs normalisées (« #FF0000 » = « #ff0000 » : pas d'entrée d'historique) ;
+  // `undo` rend la valeur d'origine telle quelle.
+  const sameAsNext = (current: string | undefined): boolean =>
+    (current === undefined ? undefined : normalizeLayerColor(current)) === next;
+  const apply = (value: string | undefined, skipSame: boolean) => (current: ITimelineDocument): ITimelineDocument =>
+    updateLayerNode(current, id, (target) => (skipSame && sameAsNext(target.color) ? target : withColor(target, value)));
+  return createCommand(LAYER_COLOR_COMMAND_LABEL, apply(next, true), apply(original, false));
 }

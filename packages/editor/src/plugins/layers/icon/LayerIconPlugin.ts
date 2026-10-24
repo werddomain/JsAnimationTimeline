@@ -3,7 +3,7 @@
  * Plugin : layers.icon
  * Epic : layers
  * Dépend de : layers.list
- * Écoute : document:loaded, document:changed
+ * Écoute : document:loaded (ferme le menu), document:changed (ferme le menu périmé)
  * Émet : —
  *
  * Choix de l'icône d'un calque. Un clic sur l'icône d'une ligne de calque
@@ -75,7 +75,8 @@ export class LayerIconPlugin implements EditorPlugin {
       () => ctx.container.removeEventListener('click', onClick),
       () => ctx.container.removeEventListener('keydown', onKeyDown),
       ctx.events.on('document:changed', () => this.closeIfStale(ctx)),
-      ctx.events.on('document:loaded', () => this.closeIfStale(ctx))
+      // Un nouveau document peut réutiliser les ids : le menu ouvert ne le concerne plus.
+      ctx.events.on('document:loaded', () => this.menu?.close())
     ];
   };
 
@@ -141,6 +142,8 @@ export class LayerIconPlugin implements EditorPlugin {
   private onClick(ctx: IEditorContext, list: ILayerListService, event: MouseEvent): void {
     const pressedOpenFor = this.pressedOpenFor;
     this.pressedOpenFor = undefined;
+    // Ctrl, Cmd et Maj + clic sont des gestes de sélection multiple, pas une demande de menu.
+    if (event.ctrlKey || event.metaKey || event.shiftKey) return;
     const target = event.target;
     if (!(target instanceof Element) || target.closest(ICON_SELECTOR) === null) return;
     const id = list.rowIdAt(target);

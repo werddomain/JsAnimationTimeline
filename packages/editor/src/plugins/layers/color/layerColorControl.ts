@@ -25,8 +25,13 @@ export const LAYER_COLOR_TEXTS = Object.freeze({
   none: 'aucune'
 });
 
-/** Couleur proposée au premier choix quand le nœud n'en a pas. */
-const FALLBACK_COLOR = '#808080';
+/**
+ * Valeur de départ du sélecteur quand le nœud n'a pas de couleur. Elle est
+ * volontairement voisine du gris usuel `#808080` sans l'être : le navigateur
+ * n'émet `change` que si la valeur diffère de celle d'ouverture, donc choisir
+ * ce gris doit rester possible.
+ */
+const FALLBACK_COLOR = '#808081';
 
 interface ColorCell {
   rowId: string;
@@ -75,11 +80,13 @@ export function createLayerColorControl(
       input.classList.add(LAYER_COLOR_CLASSES.input);
       wrapper.append(swatch, input);
       element.appendChild(wrapper);
-      // Le clic ne doit pas atteindre la ligne (sélection, Y5) ni se répéter.
-      const onSwatchClick = (event: Event): void => {
-        event.stopPropagation();
+      // Un clic souris remonte à la ligne (la sélection y rend le focus). Un clic synthétisé par le
+      // clavier (Entrée, Espace : `detail` 0) est arrêté pour que le focus reste sur le carré.
+      const onSwatchClick = (event: MouseEvent): void => {
+        if (event.detail === 0) event.stopPropagation();
         input.click();
       };
+      // Le clic synthétique de l'entrée cachée ne doit pas remonter : il se répéterait sur la ligne.
       const onInputClick = (event: Event): void => event.stopPropagation();
       const onChange = (): void => onPick(cell.rowId, input.value);
       swatch.addEventListener('click', onSwatchClick);

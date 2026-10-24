@@ -16,6 +16,27 @@ export const LAYER_ICON_TEXTS = Object.freeze({
   apply: 'Appliquer'
 });
 
+/** Libellés français des icônes intégrées (nom -> texte du menu). */
+export const BUILTIN_ICON_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  layer: 'Calque',
+  folder: 'Dossier',
+  folderOpen: 'Dossier ouvert',
+  shape: 'Forme',
+  image: 'Image',
+  text: 'Texte',
+  sprite: 'Sprite',
+  audio: 'Audio',
+  video: 'Vidéo',
+  camera: 'Caméra',
+  light: 'Lumière',
+  group: 'Groupe'
+});
+
+/** Libellé français d'une icône intégrée (le nom lui-même si inconnu). */
+export function builtinIconLabel(name: string): string {
+  return BUILTIN_ICON_LABELS[name] ?? name;
+}
+
 /** Une entrée du menu. */
 export type IconChoice =
   | { readonly kind: 'builtin'; readonly icon: string; readonly glyph: string; readonly current: boolean }
