@@ -20,7 +20,9 @@
  * nouveaux calques sont seulement libérés). Toute autre erreur est signalée
  * par `StageReporter`. Si `onError` détruit l'hôte pendant un chargement,
  * plus rien n'est résolu ni appliqué. Un changement de cibles signalé pendant
- * un chargement est traité à la fin de celui-ci.
+ * un chargement est traité à la fin de celui-ci, avant le retour de `load` ;
+ * `onTargetsChanged` est alors appelé (jamais pour le changement de document
+ * lui-même).
  */
 
 import { collectLayers } from '../evaluate/evaluateDocument';
@@ -35,7 +37,7 @@ import { isStageDocumentError } from './reports';
 import type { IStageReport } from './reports';
 import type { IBinding, IHostState, IStageHostClock, IStageHostOptions } from './stageHostTypes';
 import { assertValidStages, isAffectedTarget, routeTarget, sameTarget, toTargetList } from './routing';
-import { StageReporter } from './StageReporter';
+import { rethrowAsync, StageReporter } from './StageReporter';
 import type { IStageReporterState } from './StageReporter';
 import type { IStage, IStageContext, IStageLayer } from './types';
 
@@ -382,7 +384,12 @@ export class StageHost {
     this.refreshDerived();
     this.reapply(changed);
     if (!this.destroyed) {
-      this.notifyTargetsChanged?.();
+      try {
+        this.notifyTargetsChanged?.();
+      } catch (error) {
+        // Comme onReport et onError : les nouvelles tentatives restantes et l'erreur du document passent avant.
+        rethrowAsync(error);
+      }
     }
   }
 

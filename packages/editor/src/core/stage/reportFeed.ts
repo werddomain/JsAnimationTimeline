@@ -5,14 +5,24 @@
  * avertissements qui durent ; le fil n'émet que ceux qui sont nouveaux par
  * rapport à la liste finale du document précédent (même code, scène, calque
  * et propriété), y compris ceux relevés après son chargement (erreur de
- * `render` ou de `sync`). Un glisser de 60 commandes sur un calque à la scène
- * inconnue, ou avec une scène dont `render` lève, n'émet donc rien de plus.
+ * `render` ou de `sync`).
+ *
+ * Une erreur de scène (`stage-error`) n'apparaît qu'au rendu ou à la
+ * synchronisation : quand deux documents arrivent dans la même image
+ * d'affichage, le premier n'a jamais été synchronisé, et sa liste ne contient
+ * pas l'erreur du document d'avant. Les clés d'erreur de scène sont donc
+ * reportées de document en document jusqu'à un passage complet (`sync` puis
+ * `render`) sur le document courant (`completePass`). Un glisser de 60
+ * commandes sur un calque à la scène inconnue, ou avec une scène dont
+ * `render` ou `sync` lève, n'émet donc rien de plus, même à plusieurs
+ * commandes par image.
  *
  * Avant `editor:ready`, rien n'est émis (les plugins s'abonnent pendant leur
  * `init`) : `start` émet alors une fois les avertissements du document
  * courant, puis le fil émet en direct.
  */
 
+import { StageReportCodes } from '@werddomain/timeline-runtime';
 import type { IStageReport } from '@werddomain/timeline-runtime';
 
 /** Clé d'un avertissement : code, scène, calque et propriété. */
@@ -26,17 +36,28 @@ export class StageReportFeed {
   private previous = new Set<string>();
   /** Avertissements déjà émis (ou retenus avant `start`) depuis le début du chargement en cours. */
   private seen = new Set<string>();
+  /** Erreurs de scène reportées depuis les documents précédents, jusqu'au prochain passage complet. */
+  private carried = new Set<string>();
   private ready = false;
 
   constructor(private readonly emit: (report: IStageReport) => void) {}
 
   /**
    * Début d'un chargement : `previous` est la liste finale du document
-   * précédent ; ses avertissements qui reviennent ne sont pas émis de nouveau.
+   * précédent ; ses avertissements qui reviennent ne sont pas émis de nouveau,
+   * ni les erreurs de scène reportées depuis le dernier passage complet.
    */
   beginLoad(previous: readonly IStageReport[]): void {
-    this.previous = new Set(previous.map(reportKey));
+    previous
+      .filter((report) => report.code === StageReportCodes.STAGE_ERROR)
+      .forEach((report) => this.carried.add(reportKey(report)));
+    this.previous = new Set([...previous.map(reportKey), ...this.carried]);
     this.seen = new Set();
+  }
+
+  /** Un `sync` puis un `render` ont eu lieu sur le document courant : les erreurs de scène ne sont plus reportées. */
+  completePass(): void {
+    this.carried = new Set();
   }
 
   /** Un avertissement ajouté par le `StageHost` : émis s'il est nouveau et si l'éditeur est prêt. */
