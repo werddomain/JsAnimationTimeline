@@ -7,6 +7,8 @@
 import { isFolder } from '@werddomain/timeline-runtime';
 import type { LayerNode } from '@werddomain/timeline-runtime';
 import { createEditor } from '../../../../core/editor/createEditor';
+import { LayoutPlugin } from '../../../layout/LayoutPlugin';
+import { LayersPlugin } from '../../LayersPlugin';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';
 import type { IListHarness } from '../../list/__tests__/fixtures';
 import type { ILayerSelectionService } from '../../selection';
@@ -181,6 +183,19 @@ describe('default plugin set', () => {
     const editor = createEditor(host, { data: tree });
     expect(editor.getService('layers.groups')).toBeDefined();
     expect(editor.getService('interaction.shortcuts')?.lookup('Mod+G')?.id).toBe('layers.groups.group');
+    editor.destroy();
+  });
+});
+
+describe('without interaction.shortcuts', () => {
+  it('boots with the layout and layers epics only and still groups', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const editor = createEditor(host, { data: tree, defaultPlugins: [new LayoutPlugin(), new LayersPlugin()] });
+    const groups = editor.getService('layers.groups');
+    expect(groups).toBeDefined();
+    expect(editor.getService('interaction.shortcuts')).toBeUndefined();
+    expect(groups?.createFolder()).toBeDefined();
     editor.destroy();
   });
 });
