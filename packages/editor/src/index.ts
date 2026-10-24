@@ -365,3 +365,11 @@ export {
   createLivePreviewPlugin
 } from './plugins/playback';
 export type { ILivePreviewApi, ILivePreviewOptions, LivePreviewMode, PreviewChangedEvent } from './plugins/playback';
+
+// Plugin toolbar.keyframeActions : les boutons d'images clés de la barre d'outils.
+export {
+  KEYFRAME_ACTIONS_PLUGIN_ID,
+  KeyframeActionsPlugin,
+  createKeyframeActionsPlugin
+} from './plugins/toolbar';
+export type { ToolbarEditKeyframeEvent } from './plugins/toolbar';
