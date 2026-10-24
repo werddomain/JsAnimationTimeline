@@ -13,12 +13,15 @@
  *   contrôles, utilisée par les autres plugins de la barre ;
  * - `toolbar.timeSettings` : la cadence et la durée du document ;
  * - `toolbar.zoomControl` : la liste et le curseur du zoom de la règle.
+ * - `toolbar.keyframeActions` : les boutons d'images clés (ajouter, interpoler,
+ *   supprimer, modifier).
  */
 
 import type { EditorPlugin } from '../../core/context/IEditorContext';
 import { ToolbarMainPlugin } from './main/ToolbarMainPlugin';
 import type { IToolbarMainOptions } from './main/types';
 import { TimeSettingsPlugin } from './timeSettings/TimeSettingsPlugin';
+import { KeyframeActionsPlugin } from './keyframeActions/KeyframeActionsPlugin';
 import { ZoomControlPlugin } from './zoomControl/ZoomControlPlugin';
 
 /** Options de l'epic `toolbar`, transmises à ses plugins. */
@@ -33,7 +36,7 @@ export class ToolbarPlugin implements EditorPlugin {
   readonly children: readonly EditorPlugin[];
 
   constructor(options: ToolbarOptions = {}) {
-    this.children = [new ToolbarMainPlugin(options.main), new TimeSettingsPlugin(), new ZoomControlPlugin()];
+    this.children = [new ToolbarMainPlugin(options.main), new TimeSettingsPlugin(), new ZoomControlPlugin(), new KeyframeActionsPlugin()];
   }
 
   readonly init = (): void => {};
