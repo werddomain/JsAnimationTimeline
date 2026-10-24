@@ -40,3 +40,12 @@ export {
   createSetLockedCommand
 } from './lock';
 export type { ILayerLockService } from './lock';
+export {\n  LAYERS_SELECTION_PLUGIN_ID,
+  LayerSelectionPlugin,
+  SELECTED_ROW_CLASS
+} from './selection';
+export type {
+  ILayerSelectionService,
+  SelectionChangedEvent,
+  SelectionMode
+} from './selection';
