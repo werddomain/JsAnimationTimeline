@@ -26,6 +26,7 @@
 import { sameTarget } from '@werddomain/timeline-runtime';
 import type { IStageTargets, ITargetInfo, LayerTarget } from '@werddomain/timeline-runtime';
 import type { IEditorStage } from '../../../core/stage/types';
+import { clampMenuPosition } from '../icon/menuPosition';
 import { isHistoryChord } from './historyKeys';
 import { targetFromInput } from './targetValidation';
 import type { ITargetInput } from './targetValidation';
@@ -198,7 +199,7 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
   });
 
   options.parent.appendChild(parts.element);
-  position(parts.element, options.anchor, options.parent);
+  position(parts.element, options.anchor);
   parts.firstFocus.focus();
   return { element: parts.element, close };
 }
@@ -345,10 +346,18 @@ function buildStageSelect(doc: Document, stage: IEditorStage, current: LayerTarg
   return select;
 }
 
-/** Place la fenêtre sous le bouton, dans le repère de l'élément de l'éditeur. */
-function position(element: HTMLElement, anchor: HTMLElement, parent: HTMLElement): void {
-  const anchorBox = anchor.getBoundingClientRect();
-  const parentBox = parent.getBoundingClientRect();
-  element.style.left = `${Math.max(0, anchorBox.left - parentBox.left + parent.scrollLeft)}px`;
-  element.style.top = `${anchorBox.bottom - parentBox.top + parent.scrollTop}px`;
+/**
+ * Place la fenêtre (position `fixed`) sous le bouton, ramenée dans la fenêtre
+ * du navigateur, comme le menu d'icônes de `layers.icon`.
+ */
+function position(element: HTMLElement, anchor: HTMLElement): void {
+  const view = element.ownerDocument.defaultView;
+  const size = element.getBoundingClientRect();
+  const placed = clampMenuPosition(
+    anchor.getBoundingClientRect(),
+    { width: size.width, height: size.height },
+    { width: view?.innerWidth ?? 0, height: view?.innerHeight ?? 0 }
+  );
+  element.style.left = `${placed.left}px`;
+  element.style.top = `${placed.top}px`;
 }

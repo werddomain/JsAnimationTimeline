@@ -9,6 +9,7 @@
  */
 
 import { createCommand } from '../../../../core/commands/createCommand';
+import { LAYER_COLOR_CONTROL_ORDER } from '../../color/layerColorControl';
 import { LOCK_CONTROL_ORDER } from '../../lock/LockPlugin';
 import { TargetAlertLabels } from '../targetAlert';
 import { TARGET_CONTROL_ORDER } from '../TargetPlugin';
@@ -17,7 +18,7 @@ import { mountTarget, targetButton, unmountTargets } from './fixtures';
 afterEach(unmountTargets);
 
 describe('layers.target row control', () => {
-  it('renders a target button on layers only, after the lock', () => {
+  it('renders a target button on layers only, after the lock and the color square', () => {
     // Arrange
     const { host } = mountTarget();
 
@@ -28,6 +29,7 @@ describe('layers.target row control', () => {
 
     // Assert
     expect(TARGET_CONTROL_ORDER).toBeGreaterThan(LOCK_CONTROL_ORDER);
+    expect(TARGET_CONTROL_ORDER).toBeGreaterThan(LAYER_COLOR_CONTROL_ORDER);
     expect(targetIndex).toBeGreaterThan(lockIndex);
     expect(targetButton(host, 'hero').getAttribute('aria-label')).toBe('Cible de « Héros » : Objet hero');
     expect(targetButton(host, 'bare').getAttribute('aria-label')).toBe('Cible de « Nu » : aucune cible');
