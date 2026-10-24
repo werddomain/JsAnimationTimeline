@@ -25,10 +25,17 @@
  * faire défiler ni rezoomer (un `setZoom` pendant l'annonce est ignoré).
  *
  * Ctrl (ou Cmd) + molette au-dessus de la règle ou des images zoome d'un
- * palier par cran : les petits mouvements (pincement d'un pavé tactile) sont
- * cumulés jusqu'à `WHEEL_STEP_PX`. `layout.scrollSync` laisse ce geste au
- * zoom. Le service `layout.zoom` sert à la commande de zoom de la barre
- * d'outils (T4).
+ * palier par cran ; les petits mouvements en pixels (pincement d'un pavé
+ * tactile) sont cumulés jusqu'à `WHEEL_STEP_PX`. Le pincement de Safari
+ * (`gesture*`) zoome en continu. `layout.scrollSync` laisse ces gestes au zoom.
+ *
+ * Paliers et bornes : zoom avant / arrière et molette vont de palier en
+ * palier et s'arrêtent au premier et au dernier (`levels()`, 25 % à 400 %
+ * par défaut) ; `setZoom` et le pincement acceptent toute la plage
+ * (`range()`, 10 % à 800 % par défaut), par exemple pour l'ajustement à la
+ * fenêtre. Le service `layout.zoom` sert à la commande de zoom de la barre
+ * d'outils (T4), qui construit son curseur avec `range()` et sa liste avec
+ * `levels()`.
  */
 
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
@@ -48,12 +55,20 @@ import {
 import type { IZoomRange } from './zoomLevels';
 import './zoomEvents';
 
-/** Mouvement de molette (Ctrl / Cmd) qui fait un palier, en pixels : un cran de souris usuel. */
+/** Mouvement de molette en pixels (Ctrl / Cmd) qui fait un palier : un cran de souris usuel. */
 export const WHEEL_STEP_PX = 50;
-/** `WheelEvent.DOM_DELTA_LINE`. */
-const WHEEL_DELTA_LINE = 1;
-/** Hauteur d'une ligne de molette, en pixels. */
-const WHEEL_LINE_PX = 16;
+/** Pause après laquelle le mouvement de molette cumulé est oublié, en millisecondes. */
+export const WHEEL_IDLE_MS = 300;
+/** `WheelEvent.DOM_DELTA_PIXEL`. */
+const WHEEL_DELTA_PIXEL = 0;
+/** Événements du pincement de Safari. */
+const GESTURE_EVENTS: readonly string[] = ['gesturestart', 'gesturechange', 'gestureend'];
+
+/** Ce que l'on lit d'un `GestureEvent` de Safari (absent des types du DOM). */
+interface IGestureLike {
+  readonly scale?: number;
+  readonly clientX?: number;
+}
 
 /**
  * Point gardé immobile pendant un zoom : une position de la fenêtre
@@ -148,6 +163,10 @@ export class ZoomPlugin implements EditorPlugin {
   private announcing = false;
   /** Mouvement de molette cumulé (Ctrl / Cmd), en pixels. */
   private wheelTotal = 0;
+  /** Horodatage du dernier mouvement de molette (Ctrl / Cmd). */
+  private lastWheel = Number.NEGATIVE_INFINITY;
+  /** Zoom au début d'un pincement Safari. */
+  private gestureStart = 1;
   private cleanups: Array<() => void> = [];
 
   constructor(options: ZoomOptions = {}) {
@@ -185,9 +204,18 @@ export class ZoomPlugin implements EditorPlugin {
     if (!this.wheel) return;
     const ruler = ctx.services.get('layout.shell')?.zone('ruler');
     const onWheel = (event: WheelEvent): void => this.onWheel(event);
+    const onGesture = (event: Event): void => this.onGesture(event);
     const targets = ruler === undefined ? [frames] : [frames, ruler];
-    targets.forEach((target) => target.addEventListener('wheel', onWheel, { passive: false }));
-    this.cleanups.push(() => targets.forEach((target) => target.removeEventListener('wheel', onWheel)));
+    targets.forEach((target) => {
+      target.addEventListener('wheel', onWheel, { passive: false });
+      GESTURE_EVENTS.forEach((name) => target.addEventListener(name, onGesture, { passive: false }));
+    });
+    this.cleanups.push(() =>
+      targets.forEach((target) => {
+        target.removeEventListener('wheel', onWheel);
+        GESTURE_EVENTS.forEach((name) => target.removeEventListener(name, onGesture));
+      })
+    );
   }
 
   destroy(): void {
@@ -238,20 +266,45 @@ export class ZoomPlugin implements EditorPlugin {
   }
 
   /**
-   * Ctrl / Cmd + molette : un palier par `WHEEL_STEP_PX` de mouvement cumulé
-   * (un cran de souris ; plusieurs petits mouvements de pincement), ancré
-   * sous le pointeur. Un changement de sens repart de zéro.
+   * Ctrl / Cmd + molette, ancré sous le pointeur :
+   * - en lignes ou en pages (cran de souris, Firefox) : un palier par événement ;
+   * - en pixels : un palier par `WHEEL_STEP_PX` de mouvement cumulé (plusieurs
+   *   petits mouvements de pincement d'un pavé tactile). Le cumul repart de
+   *   zéro au changement de sens et après `WHEEL_IDLE_MS` sans mouvement.
    */
   private onWheel(event: WheelEvent): void {
     if (!(event.ctrlKey || event.metaKey) || event.deltaY === 0) return;
     event.preventDefault();
-    const delta = event.deltaMode === WHEEL_DELTA_LINE ? event.deltaY * WHEEL_LINE_PX : event.deltaY;
-    const sameDirection = Math.sign(delta) === Math.sign(this.wheelTotal);
-    this.wheelTotal = (sameDirection ? this.wheelTotal : 0) + delta;
+    const idle = event.timeStamp - this.lastWheel > WHEEL_IDLE_MS;
+    this.lastWheel = event.timeStamp;
+    if (event.deltaMode !== WHEEL_DELTA_PIXEL) {
+      this.wheelTotal = 0;
+      this.step(event.deltaY < 0 ? 1 : -1, event.clientX);
+      return;
+    }
+    const sameDirection = Math.sign(event.deltaY) === Math.sign(this.wheelTotal);
+    this.wheelTotal = (sameDirection && !idle ? this.wheelTotal : 0) + event.deltaY;
     if (Math.abs(this.wheelTotal) < WHEEL_STEP_PX) return;
     const direction = this.wheelTotal < 0 ? 1 : -1;
     this.wheelTotal = 0;
-    this.setZoom(stepZoom(this.current, direction, this.levels, this.range), { clientX: event.clientX });
+    this.step(direction, event.clientX);
+  }
+
+  private step(direction: 1 | -1, clientX: number): void {
+    this.setZoom(stepZoom(this.current, direction, this.levels, this.range), { clientX });
+  }
+
+  /**
+   * Pincement de Safari (`gesturestart` / `gesturechange` / `gestureend`, qui
+   * ne passe pas par la molette) : zoom continu, borné à `range`, ancré sous
+   * le pointeur ; la page n'est pas zoomée.
+   */
+  private onGesture(event: Event & IGestureLike): void {
+    event.preventDefault();
+    if (event.type === 'gesturestart') this.gestureStart = this.current;
+    if (event.type !== 'gesturechange' || event.scale === undefined || !isValidZoom(event.scale)) return;
+    const anchor: ZoomAnchor = event.clientX === undefined ? 'playhead' : { clientX: event.clientX };
+    this.setZoom(clampZoom(this.gestureStart * event.scale, this.range), anchor);
   }
 
   private requireContext(): IEditorContext {
