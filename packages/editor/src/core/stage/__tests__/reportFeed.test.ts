@@ -83,6 +83,9 @@ describe('StageReportFeed', () => {
     feed.beginLoad([]);
     feed.add(syncError);
     feed.completePass();
+    // D1 : un passage complet sans l'erreur, puis D2 où elle revient.
+    feed.beginLoad([syncError]);
+    feed.completePass();
     feed.beginLoad([]);
     feed.add(syncError);
 

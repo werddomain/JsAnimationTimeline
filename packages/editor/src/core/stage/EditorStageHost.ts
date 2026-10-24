@@ -22,9 +22,10 @@
  *   le précédent pendant le retour arrière d'un document refusé).
  * - `stage:report` n'émet que les avertissements absents du document
  *   précédent, y compris ceux relevés après son chargement (erreur de
- *   `render` ou de `sync`), et ceux des listes reportées jusqu'au
- *   prochain passage `sync` puis `render` (plusieurs documents dans une même
- *   image) ; ceux qui existent à `editor:ready` sont émis à ce moment-là
+ *   `render` ou de `sync`), et ceux-là sont reportés jusqu'au prochain passage
+ *   `sync` puis `render` réel (plusieurs documents dans une même image, ou
+ *   pendant toute une retenue du rendu) ; les avertissements de chargement ne
+ *   sont jamais reportés ; ceux qui existent à `editor:ready` sont émis à ce moment-là
  *   (voir `StageReportFeed`).
  * - `stage:targetsChanged` est émis quand le contenu de `missingTargets`
  *   change : après un document (accepté ou refusé), et après une nouvelle
@@ -113,6 +114,8 @@ export class EditorStageHost implements IStageRenderer {
   private announceAgain = false;
   /** Un `sync` a vraiment eu lieu depuis le dernier chargement (le `render` réel qui suit termine un passage complet). */
   private syncedSinceLoad = false;
+  /** Vrai pendant host.load : les avertissements relevés alors sont recalculés à chaque document. */
+  private inHostLoad = false;
   /** Retenues actives (`hold`). */
   private readonly holds = new Set<object>();
   /** Un `sync` / un `render` ont été retenus depuis le dernier rattrapage. */
@@ -137,7 +140,7 @@ export class EditorStageHost implements IStageRenderer {
       stages: this.stages,
       registry: options.registry,
       onError: options.onError,
-      onReport: (report) => this.feed.add(report),
+      onReport: (report) => this.feed.add(report, this.inHostLoad),
       onTargetsChanged: () => this.announceMissing(),
       isEditorVisible: (layerId) => isLayerEditorVisible(this.host?.document ?? store.document, layerId),
       now: options.now
@@ -176,8 +179,9 @@ export class EditorStageHost implements IStageRenderer {
     }
     this.syncMissed = false;
     this.lastSyncPlaying = state.playing;
-    this.host.sync(time, state);
+    // Avant le sync : une commande lancée pendant le sync recharge un document, qui remet le drapeau à faux.
     this.syncedSinceLoad = true;
+    this.host.sync(time, state);
     // Arrêt de la lecture pendant une retenue : les scènes restent sur l'image d'arrêt.
     this.stopPassThrough = stopping && this.holds.size > 0;
   }
@@ -267,9 +271,11 @@ export class EditorStageHost implements IStageRenderer {
     this.loading = true;
     this.syncedSinceLoad = false;
     this.feed.beginLoad(host.warnings);
+    this.inHostLoad = true;
     try {
       host.load(doc);
     } finally {
+      this.inHostLoad = false;
       this.loading = false;
     }
   }
@@ -331,8 +337,8 @@ export class EditorStageHost implements IStageRenderer {
     try {
       if (needsSync) {
         this.lastSyncPlaying = state.playing;
-        this.host.sync(time, state);
         this.syncedSinceLoad = true;
+        this.host.sync(time, state);
       }
       this.host.render(time);
       if (this.syncedSinceLoad) this.feed.completePass();

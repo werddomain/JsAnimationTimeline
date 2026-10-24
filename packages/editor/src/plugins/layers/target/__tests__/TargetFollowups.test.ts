@@ -14,7 +14,7 @@ import { createEditor } from '../../../../core/editor/createEditor';
 import { defaultPlugins } from '../../../../core/editor/defaultPlugins';
 import { LayersPlugin } from '../../LayersPlugin';
 import { TargetPlugin } from '../TargetPlugin';
-import { createFakeStage, createTargetDocument, mountTarget, popup, press, targetButton, unmountTargets } from './fixtures';
+import { createFakeStage, createTargetDocument, flushPromises, mountTarget, popup, press, targetButton, unmountTargets } from './fixtures';
 
 afterEach(unmountTargets);
 
@@ -77,20 +77,33 @@ describe('stage of a typed ref', () => {
     expect(service.alert('hero').missing).toBe(false);
   });
 
-  it('keeps a stageless prefilled ref unchanged with a single stage, but scopes a newly typed one', () => {
+  it('scopes a stageless prefilled ref the only stage does not accept, so the alert clears', () => {
     // Arrange
-    const { editor, host } = mountTarget({ stage: undefined }, withHeroTarget({ ref: 'a' }));
+    const element = document.createElement('div');
+    element.setAttribute('data-timeline-target', 'a');
+    document.body.appendChild(element);
+    const { editor, host, service } = mountTarget({ stage: undefined }, withHeroTarget({ ref: 'a' }));
+    const missingBefore = service.alert('hero').missing;
 
     // Act
     submit(open(host, 'hero'));
-    const unchanged = editor.canUndo;
-    const dialog = open(host, 'hero');
-    field<HTMLInputElement>(dialog, 'text').value = 'b';
-    submit(dialog);
 
     // Assert
-    expect(unchanged).toBe(false);
-    expect(editor.document.layers[0]).toMatchObject({ target: { ref: 'b', stage: 'html' } });
+    expect(missingBefore).toBe(true);
+    expect(editor.document.layers[0]).toMatchObject({ target: { ref: 'a', stage: 'html' } });
+    expect(service.alert('hero').missing).toBe(false);
+  });
+
+  it('keeps a stageless prefilled ref unchanged when the only stage accepts it', () => {
+    // Arrange
+    const { editor, host } = mountTarget({}, withHeroTarget({ ref: 'hero' }));
+
+    // Act
+    submit(open(host, 'hero'));
+
+    // Assert
+    expect(editor.canUndo).toBe(false);
+    expect(editor.document.layers[0]).toMatchObject({ target: { ref: 'hero' } });
   });
 });
 
@@ -101,6 +114,7 @@ describe('popup rebuild and Tab', () => {
     const dialog = open(host, 'hero');
     const text = field<HTMLInputElement>(dialog, 'text');
     text.value = 'brouillon';
+    text.dispatchEvent(new Event('input'));
     text.focus();
 
     // Act
@@ -172,5 +186,84 @@ describe('TargetPlugin destroy', () => {
       addListener.mockRestore();
       editor.destroy();
     }
+  });
+});
+
+describe('#87 regressions', () => {
+  it('fills the rebuilt form with the new target when the user typed nothing', () => {
+    // Arrange
+    const { editor, host, service } = mountTarget();
+    service.setTarget('hero', { ref: 'sun', stage: 'canvas' });
+    const dialog = open(host, 'hero');
+    field<HTMLButtonElement>(dialog, 'apply').focus();
+
+    // Act
+    editor.undo();
+    const rebuilt = popup(host);
+
+    // Assert
+    expect(rebuilt === null ? '' : field<HTMLInputElement>(rebuilt, 'text').value).toBe('hero');
+    expect(editor.canRedo).toBe(true);
+  });
+
+  it('rebuilds when a pick ends without applying, after a change during the pick', async () => {
+    // Arrange
+    const stage = createFakeStage();
+    const { host, service } = mountTarget({ stage });
+    const dialog = open(host, 'hero');
+    field<HTMLButtonElement>(dialog, 'pick').click();
+
+    // Act
+    service.setTarget('hero', { ref: 'tree', stage: 'canvas' });
+    const staleDuringPick = popup(host) === dialog;
+    press(document.body, 'Escape');
+    const rebuilt = popup(host);
+
+    // Assert
+    expect(stage.picks).toHaveLength(1);
+    expect(staleDuringPick).toBe(true);
+    expect(rebuilt).not.toBe(dialog);
+    expect(rebuilt === null ? '' : field<HTMLInputElement>(rebuilt, 'text').value).toBe('tree');
+  });
+
+  it('rebuilds after a rejected pick following undo without discarding redo', async () => {
+    // Arrange
+    const stage = createFakeStage();
+    const { editor, host, service } = mountTarget({ stage });
+    expect(service.setTarget('hero', { ref: 'sun', stage: 'canvas' })).toBe(true);
+    const dialog = open(host, 'hero');
+    expect(field<HTMLInputElement>(dialog, 'text').value).toBe('sun');
+    field<HTMLButtonElement>(dialog, 'pick').click();
+    expect(stage.picks).toHaveLength(1);
+
+    // Act
+    expect(editor.undo()).toBe(true);
+    expect(editor.canRedo).toBe(true);
+    stage.picks[0]?.reject(new Error('Stage pick failed'));
+    await flushPromises();
+    const rebuilt = popup(host);
+    if (rebuilt === null) throw new Error('fenêtre absente après le choix');
+
+    // Assert
+    expect(field<HTMLInputElement>(rebuilt, 'text').value).toBe('hero');
+    expect(rebuilt === dialog).toBe(false);
+    expect(document.activeElement).toBe(field<HTMLButtonElement>(rebuilt, 'pick'));
+    submit(rebuilt);
+    expect(editor.document.layers[0]).toMatchObject({ target: { ref: 'hero', stage: 'canvas' } });
+    expect(editor.canRedo).toBe(true);
+    expect(editor.redo()).toBe(true);
+    expect(editor.document.layers[0]).toMatchObject({ target: { ref: 'sun', stage: 'canvas' } });
+  });
+
+  it('preselects the first stage for a stageless ref that no stage accepts', () => {
+    // Arrange
+    const scoped = (id: string): ReturnType<typeof createFakeStage> => ({ ...createFakeStage(id), accepts: (target) => 'ref' in target && target.stage === id });
+    const { host } = mountTarget({ stage: [scoped('canvas'), scoped('audio')] }, withHeroTarget({ ref: 'hero' }));
+
+    // Act
+    const dialog = open(host, 'hero');
+
+    // Assert
+    expect(field<HTMLSelectElement>(dialog, 'stage').value).toBe('canvas');
   });
 });
