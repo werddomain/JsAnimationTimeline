@@ -115,3 +115,24 @@ export type {
   ShortcutTriggeredEvent,
   ShortcutsPlugin
 } from './plugins/interaction/shortcuts';
+
+// Epic toolbar : barre d'outils principale (zone « Scène 1 », boutons et contrôles des plugins).
+export {
+  DEFAULT_SCENE_NAME,
+  DEFAULT_TOOLBAR_GROUP,
+  TOOLBAR_MAIN_PLUGIN_ID,
+  ToolbarError,
+  ToolbarMainPlugin,
+  ToolbarPlugin,
+  createToolbarMainPlugin
+} from './plugins/toolbar';
+export type {
+  IToolbarButtonDefinition,
+  IToolbarControlDefinition,
+  IToolbarItemDefinition,
+  IToolbarItemInfo,
+  IToolbarMainOptions,
+  IToolbarMainService,
+  ToolbarErrorCode,
+  ToolbarOptions
+} from './plugins/toolbar';
