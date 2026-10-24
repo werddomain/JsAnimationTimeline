@@ -40,15 +40,15 @@ export type MotionTweenRefusal = keyof typeof MotionTweenCodes;
 
 /** Messages français des refus (affichés tels quels). */
 export const MotionTweenMessages: Readonly<Record<MotionTweenRefusal, string>> = Object.freeze({
-  NO_KEYFRAME: 'Aucune image clé sélectionnée',
-  AMBIGUOUS_SELECTION: 'Sélection ambiguë',
-  MULTIPLE_LAYERS: "Sélectionnez des images d'un seul calque",
-  ALREADY_TWEEN: 'Déjà une interpolation',
-  BLANK_SPAN: 'Une plage vide ne peut pas être interpolée',
-  ADJACENT_KEYFRAMES: 'Il faut au moins deux images entre les images clés pour interpoler.',
-  NOT_A_KEYFRAME: "Cette image n'est pas une image clé",
-  INVALID_RANGE: 'La seconde image clé doit suivre la première',
-  NO_TWEEN: 'Aucune interpolation sélectionnée'
+  NO_KEYFRAME: 'Aucune image clé à interpoler.',
+  AMBIGUOUS_SELECTION: 'Sélection ambiguë.',
+  MULTIPLE_LAYERS: "Sélectionnez des images d'un seul calque.",
+  ALREADY_TWEEN: 'Déjà une interpolation.',
+  BLANK_SPAN: 'Une plage vide ne peut pas être interpolée.',
+  ADJACENT_KEYFRAMES: 'Une interpolation doit couvrir au moins deux images.',
+  NOT_A_KEYFRAME: "Cette image n'est pas une image clé.",
+  INVALID_RANGE: 'La seconde image clé doit suivre la première.',
+  NO_TWEEN: 'Aucune interpolation à supprimer.'
 });
 
 /** Demande impossible sur une interpolation ; le message est en français. */

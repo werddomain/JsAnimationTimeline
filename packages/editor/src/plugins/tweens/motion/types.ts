@@ -39,7 +39,11 @@ export interface IMotionTweenService {
   canRemove(): IMotionTweenAvailability;
   /** Crée l'interpolation de la sélection ; `false` si refusée (`command:refused`). */
   create(): boolean;
-  /** Supprime les interpolations touchées par la sélection ; `false` si refusé. */
+  /**
+   * Supprime les interpolations touchées par la sélection, sur un ou
+   * plusieurs calques (une seule entrée d'historique, refusée en bloc si un
+   * calque est verrouillé) ; `false` si refusé.
+   */
   remove(): boolean;
   /**
    * Crée une interpolation sur `layerId` : avec `to`, entre les images clés
