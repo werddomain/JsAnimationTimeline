@@ -111,7 +111,7 @@ describe('removeMotionTween', () => {
     expect(code(() => removeMotionTween(doc, 'l1', 2, registry))).toBe(MotionTweenCodes.NO_TWEEN);
     expect(code(() => removeMotionTween(doc, 'l1', 6, registry))).toBe(MotionTweenCodes.NO_TWEEN);
     expect(code(() => removeMotionTween(doc, 'l1', 20, registry))).toBe(MotionTweenCodes.NO_TWEEN);
-    expect(() => removeMotionTweens(doc, 'l1', [], registry)).toThrow('Aucune interpolation sélectionnée');
+    expect(() => removeMotionTweens(doc, 'l1', [], registry)).toThrow('Aucune interpolation à supprimer.');
   });
 
   it('refuses a locked layer, an unknown layer and an invalid frame', () => {

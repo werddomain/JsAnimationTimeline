@@ -15,12 +15,15 @@
  * - la valeur évaluée à k1, à l'image k1 ;
  * - les images clés de contenu intermédiaires, avec leurs valeurs évaluées ;
  * - les images clés de propriété des interpolations absorbées ;
- * - les valeurs évaluées de k2, à l'image k2 - 1 (celles de k1 si k2 est une
- *   image clé vide : pas de mouvement).
+ * - les valeurs évaluées de k2, à l'image k2 - 1 (celles évaluées à k2 - 1 si
+ *   k2 est une image clé vide).
  * k2 reste une image clé de contenu, inchangée : les valeurs à k2 et hors de
  * [k1, k2] ne bougent pas. L'accélération des plages absorbées est perdue.
- * Quand k2 est une image clé vide, l'interpolation finit sur les valeurs de
- * k1 (pas de mouvement) : la cible reste fixe puis disparaît à k2.
+ * Quand k2 est une image clé vide, l'interpolation finit sur les valeurs
+ * évaluées à k2 - 1 dans le calque d'origine (pas de saut ni de retour en
+ * arrière) : la cible garde ces valeurs puis disparaît à k2.
+ * Si [k1, k2 - 1] est déjà exactement une interpolation, la demande est
+ * refusée (ALREADY_TWEEN) : rien à créer.
  * Une plage statique d'une seule image est refusée (code ADJACENT_KEYFRAMES) :
  * une interpolation d'une image ne peut pas bouger.
  */
@@ -110,7 +113,7 @@ function mergedTracks(
   absorbed.slice(1).forEach((span) => setValues(points, evaluateValues(layer, span.start, registry), span.start));
   const startValues = evaluateValues(layer, range.from, registry);
   setValues(points, startValues, range.from);
-  const endValues = range.endsBlank ? startValues : evaluateValues(layer, range.to, registry);
+  const endValues = evaluateValues(layer, range.endsBlank ? range.to - 1 : range.to, registry);
   setValues(points, endValues, range.to - 1);
   return toTracks(points);
 }
@@ -132,6 +135,7 @@ export function createMotionTweenBetween(
   if (to - from < 2) throw motionTweenRefusal('ADJACENT_KEYFRAMES');
   const absorbed = layer.spans.slice(first, last);
   if (absorbed.some((span) => span.kind === 'blank')) throw motionTweenRefusal('BLANK_SPAN');
+  if (absorbed.length === 1 && absorbed[0].kind === 'tween') throw motionTweenRefusal('ALREADY_TWEEN');
   const tracks = mergedTracks(layer, absorbed, { from, to, endsBlank: layer.spans[last].kind === 'blank' }, registry);
   const merged: ISpan = withTracks({ id: absorbed[0].id, start: from, end: to - 1, kind: 'tween' }, tracks);
   return replaceLayer(doc, withSpans(layer, [...layer.spans.slice(0, first), merged, ...layer.spans.slice(last)]));

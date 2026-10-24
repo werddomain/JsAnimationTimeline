@@ -90,7 +90,7 @@ describe('createMotionTweenFromSpan', () => {
     const run = (): unknown => createMotionTweenFromSpan(doc, 'l1', 1);
 
     // Assert
-    expect(run).toThrow('Il faut au moins deux images entre les images clés pour interpoler.');
+    expect(run).toThrow('Une interpolation doit couvrir au moins deux images.');
     expect(codeOf(run)).toBe(MotionTweenCodes.ADJACENT_KEYFRAMES);
   });
 
@@ -176,7 +176,7 @@ describe('createMotionTweenBetween', () => {
     });
   });
 
-  it('ends on the start values when k2 is a blank keyframe', () => {
+  it('ends on the values at k2 - 1 (no slide back) when k2 is a blank keyframe', () => {
     // Arrange
     const doc = createDoc([
       layer('l1', [stat('s1', 1, 4, { x: [{ frame: 1, value: 5 }] }), stat('s2', 5, 8, { x: [{ frame: 5, value: 50 }] }), { id: 'b', start: 9, end: 12, kind: 'blank' }])
@@ -187,8 +187,36 @@ describe('createMotionTweenBetween', () => {
 
     // Assert
     expectValid(next);
-    expect(spansOf(next, 'l1')[0].tracks).toEqual({ x: [{ frame: 1, value: 5 }, { frame: 5, value: 50 }, { frame: 8, value: 5 }] });
+    expect(spansOf(next, 'l1')[0].tracks).toEqual({ x: [{ frame: 1, value: 5 }, { frame: 5, value: 50 }, { frame: 8, value: 50 }] });
     expect(spansOf(next, 'l1')[1]).toBe(spansOf(doc, 'l1')[2]);
+  });
+
+  it('does not bounce back to k1 with a blank k2 (static 0, static 100, blank)', () => {
+    // Arrange
+    const doc = createDoc([
+      layer('l1', [stat('a', 1, 5, { x: [{ frame: 1, value: 0 }] }), stat('b', 6, 10, { x: [{ frame: 6, value: 100 }] }), { id: 'k', start: 11, end: 12, kind: 'blank' }])
+    ]);
+
+    // Act
+    const next = createMotionTweenBetween(doc, 'l1', 1, 11, registry);
+
+    // Assert
+    expectValid(next);
+    expect(spansOf(next, 'l1')[0].tracks).toEqual({ x: [{ frame: 1, value: 0 }, { frame: 6, value: 100 }, { frame: 10, value: 100 }] });
+  });
+
+  it('refuses a range that is already exactly one tween', () => {
+    // Arrange
+    const doc = createDoc([
+      layer('l1', [{ id: 't', start: 1, end: 5, kind: 'tween', easing: 'ease-in', tracks: { x: [{ frame: 1, value: 0 }, { frame: 5, value: 9 }] } }, stat('b', 6, 8)])
+    ]);
+
+    // Act
+    const run = (): unknown => createMotionTweenBetween(doc, 'l1', 1, 6, registry);
+
+    // Assert
+    expect(run).toThrow('Déjà une interpolation.');
+    expect(codeOf(run)).toBe(MotionTweenCodes.ALREADY_TWEEN);
   });
 
   it('works on a layer without tracks (a tween without keyframes)', () => {
@@ -211,7 +239,7 @@ describe('createMotionTweenBetween', () => {
     const run = (): unknown => createMotionTweenBetween(doc, 'l1', 5, 6, registry);
 
     // Assert
-    expect(run).toThrow('Il faut au moins deux images entre les images clés pour interpoler.');
+    expect(run).toThrow('Une interpolation doit couvrir au moins deux images.');
     expect(codeOf(run)).toBe(MotionTweenCodes.ADJACENT_KEYFRAMES);
   });
 
@@ -220,7 +248,7 @@ describe('createMotionTweenBetween', () => {
     const doc = createDoc([layer('l1', [stat('a', 1, 4), { id: 'b', start: 5, end: 8, kind: 'blank' }, stat('c', 9, 12)])]);
 
     // Assert
-    expect(() => createMotionTweenBetween(doc, 'l1', 1, 9, registry)).toThrow('Une plage vide ne peut pas être interpolée');
+    expect(() => createMotionTweenBetween(doc, 'l1', 1, 9, registry)).toThrow('Une plage vide ne peut pas être interpolée.');
     expect(codeOf(() => createMotionTweenBetween(doc, 'l1', 5, 9, registry))).toBe(MotionTweenCodes.BLANK_SPAN);
     expect(codeOf(() => createMotionTweenBetween(doc, 'l1', 2, 9, registry))).toBe(MotionTweenCodes.NOT_A_KEYFRAME);
     expect(codeOf(() => createMotionTweenBetween(doc, 'l1', 1, 7, registry))).toBe(MotionTweenCodes.NOT_A_KEYFRAME);
