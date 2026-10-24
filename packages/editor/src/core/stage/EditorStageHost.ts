@@ -21,7 +21,9 @@
  *   parents dans le dernier document accepté par les scènes.
  * - `stage:report` n'émet que les avertissements nouveaux par rapport au
  *   document précédent ; ceux qui existent à `editor:ready` sont émis à ce
- *   moment-là (voir `StageReportFeed`).
+ *   moment-là (voir `StageReportFeed`). Un avertissement relevé pendant le
+ *   chargement d'un document ensuite refusé a déjà été émis ; il ne figure plus
+ *   dans `warnings`.
  * - Sans scène (`stage: false`), rien n'est routé : aucune cible manquante,
  *   aucun avertissement.
  * - `destroy` relâche chaque calque puis détache chaque scène ; les objets
@@ -180,16 +182,25 @@ export class EditorStageHost implements IStageRenderer {
     }
     this.loading = true;
     this.feed.beginLoad(host.warnings);
+    const previous = this.accepted;
+    // Lu par les rendus faits pendant le chargement (cibles réessayées à sa fin).
+    this.accepted = doc;
     try {
       host.load(doc);
-      this.accepted = doc;
+    } catch (error) {
+      this.accepted = previous;
+      throw error;
     } finally {
       this.loading = false;
       if (!this.destroyed) this.feed.endLoad(host.warnings);
     }
   }
 
-  /** Rendu des scènes à l'instant courant, juste après un chargement. */
+  /**
+   * Rendu des scènes à l'instant courant, juste après un chargement (pour les
+   * scènes en mode `frame`, qui remettent leurs styles d'origine dans
+   * `update`). Pas de `sync` : il suit avec le rendu regroupé de la lecture.
+   */
   private renderNow(): void {
     if (this.destroyed || this.host === null) return;
     this.host.render(this.now().time);

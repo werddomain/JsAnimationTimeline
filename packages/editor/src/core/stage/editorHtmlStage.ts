@@ -5,23 +5,35 @@
  * ne propose jamais l'éditeur :
  * - le conteneur donné à `createEditor()` lui-même (un `<div id="timeline">`
  *   ne bouge pas sous un sélecteur `div`) ;
- * - tout le sous-arbre de l'éditeur (enfant `.JsTimeLine` du conteneur).
+ * - tout le sous-arbre de l'éditeur (enfant `.JsTimeLine` direct du conteneur).
  * Les autres enfants du conteneur restent des cibles : il peut aussi contenir
  * la scène du développeur.
  *
  * Un sélecteur prend le premier élément qui correspond hors de l'éditeur ; il
  * est résolu ici puis passé à la scène sous la forme `{ element }`, pour que la
- * scène garde la sauvegarde de ses styles. Les cibles `{ ref, stage: 'html' }`
- * passent telles quelles : une ref désigne un élément choisi exprès.
+ * scène garde la sauvegarde de ses styles. Une ref (table `refs`, `bind`, ou
+ * attribut `data-timeline-target`) ou un `{ element }` qui désigne l'éditeur ne
+ * se résout pas non plus. `resolve`, `targets.list()` et `targets.describe()`
+ * suivent la même règle.
  *
  * C'est la scène par défaut de l'éditeur ; elle sert aussi à combiner la scène
  * HTML avec d'autres (`stage: [createEditorHtmlStage(el), canvasStage]`).
  */
 
-import { createHtmlStage, isRefTarget, isSelectorTarget, TARGET_ATTRIBUTE } from '@werddomain/timeline-runtime';
+import {
+  createHtmlStage,
+  isElementTarget,
+  isRefTarget,
+  isSelectorTarget,
+  TARGET_ATTRIBUTE
+} from '@werddomain/timeline-runtime';
 import type { HtmlStageRefs, IHtmlStage, ITargetInfo, LayerTarget } from '@werddomain/timeline-runtime';
 
-/** Classe de l'élément racine de l'éditeur (même valeur que `EDITOR_ROOT_CLASS`). */
+/**
+ * Classe de l'élément racine de l'éditeur. Même valeur que `EDITOR_ROOT_CLASS`
+ * (`core/editor/createEditor.ts`), recopiée pour ne pas créer d'import
+ * circulaire avec `createEditor`.
+ */
 const EDITOR_ROOT_CLASS = 'JsTimeLine';
 
 /** Options de `createEditorHtmlStage`. */
@@ -32,12 +44,13 @@ export interface IEditorHtmlStageOptions {
   readonly refs?: HtmlStageRefs;
 }
 
-/** Vrai pour le conteneur lui-même et pour le sous-arbre de l'éditeur qu'il contient. */
+/** Vrai pour le conteneur lui-même et pour tout élément du sous-arbre de l'éditeur. */
 function createExclusion(container: Element): (element: Element) => boolean {
   return (element) => {
     if (element === container) return true;
-    const editorRoot = element.closest(`.${EDITOR_ROOT_CLASS}`);
-    return editorRoot !== null && editorRoot.parentElement === container;
+    return Array.from(container.children).some(
+      (child) => child.classList.contains(EDITOR_ROOT_CLASS) && child.contains(element)
+    );
   };
 }
 
@@ -50,16 +63,9 @@ function queryOutside(root: ParentNode, selector: string, excluded: (element: El
   }
 }
 
-/** Vrai si `info` désigne l'éditeur : le conteneur (id ou attribut de cible) ou un élément de son sous-arbre. */
-function namesEditor(info: ITargetInfo, root: ParentNode, excluded: (element: Element) => boolean): boolean {
-  const target = info.target;
-  if (isSelectorTarget(target)) return queryOutside(root, target.selector, excluded) === null;
-  if (isRefTarget(target)) {
-    const marked = root.querySelectorAll(`[${TARGET_ATTRIBUTE}]`);
-    const owners = Array.from(marked).filter((element) => element.getAttribute(TARGET_ATTRIBUTE) === target.ref);
-    return owners.length > 0 && owners.every(excluded);
-  }
-  return false;
+function initialRefs(refs: HtmlStageRefs | undefined): Map<string, Element> {
+  if (refs === undefined) return new Map();
+  return refs instanceof Map ? new Map(refs) : new Map(Object.entries(refs));
 }
 
 /**
@@ -70,21 +76,49 @@ export function createEditorHtmlStage(container: Element, options: IEditorHtmlSt
   const root = options.root ?? container.ownerDocument;
   const excluded = createExclusion(container);
   const inner = createHtmlStage({ root, mode: 'frame', refs: options.refs });
+  // Copie de la table des refs de la scène, pour savoir quel élément une ref désigne.
+  const refs = initialRefs(options.refs);
+
+  const elementOfRef = (ref: string): Element | null => {
+    const bound = refs.get(ref);
+    if (bound !== undefined) return bound;
+    const marked = Array.from(root.querySelectorAll(`[${TARGET_ATTRIBUTE}]`));
+    return marked.find((element) => element.getAttribute(TARGET_ATTRIBUTE) === ref) ?? null;
+  };
+
+  /**
+   * Cible à passer à la scène : le premier élément hors de l'éditeur pour un
+   * sélecteur, la cible telle quelle sinon ; `null` si elle désigne l'éditeur.
+   */
+  const toInner = (target: LayerTarget): LayerTarget | null => {
+    if (isSelectorTarget(target)) {
+      const element = queryOutside(root, target.selector, excluded);
+      return element === null ? null : { element };
+    }
+    const element = isElementTarget(target) ? target.element : isRefTarget(target) ? elementOfRef(target.ref) : null;
+    return element !== null && excluded(element) ? null : target;
+  };
+
   return {
     ...inner,
     targets: {
       ...inner.targets,
-      list: () => inner.targets.list().filter((info) => !namesEditor(info, root, excluded)),
-      describe: (target) =>
-        (isSelectorTarget(target) && queryOutside(root, target.selector, excluded) === null
-          ? undefined
-          : inner.targets.describe?.(target))
+      list: () => inner.targets.list().filter((info: ITargetInfo) => toInner(info.target) !== null),
+      describe: (target) => {
+        const resolved = toInner(target);
+        if (resolved === null) return undefined;
+        const info = inner.targets.describe?.(resolved);
+        return info === undefined ? undefined : { ...info, target };
+      }
     },
     resolve(target: LayerTarget): Element | null {
-      if (!isSelectorTarget(target)) return inner.resolve(target);
-      const element = queryOutside(root, target.selector, excluded);
-      return element === null ? null : inner.resolve({ element });
+      const resolved = toInner(target);
+      return resolved === null ? null : inner.resolve(resolved);
     },
-    bind: (ref, element) => inner.bind(ref, element)
+    bind(ref: string, element: Element | null): void {
+      if (element === null) refs.delete(ref);
+      else refs.set(ref, element);
+      inner.bind(ref, element);
+    }
   };
 }
