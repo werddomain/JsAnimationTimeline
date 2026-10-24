@@ -254,14 +254,21 @@ describe('layout.zoom options and lifecycle', () => {
     // Arrange
     const { zone, api } = setup({ zoom: { maxZoom: 2 } });
     const lines = { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_LINE };
-    api.setZoom(0.25);
+    const later = (timeStamp: number): WheelEvent => {
+      const event = ctrlWheel(3, 150, lines);
+      Object.defineProperty(event, 'timeStamp', { value: timeStamp });
+      return event;
+    };
+    api.setZoom(0.5);
 
-    // Act : la molette ne descend pas sous 25 %.
-    zone('frames').dispatchEvent(ctrlWheel(3, 150, lines));
+    // Act : deux crans arrière depuis 50 % ; la molette s'arrête à 25 %, sans 10 %.
+    zone('frames').dispatchEvent(later(1e12));
+    const oneNotch = api.zoom();
+    zone('frames').dispatchEvent(later(1e12 + WHEEL_IDLE_MS * 10));
 
     // Assert
     expect(api.levels()).toEqual([0.25, 0.5, 0.75, 1, 1.5, 2]);
-    expect(api.zoom()).toBe(0.25);
+    expect([oneNotch, api.zoom()]).toEqual([0.25, 0.25]);
   });
 
   it('adds only minZoom when only the low default levels are cut', () => {

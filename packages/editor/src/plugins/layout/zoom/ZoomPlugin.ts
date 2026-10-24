@@ -153,7 +153,12 @@ function assertZoom(value: number, name: string): void {
  * `min`, `max` si un palier est au-dessus de `max` ; les deux s'il resterait
  * moins de deux paliers.
  */
-function withCutBounds(inBounds: readonly number[], defaults: readonly number[], min: number, max: number): number[] {
+function withCutBounds(
+  inBounds: readonly number[],
+  defaults: readonly number[],
+  min: number,
+  max: number
+): readonly number[] {
   const cutLow = defaults.some((level) => level < min);
   const cutHigh = defaults.some((level) => level > max);
   const levels = Array.from(new Set([...(cutLow ? [min] : []), ...inBounds, ...(cutHigh ? [max] : [])]));
