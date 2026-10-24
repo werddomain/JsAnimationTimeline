@@ -50,6 +50,7 @@ const V2_NAMES = [
   'DEFAULT_TOTAL_FRAMES',
   'DEFAULT_TOOLBAR_GROUP',
   'EDITOR_ROOT_CLASS',
+  'HistoryPlugin',
   'LAYOUT_SLOTS',
   'MAX_FPS',
   'MIN_FPS',
@@ -78,6 +79,10 @@ const V2_NAMES = [
   'ShortcutError',
   'StoreError',
   'TOOLBAR_MAIN_PLUGIN_ID',
+  'UNDO_REDO_PLUGIN_ID',
+  'UndoRedoIds',
+  'UndoRedoKeys',
+  'UndoRedoPlugin',
   'ToolbarError',
   'ToolbarGroupOrders',
   'ToolbarMainPlugin',
@@ -92,6 +97,7 @@ const V2_NAMES = [
   'createShortcutsPlugin',
   'createTimeSettingsPlugin',
   'createToolbarMainPlugin',
+  'createUndoRedoPlugin',
   'defaultPlugins'
 ];
 

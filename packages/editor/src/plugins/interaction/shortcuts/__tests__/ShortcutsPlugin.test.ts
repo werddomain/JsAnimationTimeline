@@ -42,7 +42,8 @@ function setup(options?: IShortcutsOptions): IHarness {
   document.body.appendChild(host);
   const triggered: ShortcutTriggeredEvent[] = [];
   const editor = createEditor(host, {
-    defaultPlugins: options === undefined ? true : [createShortcutsPlugin(options)],
+    // Raccourcis seuls : le jeu par défaut déclare déjà ses propres raccourcis.
+    defaultPlugins: [createShortcutsPlugin(options)],
     plugins: [recorder(triggered)]
   });
   editors.push(editor);
