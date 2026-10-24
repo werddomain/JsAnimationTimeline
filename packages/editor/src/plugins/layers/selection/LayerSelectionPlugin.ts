@@ -104,6 +104,7 @@ export class LayerSelectionPlugin implements EditorPlugin {
   private focusedElement: Element | undefined;
   /** Appui de souris en cours : a-t-il commencé hors de toute ligne ? `undefined` sans appui connu. */
   private pressedOnEmpty: boolean | undefined;
+  private pressTimer: ReturnType<typeof setTimeout> | undefined;
   private renderCleanups: Array<() => void> = [];
 
   readonly init = (ctx: IEditorContext): void => {
@@ -124,6 +125,7 @@ export class LayerSelectionPlugin implements EditorPlugin {
     this.releaseRender();
     const element = this.requireList().element();
     if (element === undefined) return;
+    this.listenPressEnd(element.ownerDocument);
     this.knownRows = this.requireList().rows().map(toRef);
     paintList(element);
     this.listen(element, 'focusin', (event) => this.onFocusIn(event as FocusEvent));
@@ -152,6 +154,8 @@ export class LayerSelectionPlugin implements EditorPlugin {
 
   /** Retire les écouteurs posés par `render` (avant un nouveau `render`, et à la destruction). */
   private releaseRender(): void {
+    this.pressedOnEmpty = undefined;
+    this.clearPressTimer();
     const cleanups = this.renderCleanups;
     this.renderCleanups = [];
     cleanups.forEach((cleanup) => cleanup());
@@ -161,14 +165,52 @@ export class LayerSelectionPlugin implements EditorPlugin {
     const target = event.target;
     if (!(target instanceof Element)) return;
     this.focusedElement = target;
-    // Focus arrivé par un autre chemin (lecteur d'écran, autre plugin) : le tabindex suit.
+    // Appui de souris en cours : le clic qui suit décidera (un seul événement par clic).
+    if (this.pressedOnEmpty !== undefined) return;
+    this.syncRowFocus(target);
+  }
+
+  /** Focus arrivé par un autre chemin (lecteur d'écran, autre plugin) : le tabindex suit. */
+  private syncRowFocus(target: Element | null): void {
     const list = this.requireList();
     const id = list.rowIdAt(target);
     if (id !== undefined && list.rowElement(id) === target) this.commit(focusRow(this.state, this.rowIds(), id));
   }
 
+  /**
+   * Un appui de souris sans clic (relâché hors de la liste, glissement, menu
+   * contextuel, fenêtre qui perd le focus) ne doit pas laisser un état d'appui
+   * périmé : fin de l'appui, puis le focus DOM éventuel est repris dans le modèle.
+   */
+  private endPress(): void {
+    this.clearPressTimer();
+    if (this.pressedOnEmpty === undefined || this.list === undefined) return;
+    this.pressedOnEmpty = undefined;
+    const active = this.list.element()?.ownerDocument.activeElement ?? null;
+    if (this.list.element()?.contains(active) === true) this.syncRowFocus(active);
+  }
+
+  private clearPressTimer(): void {
+    if (this.pressTimer === undefined) return;
+    clearTimeout(this.pressTimer);
+    this.pressTimer = undefined;
+  }
+
+  private listenPressEnd(doc: Document): void {
+    // `mouseup` précède le `click` du même geste : la fin d'appui est différée d'un tour.
+    this.listen(doc, 'mouseup', () => {
+      this.clearPressTimer();
+      this.pressTimer = setTimeout(() => this.endPress(), 0);
+    });
+    this.listen(doc, 'dragend', () => this.endPress());
+    this.listen(doc, 'contextmenu', () => this.endPress());
+    const view = doc.defaultView;
+    if (view !== null) this.listen(view, 'blur', () => this.endPress());
+  }
+
   /** Mémorise si l'appui d'un clic a commencé dans l'espace vide (hors de toute ligne). */
   private onMouseDown(event: MouseEvent): void {
+    this.clearPressTimer();
     this.pressedOnEmpty = this.requireList().rowIdAt(event.target) === undefined;
   }
 
@@ -196,14 +238,19 @@ export class LayerSelectionPlugin implements EditorPlugin {
     return {
       selected: () => orderedIds(this.state, this.rowIds()),
       isSelected: (id) => this.state.ids.has(id) && this.rowIds().includes(id),
-      anchor: () => this.state.anchor,
-      focused: () => this.state.focused,
+      anchor: () => this.visibleOnly(this.state.anchor),
+      focused: () => this.visibleOnly(this.state.focused),
       select: (ids, mode = 'replace') => this.select(ids, mode),
       selectRange: (fromId, toId, additive = false) =>
         this.commit(selectRangeIds(this.state, this.rowIds(), fromId, toId, additive)),
       selectAll: () => this.commit(selectAllIds(this.state, this.rowIds())),
       clear: () => this.commit(clearSelection(this.state))
     };
+  }
+
+  /** `id` s'il est une ligne visible (entre `layers:rowsChanged` et l'élagage, l'état peut pointer une ligne cachée). */
+  private visibleOnly(id: string | undefined): string | undefined {
+    return id !== undefined && this.rowIds().includes(id) ? id : undefined;
   }
 
   private select(ids: readonly string[], mode: SelectionMode): void {
@@ -240,7 +287,10 @@ export class LayerSelectionPlugin implements EditorPlugin {
   private onLoaded(): void {
     const previousIds = orderedIds(this.state, this.knownRows.map((row) => row.id));
     this.knownRows = this.requireList().rows().map(toRef);
+    const held = this.listHeldFocus();
     this.commit(EMPTY_SELECTION, previousIds);
+    const first = this.requireList().rows()[0];
+    if (held && first !== undefined) this.requireList().rowElement(first.id)?.focus({ preventScroll: true });
   }
 
   /** Élague la sélection d'après les lignes visibles. */
@@ -361,8 +411,8 @@ export class LayerSelectionPlugin implements EditorPlugin {
   }
 
   private listen(
-    target: HTMLElement,
-    type: 'click' | 'mousedown' | 'keydown' | 'focusin' | 'focusout',
+    target: EventTarget,
+    type: 'click' | 'mousedown' | 'mouseup' | 'dragend' | 'contextmenu' | 'blur' | 'keydown' | 'focusin' | 'focusout',
     handler: (event: Event) => void
   ): void {
     target.addEventListener(type, handler);
