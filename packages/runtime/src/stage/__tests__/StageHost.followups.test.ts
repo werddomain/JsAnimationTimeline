@@ -112,6 +112,40 @@ describe('subscribe with affected targets', () => {
   });
 });
 
+describe('destroy during a re-resolution', () => {
+  function destroyingOnResolve(canvas: ReturnType<typeof createFakeStage>, host: StageHost): void {
+    const resolve = canvas.stage.resolve.bind(canvas.stage);
+    jest.spyOn(canvas.stage, 'resolve').mockImplementation((target) => {
+      const object = resolve(target);
+      host.destroy();
+      return object;
+    });
+  }
+
+  it('releases the old object once and the new one, when resolve destroys the host on a rebind', () => {
+    const canvas = createFakeStage('canvas', { unscoped: true, subscribe: true });
+    canvas.objects.set('a', { name: 'A' });
+    const host = createHost([canvas.stage]);
+    host.load(docOf([refLayer('l1', 'a')]));
+    canvas.objects.set('a', { name: 'A2' });
+    destroyingOnResolve(canvas, host);
+    canvas.notify([{ ref: 'a' }]);
+    expect(canvas.calls.filter((call) => call === 'release l1 A')).toHaveLength(1);
+    expect(canvas.calls).toContain('release l1 A2');
+  });
+
+  it('releases the object found by a retry when resolve destroys the host', () => {
+    const canvas = createFakeStage('canvas', { unscoped: true, subscribe: true });
+    const host = createHost([canvas.stage]);
+    host.load(docOf([refLayer('l1', 'a')]));
+    canvas.objects.set('a', { name: 'A' });
+    destroyingOnResolve(canvas, host);
+    canvas.notify();
+    expect(canvas.calls).toContain('release l1 A');
+    expect(canvas.calls.filter((call) => call.startsWith('update'))).toHaveLength(1);
+  });
+});
+
 describe('refused first document', () => {
   it('leaves no waapi animation running on a standalone host', () => {
     const canvas = createFakeStage('canvas');

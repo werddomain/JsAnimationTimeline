@@ -352,6 +352,13 @@ export class StageHost {
         continue;
       }
       const next = binding.resolved ? this.reresolve(binding, affected) : this.resolve(binding.layerId, binding.target, binding.stage);
+      if (this.destroyed) {
+        // destroy() ran during resolve: the host forgets its bindings, so the new object goes back now.
+        if (!binding.resolved) {
+          this.release(next);
+        }
+        return;
+      }
       if (next !== binding) {
         this.bindings.set(binding.layerId, next);
       }
@@ -375,6 +382,11 @@ export class StageHost {
       return binding;
     }
     const next = this.resolve(binding.layerId, binding.target, binding.stage);
+    if (this.destroyed) {
+      // destroy() ran during resolve and already released `binding`: only the new object is left.
+      this.release(next.resolved && next.object !== binding.object ? next : { ...next, resolved: false });
+      return binding;
+    }
     if (next.resolved && next.object === binding.object) {
       return binding;
     }
