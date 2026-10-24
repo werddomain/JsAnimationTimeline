@@ -268,7 +268,7 @@ const editor = createEditor(container, {
   plugins: [propertiesPanel()], // plugins optionnels en plus du jeu par défaut
 });
 editor.setProperty(layerId, 'x', 120, { frame: 30 }); // la voie « API » de la décision 6
-editor.on('selection:changed', e => {});
+editor.on('layers:selectionChanged', e => {});
 editor.undo(); editor.redo();
 editor.toJSON(); editor.load(json);
 editor.destroy();

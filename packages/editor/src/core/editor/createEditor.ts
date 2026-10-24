@@ -13,7 +13,9 @@
  * 2. `PluginHost<IEditorContext>` : jeu par défaut (ou celui de
  *    `options.defaultPlugins`), puis `options.plugins` ;
  * 3. élément racine `<div class="JsTimeLine">` ajouté au conteneur et défini
- *    comme `ROOT_SLOT`, puis la lecture (`PlaybackController` sur l'horloge
+ *    comme `ROOT_SLOT`, les scènes (`options.stage`, ou la scène HTML en
+ *    mode `frame` qui exclut cet élément ; le document initial y est chargé),
+ *    puis la lecture (`PlaybackController` sur l'horloge
  *    `options.clock` ou `createDefaultClock()`) ; le premier rendu est demandé à
  *    l'horloge ;
  * 4. `host.start(ctx)` avec le contexte de façades (`createEditorContext`) ;
@@ -29,10 +31,15 @@ import { EventBus } from '../events/EventBus';
 import { createEditorContext } from '../context/createEditorContext';
 import type { EditorPlugin, IEditorContext } from '../context/IEditorContext';
 import { ServiceRegistry } from '../context/ServiceRegistry';
+import { buildStageRegistry, defaultPropertyRegistry } from '@werddomain/timeline-runtime';
 import { createDefaultClock } from '../playback/defaultClock';
 import { PlaybackController } from '../playback/PlaybackController';
 import { createPlaybackFacade } from '../playback/playbackFacade';
 import { PluginHost } from '../plugin/PluginHost';
+import { EditorStageHost } from '../stage/EditorStageHost';
+import { createDefaultHtmlStage, resolveUserStages } from '../stage/resolveStages';
+import { createStageFacade } from '../stage/stageFacade';
+import type { StageErrorHandler } from '../stage/types';
 import { ROOT_SLOT } from '../plugin/SlotRegistry';
 import { Store } from '../store/Store';
 import { defaultPlugins } from './defaultPlugins';
@@ -70,9 +77,31 @@ function createRootElement(container: HTMLElement): HTMLElement {
   return element;
 }
 
+/** Erreurs des scènes par défaut : écrites avec `console.error`, la lecture continue. */
+const reportStageError: StageErrorHandler = (error) => {
+  console.error("[JsTimeLine] Erreur d'une scène :", error);
+};
+
+/** Branche les scènes : celles du développeur, ou la scène HTML par défaut qui exclut `element`. */
+function createStageHost(
+  parts: Pick<IEditorParts, 'bus' | 'store' | 'registry' | 'playback' | 'element'>,
+  userStages: ReturnType<typeof resolveUserStages>,
+  options: EditorOptions,
+  container: HTMLElement
+): EditorStageHost {
+  const { bus, store, registry, playback, element } = parts;
+  const stages = userStages ?? [createDefaultHtmlStage(options.root ?? container.ownerDocument, element)];
+  const onError = options.onStageError ?? reportStageError;
+  const stageHost = new EditorStageHost({ bus, store, stages, registry, onError, now: () => playback.now });
+  playback.attachStage(stageHost);
+  return stageHost;
+}
+
 /** Crée les pièces du noyau ; ne touche au DOM qu'une fois les plugins enregistrés. */
 function createParts(container: HTMLElement, options: EditorOptions): IEditorParts {
-  const registry = createEditorRegistry(options.registry);
+  const userStages = resolveUserStages(options);
+  const base = options.registry ?? defaultPropertyRegistry;
+  const registry = createEditorRegistry(buildStageRegistry(base, userStages ?? []));
   const bus = new EventBus();
   const store = new Store(bus, options.data ?? createEmptyDocument(), {
     registry,
@@ -86,11 +115,25 @@ function createParts(container: HTMLElement, options: EditorOptions): IEditorPar
   const clock = options.clock ?? createDefaultClock();
   const playback = new PlaybackController({ bus, store, registry, clock });
   const element = createRootElement(container);
-  host.slots.define(ROOT_SLOT, element);
-  const lifecycle = new EditorLifecycle();
-  const playbackFacade = createPlaybackFacade(playback, (operation) => lifecycle.assertActive(operation));
-  const services = new ServiceRegistry();
-  return { bus, store, commands, host, services, registry, playback, playbackFacade, element, lifecycle };
+  let stageHost: EditorStageHost | undefined;
+  try {
+    stageHost = createStageHost({ bus, store, registry, playback, element }, userStages, options, container);
+    host.slots.define(ROOT_SLOT, element);
+    const lifecycle = new EditorLifecycle();
+    const assertActive = (operation: string): void => lifecycle.assertActive(operation);
+    const playbackFacade = createPlaybackFacade(playback, assertActive);
+    const stageFacade = createStageFacade(stageHost, assertActive);
+    const services = new ServiceRegistry();
+    return {
+      bus, store, commands, host, services, registry, playback, playbackFacade, stageHost, stageFacade, element, lifecycle
+    };
+  } catch (error) {
+    // Rien ne doit rester : lecture arrêtée, scènes relâchées et détachées, élément retiré.
+    playback.destroy();
+    stageHost?.destroy();
+    element.remove();
+    throw error;
+  }
 }
 
 /** Démarre les plugins ; en cas d'échec, libère les pièces et relance l'erreur. */
@@ -103,6 +146,7 @@ function startPlugins(parts: IEditorParts): void {
     services: parts.services,
     container: parts.element,
     playback: parts.playbackFacade,
+    stage: parts.stageFacade,
     registry: parts.registry,
     assertActive: (operation) => parts.lifecycle.assertActive(operation)
   });
@@ -120,7 +164,10 @@ function startPlugins(parts: IEditorParts): void {
  *
  * @throws TypeError si `container` n'est pas un élément ; `StoreError` si
  *   `options.data` est invalide (cible vivante comprise, ou piste inconnue
- *   avec `strictProperties`) ; `RangeError` si `historyLimit` est
+ *   avec `strictProperties`) ; `Error` si `root` et `stage` sont donnés
+ *   ensemble, si deux scènes ont le même id, si une propriété de scène est
+ *   déjà définie, ou si une scène refuse le document initial
+ *   (`StageDocumentError`) ; `RangeError` si `historyLimit` est
  *   invalide ; `PluginError` (enregistrement, dépendances, emplacements,
  *   `init-failed`, `render-failed`). Dans tous les cas, le conteneur est
  *   laissé tel qu'il était.

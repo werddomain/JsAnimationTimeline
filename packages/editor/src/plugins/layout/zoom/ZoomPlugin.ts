@@ -119,7 +119,12 @@ export interface ZoomOptions {
   readonly maxZoom?: number;
   /** Paliers du zoom avant / arrière (`DEFAULT_ZOOM_LEVELS` par défaut). */
   readonly levels?: readonly number[];
-  /** Ctrl / Cmd + molette zoome (vrai par défaut). */
+  /**
+   * Gestes de zoom au-dessus de la règle et des images (vrai par défaut) :
+   * Ctrl / Cmd + molette (pincement d'un pavé tactile compris) et pincement
+   * de Safari (`gesture*`). À faux, aucun des deux n'est intercepté : le
+   * navigateur garde son propre zoom de la page.
+   */
   readonly wheel?: boolean;
 }
 
@@ -129,7 +134,11 @@ function assertZoom(value: number, name: string): void {
   }
 }
 
-/** Options vérifiées : bornes cohérentes, paliers triés. */
+/**
+ * Options vérifiées : bornes cohérentes ; paliers triés et limités aux
+ * bornes (`levels()` ne propose jamais une valeur que `setZoom` bornerait),
+ * au moins un.
+ */
 function resolveOptions(options: ZoomOptions): { range: IZoomRange; levels: readonly number[]; initial: number } {
   const min = options.minZoom ?? DEFAULT_MIN_ZOOM;
   const max = options.maxZoom ?? DEFAULT_MAX_ZOOM;
@@ -138,9 +147,12 @@ function resolveOptions(options: ZoomOptions): { range: IZoomRange; levels: read
   assertZoom(max, 'maxZoom');
   assertZoom(initial, 'initialZoom');
   if (min > max) throw new RangeError(`layout.zoom : minZoom (${min}) dépasse maxZoom (${max}).`);
-  const levels = [...(options.levels ?? DEFAULT_ZOOM_LEVELS)];
-  levels.forEach((level) => assertZoom(level, 'palier'));
-  levels.sort((a, b) => a - b);
+  const given = options.levels ?? DEFAULT_ZOOM_LEVELS;
+  given.forEach((level) => assertZoom(level, 'palier'));
+  const levels = given.filter((level) => level >= min && level <= max).sort((a, b) => a - b);
+  if (levels.length === 0) {
+    throw new RangeError(`layout.zoom : aucun palier entre minZoom (${min}) et maxZoom (${max}).`);
+  }
   const range = { min, max };
   return { range, levels: Object.freeze(levels), initial: clampZoom(initial, range) };
 }
@@ -161,8 +173,10 @@ export class ZoomPlugin implements EditorPlugin {
   private readonly wheel: boolean;
   /** Vrai pendant l'émission de `zoom:changed`. */
   private announcing = false;
-  /** Mouvement de molette cumulé (Ctrl / Cmd), en pixels. */
+  /** Mouvement de molette cumulé (Ctrl / Cmd), dans l'unité `wheelMode`. */
   private wheelTotal = 0;
+  /** Unité du mouvement cumulé (`WheelEvent.deltaMode`). */
+  private wheelMode = WHEEL_DELTA_PIXEL;
   /** Horodatage du dernier mouvement de molette (Ctrl / Cmd). */
   private lastWheel = Number.NEGATIVE_INFINITY;
   /** Zoom au début d'un pincement Safari. */
@@ -266,25 +280,27 @@ export class ZoomPlugin implements EditorPlugin {
   }
 
   /**
-   * Ctrl / Cmd + molette, ancré sous le pointeur :
-   * - en lignes ou en pages (cran de souris, Firefox) : un palier par événement ;
-   * - en pixels : un palier par `WHEEL_STEP_PX` de mouvement cumulé (plusieurs
-   *   petits mouvements de pincement d'un pavé tactile). Le cumul repart de
-   *   zéro au changement de sens et après `WHEEL_IDLE_MS` sans mouvement.
+   * Ctrl / Cmd + molette, ancré sous le pointeur. Le mouvement est cumulé
+   * dans l'unité de l'événement ; un palier part dès que le cumul atteint :
+   * - en lignes ou en pages : 1 ligne ou 1 page (un cran de souris, 3 lignes
+   *   dans Firefox, fait toujours un palier ; des fractions de ligne, roues
+   *   fines ou anciens Firefox, s'additionnent) ;
+   * - en pixels : `WHEEL_STEP_PX` (plusieurs petits mouvements de pincement
+   *   d'un pavé tactile).
+   * Le cumul repart de zéro au changement de sens ou d'unité, après chaque
+   * palier et après `WHEEL_IDLE_MS` sans mouvement.
    */
   private onWheel(event: WheelEvent): void {
     if (!(event.ctrlKey || event.metaKey) || event.deltaY === 0) return;
     event.preventDefault();
     const idle = event.timeStamp - this.lastWheel > WHEEL_IDLE_MS;
     this.lastWheel = event.timeStamp;
-    if (event.deltaMode !== WHEEL_DELTA_PIXEL) {
-      this.wheelTotal = 0;
-      this.step(event.deltaY < 0 ? 1 : -1, event.clientX);
-      return;
-    }
-    const sameDirection = Math.sign(event.deltaY) === Math.sign(this.wheelTotal);
-    this.wheelTotal = (sameDirection && !idle ? this.wheelTotal : 0) + event.deltaY;
-    if (Math.abs(this.wheelTotal) < WHEEL_STEP_PX) return;
+    const sameRun =
+      !idle && event.deltaMode === this.wheelMode && Math.sign(event.deltaY) === Math.sign(this.wheelTotal);
+    this.wheelMode = event.deltaMode;
+    this.wheelTotal = (sameRun ? this.wheelTotal : 0) + event.deltaY;
+    const threshold = event.deltaMode === WHEEL_DELTA_PIXEL ? WHEEL_STEP_PX : 1;
+    if (Math.abs(this.wheelTotal) < threshold) return;
     const direction = this.wheelTotal < 0 ? 1 : -1;
     this.wheelTotal = 0;
     this.step(direction, event.clientX);

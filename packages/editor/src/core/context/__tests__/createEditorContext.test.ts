@@ -12,6 +12,8 @@ import { createDocument, renameLayer } from '../../commands/__tests__/fixtures';
 import { EventBus } from '../../events/EventBus';
 import { PlaybackController } from '../../playback/PlaybackController';
 import { createPlaybackFacade } from '../../playback/playbackFacade';
+import { EditorStageHost } from '../../stage/EditorStageHost';
+import { createStageFacade } from '../../stage/stageFacade';
 import { SlotRegistry } from '../../plugin/SlotRegistry';
 import { Store } from '../../store/Store';
 import { catchError, createCounter } from '../../editor/__tests__/fixtures';
@@ -43,7 +45,11 @@ function createHarness(): IContextHarness {
   const ctx = createEditorContext({
     bus, store, commands, services, container, assertActive, registry,
     slots: new SlotRegistry(),
-    playback: createPlaybackFacade(controller, assertActive)
+    playback: createPlaybackFacade(controller, assertActive),
+    stage: createStageFacade(
+      new EditorStageHost({ bus, store, registry, stages: [], onError: () => undefined, now: () => controller.now }),
+      assertActive
+    )
   });
   return { ctx, bus, store, services, kill: () => (alive = false) };
 }
@@ -187,7 +193,7 @@ describe('createEditorContext facades', () => {
     expect('load' in ctx.commands).toBe(false);
     expect('clear' in ctx.services).toBe(false);
     expect(Object.keys(ctx).sort()).toEqual([
-      'commands', 'container', 'document', 'events', 'playback', 'registry', 'services', 'slots'
+      'commands', 'container', 'document', 'events', 'playback', 'registry', 'services', 'slots', 'stage'
     ]);
   });
 

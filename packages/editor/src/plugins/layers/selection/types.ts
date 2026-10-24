@@ -1,7 +1,7 @@
 // packages/editor/src/plugins/layers/selection/types.ts
 /**
  * Contrat de `layers.selection` pour les autres plugins : le service
- * `layers.selection` et l'événement `selection:changed`.
+ * `layers.selection` et l'événement `layers:selectionChanged`.
  *
  * La sélection est de l'état d'interface de l'éditeur : elle n'est ni dans le
  * document ni annulable.
@@ -10,8 +10,8 @@
 /** Mode de `select` : remplacer la sélection, ajouter à elle, ou inverser l'état de chaque id. */
 export type SelectionMode = 'replace' | 'add' | 'toggle';
 
-/** Charge utile de `selection:changed`. */
-export interface SelectionChangedEvent {
+/** Charge utile de `layers:selectionChanged`. */
+export interface LayerSelectionChangedEvent {
   /** Ids sélectionnés, dans l'ordre d'affichage des lignes. */
   readonly ids: readonly string[];
   /** Ids sélectionnés avant le changement (même ordre d'affichage). */
@@ -59,6 +59,6 @@ declare module '../../../core/context/IEditorContext' {
 
 declare module '../../../core/events/TimelineEventMap' {
   interface TimelineEventMap {
-    'selection:changed': SelectionChangedEvent;
+    'layers:selectionChanged': LayerSelectionChangedEvent;
   }
 }
