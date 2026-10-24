@@ -129,6 +129,8 @@ export class KeyframeDrag {
     // Pas de sélection de texte du navigateur pendant le glisser.
     event.preventDefault();
     if (state.active && offset === state.offset) return;
+    // Le glisser démarre : le relâchement ne doit plus compter comme un clic de la sélection.
+    if (!state.active) this.ctx.services.require('frames.selection').cancelPendingClick();
     this.state = { ...state, offset, active: true };
     this.preview(state.keyframes, offset);
   }

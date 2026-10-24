@@ -9,7 +9,7 @@ import type { ISpan } from '@werddomain/timeline-runtime';
 import { moveKeyframe } from '../../../../model/spans';
 import { createDoc, layer, spansOf } from '../../../../model/spans/__tests__/fixtures';
 import type { ISelectedKeyframe } from '../../selection/types';
-import { clampOffset, planMove, shiftCells } from '../keyframeMove';
+import { clampOffset, landedCells, planMove } from '../keyframeMove';
 
 const content = (rowId: string, frame: number, spanId = `${rowId}-${frame}`): ISelectedKeyframe => ({
   rowId,
@@ -158,27 +158,34 @@ describe('planMove', () => {
   });
 });
 
-describe('shiftCells', () => {
-  it('moves every cell by the offset without touching the input', () => {
-    // Arrange
-    const cells = Object.freeze([{ rowId: 'a', frame: 2 }, { rowId: 'b', frame: 5 }]);
+describe('landedCells', () => {
+  it('follows K1: the moved keyframe goes to its destination, a retimed property keyframe stays where K1 put it', () => {
+    // Arrange : statique 1-4, interpolation 5-10 avec une image clé de propriété en 8.
+    const before = createDoc([layer('a', [stat('a1', 1, 4), tween('a2', 5, 10, [5, 8, 10])])], 12);
+    const keyframes = [content('a', 5, 'a2'), property('a', 8, 'a2')];
+    const cells = [{ rowId: 'a', frame: 5 }, { rowId: 'a', frame: 8 }];
+    const moves = planMove(before, keyframes, 1);
+    const after = moveKeyframe(before, 'a', 5, 6);
 
     // Act
-    const shifted = shiftCells(cells, -1);
+    const landed = landedCells(before, after, keyframes, cells, moves, 1);
 
-    // Assert
-    expect(shifted).toEqual([{ rowId: 'a', frame: 1 }, { rowId: 'b', frame: 4 }]);
-    expect(cells[0].frame).toBe(2);
+    // Assert : l'interpolation 5-10 devient 6-10 ; x@8 reste en 8 (recalage proportionnel de K1).
+    expect(landed).toEqual([{ rowId: 'a', frame: 6 }, { rowId: 'a', frame: 8 }]);
+    expect(spansOf(after, 'a')[1]?.tracks?.x?.map((keyframe) => keyframe.frame)).toContain(8);
   });
 
-  it('leaves the cells of rows that did not move in place', () => {
+  it('shifts plain cells of moved rows and leaves rows that did not move in place', () => {
     // Arrange
-    const cells = [{ rowId: 'a', frame: 2 }, { rowId: 'locked', frame: 5 }];
+    const keyframes = [content('c', 4, 'c2')];
+    const cells = [{ rowId: 'c', frame: 4 }, { rowId: 'c', frame: 5 }, { rowId: 'locked', frame: 5 }];
+    const moves = planMove(plain, keyframes, 1);
+    const after = moveKeyframe(plain, 'c', 4, 5);
 
     // Act
-    const shifted = shiftCells(cells, 3, new Set(['a']));
+    const landed = landedCells(plain, after, keyframes, cells, moves, 1);
 
     // Assert
-    expect(shifted).toEqual([{ rowId: 'a', frame: 5 }, { rowId: 'locked', frame: 5 }]);
+    expect(landed).toEqual([{ rowId: 'c', frame: 5 }, { rowId: 'c', frame: 6 }, { rowId: 'locked', frame: 5 }]);
   });
 });

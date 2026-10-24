@@ -60,6 +60,12 @@ export interface IFramesSelectionService {
   set(cells: readonly IFrameCell[]): void;
   /** Vide la sélection et l'ancre. */
   clear(): void;
+  /**
+   * Oublie le clic en cours : le relâchement de l'appui en cours ne
+   * changera ni la sélection ni la tête de lecture. Appelé par un glisser
+   * (K2) dès qu'il démarre.
+   */
+  cancelPendingClick(): void;
 }
 
 declare module '../../../core/context/IEditorContext' {
