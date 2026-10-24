@@ -2,8 +2,8 @@
 /**
  * Plugin : layers.groups
  * Epic : layers
- * Dépend de : layers.list, layers.selection, interaction.shortcuts
- * Écoute : —
+ * Dépend de : layers.list, layers.selection
+ * Écoute : editor:ready
  * Émet : —
  *
  * Dossiers de calques (Flash CS4 : « Nouveau dossier » et grouper la
@@ -21,7 +21,8 @@
  * « annuler », `layers.selection` élague les ids qui ont disparu (dossier
  * créé, par exemple) et la sélection peut devenir vide.
  *
- * Clavier, par `interaction.shortcuts`, seulement quand le focus est dans la
+ * Clavier, par `interaction.shortcuts` s'il est présent (enregistré à
+ * `editor:ready`), seulement quand le focus est dans la
  * liste des calques : Ctrl+G groupe la sélection ; Ctrl+Maj+G dissocie le
  * premier dossier sélectionné. Sans effet possible, la touche reste au
  * navigateur.
@@ -51,7 +52,7 @@ export const LAYER_GROUPS_SHORTCUTS = Object.freeze({
 /** Groupes de calques : dossiers, regroupement de la sélection et raccourcis. */
 export class LayerGroupsPlugin implements EditorPlugin {
   readonly id = 'layers.groups';
-  readonly dependencies: readonly string[] = ['layers.list', 'layers.selection', 'interaction.shortcuts'];
+  readonly dependencies: readonly string[] = ['layers.list', 'layers.selection'];
 
   private ctx: IEditorContext | undefined;
   private list: ILayerListService | undefined;
@@ -62,11 +63,20 @@ export class LayerGroupsPlugin implements EditorPlugin {
     this.ctx = ctx;
     this.list = ctx.services.require('layers.list');
     this.selection = ctx.services.require('layers.selection');
-    const shortcuts = ctx.services.require('interaction.shortcuts');
-    const { group, ungroup } = LAYER_GROUPS_SHORTCUTS;
-    const base = (info: { shortcutId: string; keys: string; label: string }) => ({ id: info.shortcutId, keys: info.keys, label: info.label });
     this.cleanups = [
       ctx.services.provide(LAYERS_GROUPS_PLUGIN_ID, this.createService()),
+      // Raccourcis facultatifs : `interaction.shortcuts` peut être absent (epic des calques utilisé seul).
+      ctx.events.once('editor:ready', () => this.registerShortcuts(ctx))
+    ];
+  };
+
+  /** Enregistre Mod+G et Mod+Shift+G si le service `interaction.shortcuts` est présent. */
+  private registerShortcuts(ctx: IEditorContext): void {
+    const shortcuts = ctx.services.get('interaction.shortcuts');
+    if (shortcuts === undefined) return;
+    const { group, ungroup } = LAYER_GROUPS_SHORTCUTS;
+    const base = (info: { shortcutId: string; keys: string; label: string }) => ({ id: info.shortcutId, keys: info.keys, label: info.label });
+    this.cleanups.push(
       shortcuts.register({
         ...base(group),
         enabled: () => this.listHasFocus() && this.canGroup(),
@@ -80,8 +90,8 @@ export class LayerGroupsPlugin implements EditorPlugin {
           return folderId !== undefined && this.ungroup(folderId);
         }
       })
-    ];
-  };
+    );
+  }
 
   destroy(): void {
     const cleanups = this.cleanups;
