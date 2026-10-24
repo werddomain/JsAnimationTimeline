@@ -12,6 +12,7 @@ import type { IEditor } from '../../../../core/editor/types';
 import { LayoutPlugin } from '../../../layout/LayoutPlugin';
 import { cleanBody, createContainer, createManualScheduler, makeScrollable } from '../../../layout/__tests__/layoutFixtures';
 import type { IManualScheduler } from '../../../layout/__tests__/layoutFixtures';
+import { createShortcutsPlugin } from '../../../interaction/shortcuts';
 import { FramesPlugin } from '../../FramesPlugin';
 import type { FramesSelectionChangedEvent, IFramesSelectionService } from '../types';
 
@@ -78,7 +79,7 @@ function setup(data: ITimelineDocument = sample): IHarness {
   const scheduler = createManualScheduler();
   const editor = createEditor(createContainer(), {
     data,
-    defaultPlugins: [new LayoutPlugin({ scrollSync: { scheduler } }), new FramesPlugin()]
+    defaultPlugins: [new LayoutPlugin({ scrollSync: { scheduler } }), new FramesPlugin(), createShortcutsPlugin()]
   });
   const selection = editor.getService('frames.selection');
   const grid = editor.getService('frames.grid')?.element();
