@@ -17,12 +17,38 @@ export {
 export type { LayerNodeUpdater } from './list';
 export type { ILayerListService, ILayerRow, ILayerRowControl, LayerRowsChangedEvent } from './list';
 export {
+  LAYERS_RENAME_PLUGIN_ID,
+  RENAME_LABEL,
+  RenamePlugin,
+  createRenameCommand,
+  normalizeLayerName
+} from './rename';
+export type { ILayerRenameService } from './rename';
+export {
+  LAYERS_VISIBILITY_PLUGIN_ID,
+  VISIBILITY_CONTROL_ORDER,
+  VisibilityLabels,
+  VisibilityPlugin,
+  createSetAllVisibleCommand,
+  createSetVisibleCommand
+} from './visibility';
+export type { ILayerVisibilityService } from './visibility';
+export {
+  LAYERS_LOCK_PLUGIN_ID,
+  LOCK_CONTROL_ORDER,
+  LockLabels,
+  LockPlugin,
+  createSetAllLockedCommand,
+  createSetLockedCommand
+} from './lock';
+export type { ILayerLockService } from './lock';
+export {
   LAYERS_SELECTION_PLUGIN_ID,
   LayerSelectionPlugin,
   SELECTED_ROW_CLASS
 } from './selection';
 export type {
   ILayerSelectionService,
-  SelectionChangedEvent,
+  LayerSelectionChangedEvent,
   SelectionMode
 } from './selection';

@@ -16,16 +16,16 @@ import { LayoutPlugin } from '../../../layout/LayoutPlugin';
 import { LayersPlugin } from '../../LayersPlugin';
 import { LayerSelectionPlugin } from '../LayerSelectionPlugin';
 import { SELECTED_ROW_CLASS } from '../selectionView';
-import type { ILayerSelectionService, SelectionChangedEvent } from '../types';
+import type { ILayerSelectionService, LayerSelectionChangedEvent } from '../types';
 
 afterEach(unmountAll);
 
-function recorder(events: SelectionChangedEvent[]): EditorPlugin {
+function recorder(events: LayerSelectionChangedEvent[]): EditorPlugin {
   return {
     id: 'test.selectionRecorder',
     dependencies: ['layers.selection'],
     init: (ctx: IEditorContext) => {
-      ctx.events.on('selection:changed', (event) => events.push(event));
+      ctx.events.on('layers:selectionChanged', (event) => events.push(event));
     },
     destroy: () => undefined
   };
@@ -33,14 +33,14 @@ function recorder(events: SelectionChangedEvent[]): EditorPlugin {
 
 interface IHarness extends IListHarness {
   readonly selection: ILayerSelectionService;
-  readonly events: SelectionChangedEvent[];
+  readonly events: LayerSelectionChangedEvent[];
 }
 
 /** f(a, g(b)), c : lignes visibles f, a, g, b, c. */
 const tree = doc([folder('f', [layer('a'), folder('g', [layer('b')])]), layer('c')]);
 
 function setup(data = tree): IHarness {
-  const events: SelectionChangedEvent[] = [];
+  const events: LayerSelectionChangedEvent[] = [];
   const harness = mount(data, [recorder(events)]);
   const selection = harness.editor.getService('layers.selection');
   if (selection === undefined) throw new Error('service layers.selection absent');
@@ -63,6 +63,10 @@ function click(target: Element, mods: IMods = {}): void {
   target.dispatchEvent(
     new MouseEvent('click', { bubbles: true, cancelable: true, ctrlKey: mods.ctrl, shiftKey: mods.shift, metaKey: mods.meta })
   );
+}
+
+function mouseDown(target: Element): void {
+  target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
 }
 
 function press(target: Element, key: string, mods: IMods = {}): KeyboardEvent {
@@ -141,7 +145,7 @@ describe('service and event', () => {
     expect(h.selection.selected()).toEqual(['f', 'a', 'g', 'b', 'c']);
   });
 
-  it('emits selection:changed with ids, previous, anchor and focused, in display order', () => {
+  it('emits layers:selectionChanged with ids, previous, anchor and focused, in display order', () => {
     const h = setup();
     h.selection.select(['c']);
     h.selection.select(['a'], 'add');
@@ -277,6 +281,26 @@ describe('mouse', () => {
     expect(document.activeElement).toBe(row(h, 'f'));
   });
 
+  it('records focus that arrives natively on a row (roving tabindex follows)', () => {
+    const h = setup();
+    h.selection.select(['a']);
+    h.events.length = 0;
+    row(h, 'c').focus();
+    expect(h.selection.focused()).toBe('c');
+    expect(row(h, 'c').tabIndex).toBe(0);
+    expect(row(h, 'a').tabIndex).toBe(-1);
+    expect(h.selection.selected()).toEqual(['a']);
+    expect(h.events).toEqual([{ ids: ['a'], previous: ['a'], anchor: 'a', focused: 'c' }]);
+  });
+
+  it('keeps the roving tabindex in sync after a click on the folder toggle', () => {
+    const h = setup();
+    click(row(h, 'c'));
+    click(row(h, 'f').querySelector('[data-action="toggle"]') as Element);
+    expect(h.selection.focused()).toBe('f');
+    expect(row(h, 'f').tabIndex).toBe(0);
+  });
+
   it('puts the DOM focus on the row after a click on a row control, not on an input', () => {
     const h = setup();
     h.list.addRowControl({
@@ -325,6 +349,81 @@ describe('mouse', () => {
     expect(h.selection.selected()).toEqual([]);
   });
 
+  it('keeps the selection when a press on a row is released elsewhere in the list', () => {
+    const h = setup();
+    h.selection.select(['a', 'c']);
+    mouseDown(row(h, 'a'));
+    click(h.list.element() as Element);
+    expect(h.selection.selected()).toEqual(['a', 'c']);
+    mouseDown(row(h, 'a'));
+    click((h.list.element() as HTMLElement).parentElement as Element);
+    expect(h.selection.selected()).toEqual(['a', 'c']);
+  });
+
+  it('clears when the press also started in the empty area, and forgets the press after a click', () => {
+    const h = setup();
+    h.selection.select(['a']);
+    mouseDown(h.list.element() as Element);
+    click(h.list.element() as Element);
+    expect(h.selection.selected()).toEqual([]);
+    h.selection.select(['a']);
+    mouseDown(row(h, 'a'));
+    click(row(h, 'a'));
+    click(h.list.element() as Element);
+    expect(h.selection.selected()).toEqual([]);
+  });
+
+  it('emits exactly one event for a real row click (mousedown, native focus, click)', () => {
+    const h = setup();
+    h.selection.select(['a']);
+    h.events.length = 0;
+    mouseDown(row(h, 'c'));
+    row(h, 'c').focus();
+    click(row(h, 'c'));
+    expect(h.events).toEqual([{ ids: ['c'], previous: ['a'], anchor: 'c', focused: 'c' }]);
+  });
+
+  it('syncs the model focus with a press that never became a click, once the press ends', async () => {
+    const h = setup();
+    h.selection.select(['a']);
+    h.events.length = 0;
+    mouseDown(row(h, 'c'));
+    row(h, 'c').focus();
+    expect(h.selection.focused()).toBe('a');
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(h.selection.focused()).toBe('c');
+    expect(h.selection.selected()).toEqual(['a']);
+  });
+
+  it('forgets a stale press: mousedown without click, then a click without mousedown on the zone clears', async () => {
+    const h = setup();
+    h.selection.select(['a']);
+    mouseDown(row(h, 'a'));
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    click((h.list.element() as HTMLElement).parentElement as Element);
+    expect(h.selection.selected()).toEqual([]);
+  });
+
+  it.each(['dragend', 'contextmenu'])('forgets the press on %s', (type) => {
+    const h = setup();
+    h.selection.select(['a']);
+    mouseDown(row(h, 'a'));
+    document.dispatchEvent(new Event(type, { bubbles: true }));
+    click(h.list.element() as Element);
+    expect(h.selection.selected()).toEqual([]);
+  });
+
+  it('forgets the press when the window loses focus', () => {
+    const h = setup();
+    h.selection.select(['a']);
+    mouseDown(row(h, 'a'));
+    window.dispatchEvent(new Event('blur'));
+    click(h.list.element() as Element);
+    expect(h.selection.selected()).toEqual([]);
+  });
+
   it('clears the selection on a click in the layers zone around the list', () => {
     const h = setup();
     h.selection.select(['a']);
@@ -368,7 +467,7 @@ describe('keyboard', () => {
     expect(h.selection.selected()).toEqual(['a', 'g']);
   });
 
-  it('emits selection:changed for a focus-only change', () => {
+  it('emits layers:selectionChanged for a focus-only change', () => {
     const h = setup();
     click(row(h, 'a'));
     h.events.length = 0;
@@ -525,6 +624,55 @@ describe('pruning', () => {
     expect(row(h, 'c').getAttribute('aria-selected')).toBe('false');
   });
 
+  it('emits exactly one event with empty ids when a load changes the layout and reuses ids', () => {
+    const h = setup();
+    h.selection.select(['a', 'c']);
+    h.events.length = 0;
+    h.editor.load(doc([layer('c'), folder('f', [layer('a')]), layer('d')]));
+    expect(h.events).toEqual([{ ids: [], previous: ['a', 'c'] }]);
+    expect(h.selection.selected()).toEqual([]);
+    expect(row(h, 'a').getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('focuses the first row after a load when the list held the DOM focus', () => {
+    const h = setup();
+    click(row(h, 'b'));
+    h.editor.load(doc([layer('x'), layer('y')]));
+    expect(document.activeElement).toBe(row(h, 'x'));
+  });
+
+  it('does not move the focus on load when the list did not hold it', () => {
+    const h = setup();
+    h.selection.select(['b']);
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+    h.editor.load(doc([layer('x')]));
+    expect(document.activeElement).toBe(outside);
+  });
+
+  it('never exposes a hidden row as anchor or focus between rowsChanged and the prune', () => {
+    const seen: Array<[string | undefined, string | undefined]> = [];
+    const spy: EditorPlugin = {
+      id: 'test.spy',
+      dependencies: ['layers.selection'],
+      init: (ctx: IEditorContext) => {
+        ctx.events.on('layers:rowsChanged', () => {
+          const service = ctx.services.get('layers.selection');
+          seen.push([service?.anchor(), service?.focused()]);
+        });
+      },
+      destroy: () => undefined
+    };
+    const h = mount(tree, [spy]);
+    const selection = h.editor.getService('layers.selection') as ILayerSelectionService;
+    selection.select(['b']);
+    seen.length = 0;
+    collapse(h.editor, 'f', true);
+    expect(seen).toEqual([[undefined, undefined]]);
+    expect(selection.focused()).toBe('f');
+  });
+
   it('emits nothing on document:loaded when there is nothing to clear', () => {
     const h = setup();
     h.editor.load(doc([layer('x')]));
@@ -617,7 +765,7 @@ describe('pruning', () => {
 
 describe('render', () => {
   it('does not duplicate listeners when render is called twice', () => {
-    const events: SelectionChangedEvent[] = [];
+    const events: LayerSelectionChangedEvent[] = [];
     const layers = new LayersPlugin();
     const plugin = layers.children.find((child) => child instanceof LayerSelectionPlugin);
     const host = document.createElement('div');

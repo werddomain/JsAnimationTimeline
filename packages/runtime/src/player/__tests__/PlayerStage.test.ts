@@ -82,6 +82,21 @@ describe('stage option', () => {
     expect(() => create([], { stage: [stage, createFakeStage('canvas').stage] })).toThrow('Two stages have the id "canvas".');
   });
 
+  it('validates the stages before building the registry, with a clear error', () => {
+    const notTypeError = (options: IPlayerOptions, message: string): void => {
+      let thrown: unknown = null;
+      try {
+        create([], options);
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toEqual(new Error(message));
+      expect(thrown).not.toBeInstanceOf(TypeError);
+    };
+    notTypeError({ stage: null as unknown as IStage }, 'Stage #0 must be an object.');
+    notTypeError({ stage: [createFakeStage('canvas').stage, 42 as unknown as IStage] }, 'Stage #1 must be an object.');
+  });
+
   it('lists missing targets and warnings, reset per document, and refreshes targets', () => {
     const fake = createFakeStage('canvas', { unscoped: true });
     const p = create([refLayer('l1', 'late'), refLayer('l2', 'x', 'nowhere')], { stage: fake.stage });

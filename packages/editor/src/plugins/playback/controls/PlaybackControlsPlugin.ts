@@ -42,17 +42,29 @@ export const PLAYBACK_TOGGLE_KEYS = 'Enter';
 /** Vitesses proposées dans la liste. */
 export const PLAYBACK_SPEEDS: readonly number[] = Object.freeze([0.25, 0.5, 1, 1.5, 2]);
 
-/** Libellé français d'une vitesse (`1.5` -> `×1,5`). */
+/**
+ * Libellé français d'une vitesse (`1.5` -> `×1,5`). Le bruit des flottants
+ * est arrondi au centième (`0.1 + 0.2` -> `×0,3`). Une vitesse qui n'est pas
+ * un centième juste garde quatre chiffres significatifs (`1.001` -> `×1,001`,
+ * `0.001` -> `×0,001`) : son libellé ne se confond jamais avec un autre.
+ */
 export function formatSpeed(speed: number): string {
-  return `×${String(speed).replace('.', ',')}`;
+  const rounded = Math.round(speed * 100) / 100;
+  const shown = Math.abs(rounded - speed) < 1e-9 ? rounded : Number(speed.toPrecision(4));
+  return `×${String(shown).replace('.', ',')}`;
 }
 
 /** Éléments qu'Entrée active déjà : le raccourci leur laisse la touche. */
 const ENTER_ACTIVATED_SELECTOR = 'button, a[href], summary, [role="button"], [role="link"], [role="menuitem"], [role="tab"]';
 
-/** Vrai si Entrée sur `target` active déjà un élément (bouton, lien...). */
+/**
+ * Vrai si Entrée sur `target` active déjà un élément (bouton, lien...).
+ * Teste `nodeType` plutôt que `instanceof Element` : un élément d'une
+ * iframe (une scène, par exemple) a son propre constructeur `Element`.
+ */
 export function isEnterActivated(target: EventTarget | null): boolean {
-  return typeof Element !== 'undefined' && target instanceof Element && target.closest(ENTER_ACTIVATED_SELECTOR) !== null;
+  if (target === null || (target as Partial<Node>).nodeType !== 1) return false;
+  return (target as Element).closest(ENTER_ACTIVATED_SELECTOR) !== null;
 }
 
 /** Éléments du contrôle rendu. */
@@ -113,6 +125,8 @@ export class PlaybackControlsPlugin implements EditorPlugin {
           run: (event) => {
             // `false` : touche laissée au navigateur, qui active le bouton ou le lien.
             if (isEnterActivated(event.target)) return false;
+            // Touche maintenue : une seule bascule, et pas de `shortcut:triggered` par répétition.
+            if (event.repeat) return false;
             ctx.playback.toggle();
             return true;
           }
@@ -198,8 +212,11 @@ export class PlaybackControlsPlugin implements EditorPlugin {
     view.toggle.classList.toggle(`${PLAYBACK_CONTROLS_CLASS}__toggle--playing`, playback.playing);
     view.loop.setAttribute('aria-pressed', String(playback.loop));
     const speed = String(playback.speed);
-    if (!Array.from(view.speed.options).some((option) => option.value === speed)) {
-      view.speed.appendChild(speedOption(view.speed.ownerDocument, playback.speed));
+    const options = Array.from(view.speed.options);
+    if (!options.some((option) => option.value === speed)) {
+      // Vitesse fixée ailleurs : nouvelle option rangée à sa place.
+      const next = options.find((option) => Number(option.value) > playback.speed) ?? null;
+      view.speed.insertBefore(speedOption(view.speed.ownerDocument, playback.speed), next);
     }
     view.speed.value = speed;
   }

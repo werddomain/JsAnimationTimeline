@@ -6,13 +6,18 @@
  * 3. calque supprimé ou cible changée : `release(layerId, ancienObjet)`, puis
  *    un nouveau `resolve` ;
  * 4. `resolve` est mis en cache ; un échec (`null`) est retenu et réessayé sur
- *    `targets.subscribe` ou `refresh(layerId?)`, jamais à chaque image ;
+ *    `targets.subscribe` ou `refresh(layerId?)`, jamais à chaque image ; une
+ *    notification de `subscribe` qui nomme des cibles touchées (ref liée à
+ *    un autre élément) résout aussi à nouveau les calques déjà liés à ces
+ *    cibles : nouvel objet, `release` de l'ancien ; `null`, calque manquant ;
  * 5. puis `update(doc, calquesLiés)` ; le propriétaire appelle ensuite `sync`
- *    et `render` de l'image courante ;
- * 6. fin : `release` de chaque calque, puis `detach`.
+ *    et `render` de l'image courante (`editorVisible` lu par
+ *    `isEditorVisible`, toujours vrai par défaut) ;
+ * 6. fin : `release` de chaque calque, puis `detach` des scènes attachées.
  * Une `StageDocumentError` levée par `update` annule le document : retour au
  * précédent, `update` de toutes les scènes avec lui, puis `sync` et `render`
- * de l'instant courant, et l'erreur remonte. Toute autre erreur est signalée
+ * de l'instant courant, et l'erreur remonte (premier document refusé : les
+ * nouveaux calques sont seulement libérés). Toute autre erreur est signalée
  * par `StageReporter`. Si `onError` détruit l'hôte pendant un chargement,
  * plus rien n'est résolu ni appliqué. Un changement de cibles signalé pendant
  * un chargement est traité à la fin de celui-ci.
@@ -24,11 +29,12 @@ import type { ILayer } from '../model/layer';
 import type { LayerTarget } from '../model/target';
 import type { PropertyRegistry } from '../properties/PropertyRegistry';
 import type { ITransportSyncState, ITransportTime } from '../transport/types';
-import { evaluateStageLayers, prepareStageLayer } from './frameStates';
-import { isStageDocumentError, StageReportCodes } from './reports';
+import { ALWAYS_VISIBLE, evaluateStageLayers, prepareStageLayer } from './frameStates';
+import type { EditorVisibility } from './frameStates';
+import { isStageDocumentError } from './reports';
 import type { IStageReport } from './reports';
 import type { IBinding, IHostState, IStageHostClock, IStageHostOptions } from './stageHostTypes';
-import { assertValidStages, routeTarget, sameTarget } from './routing';
+import { assertValidStages, isAffectedTarget, routeTarget, sameTarget, toTargetList } from './routing';
 import { StageReporter } from './StageReporter';
 import type { IStageReporterState } from './StageReporter';
 import type { IStage, IStageContext, IStageLayer } from './types';
@@ -49,10 +55,13 @@ export class StageHost {
   private missing: readonly string[] = [];
   private unsubscribers: Array<{ readonly stageId: string; readonly unsubscribe: () => void }> = [];
   private attached = false;
+  /** Stages whose `attach` was called (the only ones detached). */
+  private readonly attachedStages = new Set<IStage>();
   private destroyed = false;
   private loading = false;
-  /** Stages whose targets changed during a load; retried when it ends. */
-  private readonly pendingRetries = new Set<IStage>();
+  /** Stages whose targets changed during a load, with the affected targets; retried when it ends. */
+  private readonly pendingRetries = new Map<IStage, LayerTarget[]>();
+  private readonly isEditorVisible: EditorVisibility;
 
   /** Throws for a malformed stage or a duplicate stage id. */
   constructor(options: IStageHostOptions) {
@@ -61,6 +70,7 @@ export class StageHost {
     this.registry = options.registry;
     this.reporter = new StageReporter(options.onError, options.onReport);
     this.now = options.now;
+    this.isEditorVisible = options.isEditorVisible ?? ALWAYS_VISIBLE;
   }
 
   /** Ids of the layers without a resolved object (no target, unknown stage, unrouted, resolve failed), in document order. */
@@ -91,7 +101,7 @@ export class StageHost {
     this.loading = false;
     const pending = Array.from(this.pendingRetries);
     this.pendingRetries.clear();
-    pending.forEach((stage) => this.onTargetsChanged(stage));
+    pending.forEach(([stage, affected]) => this.onTargetsChanged(stage, affected));
     if (failure !== null) {
       throw failure.error;
     }
@@ -113,7 +123,7 @@ export class StageHost {
     this.retry((binding) => layerId === undefined || binding.layerId === layerId);
   }
 
-  /** `release` of every resolved layer, then `detach`. Idempotent. */
+  /** `release` of every resolved layer, then `detach` of the attached stages. Idempotent. */
   destroy(): void {
     if (this.destroyed) {
       return;
@@ -123,9 +133,10 @@ export class StageHost {
     this.bindings.clear();
     this.unsubscribers.forEach(({ stageId, unsubscribe }) => this.reporter.guard(stageId, undefined, unsubscribe, undefined));
     this.unsubscribers = [];
-    if (this.attached) {
-      this.stages.forEach((stage) => this.reporter.guard(stage.id, undefined, () => stage.detach?.(), undefined));
-    }
+    this.stages
+      .filter((stage) => this.attachedStages.has(stage))
+      .forEach((stage) => this.reporter.guard(stage.id, undefined, () => stage.detach?.(), undefined));
+    this.attachedStages.clear();
     this.stageLayers.clear();
   }
 
@@ -178,10 +189,12 @@ export class StageHost {
       if (this.destroyed) {
         return;
       }
+      this.attachedStages.add(stage);
       this.reporter.guard(stage.id, undefined, () => stage.attach?.(this.createContext(stage)), undefined);
       const subscribe = stage.targets?.subscribe;
-      if (typeof subscribe === 'function') {
-        const unsubscribe = this.reporter.guard(stage.id, undefined, () => subscribe.call(stage.targets, () => this.onTargetsChanged(stage)), undefined);
+      if (typeof subscribe === 'function' && !this.destroyed) {
+        const onChange = (affected?: readonly LayerTarget[]): void => this.onTargetsChanged(stage, affected);
+        const unsubscribe = this.reporter.guard(stage.id, undefined, () => subscribe.call(stage.targets, onChange), undefined);
         if (typeof unsubscribe === 'function') {
           this.unsubscribers.push({ stageId: stage.id, unsubscribe });
         }
@@ -197,13 +210,14 @@ export class StageHost {
     };
   }
 
-  private onTargetsChanged(stage: IStage): void {
+  private onTargetsChanged(stage: IStage, affected?: unknown): void {
+    const targets = toTargetList(affected);
     if (this.loading) {
-      this.pendingRetries.add(stage);
+      this.pendingRetries.set(stage, (this.pendingRetries.get(stage) ?? []).concat(targets));
       return;
     }
     if (!this.destroyed && this.doc !== null) {
-      this.retry((binding) => binding.stage === stage);
+      this.retry((binding) => binding.stage === stage, targets);
     }
   }
 
@@ -233,28 +247,14 @@ export class StageHost {
       // A throwing `accepts` counts as false for this document; it is routed again on the next one, not on refresh.
       const route = routeTarget(target, this.stages, (stage, t) => this.reporter.guard(stage.id, layer.id, () => stage.accepts(t) === true, false));
       if (route.kind !== 'stage') {
-        this.reportUnrouted(layer.id, route.kind === 'unknown-stage' ? route.stageId : undefined);
+        this.reporter.unrouted(layer.id, route.kind === 'unknown-stage' ? route.stageId : undefined);
         return;
       }
       binding = this.resolve(layer.id, target, route.stage);
       this.bindings.set(layer.id, binding);
     }
     const stageId = binding.stage.id;
-    this.prepared.set(layer.id, prepareStageLayer(layer, this.registry, (issue) => this.reporter.add({
-      code: StageReportCodes.UNKNOWN_PROPERTY,
-      stageId,
-      layerId: issue.layerId,
-      property: issue.property,
-      message: issue.message
-    })));
-  }
-
-  private reportUnrouted(layerId: string, stageId: string | undefined): void {
-    if (stageId !== undefined) {
-      this.reporter.add({ code: StageReportCodes.UNKNOWN_STAGE, stageId, layerId, message: `Layer "${layerId}" names the unknown stage "${stageId}".` });
-    } else {
-      this.reporter.add({ code: StageReportCodes.UNROUTED, layerId, message: `No stage accepts the target of layer "${layerId}".` });
-    }
+    this.prepared.set(layer.id, prepareStageLayer(layer, this.registry, (issue) => this.reporter.unknownProperty(stageId, issue)));
   }
 
   private resolve(layerId: string, target: LayerTarget, stage: IStage): IBinding {
@@ -341,15 +341,29 @@ export class StageHost {
     }
   }
 
-  private retry(filter: (binding: IBinding) => boolean): void {
+  /**
+   * Resolves again the failed bindings passing `filter`, and the resolved ones
+   * on an `affected` target; re-applies the stages whose objects changed.
+   */
+  private retry(filter: (binding: IBinding) => boolean, affected: readonly LayerTarget[] = []): void {
     const changed = new Set<IStage>();
-    for (const [id, binding] of Array.from(this.bindings)) {
-      if (!binding.resolved && !this.destroyed && filter(binding)) {
-        const next = this.resolve(id, binding.target, binding.stage);
-        this.bindings.set(id, next);
-        if (next.resolved) {
-          changed.add(binding.stage);
+    for (const binding of Array.from(this.bindings.values())) {
+      if (this.destroyed || !filter(binding)) {
+        continue;
+      }
+      const next = binding.resolved ? this.reresolve(binding, affected) : this.resolve(binding.layerId, binding.target, binding.stage);
+      if (this.destroyed) {
+        // destroy() ran during resolve: the host forgets its bindings, so the new object goes back now.
+        if (!binding.resolved) {
+          this.release(next);
         }
+        return;
+      }
+      if (next !== binding) {
+        this.bindings.set(binding.layerId, next);
+      }
+      if (next !== binding && (next.resolved || binding.resolved)) {
+        changed.add(binding.stage);
       }
     }
     if (changed.size === 0) {
@@ -357,6 +371,27 @@ export class StageHost {
     }
     this.refreshDerived();
     this.reapply(changed);
+  }
+
+  /**
+   * `binding` when its target is not affected or still resolves to the same
+   * object; otherwise the new binding, the old object being released.
+   */
+  private reresolve(binding: IBinding, affected: readonly LayerTarget[]): IBinding {
+    if (!affected.some((target) => isAffectedTarget(target, binding.target))) {
+      return binding;
+    }
+    const next = this.resolve(binding.layerId, binding.target, binding.stage);
+    if (this.destroyed) {
+      // destroy() ran during resolve and already released `binding`: only the new object is left.
+      this.release(next.resolved && next.object !== binding.object ? next : { ...next, resolved: false });
+      return binding;
+    }
+    if (next.resolved && next.object === binding.object) {
+      return binding;
+    }
+    this.release(binding);
+    return next;
   }
 
   private syncStage(stage: IStage, time: ITransportTime, state: ITransportSyncState): void {
@@ -372,7 +407,7 @@ export class StageHost {
     }
     const layers = this.stageLayers.get(stage) ?? [];
     this.reporter.guard(stage.id, undefined, () => {
-      const states = evaluateStageLayers(layers, time, doc.settings.totalFrames, this.registry);
+      const states = evaluateStageLayers(layers, time, doc.settings.totalFrames, this.registry, this.isEditorVisible);
       stage.render?.(time, states);
     }, undefined);
   }

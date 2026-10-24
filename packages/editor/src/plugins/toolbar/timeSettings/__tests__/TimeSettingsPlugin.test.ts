@@ -12,7 +12,13 @@ import { createEditor } from '../../../../core/editor/createEditor';
 import type { IEditor } from '../../../../core/editor/types';
 import { createDoc, layer } from '../../../../model/spans/__tests__/fixtures';
 import { toolbarBasePlugins } from '../../__tests__/toolbarFixtures';
-import { TIME_SETTINGS_CLASS, TIME_SETTINGS_PLUGIN_ID, TimeSettingsPlugin } from '../TimeSettingsPlugin';
+import type { EditorPlugin } from '../../../../core/context/IEditorContext';
+import {
+  CANCELLED_MESSAGE,
+  TIME_SETTINGS_CLASS,
+  TIME_SETTINGS_PLUGIN_ID,
+  TimeSettingsPlugin
+} from '../TimeSettingsPlugin';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -106,7 +112,7 @@ describe('toolbar.timeSettings fields', () => {
 });
 
 describe('toolbar.timeSettings refusals', () => {
-  it('shows why an fps is refused and restores the field', () => {
+  it('shows why an fps is refused and keeps the value, marked invalid, for correction', () => {
     // Arrange
     const { editor, fps, message } = mount();
 
@@ -115,8 +121,9 @@ describe('toolbar.timeSettings refusals', () => {
 
     // Assert
     expect(editor.document.settings.fps).toBe(24);
-    expect(fps.value).toBe('24');
-    expect(message().hidden).toBe(false);
+    expect(fps.value).toBe('500');
+    expect(fps.getAttribute('aria-invalid')).toBe('true');
+    expect(message().textContent).not.toBe('');
     expect(message().getAttribute('role')).toBe('status');
     expect(message().textContent).toBe('La cadence doit être un nombre entier de 1 à 240 images par seconde.');
   });
@@ -129,8 +136,8 @@ describe('toolbar.timeSettings refusals', () => {
     enter(totalFrames, '');
 
     // Assert
-    expect(totalFrames.value).toBe('60');
-    expect(message().textContent).toBe("La durée doit être un nombre entier d'au moins 1 image.");
+    expect(totalFrames.value).toBe('');
+    expect(message().textContent).toBe('La durée doit être un nombre entier de 1 à 100 000 images.');
   });
 
   it('refuses a duration shorter than a span, then clears the message on success', () => {
@@ -143,13 +150,13 @@ describe('toolbar.timeSettings refusals', () => {
 
     // Assert
     expect(editor.document.settings.totalFrames).toBe(60);
-    expect(totalFrames.value).toBe('60');
+    expect(totalFrames.value).toBe('30');
     expect(message().textContent).toBe(
       "La durée ne peut pas être inférieure à 40 images : une plage du calque « Héros » se termine à l'image 40."
     );
     enter(totalFrames, '40');
     expect(editor.document.settings.totalFrames).toBe(40);
-    expect(message().hidden).toBe(true);
+    expect(message().textContent).toBe('');
   });
 
   it('restores the document value and hides the message on Escape', () => {
@@ -163,7 +170,7 @@ describe('toolbar.timeSettings refusals', () => {
 
     // Assert
     expect(fps.value).toBe('24');
-    expect(message().hidden).toBe(true);
+    expect(message().textContent).toBe('');
   });
 
   it('ignores refusals of commands it did not run', () => {
@@ -180,7 +187,7 @@ describe('toolbar.timeSettings refusals', () => {
     });
 
     // Assert
-    expect(message().hidden).toBe(true);
+    expect(message().textContent).toBe('');
   });
 });
 
@@ -204,13 +211,81 @@ describe('toolbar.timeSettings message', () => {
     const { editor, fps, message } = mount();
     enter(fps, '30');
     enter(fps, '999');
-    expect(message().hidden).toBe(false);
+    expect(message().textContent).not.toBe('');
 
     // Act
     editor.undo();
 
     // Assert
-    expect(message().hidden).toBe(true);
+    expect(message().textContent).toBe('');
     expect(fps.value).toBe('24');
+    expect(fps.hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it('lets a loaded document longer than the maximum be shortened, and sets the field maximum', () => {
+    // Arrange
+    const data = createDoc([layer('l1', [{ id: 's1', start: 1, end: 150_000, kind: 'blank' }], { name: 'Long' })], 200_000);
+    const { editor, totalFrames, message } = mount(data);
+
+    // Act + Assert
+    expect(totalFrames.max).toBe('200000');
+    enter(totalFrames, '180000');
+    expect(editor.document.settings.totalFrames).toBe(180_000);
+    expect(totalFrames.max).toBe('180000');
+    enter(totalFrames, '190000');
+    expect(message().textContent).toBe('La durée doit être un nombre entier de 1 à 180 000 images.');
   });
 });
+
+describe('toolbar.timeSettings accessibility and vetoes', () => {
+  it('links both fields to the message and marks only the refused one invalid', () => {
+    // Arrange
+    const { fps, totalFrames, message } = mount();
+
+    // Act
+    enter(totalFrames, '0');
+
+    // Assert
+    expect(message().id).not.toBe('');
+    expect(fps.getAttribute('aria-describedby')).toBe(message().id);
+    expect(totalFrames.getAttribute('aria-describedby')).toBe(message().id);
+    expect(totalFrames.getAttribute('aria-invalid')).toBe('true');
+    expect(fps.hasAttribute('aria-invalid')).toBe(false);
+    enter(totalFrames, '30');
+    expect(totalFrames.hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it('keeps the live region in the page while it is empty', () => {
+    // Act
+    const { message } = mount();
+
+    // Assert
+    expect(message().hidden).toBe(false);
+    expect(message().textContent).toBe('');
+  });
+
+  it('shows a French reason, not the raw token, when another plugin vetoes the change', () => {
+    // Arrange
+    const veto: EditorPlugin = {
+      id: 'test.veto',
+      dependencies: [],
+      init: (ctx) => void ctx.events.onCancellable('command:before', (event) => event.cancel()),
+      destroy: () => {}
+    };
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const editor = createEditor(container, {
+      defaultPlugins: toolbarBasePlugins({}, [new TimeSettingsPlugin()]),
+      plugins: [veto]
+    });
+    const fps = editor.container.querySelector<HTMLInputElement>('input[data-setting="fps"]') as HTMLInputElement;
+
+    // Act
+    enter(fps, '30');
+
+    // Assert
+    expect(editor.document.settings.fps).toBe(24);
+    expect(editor.container.querySelector(`.${TIME_SETTINGS_CLASS}__message`)?.textContent).toBe(CANCELLED_MESSAGE);
+  });
+});
+

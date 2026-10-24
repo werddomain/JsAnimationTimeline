@@ -17,6 +17,11 @@ export interface ILayerRow extends IVisibleRow {
    * contrôles qui modifient les images s'en servent pour se désactiver.
    */
   readonly lockedByAncestor: boolean;
+  /**
+   * Vrai si la ligne est masquée, elle ou un dossier parent (œil fermé) :
+   * la ligne est grisée ; l'œil d'un enfant reste celui de son propre champ.
+   */
+  readonly hiddenByAncestor: boolean;
 }
 
 /**
@@ -36,7 +41,11 @@ export interface ILayerRowControl {
   readonly render: (row: ILayerRow, element: HTMLElement) => void;
   /** Met à jour le contrôle quand la ligne ou son nœud a changé. */
   readonly update?: (row: ILayerRow, element: HTMLElement) => void;
-  /** Libère ce que `render` a créé hors de `element` ; l'élément est retiré ensuite par la liste. */
+  /**
+   * Libère ce que `render` a créé hors de `element`. Appelé quand la ligne
+   * ou le contrôle disparaît (l'élément est retiré ensuite), et aussi avant
+   * chaque nouveau rendu d'un contrôle sans `update` (l'élément reste en place).
+   */
   readonly dispose?: (row: ILayerRow, element: HTMLElement) => void;
   /**
    * En-tête de colonne facultatif (comme l'œil et le cadenas au-dessus des
@@ -53,7 +62,8 @@ export interface ILayerRowControl {
  * disposition des lignes change (ids, ordre, profondeur, parent), après la
  * mise à jour du DOM. Un changement qui garde la disposition (nom, couleur,
  * verrou...) ne le déclenche pas : pour le contenu des nœuds, écouter
- * `document:changed` et relire `rows()` du service. Les lignes sont celles
+ * `document:changed` et `document:loaded` (un chargement n'émet que ce
+ * dernier), puis relire `rows()` du service. Les lignes sont celles
  * du document au moment de l'envoi : ne pas les garder en cache.
  */
 export interface LayerRowsChangedEvent {
@@ -87,9 +97,17 @@ export interface ILayerListService {
    * @returns La fonction qui retire le contrôle de toutes les lignes.
    */
   addRowControl(control: ILayerRowControl): () => void;
-  /** Replie ou déplie le dossier `folderId` (commande annulable) ; `true` si le document a changé. */
+  /**
+   * Replie ou déplie le dossier `folderId` (commande annulable) ; `true` si
+   * le document a changé, `false` si le dossier était déjà dans cet état.
+   * Lève une erreur si `folderId` n'est pas un dossier du document.
+   */
   setCollapsed(folderId: string, collapsed: boolean): boolean;
-  /** Inverse l'état replié du dossier `folderId` (commande annulable) ; `true` si le document a changé. */
+  /**
+   * Inverse l'état replié du dossier `folderId` (commande annulable) ;
+   * `true` si le document a changé (toujours le cas pour un dossier).
+   * Lève une erreur si `folderId` n'est pas un dossier du document.
+   */
   toggleCollapsed(folderId: string): boolean;
 }
 

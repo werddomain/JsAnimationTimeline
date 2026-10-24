@@ -109,6 +109,9 @@ export type {
   PlayheadChangedEvent
 } from './core/playback';
 
+// Scènes : option `stage`, façade `IEditorStage` (`ctx.stage`, `editor.stage`) et `stage:report`.
+export type { EditorStageOption, IEditorStage, StageErrorHandler, StageReportEvent } from './core/stage';
+
 // Plugins de mise en page (epic `layout`) : coquille, emplacements, défilement, règle et tête de lecture.
 export {
   LAYOUT_SLOTS,
@@ -117,19 +120,27 @@ export {
   LayoutShellPlugin,
   PlayheadPlugin,
   RulerPlugin,
-  ScrollSyncPlugin
+  ScrollSyncPlugin,
+  ZoomPlugin
 } from './plugins/layout';
 export type {
   IFrameScheduler,
   ILayoutShellApi,
+  IPlayheadApi,
   IScrollPosition,
   IScrollState,
   IRulerApi,
   IScrollSyncApi,
+  IZoomApi,
+  IZoomRange,
   LayoutOptions,
   LayoutZone,
+  PlayheadScrubEvent,
   RulerOptions,
-  ScrollSyncOptions
+  ScrollSyncOptions,
+  ZoomAnchor,
+  ZoomChangedEvent,
+  ZoomOptions
 } from './plugins/layout';
 
 // Plugins des calques (epic `layers`) : liste des calques, contrôles de ligne et sélection.
@@ -157,9 +168,24 @@ export type {
   ILayerSelectionService,
   LayerNodeUpdater,
   LayerRowsChangedEvent,
-  SelectionChangedEvent,
+  LayerSelectionChangedEvent,
   SelectionMode
 } from './plugins/layers';
+
+// Plugins des images (epic `frames`) : grille des plages et des images clés.
+export { FRAMES_GRID_CLASSES, FRAMES_GRID_PLUGIN_ID, FramesGridPlugin, FramesPlugin } from './plugins/frames';
+export type {
+  FramesGridRenderedEvent,
+  GridMarkKind,
+  GridSegmentKind,
+  IFrameRange,
+  IFramesGridService,
+  IGridCell,
+  IGridMark,
+  IGridSegment,
+  IGridWindow,
+  IRowRange
+} from './plugins/frames';
 
 // Plugin interaction.shortcuts (raccourcis clavier déclarés par les plugins).
 export { SHORTCUTS_PLUGIN_ID, ShortcutError, createShortcutsPlugin } from './plugins/interaction/shortcuts';
@@ -189,6 +215,7 @@ export {
 export {
   MAX_FPS,
   MIN_FPS,
+  MAX_TOTAL_FRAMES,
   MIN_TOTAL_FRAMES,
   TIME_SETTINGS_PLUGIN_ID,
   TimeSettingsLabels,

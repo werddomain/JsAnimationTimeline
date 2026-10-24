@@ -4,7 +4,7 @@
  * précisé (ou vaut `true`).
  *
  * Les tâches du plan y ajoutent leurs plugins au fur et à mesure (L1
- * `layout.*` : fait ; Y1 `layers.list` et Y5 `layers.selection` : faits ; Y* `layers.*`, G* `frames.*`, T* `toolbar.*`,
+ * `layout.*` : fait ; Y1 `layers.list` et Y5 `layers.selection` : faits ; G1 `frames.grid` : fait ; Y* `layers.*`, G* `frames.*`, T* `toolbar.*`,
  * P* `playback.*`...). Déjà présents : I2 `interaction.shortcuts`,
  * T1 `toolbar` (`toolbar.main`), P1 `playback` (`playback.controls`),
  * S2 `persistence.json` et C5 `history` (`history.undoRedo`). Les plugins optionnels
@@ -14,6 +14,7 @@
 
 import type { EditorPlugin } from '../context/IEditorContext';
 import { LayoutPlugin } from '../../plugins/layout/LayoutPlugin';
+import { FramesPlugin } from '../../plugins/frames/FramesPlugin';
 import { LayersPlugin } from '../../plugins/layers/LayersPlugin';
 import { createShortcutsPlugin } from '../../plugins/interaction/shortcuts';
 import { ToolbarPlugin } from '../../plugins/toolbar/ToolbarPlugin';
@@ -26,6 +27,7 @@ export function defaultPlugins(): EditorPlugin[] {
   return [
     new LayoutPlugin(),
     new LayersPlugin(),
+    new FramesPlugin(),
     createShortcutsPlugin(),
     new ToolbarPlugin(),
     new PlaybackPlugin(),

@@ -261,3 +261,84 @@ describe('history.undoRedo lifecycle', () => {
     expect([undoButton.disabled, redoButton.disabled]).toEqual([true, true]);
   });
 });
+
+describe('history.undoRedo focus', () => {
+  it('moves the focus to Rétablir when the last undo disables Annuler, so Ctrl+Y still works', () => {
+    // Arrange
+    const { editor, undoButton, redoButton, frames } = mount();
+    editor.execute(lengthen());
+    undoButton.focus();
+
+    // Act
+    undoButton.click();
+
+    // Assert
+    expect(undoButton.disabled).toBe(true);
+    expect(document.activeElement).toBe(redoButton);
+    press(document.activeElement as HTMLElement, { key: 'y', ctrlKey: true });
+    expect(frames()).toBe(61);
+  });
+
+  it('moves the focus back to Annuler when the last redo disables Rétablir', () => {
+    // Arrange
+    const { editor, undoButton, redoButton } = mount();
+    editor.execute(lengthen());
+    editor.undo();
+    redoButton.focus();
+
+    // Act
+    redoButton.click();
+
+    // Assert
+    expect(document.activeElement).toBe(undoButton);
+  });
+
+  it('leaves the focus alone while the clicked button stays enabled', () => {
+    // Arrange
+    const { editor, undoButton } = mount();
+    editor.execute(lengthen());
+    editor.execute(lengthen());
+    undoButton.focus();
+
+    // Act
+    undoButton.click();
+
+    // Assert
+    expect(document.activeElement).toBe(undoButton);
+  });
+});
+
+describe('history.undoRedo focus after a shortcut', () => {
+  it('moves the focus to Rétablir when Ctrl+Z on the focused Annuler disables it', () => {
+    // Arrange
+    const { editor, undoButton, redoButton, frames } = mount();
+    editor.execute(lengthen());
+    undoButton.focus();
+
+    // Act
+    press(undoButton, { key: 'z', ctrlKey: true });
+
+    // Assert
+    expect(frames()).toBe(60);
+    expect(document.activeElement).toBe(redoButton);
+    press(redoButton, { key: 'y', ctrlKey: true });
+    expect(frames()).toBe(61);
+    expect(document.activeElement).toBe(undoButton);
+  });
+
+  it('leaves the focus where it was when the shortcut comes from elsewhere', () => {
+    // Arrange
+    const { editor } = mount();
+    editor.execute(lengthen());
+    const field = document.createElement('button');
+    editor.container.appendChild(field);
+    field.focus();
+
+    // Act
+    press(field, { key: 'z', ctrlKey: true });
+
+    // Assert
+    expect(document.activeElement).toBe(field);
+  });
+});
+

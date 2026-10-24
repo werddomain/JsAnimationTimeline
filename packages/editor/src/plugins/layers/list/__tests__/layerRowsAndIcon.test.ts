@@ -57,6 +57,26 @@ describe('layerRows reuse', () => {
   });
 });
 
+describe('layerRows hidden state', () => {
+  it('marks rows hidden by themselves or by an ancestor folder', () => {
+    const rows = layerRows(doc([folder('f', [layer('a')], { visible: false }), layer('b', { visible: false }), layer('c')]));
+    expect(rows.map((row) => [row.id, row.hiddenByAncestor])).toEqual([
+      ['f', true],
+      ['a', true],
+      ['b', true],
+      ['c', false]
+    ]);
+  });
+
+  it('rebuilds a child row when its folder is hidden', () => {
+    const a = layer('a');
+    const before = layerRows(doc([folder('f', [a])]));
+    const after = layerRows(doc([folder('f', [a], { visible: false })]), before);
+    expect(after[1]).not.toBe(before[1]);
+    expect(after[1]?.hiddenByAncestor).toBe(true);
+  });
+});
+
 describe('sameRowLayout', () => {
   it('ignores node content but not order, depth or parent', () => {
     const base = layerRows(doc([layer('a'), layer('b')]));
