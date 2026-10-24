@@ -20,9 +20,10 @@
  * début de la lecture, un changement de mode et `destroy` libèrent la
  * retenue, ce qui rend l'image courante. Si le relâchement arrive avant le
  * rendu d'affichage de la dernière image atteinte, la libération attend ce
- * `frame:render` : l'image n'est rendue qu'une fois (en mode `'throttled'`, le rendu de fin peut l'avoir déjà rendue : même sortie, deux fois). Après une lecture
- * arrêtée pendant le même glisser (pause ou fin), la retenue est rouverte. Les calques masqués dans l'éditeur
- * (œil) le restent : c'est la scène qui les cache (`editorVisible`).
+ * `frame:render` : l'image n'est rendue qu'une fois. En mode `'throttled'`,
+ * le rendu de fin a pu la rendre déjà : même sortie, rendue deux fois. Après
+ * une lecture arrêtée pendant le même glisser (pause ou fin), la retenue est
+ * rouverte. Les calques masqués dans l'éditeur (œil) le restent : c'est la scène qui les cache (`editorVisible`).
  *
  * Une liste « Aperçu » dans le groupe `playback` de la barre d'outils change
  * le mode (désactivable par `toolbar: false` ; absente, sans erreur, si

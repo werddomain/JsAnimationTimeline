@@ -18,13 +18,20 @@ import { LayersPlugin } from '../../../layers/LayersPlugin';
 import type { ILayerSelectionService } from '../../../layers/selection/types';
 import { cleanBody, createContainer } from '../../../layout/__tests__/layoutFixtures';
 import { TweensPlugin } from '../../../tweens/TweensPlugin';
-import type { MotionTweenEvent } from '../../../tweens/motion/types';
+import type { MotionAvailabilityChangedEvent, MotionTweenEvent } from '../../../tweens/motion/types';
 import { toolbarBasePlugins } from '../../__tests__/toolbarFixtures';
 import { KeyframeActionsPlugin, KEYFRAME_ACTIONS_PLUGIN_ID } from '../KeyframeActionsPlugin';
 import { DELETE_LABELS, LOCKED_REASON, NO_KEYFRAME_REASON, NO_TARGET_REASON } from '../keyframeActionsState';
 import type { ToolbarEditKeyframeEvent } from '../types';
 
-afterEach(cleanBody);
+const mounted: IEditor[] = [];
+
+afterEach(() => {
+  mounted.splice(0).forEach((editor) => {
+    if (!editor.isDestroyed) editor.destroy();
+  });
+  cleanBody();
+});
 
 function layer(id: string, extra: Partial<ILayer> = {}): ILayer {
   return { id, type: 'layer', name: id, spans: [], ...extra };
@@ -87,20 +94,20 @@ interface IHarness {
   readonly edits: ToolbarEditKeyframeEvent[];
   readonly button: (action: string) => HTMLButtonElement;
   readonly control: () => HTMLElement | null;
+  /** Émet un événement de plugin depuis un plugin de test. */
+  readonly emit: (name: 'tweens:motionAvailabilityChanged', payload: MotionAvailabilityChangedEvent) => void;
 }
 
-/** Contextes d'un plugin de test qui permet d'émettre un événement de plugin. */
-const emitters: IEditorContext['events'][] = [];
-const emitterPlugin: EditorPlugin = {
-  id: 'test.emitter',
-  dependencies: [],
-  init: (ctx) => {
-    emitters.push(ctx.events);
-  },
-  destroy: () => {}
-};
-
 function setup(): IHarness {
+  let events: IEditorContext['events'] | undefined;
+  const emitterPlugin: EditorPlugin = {
+    id: 'test.emitter',
+    dependencies: [],
+    init: (ctx) => {
+      events = ctx.events;
+    },
+    destroy: () => {}
+  };
   const clock = createManualClock();
   const editor = createEditor(createContainer(), {
     data: sample(),
@@ -143,7 +150,9 @@ function setup(): IHarness {
   };
   const control = (): HTMLElement | null =>
     editor.container.querySelector<HTMLElement>(`[data-toolbar-item="${KEYFRAME_ACTIONS_PLUGIN_ID}"]`);
-  return { editor, clock, selection, layers, probe, edits, button, control };
+  mounted.push(editor);
+  const emit: IHarness['emit'] = (name, payload) => events?.emit(name, payload);
+  return { editor, clock, selection, layers, probe, edits, button, control, emit };
 }
 
 const cells = (rowId: string, ...frames: number[]) => frames.map((frame) => ({ rowId, frame }));
@@ -335,7 +344,7 @@ describe('buttons run exactly their service', () => {
     button('delete').click();
 
     // Assert
-    expect(label).not.toBe(DELETE_LABELS.property);
+    expect(label).toBe(DELETE_LABELS.keyframe);
     expect(probe.removed).toEqual([]);
     expect(probe.shape('p')).not.toEqual(['static 1-10', 'tween 11-20']);
   });
@@ -346,7 +355,7 @@ describe('buttons run exactly their service', () => {
     selection.set([...cells('p', 11, 15), ...cells('a', 5)]);
 
     // Assert
-    expect(button('delete').getAttribute('aria-label')).not.toBe(DELETE_LABELS.property);
+    expect(button('delete').getAttribute('aria-label')).toBe(DELETE_LABELS.keyframe);
   });
 
   it('delete is unavailable on a plain frame of a span, and does nothing', () => {
@@ -457,6 +466,56 @@ describe('playhead during playback', () => {
     expect(writes).not.toHaveBeenCalled();
   });
 });
+
+describe('playhead refresh at the end of playback', () => {
+  it('keeps the buttons while playing on a selected layer, then follows the playhead on pause', () => {
+    // Arrange: layer a has keyframes at 1 and 5 only.
+    const { editor, clock, layers, button } = setup();
+    editor.playback.seek(3);
+    clock.advance(DISPLAY_FRAME_MS);
+    layers.select(['a']);
+    expect(disabled(button('edit'))).toBe(true);
+
+    // Act
+    editor.playback.play();
+    const duringPlay = disabled(button('edit'));
+    clock.advance(100);
+    const moved = editor.playback.frame;
+    const duringAfter = disabled(button('edit'));
+    editor.playback.pause();
+    const onPause = disabled(button('edit'));
+
+    // Assert
+    expect(duringPlay).toBe(true);
+    expect(moved).toBeGreaterThan(3);
+    expect(duringAfter).toBe(true);
+    expect(onPause).toBe(disabledAtFrame(editor.playback.frame));
+  });
+
+  it('refreshes on playback:complete when playback reaches the end', () => {
+    // Arrange
+    const { editor, clock, layers, button } = setup();
+    layers.select(['a']);
+    expect(disabled(button('edit'))).toBe(false);
+    editor.playback.seek(editor.document.settings.totalFrames - 1);
+    editor.playback.play();
+    clock.advance(DISPLAY_FRAME_MS);
+    const during = disabled(button('edit'));
+
+    // Act
+    clock.advance(1000);
+
+    // Assert
+    expect(editor.playback.playing).toBe(false);
+    expect(during).toBe(false);
+    expect(disabled(button('edit'))).toBe(disabledAtFrame(editor.playback.frame));
+  });
+});
+
+/** « Modifier » est indisponible sauf si la tête est sur une image clé du calque a (1 ou 5). */
+function disabledAtFrame(frame: number): boolean {
+  return frame !== 1 && frame !== 5;
+}
 
 describe('unavailable buttons', () => {
   it('do nothing on click, Enter or Space, and stay focusable', () => {
@@ -630,7 +689,7 @@ describe('following the editor', () => {
 
   it('updates on tweens:motionAvailabilityChanged (nothing else changed since)', () => {
     // Arrange
-    const { editor, clock, layers, button } = setup();
+    const { editor, clock, layers, button, emit } = setup();
     editor.playback.seek(3);
     clock.advance(DISPLAY_FRAME_MS);
     layers.select(['a']);
@@ -639,7 +698,7 @@ describe('following the editor', () => {
 
     // Act: no playhead:changed yet (no display frame), only the availability event.
     const before = disabled(button('edit'));
-    emitters[emitters.length - 1]?.emit('tweens:motionAvailabilityChanged', {
+    emit('tweens:motionAvailabilityChanged', {
       canCreate: { enabled: false },
       canRemove: { enabled: false }
     });
