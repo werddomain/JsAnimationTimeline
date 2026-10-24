@@ -4,6 +4,11 @@
  * désactivé et la navigation aux flèches (tabindex itinérant : un seul bouton
  * est dans l'ordre de tabulation). Aucune logique métier : les clics sont
  * transmis par la fonction `onAction`.
+ *
+ * Un bouton indisponible porte `aria-disabled="true"` (pas l'attribut natif
+ * `disabled`) : il reste atteignable aux flèches, comme dans une barre d'outils
+ * WAI-ARIA, et le focus ne tombe pas sur `body` quand le bouton focalisé
+ * devient indisponible. Son clic est ignoré.
  */
 
 /** Actions de la barre. */
@@ -34,6 +39,11 @@ export const LAYER_TOOLBAR_BUTTONS: readonly IButtonSpec[] = Object.freeze([
 /** Libellé accessible de la barre. */
 export const LAYER_TOOLBAR_LABEL = 'Outils des calques';
 
+/** Vrai si le bouton est indisponible (`aria-disabled="true"`). */
+function isUnavailable(button: HTMLButtonElement): boolean {
+  return button.getAttribute('aria-disabled') === 'true';
+}
+
 /** Barre d'outils montée dans un élément. */
 export class ToolbarView {
   readonly element: HTMLElement;
@@ -59,7 +69,9 @@ export class ToolbarView {
       icon.setAttribute('aria-hidden', 'true');
       icon.textContent = spec.icon;
       button.append(icon);
-      button.addEventListener('click', () => onAction(spec.action));
+      button.addEventListener('click', () => {
+        if (!isUnavailable(button)) onAction(spec.action);
+      });
       button.addEventListener('focus', () => this.setActive(spec.action));
       this.buttons.set(spec.action, button);
       this.element.append(button);
@@ -74,12 +86,12 @@ export class ToolbarView {
     return this.buttons.get(action);
   }
 
-  /** Active ou désactive les boutons ; garde un bouton actif dans l'ordre de tabulation. */
+  /** Rend les boutons disponibles ou non (`aria-disabled`) ; le bouton actif ne change pas. */
   setEnabled(enabled: Readonly<Record<ToolbarAction, boolean>>): void {
     this.buttons.forEach((button, action) => {
-      button.disabled = !enabled[action];
+      if (enabled[action]) button.removeAttribute('aria-disabled');
+      else button.setAttribute('aria-disabled', 'true');
     });
-    this.setActive(this.buttons.get(this.active)?.disabled === false ? this.active : this.firstEnabled());
   }
 
   /** Retire la barre du DOM. */
@@ -89,25 +101,18 @@ export class ToolbarView {
     this.buttons.clear();
   }
 
-  private firstEnabled(): ToolbarAction {
-    const found = LAYER_TOOLBAR_BUTTONS.find((spec) => this.buttons.get(spec.action)?.disabled === false);
-    return found?.action ?? 'newLayer';
-  }
-
   private setActive(action: ToolbarAction): void {
     this.active = action;
     this.buttons.forEach((button, key) => button.setAttribute('tabindex', key === action ? '0' : '-1'));
   }
 
-  /** Flèches gauche / droite (en boucle), Début et Fin parmi les boutons actifs. */
+  /** Flèches gauche / droite (en boucle), Début et Fin, indisponibles compris. */
   private navigate(event: KeyboardEvent): void {
-    const enabled = LAYER_TOOLBAR_BUTTONS.filter((spec) => this.buttons.get(spec.action)?.disabled === false);
-    if (enabled.length === 0) return;
-    const current = enabled.findIndex((spec) => spec.action === this.active);
-    const target = this.targetIndex(event.key, current, enabled.length);
+    const current = LAYER_TOOLBAR_BUTTONS.findIndex((spec) => spec.action === this.active);
+    const target = this.targetIndex(event.key, current, LAYER_TOOLBAR_BUTTONS.length);
     if (target === undefined) return;
     event.preventDefault();
-    const spec = enabled[target];
+    const spec = LAYER_TOOLBAR_BUTTONS[target];
     if (spec === undefined) return;
     this.setActive(spec.action);
     this.buttons.get(spec.action)?.focus();

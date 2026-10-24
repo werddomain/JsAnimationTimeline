@@ -9,6 +9,8 @@ import type { LayerNode } from '@werddomain/timeline-runtime';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';
 import type { IListHarness } from '../../list/__tests__/fixtures';
 import type { ILayerSelectionService } from '../../selection';
+import type { IEditorContext } from '../../../../core/context/IEditorContext';
+import { LayerToolbarPlugin } from '../LayerToolbarPlugin';
 import type { ILayerToolbarService } from '../types';
 
 afterEach(unmountAll);
@@ -40,6 +42,10 @@ function button(h: IHarness, label: string): HTMLButtonElement {
   const found = h.host.querySelector<HTMLButtonElement>(`.jt-layer-toolbar button[aria-label="${label}"]`);
   if (found === null) throw new Error(`bouton ${label} absent`);
   return found;
+}
+
+function unavailable(h: IHarness, label: string): boolean {
+  return button(h, label).getAttribute('aria-disabled') === 'true';
 }
 
 function press(target: Element, key: string, init: KeyboardEventInit = {}): KeyboardEvent {
@@ -76,23 +82,23 @@ describe('rendering', () => {
 
   it('disables group and delete without selection and follows selection and document changes', () => {
     const h = setup();
-    expect(button(h, 'Nouveau calque').disabled).toBe(false);
-    expect(button(h, 'Nouveau dossier').disabled).toBe(false);
-    expect(button(h, 'Grouper la sélection').disabled).toBe(true);
-    expect(button(h, 'Supprimer la sélection').disabled).toBe(true);
+    expect(unavailable(h, 'Nouveau calque')).toBe(false);
+    expect(unavailable(h, 'Nouveau dossier')).toBe(false);
+    expect(unavailable(h, 'Grouper la sélection')).toBe(true);
+    expect(unavailable(h, 'Supprimer la sélection')).toBe(true);
     h.selection.select(['a']);
-    expect(button(h, 'Grouper la sélection').disabled).toBe(false);
-    expect(button(h, 'Supprimer la sélection').disabled).toBe(false);
+    expect(unavailable(h, 'Grouper la sélection')).toBe(false);
+    expect(unavailable(h, 'Supprimer la sélection')).toBe(false);
     h.toolbar.deleteSelection();
     h.selection.clear();
-    expect(button(h, 'Supprimer la sélection').disabled).toBe(true);
+    expect(unavailable(h, 'Supprimer la sélection')).toBe(true);
   });
 
   it('updates on document:loaded', () => {
     const h = setup();
     h.selection.select(['a']);
     h.editor.load(doc([layer('z')]));
-    expect(button(h, 'Supprimer la sélection').disabled).toBe(true);
+    expect(unavailable(h, 'Supprimer la sélection')).toBe(true);
   });
 });
 
@@ -125,7 +131,7 @@ describe('buttons', () => {
     expect(shapeOf(h)).toBe('f(a),c');
   });
 
-  it('moves focus with arrow keys over enabled buttons (roving tabindex)', () => {
+  it('moves focus with arrow keys over all buttons, even unavailable (roving tabindex)', () => {
     const h = setup();
     const first = button(h, 'Nouveau calque');
     const second = button(h, 'Nouveau dossier');
@@ -136,22 +142,55 @@ describe('buttons', () => {
     expect(document.activeElement).toBe(second);
     expect(second.tabIndex).toBe(0);
     expect(first.tabIndex).toBe(-1);
-    press(second, 'ArrowRight');
+    const last = button(h, 'Supprimer la sélection');
+    press(second, 'End');
+    expect(document.activeElement).toBe(last);
+    press(last, 'ArrowRight');
     expect(document.activeElement).toBe(first);
     press(first, 'ArrowLeft');
-    expect(document.activeElement).toBe(second);
-    press(second, 'End');
-    expect(document.activeElement).toBe(second);
-    press(second, 'Home');
+    expect(document.activeElement).toBe(last);
+    press(last, 'Home');
     expect(document.activeElement).toBe(first);
     expect(press(first, 'x').defaultPrevented).toBe(false);
-    h.selection.select(['a']);
     press(first, 'End');
     expect(document.activeElement).toBe(button(h, 'Supprimer la sélection'));
   });
 });
 
+describe('unavailable buttons', () => {
+  it('use aria-disabled, stay focusable and ignore clicks', () => {
+    const h = setup();
+    const remove = button(h, 'Supprimer la sélection');
+    expect(remove.hasAttribute('disabled')).toBe(false);
+    remove.click();
+    expect(h.editor.document.layers).toBe(tree.layers);
+    button(h, 'Grouper la sélection').click();
+    expect(h.editor.document.layers).toBe(tree.layers);
+  });
+
+  it('keeps the focus on the Delete button when deleting the last layer', () => {
+    const h = setup(doc([layer('only')]));
+    h.selection.select(['only']);
+    const remove = button(h, 'Supprimer la sélection');
+    remove.focus();
+    remove.click();
+    expect(h.editor.document.layers).toHaveLength(0);
+    expect(unavailable(h, 'Supprimer la sélection')).toBe(true);
+    expect(document.activeElement).toBe(remove);
+  });
+});
+
 describe('newLayer', () => {
+  it('inserts above a collapsed ancestor folder so the layer stays visible', () => {
+    const h = setup(doc([folder('f', [layer('a'), folder('g', [layer('b')])]), layer('c')]));
+    h.selection.select(['b']);
+    h.list.setCollapsed('f', true);
+    const id = h.toolbar.newLayer();
+    expect(id).toBe('layer-1');
+    expect(shapeOf(h)).toBe('layer-1,f(a,g(b)),c');
+    expect(h.list.row('layer-1')).toBeDefined();
+  });
+
   it('inserts above the first selected row, in its parent, and numbers the next ones', () => {
     const h = setup();
     h.selection.select(['b', 'c']);
@@ -257,6 +296,34 @@ describe('shortcuts', () => {
 });
 
 describe('lifecycle', () => {
+  it('leaves nothing behind when a shortcut registration throws', () => {
+    const cleaned: string[] = [];
+    const cleanup = (name: string) => (): void => {
+      cleaned.push(name);
+    };
+    let registered = 0;
+    const ctx = {
+      services: {
+        require: (id: string): unknown =>
+          id === 'interaction.shortcuts'
+            ? {
+                register: () => {
+                  registered += 1;
+                  if (registered === 2) throw new Error('conflit');
+                  return cleanup('shortcut');
+                }
+              }
+            : {},
+        provide: () => cleanup('service')
+      },
+      events: { on: () => cleanup('event') }
+    } as unknown as IEditorContext;
+    const plugin = new LayerToolbarPlugin();
+    expect(() => plugin.init(ctx)).toThrow('conflit');
+    plugin.destroy();
+    expect(cleaned).toEqual(['service', 'event', 'event', 'event', 'shortcut']);
+  });
+
   it('removes the toolbar and the shortcuts on destroy', () => {
     const h = setup();
     const shortcuts = h.editor.getService('interaction.shortcuts');

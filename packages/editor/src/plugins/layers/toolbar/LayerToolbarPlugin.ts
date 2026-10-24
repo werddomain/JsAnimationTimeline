@@ -26,7 +26,10 @@
  * Clavier, par `interaction.shortcuts`, seulement quand le focus est dans la
  * liste des calques (jamais dans un champ de saisie comme le renommage) :
  * Suppr ou Retour arrière supprime la sélection ; Ctrl+Alt+L (le raccourci de
- * Flash ; Ctrl+Maj+N est pris par le navigateur) crée un calque.
+ * Flash ; Ctrl+Maj+N est pris par le navigateur) crée un calque. Attention :
+ * sur certaines dispositions Windows, Ctrl+Alt+L est aussi AltGr+L (un
+ * caractère saisi) ; il n'agit que si le focus est dans la liste, jamais dans
+ * un champ.
  *
  * Service `layers.toolbar` : voir `ILayerToolbarService`.
  */
@@ -36,7 +39,7 @@ import { LAYOUT_SLOTS } from '../../layout/shell/layoutSlots';
 import type { ILayerListService } from '../list';
 import type { ILayerSelectionService } from '../selection';
 import { deleteLayersCommand, newLayerCommand } from './toolbarCommands';
-import { rowAfterDelete } from './toolbarTree';
+import { rowAfterDelete, visibleAnchor } from './toolbarTree';
 import { ToolbarView } from './ToolbarView';
 import type { ToolbarAction } from './ToolbarView';
 import type { ILayerToolbarService } from './types';
@@ -83,18 +86,22 @@ export class LayerToolbarPlugin implements EditorPlugin {
       deleteSelection: () => this.deleteSelection()
     };
     const refresh = (): void => this.refresh();
-    this.cleanups = [
-      ctx.services.provide(LAYERS_TOOLBAR_PLUGIN_ID, service),
-      ctx.events.on('layers:selectionChanged', refresh),
-      ctx.events.on('document:changed', refresh),
-      ctx.events.on('document:loaded', refresh),
+    // Chaque nettoyage est retenu dès sa création : un `register` qui lève ne laisse rien derrière lui.
+    this.cleanups = [];
+    this.cleanups.push(ctx.services.provide(LAYERS_TOOLBAR_PLUGIN_ID, service));
+    this.cleanups.push(ctx.events.on('layers:selectionChanged', refresh));
+    this.cleanups.push(ctx.events.on('document:changed', refresh));
+    this.cleanups.push(ctx.events.on('document:loaded', refresh));
+    this.cleanups.push(
       shortcuts.register({
         id: newLayer.shortcutId,
         keys: newLayer.keys,
         label: newLayer.label,
         enabled: () => this.listHasFocus(),
         run: () => this.newLayer() !== undefined
-      }),
+      })
+    );
+    this.cleanups.push(
       shortcuts.register({
         id: remove.shortcutId,
         keys: remove.keys,
@@ -102,7 +109,7 @@ export class LayerToolbarPlugin implements EditorPlugin {
         enabled: () => this.listHasFocus() && this.requireSelection().selected().length > 0,
         run: () => this.deleteSelection()
       })
-    ];
+    );
   };
 
   render(slot: HTMLElement): void {
@@ -131,7 +138,8 @@ export class LayerToolbarPlugin implements EditorPlugin {
 
   private newLayer(): string | undefined {
     const ctx = this.requireContext();
-    const created = newLayerCommand(ctx.document, this.requireSelection().selected()[0]);
+    const anchor = visibleAnchor(ctx.document.layers, this.requireSelection().selected()[0]);
+    const created = newLayerCommand(ctx.document, anchor);
     if (!ctx.commands.execute(created.command)) return undefined;
     this.requireSelection().select([created.layerId]);
     return created.layerId;
@@ -143,7 +151,10 @@ export class LayerToolbarPlugin implements EditorPlugin {
     if (command === undefined) return false;
     const before = this.rowIds();
     if (!ctx.commands.execute(command)) return false;
-    const next = rowAfterDelete(before, this.rowIds());
+    const after = this.rowIds();
+    // Aucune ligne visible retirée : la sélection reste telle quelle.
+    if (before.length === after.length) return true;
+    const next = rowAfterDelete(before, after);
     this.requireSelection().select(next === undefined ? [] : [next]);
     return true;
   }

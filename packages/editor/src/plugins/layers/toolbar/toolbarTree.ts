@@ -7,7 +7,7 @@
  * (le document est figé).
  */
 
-import { flattenLayers } from '@werddomain/timeline-runtime';
+import { findNodeById, flattenLayers, isFolder } from '@werddomain/timeline-runtime';
 import type { ILayer, LayerNode } from '@werddomain/timeline-runtime';
 import { insertNode, locateNode, numbersWithPrefix, smallestFree } from '../groups/groupsTree';
 
@@ -45,15 +45,32 @@ export function addLayer(
 }
 
 /**
+ * Ancre visible de `id` : le dossier replié le plus haut parmi ses ancêtres
+ * (le nouveau calque se place au-dessus de lui, donc reste visible), sinon
+ * `id` lui-même.
+ */
+export function visibleAnchor(nodes: readonly LayerNode[], id: string | undefined): string | undefined {
+  if (id === undefined) return undefined;
+  const visit = flattenLayers(nodes).find((item) => item.node.id === id);
+  const collapsed = visit?.parentIds.find((parentId) => {
+    const parent = findNodeById(nodes, parentId);
+    return parent !== undefined && isFolder(parent) && parent.collapsed === true;
+  });
+  return collapsed ?? id;
+}
+
+/**
  * Id de la ligne à sélectionner après une suppression : celle qui a pris le
  * rang de la première ligne supprimée (ou, à défaut, la dernière restante) ;
- * `undefined` s'il ne reste aucune ligne. Les lignes supprimées sont celles de
+ * `undefined` s'il ne reste aucune ligne ou si aucune ligne visible n'a été
+ * supprimée (la sélection ne bouge pas). Les lignes supprimées sont celles de
  * `before` qui ne sont plus dans `after` (sous-arbres compris).
  */
 export function rowAfterDelete(before: readonly string[], after: readonly string[]): string | undefined {
   if (after.length === 0) return undefined;
   const remaining = new Set(after);
   const firstRemoved = before.findIndex((id) => !remaining.has(id));
-  const kept = before.slice(0, Math.max(firstRemoved, 0)).filter((id) => remaining.has(id)).length;
+  if (firstRemoved === -1) return undefined;
+  const kept = before.slice(0, firstRemoved).filter((id) => remaining.has(id)).length;
   return after[Math.min(kept, after.length - 1)];
 }

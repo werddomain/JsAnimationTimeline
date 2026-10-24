@@ -5,7 +5,7 @@ import { isFolder } from '@werddomain/timeline-runtime';
 import type { LayerNode } from '@werddomain/timeline-runtime';
 import { doc, folder, layer } from '../../list/__tests__/fixtures';
 import { deleteLayersCommand, newLayerCommand, LayerToolbarCommandLabels } from '../toolbarCommands';
-import { addLayer, newLayer, nextLayerId, nextLayerName, rowAfterDelete } from '../toolbarTree';
+import { addLayer, newLayer, nextLayerId, nextLayerName, rowAfterDelete, visibleAnchor } from '../toolbarTree';
 
 function shape(nodes: readonly LayerNode[]): string {
   return nodes.map((node) => (isFolder(node) ? `${node.id}(${shape(node.children)})` : node.id)).join(',');
@@ -44,6 +44,18 @@ describe('addLayer', () => {
   });
 });
 
+describe('visibleAnchor', () => {
+  const nested = [folder('f', [folder('g', [layer('b')])], { collapsed: true }), layer('c')];
+  const open = [folder('f', [layer('a')]), layer('c')];
+
+  it('returns the outermost collapsed ancestor, else the id itself', () => {
+    expect(visibleAnchor(nested, 'b')).toBe('f');
+    expect(visibleAnchor(open, 'a')).toBe('a');
+    expect(visibleAnchor(open, 'zz')).toBe('zz');
+    expect(visibleAnchor(open, undefined)).toBeUndefined();
+  });
+});
+
 describe('rowAfterDelete', () => {
   it('takes the row that moved into the first removed place', () => {
     expect(rowAfterDelete(['a', 'b', 'c', 'd'], ['a', 'd'])).toBe('d');
@@ -53,7 +65,7 @@ describe('rowAfterDelete', () => {
   it('falls back to the last row, or nothing', () => {
     expect(rowAfterDelete(['a', 'b', 'c'], ['a'])).toBe('a');
     expect(rowAfterDelete(['a'], [])).toBeUndefined();
-    expect(rowAfterDelete(['a'], ['a'])).toBe('a');
+    expect(rowAfterDelete(['a'], ['a'])).toBeUndefined();
   });
 });
 
