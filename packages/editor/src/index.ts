@@ -109,16 +109,26 @@ export type {
   PlayheadChangedEvent
 } from './core/playback';
 
-// Plugins de mise en page (epic `layout`) : coquille, emplacements et défilement.
-export { LAYOUT_SLOTS, LAYOUT_ZONES, LayoutPlugin, LayoutShellPlugin, ScrollSyncPlugin } from './plugins/layout';
+// Plugins de mise en page (epic `layout`) : coquille, emplacements, défilement, règle et tête de lecture.
+export {
+  LAYOUT_SLOTS,
+  LAYOUT_ZONES,
+  LayoutPlugin,
+  LayoutShellPlugin,
+  PlayheadPlugin,
+  RulerPlugin,
+  ScrollSyncPlugin
+} from './plugins/layout';
 export type {
   IFrameScheduler,
   ILayoutShellApi,
   IScrollPosition,
   IScrollState,
+  IRulerApi,
   IScrollSyncApi,
   LayoutOptions,
   LayoutZone,
+  RulerOptions,
   ScrollSyncOptions
 } from './plugins/layout';
 

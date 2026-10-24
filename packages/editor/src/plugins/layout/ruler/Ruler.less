@@ -1,0 +1,36 @@
+// packages/editor/src/plugins/layout/ruler/Ruler.less
+// Règle des images (layout.ruler). Graduations en fond répété, de la largeur
+// d'une image (--jt-frame-width) ; une graduation plus haute toutes les 5 images.
+
+.JsTimeLine {
+  .jt-ruler {
+    position: relative;
+    height: 100%;
+    min-width: 100%;
+    box-sizing: border-box;
+    user-select: none;
+    background-image:
+      linear-gradient(to right, #666 1px, transparent 1px),
+      linear-gradient(to right, #999 1px, transparent 1px);
+    background-size:
+      calc(var(--jt-frame-width, 15px) * 5) 12px,
+      var(--jt-frame-width, 15px) 6px;
+    background-repeat: repeat-x;
+    background-position: left bottom;
+  }
+
+  .jt-ruler__label {
+    position: absolute;
+    top: 2px;
+    padding-left: 2px;
+    border-left: 1px solid #333;
+    height: calc(100% - 2px);
+    box-sizing: border-box;
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1;
+    color: #333;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+}
