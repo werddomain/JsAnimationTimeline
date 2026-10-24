@@ -15,6 +15,7 @@ import type {
 import type { EventHandler } from '../events/EventBus';
 import type { TimelineEventMap } from '../events/TimelineEventMap';
 import type { FrameListener, IEditorPlayback, IFrameSample } from '../playback/types';
+import type { EditorStageOption, IEditorStage, StageErrorHandler } from '../stage/types';
 import type { StoreWarningHandler } from '../store/Store';
 
 /** Options de `createEditor()`. */
@@ -31,11 +32,20 @@ export interface EditorOptions {
    */
   readonly data?: ITimelineDocument;
   /**
-   * Racine de la scène HTML par défaut (C7). Par défaut : le document du
-   * conteneur. Les plugins ne la reçoivent plus (`ctx.root` est retiré) : ils
-   * passent par la scène.
+   * Racine de la scène HTML par défaut. Par défaut : le document du
+   * conteneur. Interdite avec `stage`. Les plugins passent par `ctx.stage`.
    */
   readonly root?: ParentNode;
+  /**
+   * Scènes animées par l'éditeur. Absente : scène HTML en mode `frame` sur
+   * `root`, qui n'anime jamais l'éditeur lui-même ; `false` : timeline
+   * seule ; une scène ou un tableau combiné (voir `EditorStageOption`). Les
+   * `properties` des scènes entrent dans le registre de l'éditeur. L'éditeur
+   * ne détruit jamais une scène fournie : il relâche les calques puis la détache.
+   */
+  readonly stage?: EditorStageOption;
+  /** Reçoit les erreurs levées par les scènes. Par défaut : `console.error` (la lecture continue). */
+  readonly onStageError?: StageErrorHandler;
   /**
    * Registre de propriétés. L'éditeur en garde une copie figée, construite
    * avant le Store (`ctx.registry`) : un `registerProperty()` fait après
@@ -89,6 +99,8 @@ export interface IEditor {
   readonly playback: IEditorPlayback;
   /** Registre de propriétés figé de l'éditeur (même objet que `ctx.registry`). */
   readonly registry: PropertyRegistry;
+  /** Scènes animées (même façade que `ctx.stage`). */
+  readonly stage: IEditorStage;
 
   /** S'abonne à un événement de l'éditeur ; retourne la fonction de désabonnement. */
   on<K extends EditorEventName>(name: K, handler: EventHandler<TimelineEventMap[K]>): () => void;
@@ -116,6 +128,12 @@ export interface IEditor {
    * bornée), ou à la position courante. Synchrone, sans événement.
    */
   sample(frame?: number): IFrameSample;
+  /**
+   * Réessaie les cibles que les scènes n'ont pas pu résoudre (du calque
+   * `layerId` seulement s'il est donné) : modèle chargé plus tard, élément
+   * ajouté à la page... Même effet que `ctx.stage.refreshTargets`.
+   */
+  refreshTargets(layerId?: string): void;
   /**
    * Appelé une fois par image rendue (après chaque `frame:render`), avec
    * l'échantillon. Retourne la fonction de désabonnement.

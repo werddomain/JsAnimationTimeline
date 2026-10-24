@@ -109,6 +109,9 @@ export type {
   PlayheadChangedEvent
 } from './core/playback';
 
+// Scènes : option `stage`, façade `IEditorStage` (`ctx.stage`, `editor.stage`) et `stage:report`.
+export type { EditorStageOption, IEditorStage, StageErrorHandler, StageReportEvent } from './core/stage';
+
 // Plugins de mise en page (epic `layout`) : coquille, emplacements, défilement, règle et tête de lecture.
 export {
   LAYOUT_SLOTS,
@@ -168,7 +171,7 @@ export type {
   ILayerSelectionService,
   LayerNodeUpdater,
   LayerRowsChangedEvent,
-  SelectionChangedEvent,
+  LayerSelectionChangedEvent,
   SelectionMode
 } from './plugins/layers';
 
