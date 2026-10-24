@@ -68,7 +68,11 @@ const V2_NAMES = [
   'TimeSettingsPlugin',
   'LAYOUT_ZONES',
   'LAYERS_GROUPS_PLUGIN_ID',
+  'LAYERS_COLOR_PLUGIN_ID',
+  'LAYERS_ICON_PLUGIN_ID',
   'LAYERS_LIST_PLUGIN_ID',
+  'LayerColorPlugin',
+  'LayerIconPlugin',
   'LAYERS_SELECTION_PLUGIN_ID',
   'LAYERS_TOOLBAR_PLUGIN_ID',
   'LayerGroupsPlugin',
@@ -122,7 +126,11 @@ const V2_NAMES = [
   'createTimeSettingsPlugin',
   'createToolbarMainPlugin',
   'createUndoRedoPlugin',
-  'defaultPlugins'
+  'defaultPlugins',
+  'FIT_OPTION_VALUE',
+  'ZOOM_CONTROL_PLUGIN_ID',
+  'ZoomControlPlugin',
+  'createZoomControlPlugin'
 ];
 
 describe('editor package entry point', () => {

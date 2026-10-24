@@ -146,12 +146,16 @@ export type {
 // Plugins des calques (epic `layers`) : liste des calques, contrôles de ligne et sélection.
 export {
   LAYERS_GROUPS_PLUGIN_ID,
+  LAYERS_COLOR_PLUGIN_ID,
+  LAYERS_ICON_PLUGIN_ID,
   LAYERS_LIST_PLUGIN_ID,
   LAYER_LIST_CLASSES,
   LAYERS_SELECTION_PLUGIN_ID,
   LAYERS_TOOLBAR_PLUGIN_ID,
   LAYER_ROW_CLASSES,
   LayerGroupsPlugin,
+  LayerColorPlugin,
+  LayerIconPlugin,
   LayerListPlugin,
   LayerSelectionPlugin,
   LayerToolbarPlugin,
@@ -164,6 +168,8 @@ export {
 } from './plugins/layers';
 export type {
   ILayerGroupsService,
+  ILayerColorService,
+  ILayerIconService,
   ILayerListService,
   ILayerRow,
   ILayerRowControl,
@@ -284,3 +290,11 @@ export {
   PlaybackPlugin,
   createPlaybackControlsPlugin
 } from './plugins/playback';
+
+// Plugin toolbar.zoomControl : liste et curseur du zoom de la règle.
+export {
+  FIT_OPTION_VALUE,
+  ZOOM_CONTROL_PLUGIN_ID,
+  ZoomControlPlugin,
+  createZoomControlPlugin
+} from './plugins/toolbar';

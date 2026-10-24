@@ -56,7 +56,7 @@ npm run build
 # Demo page build (packages/editor/dist-demo)
 npm run build:demo
 
-# Development server with hot reload (port 9000)
+# Development server with hot reload (port E2E_EDITOR_PORT, 9000 by default; see e2e/README.md)
 npm run dev
 ```
 

@@ -21,7 +21,7 @@ describe('toolbar epic', () => {
 
     // Assert
     expect(epic.dependencies).toEqual([]);
-    expect(epic.children.map((child) => child.id)).toEqual(['toolbar.main', 'toolbar.timeSettings']);
+    expect(epic.children.map((child) => child.id)).toEqual(['toolbar.main', 'toolbar.timeSettings', 'toolbar.zoomControl']);
     expect(epic.children[0]).toBeInstanceOf(ToolbarMainPlugin);
   });
 
