@@ -2,8 +2,8 @@
 /**
  * Plugin : layers.toolbar
  * Epic : layers
- * Dépend de : layers.list, layers.selection, layers.groups, interaction.shortcuts
- * Écoute : layers:selectionChanged, document:changed, document:loaded
+ * Dépend de : layers.list, layers.selection, layers.groups
+ * Écoute : layers:selectionChanged, document:changed, document:loaded, editor:ready
  * Émet : —
  *
  * Barre d'outils sous la liste des calques (zone `layersFooter`, Flash CS4) :
@@ -23,7 +23,8 @@
  * verrou protège les images clés, pas l'existence du calque). Comme pour
  * `layers.groups`, après un « annuler » la sélection n'est pas restaurée.
  *
- * Clavier, par `interaction.shortcuts`, seulement quand le focus est dans la
+ * Clavier, par `interaction.shortcuts` s'il est présent (facultatif ; les
+ * raccourcis sont enregistrés à `editor:ready`), seulement quand le focus est dans la
  * liste des calques (jamais dans un champ de saisie comme le renommage) :
  * Suppr ou Retour arrière supprime la sélection ; Ctrl+Alt+L (le raccourci de
  * Flash ; Ctrl+Maj+N est pris par le navigateur) crée un calque. Attention :
@@ -64,8 +65,7 @@ export class LayerToolbarPlugin implements EditorPlugin {
   readonly dependencies: readonly string[] = [
     'layers.list',
     'layers.selection',
-    'layers.groups',
-    'interaction.shortcuts'
+    'layers.groups'
   ];
   readonly slot = LAYOUT_SLOTS.layersFooter;
 
@@ -79,8 +79,6 @@ export class LayerToolbarPlugin implements EditorPlugin {
     this.ctx = ctx;
     this.list = ctx.services.require('layers.list');
     this.selection = ctx.services.require('layers.selection');
-    const shortcuts = ctx.services.require('interaction.shortcuts');
-    const { newLayer, delete: remove } = LAYER_TOOLBAR_SHORTCUTS;
     const service: ILayerToolbarService = {
       newLayer: () => this.newLayer(),
       deleteSelection: () => this.deleteSelection()
@@ -92,6 +90,15 @@ export class LayerToolbarPlugin implements EditorPlugin {
     this.cleanups.push(ctx.events.on('layers:selectionChanged', refresh));
     this.cleanups.push(ctx.events.on('document:changed', refresh));
     this.cleanups.push(ctx.events.on('document:loaded', refresh));
+    // Raccourcis facultatifs : `interaction.shortcuts` peut être absent (epic des calques utilisé seul).
+    this.cleanups.push(ctx.events.once('editor:ready', () => this.registerShortcuts(ctx)));
+  };
+
+  /** Enregistre Mod+Alt+L, Suppr et Retour arrière si le service `interaction.shortcuts` est présent. */
+  private registerShortcuts(ctx: IEditorContext): void {
+    const shortcuts = ctx.services.get('interaction.shortcuts');
+    if (shortcuts === undefined) return;
+    const { newLayer, delete: remove } = LAYER_TOOLBAR_SHORTCUTS;
     this.cleanups.push(
       shortcuts.register({
         id: newLayer.shortcutId,
@@ -110,7 +117,7 @@ export class LayerToolbarPlugin implements EditorPlugin {
         run: () => this.deleteSelection()
       })
     );
-  };
+  }
 
   render(slot: HTMLElement): void {
     this.view = new ToolbarView(slot, (action) => this.perform(action));

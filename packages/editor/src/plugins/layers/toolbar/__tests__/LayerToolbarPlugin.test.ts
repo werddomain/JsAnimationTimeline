@@ -6,6 +6,9 @@
 
 import { isFolder } from '@werddomain/timeline-runtime';
 import type { LayerNode } from '@werddomain/timeline-runtime';
+import { createEditor } from '../../../../core/editor/createEditor';
+import { LayoutPlugin } from '../../../layout/LayoutPlugin';
+import { LayersPlugin } from '../../LayersPlugin';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';
 import type { IListHarness } from '../../list/__tests__/fixtures';
 import type { ILayerSelectionService } from '../../selection';
@@ -295,6 +298,20 @@ describe('shortcuts', () => {
   });
 });
 
+describe('without interaction.shortcuts', () => {
+  it('boots with the layout and layers epics only and the service works', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const editor = createEditor(host, { data: tree, defaultPlugins: [new LayoutPlugin(), new LayersPlugin()] });
+    const toolbar = editor.getService('layers.toolbar');
+    expect(editor.getService('interaction.shortcuts')).toBeUndefined();
+    expect(toolbar?.newLayer()).toBe('layer-1');
+    expect(host.querySelector('.jt-layer-toolbar')).not.toBeNull();
+    expect(toolbar?.deleteSelection()).toBe(true);
+    editor.destroy();
+  });
+});
+
 describe('lifecycle', () => {
   it('leaves nothing behind when a shortcut registration throws', () => {
     const cleaned: string[] = [];
@@ -302,6 +319,7 @@ describe('lifecycle', () => {
       cleaned.push(name);
     };
     let registered = 0;
+    let ready: () => void = () => undefined;
     const ctx = {
       services: {
         require: (id: string): unknown =>
@@ -314,14 +332,31 @@ describe('lifecycle', () => {
                 }
               }
             : {},
+        get: (id: string): unknown =>
+          id === 'interaction.shortcuts'
+            ? {
+                register: () => {
+                  registered += 1;
+                  if (registered === 2) throw new Error('conflit');
+                  return cleanup('shortcut');
+                }
+              }
+            : undefined,
         provide: () => cleanup('service')
       },
-      events: { on: () => cleanup('event') }
+      events: {
+        on: () => cleanup('event'),
+        once: (_name: string, handler: () => void) => {
+          ready = handler;
+          return cleanup('ready');
+        }
+      }
     } as unknown as IEditorContext;
     const plugin = new LayerToolbarPlugin();
-    expect(() => plugin.init(ctx)).toThrow('conflit');
+    plugin.init(ctx);
+    expect(() => ready()).toThrow('conflit');
     plugin.destroy();
-    expect(cleaned).toEqual(['service', 'event', 'event', 'event', 'shortcut']);
+    expect(cleaned).toEqual(['service', 'event', 'event', 'event', 'ready', 'shortcut']);
   });
 
   it('removes the toolbar and the shortcuts on destroy', () => {
