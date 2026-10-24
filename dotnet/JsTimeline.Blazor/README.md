@@ -67,7 +67,8 @@ Limites :
   `InvalidOperationException` dont l'`AggregateException` intérieure les contient toutes.
 - Si le gestionnaire `OnError` lève lui-même une exception, l'erreur d'origine n'est pas perdue : une
   `InvalidOperationException` est levée, avec une `AggregateException` intérieure qui contient l'échec du
-  gestionnaire puis l'erreur d'origine.
+  gestionnaire puis l'erreur d'origine. Avec plusieurs erreurs, cette paire reste groupée dans sa propre
+  `AggregateException`, à l'intérieur de celle qui contient toutes les erreurs.
 - Les erreurs qui restent quand le composant est fermé ne sont plus signalées.
 - Le document refusé est reconnu par sa référence. Un parent qui crée un nouveau `TimelineDocument` à chaque
   rendu, avec un `OnError` qui le fait se redessiner, renvoie le document à chaque fois : garder le document

@@ -89,11 +89,38 @@ public sealed class TimelinePlayerErrorTests : BunitContext
         var sink = Assert.IsType<DotNetObjectReference<TimelinePlayerEventSink>>(createArguments![3]).Value;
 
         var handled = await sink.OnPlayerError("render failed");
-        var dispatched = await Renderer.UnhandledException;
+        var dispatched = await Renderer.UnhandledException.WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.True(handled);
-        var wrapper = Assert.IsType<InvalidOperationException>(dispatched);
-        AssertKeepsBoth(wrapper.InnerException is AggregateException ? wrapper : dispatched, "handler failed", "render failed");
+        AssertKeepsBoth(dispatched, "handler failed", "render failed");
+    }
+
+    [Fact]
+    public async Task A_stage_error_handler_that_disposes_then_throws_reports_nothing()
+    {
+        var js = UseFakeJs();
+        object?[]? createArguments = null;
+        var create = js.Module.Handler;
+        js.Module.Handler = (identifier, args) =>
+        {
+            if (identifier == "createTimelinePlayer")
+            {
+                createArguments = args;
+            }
+            return create(identifier, args);
+        };
+        IRenderedComponent<TimelinePlayer>? cut = null;
+        cut = Render<TimelinePlayer>(ps => ps.Add(p => p.Data, Document()).Add(p => p.OnError, async (Exception _) =>
+        {
+            await cut!.Instance.DisposeAsync();
+            throw new InvalidOperationException("handler failed");
+        }));
+        var sink = Assert.IsType<DotNetObjectReference<TimelinePlayerEventSink>>(createArguments![3]).Value;
+
+        await sink.OnPlayerError("render failed");
+
+        var first = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(300));
+        Assert.NotSame(Renderer.UnhandledException, first);
     }
 
     [Fact]
@@ -156,7 +183,7 @@ public sealed class TimelinePlayerErrorTests : BunitContext
         cut.Render(ps => ps.Add(p => p.Data, Document(72)));
         await cut.InvokeAsync(release.SetResult);
 
-        var thrown = await Renderer.UnhandledException;
+        var thrown = await Renderer.UnhandledException.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal("refused", thrown.Message);
         Assert.Equal(2, updates);
     }

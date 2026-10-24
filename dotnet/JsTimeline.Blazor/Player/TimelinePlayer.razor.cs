@@ -387,7 +387,7 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
                 return;
             }
             handled = true;
-            if (await OfferToOnErrorAsync(new TimelineStageException(message)) is { } failure)
+            if (await OfferToOnErrorAsync(new TimelineStageException(message)) is { } failure && !_disposed)
             {
                 // The handler threw: a component error (with the stage error inside), not something to
                 // lose in JavaScript.
