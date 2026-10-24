@@ -30,12 +30,26 @@ them, used by the Vite configs and by Playwright):
 | `E2E_EDITOR_PORT` | 9000 | editor demo (`packages/editor`, `dev` and `preview:demo`) |
 | `E2E_RUNTIME_PORT` | 9001 | runtime demo (`demo/runtime`, `dev` and `preview:demo`) |
 
-Each worktree that runs the e2e tests at the same time as another one sets its own pair:
+Each worktree that runs the e2e tests at the same time as another one sets its own pair
+(the two ports must differ):
 
 ```bash
+# bash / zsh: for this command only
 E2E_EDITOR_PORT=9100 E2E_RUNTIME_PORT=9101 npm run test:e2e   # worktree 1
 E2E_EDITOR_PORT=9200 E2E_RUNTIME_PORT=9201 npm run test:e2e   # worktree 2
 ```
+
+```powershell
+# PowerShell: the variables last for the whole terminal session
+$env:E2E_EDITOR_PORT='9100'; $env:E2E_RUNTIME_PORT='9101'; npm run test:e2e
+```
+
+```bat
+:: cmd: the variables last for the whole terminal session (no space before &&)
+set E2E_EDITOR_PORT=9100&& set E2E_RUNTIME_PORT=9101&& npm run test:e2e
+```
+
+Values must be plain digits from 1 to 65535 (`9e3`, `0x2328` or `9000.0` are refused).
 
 The servers use `strictPort`, and Playwright does not reuse a server that is already running:
 a busy port fails with "is already used" instead of silently testing another worktree's build.
