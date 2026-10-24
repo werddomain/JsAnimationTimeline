@@ -23,7 +23,7 @@ export interface IVisibleRow {
 }
 
 /** Lignes visibles de `doc`, en ordre d'affichage. */
-export function visibleRows(doc: ITimelineDocument): IVisibleRow[] {
+export function visibleRows(doc: ITimelineDocument): readonly IVisibleRow[] {
   const rows: IVisibleRow[] = [];
   walkLayers(doc.layers, ({ node, parentIds, depth }) => {
     const parentId = parentIds[parentIds.length - 1];
