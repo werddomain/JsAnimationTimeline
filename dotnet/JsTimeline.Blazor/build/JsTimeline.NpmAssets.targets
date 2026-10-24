@@ -1,0 +1,45 @@
+<Project>
+  <!--
+    dotnet/JsTimeline.Blazor/build/JsTimeline.NpmAssets.targets
+    Copies the ES builds of the npm packages (run `npm run build` first) into wwwroot, where they are
+    served under _content/JsTimeline.Blazor/. The copies are not committed (see dotnet/.gitignore).
+    A missing build is a warning for `dotnet build` and an error for `dotnet pack`.
+  -->
+  <ItemGroup>
+    <JsTimelineNpmBuild Include="runtime" File="timeline-runtime.mjs" Folder="js" />
+    <JsTimelineNpmBuild Include="runtime" File="timeline-runtime.mjs.map" Folder="js" />
+    <JsTimelineNpmBuild Include="editor" File="timeline-editor.mjs" Folder="js" />
+    <JsTimelineNpmBuild Include="editor" File="timeline-editor.mjs.map" Folder="js" />
+    <JsTimelineNpmBuild Include="editor" File="timeline-editor.css" Folder="css" />
+  </ItemGroup>
+
+  <Target Name="JsTimelineCopyNpmBuilds" BeforeTargets="ResolveProjectStaticWebAssets;AssignTargetPaths">
+    <ItemGroup>
+      <_JsTimelineNpmFile Include="@(JsTimelineNpmBuild->'$(JsTimelineRepoRoot)packages\%(Identity)\dist\%(File)')">
+        <Destination>wwwroot\%(Folder)\%(File)</Destination>
+      </_JsTimelineNpmFile>
+      <_JsTimelineMissingNpmFile Include="@(_JsTimelineNpmFile)" Condition="!Exists('%(FullPath)')" />
+      <_JsTimelinePresentNpmFile Include="@(_JsTimelineNpmFile)" Condition="Exists('%(FullPath)')" />
+    </ItemGroup>
+    <Warning Condition="'@(_JsTimelineMissingNpmFile)' != ''"
+             Code="JSTL002"
+             Text="npm build missing, run `npm run build` at the repository root: @(_JsTimelineMissingNpmFile->'%(FullPath)', ', ')" />
+    <Copy SourceFiles="@(_JsTimelinePresentNpmFile)"
+          DestinationFiles="@(_JsTimelinePresentNpmFile->'%(Destination)')"
+          SkipUnchangedFiles="true" />
+    <!--
+      Files copied after evaluation are not in @(Content) yet on a clean checkout: add them. Older copies
+      that no longer come from an npm build (renamed or dropped file) are left out of the assets.
+    -->
+    <ItemGroup>
+      <Content Remove="wwwroot\js\**;wwwroot\css\**" />
+      <Content Include="@(_JsTimelinePresentNpmFile->'%(Destination)')" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="JsTimelineRequireNpmBuilds" BeforeTargets="GenerateNuspec" DependsOnTargets="JsTimelineCopyNpmBuilds">
+    <Error Condition="'@(_JsTimelineMissingNpmFile)' != ''"
+           Code="JSTL003"
+           Text="Cannot pack JsTimeline.Blazor without the npm builds. Run `npm run build` at the repository root first." />
+  </Target>
+</Project>
