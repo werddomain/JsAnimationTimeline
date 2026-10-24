@@ -30,7 +30,7 @@
  * Service `layers.groups` : voir `ILayerGroupsService`.
  */
 
-import { isFolder, resolveCollapsed } from '@werddomain/timeline-runtime';
+import { isFolder } from '@werddomain/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import type { ICommand } from '../../../core/commands/ICommand';
 import type { ILayerListService } from '../list';
@@ -143,30 +143,21 @@ export class LayerGroupsPlugin implements EditorPlugin {
     const command: ICommand = ungroupCommand(ctx.document, folderId);
     const hadFocus = this.listHasFocus();
     const childIds = folder.children.map((child) => child.id);
-    // Dossier déplié et visible : les enfants sont déjà des lignes visibles, on les sélectionne avant la
-    // commande pour que l'élagage qui suit ne change rien (un seul `selection:changed`). Dossier replié ou
-    // dans un dossier replié : les enfants ne sont pas des lignes, on les sélectionne après la commande
-    // (deux événements possibles : l'élagage du dossier disparu, puis les enfants).
-    const selection = this.requireSelection();
-    const early =
-      childIds.length > 0 && !resolveCollapsed(folder) && this.requireList().row(folderId) !== undefined;
-    const previous = { ids: selection.selected() };
-    if (early) selection.select(childIds);
-    if (!ctx.commands.execute(command)) {
-      // Refus (veto, no-op) : la sélection d'avant revient, rien n'est à annuler.
-      if (early) this.restoreSelection(previous.ids);
-      return false;
+    // Les enfants ne sont des lignes qu'une fois la commande appliquée : on les sélectionne dans un
+    // `layers:rowsChanged` à usage unique, installé autour de `execute` et retiré juste après quoi qu'il arrive.
+    // Commande refusée, ou dossier caché dans un dossier replié (les lignes ne changent pas) : aucun
+    // événement, la sélection d'avant reste intacte. Dossier vide : l'élagage de `layers.selection` suffit.
+    const stop = childIds.length > 0 ? ctx.events.once('layers:rowsChanged', () => this.requireSelection().select(childIds)) : undefined;
+    let done: boolean;
+    try {
+      done = ctx.commands.execute(command);
+    } finally {
+      stop?.();
     }
-    // Dossier vide : rien à sélectionner, l'élagage de `layers.selection` retire le dossier disparu.
-    if (childIds.length > 0 && !early) this.requireSelection().select(childIds);
+    if (!done) return false;
     const last = childIds[childIds.length - 1];
     if (hadFocus && last !== undefined) this.focusRow(last);
     return true;
-  }
-
-  /** Rend la sélection d'avant ; l'ancre et le focus vont sur le dernier id (limite du service). */
-  private restoreSelection(ids: readonly string[]): void {
-    this.requireSelection().select(ids, 'replace');
   }
 
   /** Donne le focus DOM à la ligne `id`, si elle est affichée. */

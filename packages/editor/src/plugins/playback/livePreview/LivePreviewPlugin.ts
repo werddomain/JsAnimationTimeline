@@ -2,8 +2,8 @@
 /**
  * Plugin : playback.livePreview
  * Epic : playback
- * Dépend de : playback, layout.playhead, toolbar.main
- * Écoute : playhead:scrubStart, playhead:scrubEnd, frame:render, playback:play
+ * Dépend de : playback, layout.playhead
+ * Écoute : playhead:scrubStart, playhead:scrubEnd, frame:render, playback:play, playback:pause, playback:complete
  * Émet : playback:previewChanged
  *
  * Réglage de l'aperçu de la scène pendant le glisser de la tête de lecture,
@@ -18,11 +18,15 @@
  * est écoulé sur l'horloge de l'éditeur (`ctx.playback.now()`), sinon un
  * rendu de fin est programmé. La fin du glisser (toutes ses issues), le
  * début de la lecture, un changement de mode et `destroy` libèrent la
- * retenue, ce qui rend l'image courante. Les calques masqués dans l'éditeur
+ * retenue, ce qui rend l'image courante. Si le relâchement arrive avant le
+ * rendu d'affichage de la dernière image atteinte, la libération attend ce
+ * `frame:render` : l'image n'est rendue qu'une fois. Après une lecture
+ * arrêtée pendant le même glisser (pause ou fin), la retenue est rouverte. Les calques masqués dans l'éditeur
  * (œil) le restent : c'est la scène qui les cache (`editorVisible`).
  *
  * Une liste « Aperçu » dans le groupe `playback` de la barre d'outils change
- * le mode (désactivable par `toolbar: false`).
+ * le mode (désactivable par `toolbar: false` ; absente, sans erreur, si
+ * `toolbar.main` n'est pas monté : ce service n'est pas une dépendance).
  */
 
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
@@ -50,13 +54,17 @@ interface IPreviewSession {
 /** Plugin `playback.livePreview` : aperçu de la scène pendant le glisser de la tête. */
 export class LivePreviewPlugin implements EditorPlugin {
   readonly id = 'playback.livePreview';
-  readonly dependencies: readonly string[] = ['playback', 'layout.playhead', 'toolbar.main'];
+  readonly dependencies: readonly string[] = ['playback', 'layout.playhead'];
 
   private mode: LivePreviewMode;
   private maxFps: number;
   private readonly toolbar: boolean;
   private ctx: IEditorContext | null = null;
   private session: IPreviewSession | null = null;
+  /** Image courante au dernier `frame:render`, ou `null` avant le premier. */
+  private renderedFrame: number | null = null;
+  /** Fin de glisser reçue avant le rendu d'affichage de l'image atteinte : libération au prochain `frame:render`. */
+  private releasePending = false;
   private cleanups: Array<() => void> = [];
 
   constructor(options: ILivePreviewOptions = {}) {
@@ -70,13 +78,18 @@ export class LivePreviewPlugin implements EditorPlugin {
     this.ctx = ctx;
     try {
       cleanups.push(ctx.events.on('playhead:scrubStart', () => this.open()));
-      cleanups.push(ctx.events.on('playhead:scrubEnd', () => this.close()));
+      cleanups.push(ctx.events.on('playhead:scrubEnd', () => this.onScrubEnd()));
       cleanups.push(ctx.events.on('playback:play', () => this.close()));
+      // Lecture arrêtée pendant le même glisser : la retenue se rouvre.
+      cleanups.push(ctx.events.on('playback:pause', () => this.open()));
+      cleanups.push(ctx.events.on('playback:complete', () => this.open()));
       cleanups.push(ctx.events.on('frame:render', () => this.onFrame()));
       cleanups.push(ctx.services.provide(LIVE_PREVIEW_PLUGIN_ID, this.createService()));
-      if (this.toolbar) {
+      // Barre d'outils facultative : sans `toolbar.main`, pas de contrôle.
+      const toolbar = this.toolbar ? ctx.services.get('toolbar.main') : undefined;
+      if (toolbar !== undefined) {
         cleanups.push(
-          ctx.services.require('toolbar.main').addControl({
+          toolbar.addControl({
             id: LIVE_PREVIEW_PLUGIN_ID,
             label: 'Aperçu',
             group: 'playback',
@@ -109,16 +122,29 @@ export class LivePreviewPlugin implements EditorPlugin {
    */
   private open(): void {
     const ctx = this.ctx;
-    if (ctx === null || this.session !== null || this.mode === 'live' || ctx.playback.playing) return;
-    if (ctx.services.get('layout.playhead')?.isScrubbing() !== true) return;
+    if (ctx === null || ctx.services.get('layout.playhead')?.isScrubbing() !== true) return;
+    // Nouveau glisser avant le rendu en attente : la retenue en cours continue.
+    this.releasePending = false;
+    if (this.session !== null || this.mode === 'live' || ctx.playback.playing) return;
     const hold = ctx.stage.hold();
     if (!hold.active) return;
     this.session = { hold, lastRender: Number.NEGATIVE_INFINITY, timer: null };
   }
 
+  /** Fin du glisser : libère tout de suite, ou après le `frame:render` en attente de l'image atteinte. */
+  private onScrubEnd(): void {
+    const ctx = this.ctx;
+    if (this.session !== null && ctx !== null && ctx.playback.frame !== this.renderedFrame) {
+      this.releasePending = true;
+      return;
+    }
+    this.close();
+  }
+
   /** Ferme la retenue : rend l'image courante si un rendu a été retenu. */
   private close(): void {
     const session = this.session;
+    this.releasePending = false;
     if (session === null) return;
     this.session = null;
     if (session.timer !== null) clearTimeout(session.timer);
@@ -129,6 +155,11 @@ export class LivePreviewPlugin implements EditorPlugin {
   private onFrame(): void {
     const session = this.session;
     const ctx = this.ctx;
+    if (ctx !== null) this.renderedFrame = ctx.playback.frame;
+    if (this.releasePending) {
+      this.close();
+      return;
+    }
     if (session === null || ctx === null || this.mode !== 'throttled') return;
     const wait = remainingMs(ctx.playback.now(), session.lastRender, this.maxFps);
     if (wait === 0) {

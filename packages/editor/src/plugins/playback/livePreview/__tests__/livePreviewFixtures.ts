@@ -37,6 +37,8 @@ export interface IPreviewHarness {
   readonly down: (frame: number) => void;
   /** Déplace le pointeur sur l'image `frame` (bouton enfoncé), puis une image d'affichage. */
   readonly move: (frame: number) => void;
+  /** Comme `move`, sans laisser passer l'image d'affichage (le relâchement arrive dans la même tâche). */
+  readonly moveQuiet: (frame: number) => void;
   /** Relâche le pointeur. */
   readonly up: () => void;
 }
@@ -55,8 +57,25 @@ function pointer(type: string, frame: number, buttons: number): MouseEvent {
   });
 }
 
+/** Éditeurs montés, détruits par `cleanPreviews` (un test peut s'arrêter en plein glisser). */
+const mountedEditors: IEditor[] = [];
+
+/** Détruit les éditeurs montés puis retire les conteneurs (à appeler dans `afterEach`). */
+export function cleanPreviews(): void {
+  mountedEditors.splice(0).forEach((editor) => {
+    if (!editor.isDestroyed) editor.destroy();
+  });
+  document.body.innerHTML = '';
+}
+
+/** Variantes de la coquille montée autour du plugin. */
+export interface IPreviewShell {
+  /** `false` : sans `toolbar.main` (éditeur sans barre d'outils). */
+  readonly withToolbar?: boolean;
+}
+
 /** Monte l'éditeur avec la coquille, les raccourcis, la barre d'outils et `playback.livePreview`. */
-export function mountPreview(options: ILivePreviewOptions = {}): IPreviewHarness {
+export function mountPreview(options: ILivePreviewOptions = {}, shell: IPreviewShell = {}): IPreviewHarness {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const clock = createManualClock();
@@ -68,10 +87,11 @@ export function mountPreview(options: ILivePreviewOptions = {}): IPreviewHarness
     defaultPlugins: [
       new LayoutPlugin({ scrollSync: { scheduler: createManualScheduler() }, ruler: { frameWidth: FRAME_WIDTH } }),
       createShortcutsPlugin(),
-      epic('toolbar', [new ToolbarMainPlugin()]),
+      ...(shell.withToolbar === false ? [] : [epic('toolbar', [new ToolbarMainPlugin()])]),
       epic('playback', [new LivePreviewPlugin(options)])
     ]
   });
+  mountedEditors.push(editor);
   const ruler = editor.container.querySelector<HTMLElement>('[data-zone="ruler"]') as HTMLElement;
   placeAt(ruler, RULER_LEFT);
   clock.advance(DISPLAY_FRAME_MS);
@@ -89,6 +109,9 @@ export function mountPreview(options: ILivePreviewOptions = {}): IPreviewHarness
     move: (frame) => {
       document.dispatchEvent(pointer('pointermove', frame, 1));
       clock.advance(DISPLAY_FRAME_MS);
+    },
+    moveQuiet: (frame) => {
+      document.dispatchEvent(pointer('pointermove', frame, 1));
     },
     up: () => document.dispatchEvent(pointer('pointerup', 1, 0))
   };

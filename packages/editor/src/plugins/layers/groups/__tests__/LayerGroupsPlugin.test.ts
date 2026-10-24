@@ -10,6 +10,11 @@ import type { LayerNode } from '@werddomain/timeline-runtime';
 import { createEditor } from '../../../../core/editor/createEditor';
 import { LayoutPlugin } from '../../../layout/LayoutPlugin';
 import { LayersPlugin } from '../../LayersPlugin';
+import { createShortcutsPlugin } from '../../../interaction/shortcuts';
+import type { IEditor } from '../../../../core/editor/types';
+import { LayerListPlugin } from '../../list';
+import { LayerSelectionPlugin } from '../../selection';
+import { LayerGroupsPlugin } from '../LayerGroupsPlugin';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';
 import type { IListHarness } from '../../list/__tests__/fixtures';
 import type { ILayerSelectionService, LayerSelectionChangedEvent } from '../../selection';
@@ -220,6 +225,15 @@ describe('focus and events', () => {
     expect(document.activeElement).toBe(h.list.rowElement('g'));
   });
 
+  it('does not reselect the children on a later layers:rowsChanged (one-shot listener is gone)', () => {
+    const h = setup();
+    h.selection.select(['f']);
+    h.groups.ungroup('f');
+    h.selection.select(['c']);
+    h.list.setCollapsed('g', true);
+    expect(h.selection.selected()).toEqual(['c']);
+  });
+
   it('emits a single layers:selectionChanged when ungrouping an expanded folder', () => {
     const events: LayerSelectionChangedEvent[] = [];
     const h = setup(tree, [recorder(events)]);
@@ -232,6 +246,17 @@ describe('focus and events', () => {
 });
 
 describe('ungroup edge cases', () => {
+  function recorder(events: LayerSelectionChangedEvent[]): EditorPlugin {
+    return {
+      id: 'test.selectionRecorder2',
+      dependencies: ['layers.selection'],
+      init: (ctx: IEditorContext) => {
+        ctx.events.on('layers:selectionChanged', (event) => events.push(event));
+      },
+      destroy: () => undefined
+    };
+  }
+
   function veto(): EditorPlugin {
     return {
       id: 'test.veto',
@@ -243,39 +268,39 @@ describe('ungroup edge cases', () => {
     };
   }
 
-  it('restores the previous selection when the command is vetoed', () => {
-    const h = setup(tree, [veto()]);
+  it('keeps the selection and emits nothing when the command is vetoed', () => {
+    const events: LayerSelectionChangedEvent[] = [];
+    const h = setup(tree, [veto(), recorder(events)]);
     h.selection.select(['f', 'c']);
+    events.length = 0;
     expect(h.groups.ungroup('f')).toBe(false);
     expect(shapeOf(h)).toBe('f(a,g(b)),c');
     expect(h.selection.selected()).toEqual(['f', 'c']);
+    expect(events).toHaveLength(0);
   });
 
-  it('selects the children after the command for a folder nested in a collapsed parent', () => {
+  it('keeps an unrelated selection and emits nothing for a folder hidden in a collapsed parent', () => {
+    const events: LayerSelectionChangedEvent[] = [];
     const data = doc([folder('p', [folder('q', [layer('x'), layer('y')])], { collapsed: true }), layer('c')]);
-    const h = setup(data);
+    const h = setup(data, [recorder(events)]);
+    h.selection.select(['c']);
+    events.length = 0;
     expect(h.list.row('q')).toBeUndefined();
     expect(h.groups.ungroup('q')).toBe(true);
     expect(shapeOf(h)).toBe('p(x,y),c');
-    expect(h.selection.selected()).toEqual([]);
+    expect(h.selection.selected()).toEqual(['c']);
+    expect(events).toHaveLength(0);
   });
 
-  it('ungroups a collapsed folder: children selected after the command', () => {
+  it('emits exactly one event when ungrouping a collapsed visible folder', () => {
     const events: LayerSelectionChangedEvent[] = [];
-    const recorder: EditorPlugin = {
-      id: 'test.recorder2',
-      dependencies: ['layers.selection'],
-      init: (ctx: IEditorContext) => {
-        ctx.events.on('layers:selectionChanged', (event) => events.push(event));
-      },
-      destroy: () => undefined
-    };
-    const h = setup(doc([folder('f', [layer('a'), layer('b')], { collapsed: true }), layer('c')]), [recorder]);
+    const data = doc([folder('f', [layer('a'), layer('b')], { collapsed: true }), layer('c')]);
+    const h = setup(data, [recorder(events)]);
     h.selection.select(['f']);
     events.length = 0;
     expect(h.groups.ungroup('f')).toBe(true);
     expect(h.selection.selected()).toEqual(['a', 'b']);
-    expect(events.length).toBeLessThanOrEqual(2);
+    expect(events).toHaveLength(1);
   });
 
   it('keeps DOM focus in the list when ungrouping an empty folder', () => {
@@ -348,14 +373,34 @@ describe('keyboard', () => {
     expect(shapeOf(h)).toBe('f(a,g(b)),c');
   });
 
-  it('unregisters the shortcuts on destroy', () => {
-    const h = setup();
-    const shortcuts = h.editor.getService('interaction.shortcuts');
+  /** Éditeur monté à la main : on garde le plugin `groups` pour le détruire seul, `interaction.shortcuts` restant vivant. */
+  function mountWithGroups(extra: readonly EditorPlugin[] = []): { editor: IEditor; groups: LayerGroupsPlugin } {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const groups = new LayerGroupsPlugin();
+    const editor = createEditor(host, {
+      data: tree,
+      defaultPlugins: [
+        createShortcutsPlugin(),
+        new LayoutPlugin(),
+        new LayerListPlugin(),
+        new LayerSelectionPlugin(),
+        groups,
+        ...extra
+      ]
+    });
+    return { editor, groups };
+  }
+
+  it('unregisters the shortcuts when only the groups plugin is destroyed', () => {
+    const { editor, groups } = mountWithGroups();
+    const shortcuts = editor.getService('interaction.shortcuts');
     expect(shortcuts?.lookup('Mod+G')?.id).toBe('layers.groups.group');
     expect(shortcuts?.lookup('Mod+Shift+G')?.id).toBe('layers.groups.ungroup');
-    h.editor.destroy();
+    groups.destroy();
     expect(shortcuts?.lookup('Mod+G')).toBeUndefined();
     expect(shortcuts?.lookup('Mod+Shift+G')).toBeUndefined();
+    editor.destroy();
   });
 
   it('keeps the first shortcut cleanable when another plugin already owns the second chord', () => {
@@ -373,11 +418,14 @@ describe('keyboard', () => {
       destroy: () => undefined
     };
     const logged = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    const h = setup(tree, [squatter]);
+    const { editor, groups } = mountWithGroups([squatter]);
     expect(logged).toHaveBeenCalled();
-    const shortcuts = h.editor.getService('interaction.shortcuts');
+    const shortcuts = editor.getService('interaction.shortcuts');
+    expect(shortcuts?.lookup('Mod+G')?.id).toBe('layers.groups.group');
     expect(shortcuts?.lookup('Mod+Shift+G')?.id).toBe('test.squatter.chord');
-    h.editor.destroy();
+    groups.destroy();
     expect(shortcuts?.lookup('Mod+G')).toBeUndefined();
+    expect(shortcuts?.lookup('Mod+Shift+G')?.id).toBe('test.squatter.chord');
+    editor.destroy();
   });
 });
