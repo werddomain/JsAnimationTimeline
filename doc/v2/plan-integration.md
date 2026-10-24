@@ -1,6 +1,6 @@
 # Plan d'intégration v2
 
-Ce plan découpe la v2 (voir [rapport-analyse.md](rapport-analyse.md)) en **60 tâches** avec leurs dépendances, pour pouvoir les répartir entre plusieurs sessions de travail en parallèle.
+Ce plan découpe la v2 (voir [rapport-analyse.md](rapport-analyse.md)) en **61 tâches** avec leurs dépendances, pour pouvoir les répartir entre plusieurs sessions de travail en parallèle.
 
 ## Branches
 
@@ -24,7 +24,7 @@ Benoit a demandé que la timeline puisse animer autre chose que du HTML : le dé
 1. **Une session = une tâche = une branche = une pull request** vers `v2/base`.
 2. Une tâche ne démarre que quand **toutes** ses dépendances sont fusionnées dans `v2/base`. La colonne « Vague » donne le plus tôt possible.
 3. Chaque tâche ne touche que **sa zone de fichiers**. Si elle doit modifier la zone d'une autre, elle le dit dans sa pull request et attend que l'autre soit fusionnée.
-4. Les tâches marquées **Contrat** (F05, C1, C2, F06, R6, R7, C6, C7) fixent des interfaces que tout le monde utilise. Après leur fusion, toute modification de ces interfaces passe par sa propre petite pull request, et les tâches en cours se mettent à jour à partir de `v2/base`.
+4. Les tâches marquées **Contrat** (F05, C1, C2, F06, R6, R7, C6, C7, Y0) fixent des interfaces que tout le monde utilise. Après leur fusion, toute modification de ces interfaces passe par sa propre petite pull request, et les tâches en cours se mettent à jour à partir de `v2/base`.
 5. Une pull request n'est fusionnée que si la CI est verte : lint, Jest, build et Playwright (à partir de F04).
 6. Le code de `packages/editor/src/legacy` reste fonctionnel jusqu'à Z1. On **reprend** sa logique dans les nouveaux plugins, on ne le modifie pas.
 7. Chaque nouveau fichier `.ts` commence par son chemin depuis la racine et, pour un plugin, par l'en-tête décrit dans le rapport (section 4.4). Le test de F03 le vérifie.
@@ -39,7 +39,7 @@ Toutes les tâches d'une même vague peuvent tourner en parallèle, dès que leu
 |---|---|
 | 0 | F01 |
 | 1 | F02, F03, F05, C1, C2 |
-| 2 | F04, R1, R4, C3 |
+| 2 | F04, R1, R4, C3, Y0 |
 | 3 | R2, C4 |
 | 4 | R3, F06, I2, L1, K1, X1 |
 | 5 | R5, R6, Y1, G1, T1, S2, X2, B1 |
@@ -68,7 +68,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **F02** | 0 | 1 | Build Vite en mode librairie par package (ESM + UMD + `.d.ts`, sans hash), champ `exports` correct | F01 | F04, B1 | `vite.config.*`, `package.json` des packages | ☑ |
 | **F03** | 0 | 1 | ESLint (`no-explicit-any`, en avertissement pour `legacy/`) + test de conventions (en-tête de chemin, dépendances d'en-tête = `dependencies`) | F01 | F04 | `.eslintrc`, `tools/conventions/` | ☑ |
 | **F04** | 0 | 2 | CI GitHub Actions (Node 22) : lint, Jest, build, Playwright Chromium + test « la démo s'affiche » | F02, F03 | R5, X2 | `.github/workflows/`, `e2e/` | ☑ |
-| **F05** | 0 | 1 | **Contrat** : schéma JSON v2 (`schema/timeline.schema.json`) + types TS du modèle dans `runtime` | F01 | R1, R4, C3, F06, G1, B1 | `schema/`, `packages/runtime/src/model/` | ☑ |
+| **F05** | 0 | 1 | **Contrat** : schéma JSON v2 (`schema/timeline.schema.json`) + types TS du modèle dans `runtime` | F01 | R1, R4, C3, F06, Y0, B1 | `schema/`, `packages/runtime/src/model/` | ☑ |
 | **R1** | 1 | 2 | Registre de propriétés + propriétés intégrées (x, y, rotation, scaleX/Y, skewX/Y, opacity) + composition `transform` à ordre fixe | F05 | R2, F06 | `packages/runtime/src/properties/` | ☑ |
 | **R2** | 1 | 3 | Évaluation : valeur de chaque propriété à l'image N (plages, pistes, accélérations, valeurs par défaut, plage vide) | R1 | R3, F06, K1, X1 | `packages/runtime/src/evaluate/` | ☑ |
 | **R3** | 1 | 4 | Lecteur Web Animations : construction des images clés, échantillonnage des accélérations, play/pause/seek/loop/speed, événements, `update`, `destroy` | R2 | R5, R6, X2, B2 | `packages/runtime/src/player/` | ☑ |
@@ -89,7 +89,8 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **L1** | 3 | 4 | Plugin `layout.shell` (4 zones + emplacements) + `layout.scrollSync` (repris de `legacy`) | C4 | L2, Y1, G1, T1 | `plugins/layout/shell/`, `layout/scrollSync/` | ☑ |
 | **L2** | 3 | 7 | Plugins `layout.ruler` + `layout.playhead` (repris de `TimeRuler`) ; la tête de lecture passe par `ctx.playback` | L1, C6 | L3, P2 | `plugins/layout/ruler/`, `layout/playhead/` | ☐ |
 | **L3** | 3 | 8 | Plugin `layout.zoom` (largeur d'image variable, événement `zoom:changed`) | L2 | T4 | `plugins/layout/zoom/` | ☐ |
-| **Y1** | 3 | 5 | Plugin `layers.list` : arbre des calques **avec une API d'emplacements de contrôles par ligne** (pour que Y2 à Y4 travaillent en parallèle) | L1 | Y2, Y3, Y4, Y5 | `plugins/layers/list/` | ☐ |
+| **Y0** | 3 | 2 | **Contrat** : modèle des lignes visibles partagé par la liste des calques et la grille (`visibleRows(doc)` en ordre d'affichage, dossiers repliés exclus, `IVisibleRow`, `ROW_HEIGHT`, `DEFAULT_FRAME_WIDTH`) | F05 | Y1, G1 | `packages/editor/src/model/rows/` | ☐ |
+| **Y1** | 3 | 5 | Plugin `layers.list` : arbre des calques **avec une API d'emplacements de contrôles par ligne** (pour que Y2 à Y4 travaillent en parallèle) | L1, Y0 | Y2, Y3, Y4, Y5 | `plugins/layers/list/` | ☐ |
 | **Y2** | 3 | 6 | Plugins `layers.rename`, `layers.visibility`, `layers.lock` (commandes + contrôles de ligne) | Y1 | E1 | `plugins/layers/rename|visibility|lock/` | ☐ |
 | **Y3** | 3 | 6 | Plugins `layers.color` + `layers.icon` | Y1 | E1 | `plugins/layers/color|icon/` | ☐ |
 | **Y4** | 3 | 8 | Plugin `layers.target` : choix de la cible proposé par la scène (liste, `pick`), saisie libre d'un sélecteur CSS ou d'une `ref`, commande annulable, alerte de cible manquante | Y1, C7 | E1 | `plugins/layers/target/` | ☐ |
@@ -97,7 +98,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **Y6** | 3 | 7 | Plugin `layers.reorder` (glisser-déposer, entrer/sortir d'un dossier) | Y5 | E1 | `plugins/layers/reorder/` | ☐ |
 | **Y7** | 3 | 7 | Plugin `layers.groups` (dossiers + « grouper la sélection ») | Y5 | Y8 | `plugins/layers/groups/` | ☐ |
 | **Y8** | 3 | 8 | Plugin `layers.toolbar` (Nouveau / Grouper / Supprimer) | Y7 | I1 | `plugins/layers/toolbar/` | ☐ |
-| **G1** | 4 | 5 | Plugin `frames.grid` : rendu des plages (statique, vide, interpolation, losanges), écoute `zoom:changed` | L1, F05 | G2 | `plugins/frames/grid/` | ☐ |
+| **G1** | 4 | 5 | Plugin `frames.grid` : rendu des plages (statique, vide, interpolation, losanges), écoute `zoom:changed` | L1, Y0 | G2 | `plugins/frames/grid/` | ☐ |
 | **G2** | 4 | 6 | Plugin `frames.selection` (images et images clés, Ctrl / Maj, repris de `SelectionManager`) | G1 | K2, K3, W1 | `plugins/frames/selection/` | ☐ |
 | **K1** | 4 | 4 | **Cœur CS4** : opérations pures sur les plages (insérer une image clé avec valeurs interpolées, supprimer/fusionner, insérer/supprimer une image, déplacer) + refus si verrouillé, sous forme de commandes ; le registre de propriétés est passé en paramètre | C3, R2 | K2, K3, W1 | `packages/editor/src/model/spans/` | ☑ |
 | **K2** | 4 | 7 | Plugin `frames.keyframes` (F5 / F6 / F7, glisser pour déplacer) | K1, G2, I2 | T2, I1 | `plugins/frames/keyframes/` | ☐ |
@@ -116,7 +117,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **S2** | 6 | 5 | Plugin `persistence.json` (import/export, lecture des fichiers v1 via le migrateur, contrôle de forme de F06, cibles transmises telles quelles) | C4, R4, F06 | E1, B3 | `plugins/persistence/` | ☐ |
 | **E1** | 6 | 10 | Démo de l'éditeur v2, dont une page « timeline seule + votre scène » (canvas + audio, et `stage: false`) + scénarios Playwright 1 à 10 et 9b | T2, T3, T4, P1, P2, C5, Y2, Y3, Y4, Y6, K3, W3, I1, S1, S2, C7, R8 | B3, Z1 | `demo/editor/`, `e2e/editor/` | ☐ |
 | **X1** | 7 | 4 | Package `export-css` (`@keyframes` + avertissements ; calques sans sélecteur et propriétés non CSS ignorés avec un avertissement) | R2 | X2 | `packages/export-css/` | ☑ |
-| **X2** | 7 | 5 | Scénario Playwright 12 (CSS exporté = `runtime` à l'image N) | X1, R3, F04 | D1 | `e2e/export-css/` | ☐ |
+| **X2** | 7 | 5 | Scénario Playwright 12 (CSS exporté = `runtime` à l'image N) | X1, R3, F04 | D1 | `e2e/export-css/` | ☑ |
 | **B1** | 8 | 5 | Razor Class Library : squelette, copie des builds dans `wwwroot`, modèle C# généré depuis le schéma (cible `Selector` / `Ref` / `Stage`) | F02, F05, F06 | B2, B3 | `dotnet/` | ☐ |
 | **B2** | 8 | 6 | Composant Blazor `TimelinePlayer` | B1, R3 | B4 | `dotnet/JsTimeline.Blazor/Player/` | ☐ |
 | **B3** | 8 | 11 | Composant Blazor `TimelineEditor` (liaison des données, callbacks d'événements, paramètre `Stage` : HTML, module JS, scène C# `ITimelineStage` ou aucune) | B1, S2, E1, C7 | B4 | `dotnet/JsTimeline.Blazor/Editor/` | ☐ |
@@ -162,6 +163,7 @@ flowchart LR
     L1
     L2
     L3
+    Y0
     Y1
     Y2
     Y3
@@ -250,7 +252,9 @@ flowchart LR
   L1 --> L2
   C6 --> L2
   L2 --> L3
+  F05 --> Y0
   L1 --> Y1
+  Y0 --> Y1
   Y1 --> Y2
   Y1 --> Y3
   Y1 --> Y4
@@ -260,7 +264,7 @@ flowchart LR
   Y5 --> Y7
   Y7 --> Y8
   L1 --> G1
-  F05 --> G1
+  Y0 --> G1
   G1 --> G2
   C3 --> K1
   R2 --> K1
