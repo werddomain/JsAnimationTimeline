@@ -97,7 +97,12 @@ describe('chordsFromEvent', () => {
 
   it('falls back on the physical key for a non-latin layout', () => {
     expect(fromEvent({ key: 'я', code: 'KeyZ', ctrlKey: true })).toEqual(['Mod+я', 'Mod+z']);
-    expect(fromEvent({ key: '&', code: 'Digit1' })).toEqual(['&', '1']);
+    expect(fromEvent({ key: 'ё', code: 'Digit1' })).toEqual(['ё', '1']);
+  });
+
+  it('has no physical fallback for an ASCII character (Shift+1 is not « 1 »)', () => {
+    expect(fromEvent({ key: '!', code: 'Digit1', shiftKey: true })).toEqual(['!']);
+    expect(fromEvent({ key: '&', code: 'Digit1', ctrlKey: true })).toEqual(['Mod+&']);
   });
 
   it('does not add the physical key when the produced key is latin', () => {

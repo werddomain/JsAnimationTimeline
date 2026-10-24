@@ -12,9 +12,11 @@
  * - la touche est le dernier segment ; `Plus` désigne la touche « + » ;
  * - pour un caractère qui n'a pas de casse (« , », « ? », « 1 »...), Maj est
  *   ignorée : le caractère produit en tient déjà compte ;
- * - si la touche produite n'est ni une lettre ni un chiffre latin (clavier
+ * - si la touche produite n'est pas un caractère ASCII (clavier
  *   cyrillique...), la touche physique (`event.code` : `KeyZ`, `Digit1`) sert
- *   de repli, pour que Ctrl+Z fonctionne quelle que soit la disposition.
+ *   de repli, pour que Ctrl+Z fonctionne quelle que soit la disposition. Un
+ *   caractère ASCII (« ! » de Maj+1, « & » d'un clavier AZERTY) n'a pas de
+ *   repli : il ne doit pas déclencher le raccourci de « 1 ».
  */
 
 import { ShortcutError } from './ShortcutError';
@@ -89,7 +91,8 @@ const KEY_LABELS: Readonly<Record<string, string>> = {
 };
 
 const FUNCTION_KEY = /^f([1-9]|1\d|2[0-4])$/;
-const LATIN_LETTER_OR_DIGIT = /^[a-z0-9]$/;
+// eslint-disable-next-line no-control-regex -- plage ASCII complète voulue
+const NON_ASCII = /[^\x00-\x7F]/;
 const PHYSICAL_KEY = /^(?:Key([A-Z])|Digit([0-9]))$/;
 
 function isSingleCharacter(key: string): boolean {
@@ -155,7 +158,7 @@ export function chordsFromEvent(event: KeyboardEvent): IKeyChord[] {
   const chords: IKeyChord[] = [];
   if (key !== null) chords.push(makeChord(mod, event.altKey, event.shiftKey, key));
   const physical = typeof event.code === 'string' ? PHYSICAL_KEY.exec(event.code) : null;
-  if (physical && (key === null || !LATIN_LETTER_OR_DIGIT.test(key))) {
+  if (physical && (key === null || NON_ASCII.test(key))) {
     const fallback = (physical[1] ?? physical[2] ?? '').toLowerCase();
     chords.push(makeChord(mod, event.altKey, event.shiftKey, fallback));
   }

@@ -62,7 +62,15 @@ export interface IShortcutInfo {
   readonly display: readonly string[];
 }
 
-/** Options du plugin `interaction.shortcuts`. */
+/**
+ * Options du plugin `interaction.shortcuts`.
+ *
+ * Le plugin fait partie du jeu par défaut, créé sans options : le passer une
+ * seconde fois dans `options.plugins` est refusé (identifiant en double).
+ * Pour le configurer, utiliser le service après `createEditor()`
+ * (`editor.getService('interaction.shortcuts')?.addScopeElement(canvas)`),
+ * ou remplacer le jeu par défaut (`defaultPlugins: [createShortcutsPlugin(opts), ...]`).
+ */
 export interface IShortcutsOptions {
   /**
    * Éléments ajoutés à la portée des raccourcis, en plus de l'élément racine
@@ -71,9 +79,11 @@ export interface IShortcutsOptions {
    */
   readonly scopeElements?: readonly HTMLElement[];
   /**
-   * Portée globale : les raccourcis réagissent partout dans la page (sauf
-   * dans les champs de saisie), et non seulement quand le focus est dans
-   * l'éditeur ou un élément ajouté. Par défaut : `false`.
+   * Portée globale : les raccourcis réagissent partout dans la page, et non
+   * seulement quand le focus est dans l'éditeur ou un élément ajouté. Les
+   * champs de saisie restent exclus, sauf pour les raccourcis
+   * `allowInEditable`, qui réagissent alors aussi dans les champs de la page
+   * hors de l'éditeur. Par défaut : `false`.
    */
   readonly global?: boolean;
 }
