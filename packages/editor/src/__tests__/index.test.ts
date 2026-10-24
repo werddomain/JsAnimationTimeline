@@ -119,7 +119,11 @@ const V2_NAMES = [
   'createTimeSettingsPlugin',
   'createToolbarMainPlugin',
   'createUndoRedoPlugin',
-  'defaultPlugins'
+  'defaultPlugins',
+  'FIT_OPTION_VALUE',
+  'ZOOM_CONTROL_PLUGIN_ID',
+  'ZoomControlPlugin',
+  'createZoomControlPlugin'
 ];
 
 describe('editor package entry point', () => {

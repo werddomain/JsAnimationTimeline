@@ -1,6 +1,7 @@
 // packages/editor/vite.demo.config.ts
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+import { editorPort } from '../../tools/devPorts';
 
 /**
  * Vite ne lit pas les `paths` de tsconfig : la démo lit le runtime depuis ses
@@ -11,7 +12,8 @@ const RUNTIME_SOURCE_ALIAS = {
   replacement: fileURLToPath(new URL('../runtime/src/index.ts', import.meta.url)),
 };
 
-// Build de la page de démo (index.html) vers dist-demo, chemins relatifs.
+// Build de la page de démo (index.html) vers dist-demo, chemins relatifs ;
+// `preview` sur `E2E_EDITOR_PORT` (9000 par défaut, voir tools/devPorts.ts).
 export default defineConfig({
   base: './',
   resolve: { alias: [RUNTIME_SOURCE_ALIAS] },
@@ -19,5 +21,5 @@ export default defineConfig({
     outDir: 'dist-demo',
     emptyOutDir: true,
   },
-  preview: { port: 9000 },
+  preview: { port: editorPort(), strictPort: true },
 });

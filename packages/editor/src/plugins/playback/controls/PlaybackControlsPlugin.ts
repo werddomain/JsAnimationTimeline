@@ -39,19 +39,33 @@ export const PLAYBACK_TOGGLE_SHORTCUT_ID = 'playback.controls.toggle';
 /** Combinaison du raccourci Lire / Pause (Entrée, comme dans Flash). */
 export const PLAYBACK_TOGGLE_KEYS = 'Enter';
 
+/** Écart sous lequel deux vitesses sont considérées égales. */
+const SPEED_EPSILON = 1e-9;
+
 /** Vitesses proposées dans la liste. */
 export const PLAYBACK_SPEEDS: readonly number[] = Object.freeze([0.25, 0.5, 1, 1.5, 2]);
 
+/** Chiffres significatifs d'un libellé de vitesse : au moins 4, au plus 17. */
+const MIN_SPEED_DIGITS = 4;
+const MAX_SPEED_DIGITS = 17;
+
+/** Vitesse en français, avec `digits` chiffres significatifs au plus, sans exposant. */
+function speedNumber(speed: number, digits: number): string {
+  return new Intl.NumberFormat('fr-FR', { maximumSignificantDigits: digits, useGrouping: false }).format(speed);
+}
+
 /**
- * Libellé français d'une vitesse (`1.5` -> `×1,5`). Le bruit des flottants
- * est arrondi au centième (`0.1 + 0.2` -> `×0,3`). Une vitesse qui n'est pas
- * un centième juste garde quatre chiffres significatifs (`1.001` -> `×1,001`,
- * `0.001` -> `×0,001`) : son libellé ne se confond jamais avec un autre.
+ * Libellé français d'une vitesse (`1.5` -> `×1,5`, `1 / 3` -> `×0,3333`) :
+ * 4 chiffres significatifs, ou davantage si le libellé est déjà pris par
+ * une autre option de `taken` (`1.0005` à côté de `×1` -> `×1,0005`). Pas
+ * d'exposant (`1e-7` -> `×0,0000001`).
  */
-export function formatSpeed(speed: number): string {
-  const rounded = Math.round(speed * 100) / 100;
-  const shown = Math.abs(rounded - speed) < 1e-9 ? rounded : Number(speed.toPrecision(4));
-  return `×${String(shown).replace('.', ',')}`;
+export function formatSpeed(speed: number, taken: readonly string[] = []): string {
+  for (let digits = MIN_SPEED_DIGITS; digits <= MAX_SPEED_DIGITS; digits += 1) {
+    const label = `×${speedNumber(speed, digits)}`;
+    if (!taken.includes(label)) return label;
+  }
+  return `×${speedNumber(speed, MAX_SPEED_DIGITS)}`;
 }
 
 /** Éléments qu'Entrée active déjà : le raccourci leur laisse la touche. */
@@ -88,10 +102,10 @@ function createButton(doc: Document, role: string, icon: string): { button: HTML
   return { button, icon: iconElement };
 }
 
-function speedOption(doc: Document, speed: number): HTMLOptionElement {
+function speedOption(doc: Document, speed: number, taken: readonly string[] = []): HTMLOptionElement {
   const option = doc.createElement('option');
   option.value = String(speed);
-  option.textContent = formatSpeed(speed);
+  option.textContent = formatSpeed(speed, taken);
   return option;
 }
 
@@ -125,8 +139,13 @@ export class PlaybackControlsPlugin implements EditorPlugin {
           run: (event) => {
             // `false` : touche laissée au navigateur, qui active le bouton ou le lien.
             if (isEnterActivated(event.target)) return false;
-            // Touche maintenue : une seule bascule, et pas de `shortcut:triggered` par répétition.
-            if (event.repeat) return false;
+            // Touche maintenue : une seule bascule, et pas de `shortcut:triggered`
+            // par répétition. La répétition reste consommée : l'hôte ne la voit
+            // pas comme une touche Entrée libre.
+            if (event.repeat) {
+              event.preventDefault();
+              return false;
+            }
             ctx.playback.toggle();
             return true;
           }
@@ -211,14 +230,17 @@ export class PlaybackControlsPlugin implements EditorPlugin {
     view.toggleIcon.textContent = playback.playing ? '❚❚' : '▶';
     view.toggle.classList.toggle(`${PLAYBACK_CONTROLS_CLASS}__toggle--playing`, playback.playing);
     view.loop.setAttribute('aria-pressed', String(playback.loop));
-    const speed = String(playback.speed);
     const options = Array.from(view.speed.options);
-    if (!options.some((option) => option.value === speed)) {
-      // Vitesse fixée ailleurs : nouvelle option rangée à sa place.
+    // Une option de même valeur, au bruit des flottants près (`2.3 - 0.8` = `×1,5`).
+    let match = options.find((option) => Math.abs(Number(option.value) - playback.speed) < SPEED_EPSILON);
+    if (match === undefined) {
+      // Vitesse fixée ailleurs : nouvelle option rangée à sa place, libellé distinct.
+      const taken = options.map((option) => option.textContent ?? '');
+      match = speedOption(view.speed.ownerDocument, playback.speed, taken);
       const next = options.find((option) => Number(option.value) > playback.speed) ?? null;
-      view.speed.insertBefore(speedOption(view.speed.ownerDocument, playback.speed), next);
+      view.speed.insertBefore(match, next);
     }
-    view.speed.value = speed;
+    view.speed.value = match.value;
   }
 
   private requirePlayback(): IEditorPlayback {
