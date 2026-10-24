@@ -40,8 +40,10 @@ export type IStageReportInput = Omit<IStageReport, 'stageId'>;
 /**
  * Thrown by `IStage.update` to refuse a document (e.g. Web Animations missing
  * on a target). The stage must then keep its previous state: the player
- * throws, keeps the previous document and calls `update` again with it on the
- * stages that had already accepted the new one.
+ * throws, keeps the previous document, then calls `update` again with it on
+ * every stage (the refusing one included), followed by `sync` and `render`
+ * of the current time. When the refused document was the first one, there is
+ * no previous document: the new layers are released instead.
  */
 export class StageDocumentError extends Error {
   constructor(message: string) {

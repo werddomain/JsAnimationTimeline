@@ -49,7 +49,12 @@ export interface IHtmlStageOptions {
 export interface IHtmlStage extends IStage<Element> {
   readonly mode: HtmlStageMode;
   readonly targets: IStageTargets;
-  /** Binds `ref` to `element` (`null` unbinds); failed resolutions are retried. */
+  /**
+   * Binds `ref` to `element` (`null` unbinds). Failed resolutions are
+   * retried, and the layers already on `{ ref, stage: 'html' }` move to the
+   * new element (the old one gets its styles back), or go to
+   * `missingTargets` when the ref no longer resolves.
+   */
   bind(ref: string, element: Element | null): void;
 }
 
@@ -66,7 +71,7 @@ function assertMode(mode: unknown): asserts mode is HtmlStageMode {
 /** Shared state of one HTML stage. */
 interface IHtmlStageCore {
   readonly elements: HtmlElements;
-  readonly listeners: Set<() => void>;
+  readonly listeners: Set<(affected?: readonly LayerTarget[]) => void>;
   ctx: IStageContext | null;
 }
 
@@ -118,6 +123,7 @@ function createWaapiStage(core: IHtmlStageCore, base: Omit<IHtmlStage, 'mode'>):
       reportDuplicates(core, layers);
     },
     sync: (time, state) => animations.sync(time, state),
+    release: (layerId, element) => animations.release(layerId, element),
     detach: () => {
       animations.cancel();
       core.ctx = null;
@@ -129,36 +135,47 @@ function createFrameStage(core: IHtmlStageCore, base: Omit<IHtmlStage, 'mode'>):
   const keeper = new InlineStyleKeeper();
   const hiddenByEditor = new Set<Element>();
   let managed = new Map<string, boolean>();
+  /** Element held for each layer: acquired by `update`, given back by `release` or when the layer leaves. */
+  let held = new Map<string, Element>();
   return {
     ...base,
     mode: 'frame',
-    resolve(target: LayerTarget): Element | null {
-      const element = core.elements.resolve(target);
-      if (element !== null) {
-        keeper.acquire(element);
-      }
-      return element;
-    },
     update(doc: ITimelineDocument, layers: readonly IStageLayer<Element>[]): void {
       // Styles of the previous document go away (tracks or visibility no longer animated); render rewrites the rest.
       keeper.restoreOriginals();
       hiddenByEditor.clear();
+      const next = new Map(layers.map(({ layerId, object }) => [layerId, object]));
+      // Acquire before releasing, so an element kept by another layer is not restored in between.
+      next.forEach((element, layerId) => {
+        if (held.get(layerId) !== element) {
+          keeper.acquire(element);
+        }
+      });
+      held.forEach((element, layerId) => {
+        if (next.get(layerId) !== element) {
+          keeper.release(element);
+        }
+      });
+      held = next;
       managed = new Map(layers.map(({ layerId, layer }) => [layerId, needsVisibility(layer, doc.settings.totalFrames)]));
       reportDuplicates(core, layers);
     },
     render(_time, states: readonly IStageLayerState<Element>[]): void {
       const registry = registryOf(core);
       for (const state of states) {
-        writeFrameStyles(state.object, state.values, registry, {
+        writeFrameStyles(keeper, state.object, state.values, registry, {
           managed: managed.get(state.layerId) === true,
           active: state.active,
           editorVisible: state.editorVisible,
-          original: keeper.originalVisibility(state.object),
           hiddenByEditor
         });
       }
     },
-    release(_layerId: string, element: Element): void {
+    release(layerId: string, element: Element): void {
+      if (held.get(layerId) !== element) {
+        return;
+      }
+      held = new Map(Array.from(held).filter(([id]) => id !== layerId));
       keeper.release(element);
       if (keeper.count(element) === 0) {
         hiddenByEditor.delete(element);
@@ -166,6 +183,7 @@ function createFrameStage(core: IHtmlStageCore, base: Omit<IHtmlStage, 'mode'>):
     },
     detach(): void {
       keeper.restoreAll();
+      held = new Map();
       hiddenByEditor.clear();
       core.ctx = null;
     }
@@ -191,7 +209,8 @@ export function createHtmlStage(options: IHtmlStageOptions = {}): IHtmlStage {
     },
     bind(ref: string, element: Element | null): void {
       core.elements.bind(ref, element);
-      Array.from(core.listeners).forEach((listener) => listener());
+      const affected: readonly LayerTarget[] = [{ ref, stage: HTML_STAGE_ID }];
+      Array.from(core.listeners).forEach((listener) => listener(affected));
     }
   };
   return mode === 'waapi' ? createWaapiStage(core, base) : createFrameStage(core, base);

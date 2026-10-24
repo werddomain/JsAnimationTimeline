@@ -30,6 +30,11 @@ export interface IStageHostOptions {
   readonly onReport?: (report: IStageReport) => void;
   /** Current time and play state, to re-apply a stage after a refresh. */
   readonly now: () => IStageHostClock;
+  /**
+   * Eye of a layer in the editor, read on every `render` (`editorVisible` of
+   * the layer states). Defaults to always true, the player behaviour.
+   */
+  readonly isEditorVisible?: (layerId: string) => boolean;
 }
 
 /** A routed layer and its cached resolution (`object` null: resolution failed). */
