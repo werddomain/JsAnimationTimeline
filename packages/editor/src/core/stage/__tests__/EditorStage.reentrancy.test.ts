@@ -69,14 +69,14 @@ describe('editor stage: edge cases', () => {
   it('stops cleanly when a stage destroys the editor from update', () => {
     // Arrange
     const stage = createFakeStage();
-    let editorRef: IEditor | undefined;
+    const holder: { editor?: IEditor } = {};
     const update = stage.update?.bind(stage);
     stage.update = (doc, layers) => {
       update?.(doc, layers);
-      if (layers.length === 1) editorRef?.destroy();
+      if (layers.length === 1) holder.editor?.destroy();
     };
     const { editor } = createStageEditor({}, stage);
-    editorRef = editor;
+    holder.editor = editor;
 
     // Act
     editor.execute(deleteLayer('l-tree', editor.document));
