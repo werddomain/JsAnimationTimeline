@@ -75,7 +75,10 @@ function createButton(host: HTMLElement, className: string, onClick: () => void)
   button.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
   });
-  button.addEventListener('click', () => {
+  button.addEventListener('click', (event) => {
+    // Le clic synthétisé par une activation au clavier (detail 0) ne doit pas atteindre la ligne :
+    // la sélection y déplacerait le focus. Un vrai clic de souris remonte.
+    if (event.detail === 0) event.stopPropagation();
     onClick();
   });
   host.appendChild(button);

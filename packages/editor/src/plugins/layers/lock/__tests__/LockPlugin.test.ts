@@ -121,6 +121,7 @@ describe('lock row control', () => {
     expect(findNodeById(editor.document.layers, 'b')?.locked).toBe(true);
     expect(rowButton(host, 'b')).toBe(button);
     expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(document.activeElement).toBe(button);
     editor.undo();
     expect(button.getAttribute('aria-pressed')).toBe('false');
   });

@@ -24,6 +24,8 @@ export function normalizeLayerName(name: string): string | undefined {
 /**
  * Commande qui renomme le nœud `id` en `name` (rogné). Sans effet (même
  * document) si le nom est déjà celui du nœud ; l'annulation rend l'ancien nom.
+ * La comparaison se fait sur les noms rognés des deux côtés ; un nom stocké non rogné
+ * (" Hero ") n'est donc pas normalisé par un renommage sans effet ("Hero" sur " Hero ").
  *
  * @throws Error si `id` ne désigne aucun nœud du document, ou si `name` est blanc.
  */

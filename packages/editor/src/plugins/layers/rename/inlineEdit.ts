@@ -57,6 +57,7 @@ export function startInlineEdit(nameElement: HTMLElement, options: IInlineEditOp
   input.value = options.currentName();
   input.setAttribute('aria-label', RENAME_INPUT_LABEL);
   let finished = false;
+  let composing = false;
 
   const finish = (commit: boolean, refocus: boolean): void => {
     if (finished) return;
@@ -81,9 +82,16 @@ export function startInlineEdit(nameElement: HTMLElement, options: IInlineEditOp
       finish(false, true);
     }
   });
+  // Une saisie IME en cours (blur pendant la composition) est abandonnée plutôt que validée à moitié.
   // Un input retiré du DOM (ligne disparue) perd le focus : pas de commande pendant `document:changed`.
+  input.addEventListener('compositionstart', () => {
+    composing = true;
+  });
+  input.addEventListener('compositionend', () => {
+    composing = false;
+  });
   input.addEventListener('blur', () => {
-    if (input.isConnected) finish(true, false);
+    if (input.isConnected) finish(!composing, false);
   });
   ISOLATED_EVENTS.forEach((type) => input.addEventListener(type, (event) => event.stopPropagation()));
 

@@ -298,3 +298,38 @@ describe('IME composition and untrimmed names', () => {
     expect(nameOf(editor.document, 'a')).toBe(' Hero ');
   });
 });
+
+describe('IME edge cases', () => {
+  it('ignores Enter reported as keyCode 229 with isComposing false (Safari)', () => {
+    const { host } = mount(tree);
+    doubleClick(nameElement(host, 'a'));
+    const input = inputOf(host);
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', isComposing: false, keyCode: 229, bubbles: true, cancelable: true })
+    );
+    expect(inputOf(host)).toBe(input);
+  });
+
+  it('cancels instead of committing when the input blurs during a composition', () => {
+    const { host, editor } = mount(tree);
+    doubleClick(nameElement(host, 'a'));
+    const input = inputOf(host);
+    input.value = 'à moitié';
+    input.dispatchEvent(new Event('compositionstart'));
+    input.dispatchEvent(new FocusEvent('blur'));
+    expect(nameOf(editor.document, 'a')).toBe('a');
+    expect(editor.canUndo).toBe(false);
+    expect(host.querySelector(`.${RENAME_INPUT_CLASS}`)).toBeNull();
+  });
+
+  it('commits on blur once the composition has ended', () => {
+    const { host, editor } = mount(tree);
+    doubleClick(nameElement(host, 'a'));
+    const input = inputOf(host);
+    input.value = 'fini';
+    input.dispatchEvent(new Event('compositionstart'));
+    input.dispatchEvent(new Event('compositionend'));
+    input.dispatchEvent(new FocusEvent('blur'));
+    expect(nameOf(editor.document, 'a')).toBe('fini');
+  });
+});
