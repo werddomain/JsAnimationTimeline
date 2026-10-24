@@ -12,7 +12,8 @@
  * - `layout.shell` : la grille de zones et ses emplacements de rendu ;
  * - `layout.scrollSync` : le défilement synchronisé de la règle et des calques ;
  * - `layout.ruler` : la règle des images ;
- * - `layout.playhead` : la tête de lecture (posée sur `ctx.playback`).
+ * - `layout.playhead` : la tête de lecture (posée sur `ctx.playback`) ;
+ * - `layout.zoom` : la largeur d'image variable (`zoom:changed`).
  *
  * La mise en page ne contient que la timeline : aucune zone de scène.
  */
@@ -22,6 +23,8 @@ import { PlayheadPlugin } from './playhead/PlayheadPlugin';
 import { RulerPlugin } from './ruler/RulerPlugin';
 import type { RulerOptions } from './ruler/RulerPlugin';
 import { ScrollSyncPlugin } from './scrollSync/ScrollSyncPlugin';
+import { ZoomPlugin } from './zoom/ZoomPlugin';
+import type { ZoomOptions } from './zoom/ZoomPlugin';
 import type { ScrollSyncOptions } from './scrollSync/ScrollSyncPlugin';
 import { LayoutShellPlugin } from './shell/LayoutShellPlugin';
 
@@ -29,9 +32,10 @@ import { LayoutShellPlugin } from './shell/LayoutShellPlugin';
 export interface LayoutOptions {
   readonly scrollSync?: ScrollSyncOptions;
   readonly ruler?: RulerOptions;
+  readonly zoom?: ZoomOptions;
 }
 
-/** Epic `layout` : coquille, défilement synchronisé, règle et tête de lecture. */
+/** Epic `layout` : coquille, défilement synchronisé, règle, tête de lecture et zoom. */
 export class LayoutPlugin implements EditorPlugin {
   readonly id = 'layout';
   readonly dependencies: readonly string[] = [];
@@ -42,7 +46,8 @@ export class LayoutPlugin implements EditorPlugin {
       new LayoutShellPlugin(),
       new ScrollSyncPlugin(options.scrollSync),
       new RulerPlugin(options.ruler),
-      new PlayheadPlugin()
+      new PlayheadPlugin(),
+      new ZoomPlugin(options.zoom)
     ];
   }
 

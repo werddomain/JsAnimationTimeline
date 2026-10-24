@@ -3,7 +3,8 @@
  * Mode `waapi` de la scène HTML (le code du lecteur R3) : une `Animation`
  * Web Animations par calque qui change quelque chose en CSS, couvrant toute
  * la timeline, en pause à 0 et réalignée à chaque `sync` (`currentTime`,
- * `playbackRate`, lecture ou pause).
+ * `playbackRate`, lecture ou pause). `release` annule l'animation du calque
+ * libéré (élément changé, ou premier document refusé).
  */
 
 import type { ITimelineDocument } from '../../model/document';
@@ -17,9 +18,16 @@ import { buildLayerKeyframes } from './keyframes';
 /** Message of the error refusing a document when a target cannot animate. */
 export const WAAPI_MISSING_MESSAGE = 'The Web Animations API (Element.animate) is not available.';
 
+/** The animation of one layer, on the element it was built for. */
+interface ILayerAnimation {
+  readonly layerId: string;
+  readonly element: Element;
+  readonly animation: Animation;
+}
+
 /** The animations of the current document. */
 export class WaapiAnimations {
-  private animations: Animation[] = [];
+  private animations: ILayerAnimation[] = [];
   private duration = 0;
   private source: { readonly doc: ITimelineDocument; readonly layers: readonly IStageLayer<Element>[] } | null = null;
   /** The last `rebuild` refused its document: the next one may be the previous document given back. */
@@ -40,9 +48,9 @@ export class WaapiAnimations {
       return;
     }
     const duration = timelineDuration(doc.settings);
-    const created: Animation[] = [];
+    const created: ILayerAnimation[] = [];
     try {
-      for (const { layer, object } of layers) {
+      for (const { layerId, layer, object } of layers) {
         const keyframes = buildLayerKeyframes(layer, doc.settings, registry);
         if (keyframes === null) {
           continue;
@@ -52,10 +60,10 @@ export class WaapiAnimations {
         }
         const animation = object.animate(keyframes, { duration, fill: 'both', easing: 'linear' });
         animation.pause();
-        created.push(animation);
+        created.push({ layerId, element: object, animation });
       }
     } catch (error) {
-      created.forEach((animation) => animation.cancel());
+      created.forEach(({ animation }) => animation.cancel());
       this.refused = true;
       throw error;
     }
@@ -74,7 +82,7 @@ export class WaapiAnimations {
   /** Aligns every animation on the time, rate and play state. */
   sync(time: ITransportTime, state: ITransportSyncState): void {
     const running = state.playing && time.timeMs < this.duration;
-    this.animations.forEach((animation) => {
+    this.animations.forEach(({ animation }) => {
       animation.playbackRate = state.speed;
       if (running) {
         animation.currentTime = time.timeMs;
@@ -87,9 +95,23 @@ export class WaapiAnimations {
     });
   }
 
+  /**
+   * Cancels the animation of `layerId` on `element`. The next `rebuild`
+   * then rebuilds, even for the document given back after a refusal.
+   */
+  release(layerId: string, element: Element): void {
+    const released = this.animations.filter((entry) => entry.layerId === layerId && entry.element === element);
+    if (released.length === 0) {
+      return;
+    }
+    released.forEach(({ animation }) => animation.cancel());
+    this.animations = this.animations.filter((entry) => !released.includes(entry));
+    this.source = null;
+  }
+
   /** Cancels every animation (targets get their own styles back). */
   cancel(): void {
-    this.animations.forEach((animation) => animation.cancel());
+    this.animations.forEach(({ animation }) => animation.cancel());
     this.animations = [];
     this.source = null;
   }
