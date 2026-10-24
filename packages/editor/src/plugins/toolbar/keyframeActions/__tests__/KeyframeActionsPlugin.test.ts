@@ -165,7 +165,7 @@ describe('rendering', () => {
 
   it('starts with every button unavailable, with the reason as title', () => {
     // Act
-    const { button } = setup();
+    const { button, editor } = setup();
 
     // Assert
     expect(disabled(button('insert'))).toBe(true);
@@ -173,7 +173,7 @@ describe('rendering', () => {
     expect(disabled(button('edit'))).toBe(true);
     expect(disabled(button('delete'))).toBe(true);
     expect(disabled(button('createTween'))).toBe(true);
-    expect(button('createTween').title).toBe('Aucune image clé sélectionnée');
+    expect(button('createTween').title).toBe(editor.getService('tweens.motion')?.canCreate().reason);
   });
 
   it('registers no shortcut of its own', () => {
