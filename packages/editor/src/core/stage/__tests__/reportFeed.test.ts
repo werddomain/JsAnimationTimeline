@@ -37,10 +37,13 @@ describe('StageReportFeed', () => {
     // Act
     feed.beginLoad([]);
     feed.add(unknownStage);
+    feed.completePass();
     feed.beginLoad([unknownStage]);
     feed.add(unknownStage);
     feed.add(unrouted);
+    feed.completePass();
     feed.beginLoad([unknownStage, unrouted]);
+    feed.completePass();
     feed.beginLoad([]);
     feed.add(unknownStage);
 
@@ -64,6 +67,27 @@ describe('StageReportFeed', () => {
 
     // Assert
     expect(emitted).toEqual([renderError]);
+  });
+
+  it('carries stage errors over documents loaded before a full sync and render pass', () => {
+    // Arrange
+    const emitted: IStageReport[] = [];
+    const feed = new StageReportFeed((report) => emitted.push(report));
+    const syncError: IStageReport = { code: StageReportCodes.STAGE_ERROR, stageId: 'audio', message: 'synchro' };
+    feed.start([]);
+    feed.beginLoad([]);
+    feed.add(syncError);
+
+    // Act : B puis C dans la même image, la liste de B n'a jamais vu de sync.
+    feed.beginLoad([syncError]);
+    feed.beginLoad([]);
+    feed.add(syncError);
+    feed.completePass();
+    feed.beginLoad([]);
+    feed.add(syncError);
+
+    // Assert
+    expect(emitted).toEqual([syncError, syncError]);
   });
 
   it('keys reports by code, stage, layer and property', () => {

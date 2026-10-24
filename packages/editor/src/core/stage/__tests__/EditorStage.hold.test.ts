@@ -171,10 +171,12 @@ describe('ctx.stage.hold: reports', () => {
     // Act
     editor.execute(setTarget('l-tree', { ref: 'tree', stage: 'nope' }, { ref: 'tree', stage: 'fake' }));
     const atLoad = reports.length;
+    const missingAtLoad = missing.map((list) => [...list]);
     hold.release();
 
     // Assert
     expect(atLoad).toBe(1);
+    expect(missingAtLoad).toEqual([['l-tree']]);
     expect(reports).toHaveLength(1);
     expect(missing).toEqual([['l-tree']]);
     expect(renders(stage)).toEqual(['render:1']);
@@ -274,7 +276,7 @@ describe('ctx.stage.hold: review follow-ups', () => {
     expect(stage.log.length).toBe(afterStop);
   });
 
-  it('ignores a flush called during a load (from a stage:report handler) and keeps the render held', () => {
+  it('keeps the render held when a stage:report handler flushes during the load, until release', () => {
     // Arrange
     const { editor, stage } = setup();
     const hold = editor.stage.hold();

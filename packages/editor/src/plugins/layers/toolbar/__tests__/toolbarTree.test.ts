@@ -5,7 +5,7 @@ import { isFolder } from '@werddomain/timeline-runtime';
 import type { LayerNode } from '@werddomain/timeline-runtime';
 import { doc, folder, layer } from '../../list/__tests__/fixtures';
 import { deleteLayersCommand, newLayerCommand, LayerToolbarCommandLabels } from '../toolbarCommands';
-import { addLayer, newLayer, nextLayerId, nextLayerName, rowAfterDelete, visibleAnchor } from '../toolbarTree';
+import { addLayer, newLayer, nextLayerId, nextLayerName, rowAfterDelete } from '../toolbarTree';
 
 function shape(nodes: readonly LayerNode[]): string {
   return nodes.map((node) => (isFolder(node) ? `${node.id}(${shape(node.children)})` : node.id)).join(',');
@@ -26,6 +26,11 @@ describe('names and ids', () => {
     expect(nextLayerId([layer('layer-2')])).toBe('layer-1');
   });
 
+  it('avoids span ids too (ids are unique over nodes and spans)', () => {
+    const span = { id: 'layer-1', start: 1, end: 3, kind: 'static' as const };
+    expect(nextLayerId([{ ...layer('a'), spans: [span] }])).toBe('layer-2');
+  });
+
   it('creates an empty layer without target', () => {
     expect(newLayer([])).toEqual({ id: 'layer-1', type: 'layer', name: 'Calque 1', spans: [] });
     expect('target' in newLayer([])).toBe(false);
@@ -41,18 +46,6 @@ describe('addLayer', () => {
   it('inserts above the anchor in its parent', () => {
     expect(shape(addLayer(tree.layers, layer('n'), 'b'))).toBe('f(a,g(n,b)),c');
     expect(shape(addLayer(tree.layers, layer('n'), 'c'))).toBe('f(a,g(b)),n,c');
-  });
-});
-
-describe('visibleAnchor', () => {
-  const nested = [folder('f', [folder('g', [layer('b')])], { collapsed: true }), layer('c')];
-  const open = [folder('f', [layer('a')]), layer('c')];
-
-  it('returns the outermost collapsed ancestor, else the id itself', () => {
-    expect(visibleAnchor(nested, 'b')).toBe('f');
-    expect(visibleAnchor(open, 'a')).toBe('a');
-    expect(visibleAnchor(open, 'zz')).toBe('zz');
-    expect(visibleAnchor(open, undefined)).toBeUndefined();
   });
 });
 

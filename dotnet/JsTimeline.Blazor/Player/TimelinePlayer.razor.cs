@@ -79,18 +79,25 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
     public EventCallback OnReady { get; set; }
 
     /// <summary>
-    /// An error of the JavaScript player:
+    /// An error of the JavaScript player. It can be set, changed or removed at any time. It receives:
     /// <list type="bullet">
-    /// <item>a <see cref="JSException"/> when it refuses a document (invalid document, or the stage
-    /// refuses it); the refused instance is not sent again, a new instance is;</item>
-    /// <item>a <see cref="TimelineStageException"/> when the stage throws while playing (playback goes on);</item>
+    /// <item>a <see cref="JSException"/> when the player refuses a document (invalid document, or the
+    /// stage refuses it); the refused instance is not sent again, a new instance is;</item>
+    /// <item>a <see cref="JSException"/> when the player refuses <see cref="Loop"/> or <see cref="Speed"/>;</item>
     /// <item>a <see cref="System.Text.Json.JsonException"/> when a document cannot be written as JSON
-    /// (for example a <see cref="LayerTarget"/> with two forms).</item>
+    /// (for example a <see cref="LayerTarget"/> with two forms);</item>
+    /// <item>a <see cref="TimelineStageException"/> when the stage throws while playing (playback goes on).</item>
     /// </list>
-    /// A selector that matches nothing is not an error: see <see cref="TimelinePlayerState.MissingTargets"/>.
-    /// Without a handler, a refused document is thrown to the renderer and a stage error goes to the
-    /// browser console. The refused instance is recognised by reference: a parent that builds a new
-    /// document on every render sends it again after each OnError re-render.
+    /// <see cref="Loop"/> and <see cref="Speed"/> still apply when the document is refused. A selector that
+    /// matches nothing is not an error: see <see cref="TimelinePlayerState.MissingTargets"/>.
+    /// Without a handler, a stage error goes to the browser console and the other errors are thrown to
+    /// the renderer: the error itself when there is only one, otherwise an <see cref="InvalidOperationException"/>
+    /// whose inner <see cref="AggregateException"/> holds them all. When the handler itself throws, an
+    /// <see cref="InvalidOperationException"/> is thrown (dispatched for a stage error) whose inner
+    /// <see cref="AggregateException"/> holds the handler's failure then the original error; with several
+    /// errors, each such pair stays grouped inside the aggregate of all errors. Errors left when the
+    /// component is disposed are dropped. The refused instance is recognised by reference: a parent that
+    /// builds a new document on every render sends it again after each OnError re-render.
     /// </summary>
     [Parameter]
     public EventCallback<Exception> OnError { get; set; }
@@ -240,17 +247,12 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
     }
 
     /// <summary>
-    /// Hands every error of an application to OnError. Without a handler, or when the handler throws,
-    /// the errors are thrown to the renderer once: the only one, or an InvalidOperationException
-    /// whose inner AggregateException holds them all.
+    /// Hands every error of an application to <see cref="OnError"/>; what it cannot handle is thrown
+    /// to the renderer once (see <see cref="ThrowUnhandled"/>).
     /// </summary>
     private async Task ReportAfterAsync(Task<IReadOnlyList<Exception>> application)
     {
         var errors = await application;
-        if (errors.Count == 0 || _disposed)
-        {
-            return;
-        }
         var unhandled = new List<Exception>();
         foreach (var error in errors)
         {
@@ -258,36 +260,69 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
             {
                 return; // Disposed while a handler ran: the remaining errors no longer matter.
             }
-            if (!OnError.HasDelegate)
+            if (await OfferToOnErrorAsync(error) is { } left)
             {
-                unhandled.Add(error);
-                continue;
-            }
-            try
-            {
-                await OnError.InvokeAsync(error);
-            }
-            catch (Exception failure)
-            {
-                // Keep the original error with the failure of its handler.
-                unhandled.Add(new AggregateException(failure, error));
+                unhandled.Add(left);
             }
         }
+        if (!_disposed)
+        {
+            ThrowUnhandled(unhandled);
+        }
+    }
+
+    /// <summary>
+    /// Gives one error to <see cref="OnError"/>. Returns what is left to throw: null when it was
+    /// handled (or the component is disposed), the error itself without a handler, or an
+    /// <see cref="AggregateException"/> holding the handler's failure and the original error.
+    /// </summary>
+    private async Task<Exception?> OfferToOnErrorAsync(Exception error)
+    {
         if (_disposed)
+        {
+            return null;
+        }
+        if (!OnError.HasDelegate)
+        {
+            return error;
+        }
+        try
+        {
+            await OnError.InvokeAsync(error);
+            return null;
+        }
+        catch (Exception failure)
+        {
+            // Keep the original error with the failure of its handler.
+            return new AggregateException(failure, error);
+        }
+    }
+
+    /// <summary>
+    /// Throws the errors nobody handled: a single plain error as it is; otherwise an
+    /// InvalidOperationException whose inner AggregateException holds them all (a bare
+    /// AggregateException would be cut to its first inner exception by the renderer).
+    /// </summary>
+    private static void ThrowUnhandled(IReadOnlyList<Exception> unhandled)
+    {
+        if (unhandled.Count == 0)
         {
             return;
         }
-        if (unhandled.Count == 1)
+        if (unhandled is [var single] && single is not AggregateException)
         {
-            ExceptionDispatchInfo.Capture(unhandled[0]).Throw();
+            ExceptionDispatchInfo.Capture(single).Throw();
         }
-        if (unhandled.Count > 1)
+        if (unhandled is [AggregateException pair])
         {
-            // Not a bare AggregateException: the renderer would keep only its first inner exception.
+            // The only entry is a handler failure with its original error (see OfferToOnErrorAsync).
             throw new InvalidOperationException(
-                $"{nameof(TimelinePlayer)}: {unhandled.Count} errors while applying the parameters.",
-                new AggregateException(unhandled));
+                $"{nameof(TimelinePlayer)}: {nameof(OnError)} threw while handling an error, see the inner exceptions.",
+                pair);
         }
+        throw new InvalidOperationException(
+            $"{nameof(TimelinePlayer)}: {unhandled.Count} unhandled errors, see the inner exceptions.",
+            new AggregateException(unhandled));
     }
 
     private async Task ApplyDataAsync(List<Exception> errors)
@@ -365,14 +400,12 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
                 return;
             }
             handled = true;
-            try
+            if (await OfferToOnErrorAsync(new TimelineStageException(message)) is { } failure && !_disposed)
             {
-                await OnError.InvokeAsync(new TimelineStageException(message));
-            }
-            catch (Exception error)
-            {
-                // A failing OnError handler is a component error, not something to lose in JavaScript.
-                await DispatchExceptionAsync(error);
+                // The handler threw: a component error (with the stage error inside), not something to
+                // lose in JavaScript.
+                await DispatchExceptionAsync(new InvalidOperationException(
+                    $"{nameof(TimelinePlayer)}: {nameof(OnError)} threw while handling a stage error.", failure));
             }
         });
         return handled;
@@ -418,17 +451,13 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
         }
     }
 
+    /// <summary>One error of the creation path, reported like the errors of an application.</summary>
     private async Task ReportAsync(Exception error)
     {
-        if (_disposed)
+        if (await OfferToOnErrorAsync(error) is { } left && !_disposed)
         {
-            return;
+            ThrowUnhandled([left]);
         }
-        if (!OnError.HasDelegate)
-        {
-            ExceptionDispatchInfo.Capture(error).Throw();
-        }
-        await OnError.InvokeAsync(error);
     }
 
     private bool IsTeardown(Exception error) =>

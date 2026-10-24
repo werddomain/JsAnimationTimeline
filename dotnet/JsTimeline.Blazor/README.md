@@ -54,13 +54,22 @@ Limites :
   Un sélecteur qui ne trouve rien n'est pas une erreur : le calque apparaît dans `MissingTargets`.
 - Événements : `OnPlay`, `OnPause`, `OnComplete`, `OnLoop` et `OnFrame`. `OnFrame` doit être donné dès le
   premier rendu, car chaque image fait alors un appel vers .NET.
-- `OnError` (à donner dès le premier rendu) reçoit :
+- `OnError` peut être donné, changé ou retiré à tout moment. Il reçoit :
   - une `JSException` quand le lecteur refuse un document. Le lecteur garde le document précédent, et ce
     document refusé n'est pas renvoyé ; un nouveau document l'est ;
+  - une `JsonException` quand un document ne peut pas être écrit en JSON (par exemple une `LayerTarget`
+    avec deux formes) ;
+  - une `JSException` quand le lecteur refuse `Loop` ou `Speed` ;
   - une `TimelineStageException` quand la scène échoue pendant la lecture, qui continue.
-  Sans gestionnaire (ou s'il est retiré plus tard), un document refusé est levé et une erreur de scène est
-  écrite dans la console du navigateur avec `console.error`.
-  `Loop` et `Speed` s'appliquent même quand le document est refusé.
+- `Loop` et `Speed` s'appliquent même quand le document est refusé.
+- Sans gestionnaire, une erreur de scène est écrite dans la console du navigateur avec `console.error`, et les
+  autres erreurs sont levées vers le moteur de rendu de Blazor : l'erreur seule s'il n'y en a qu'une, sinon une
+  `InvalidOperationException` dont l'`AggregateException` intérieure les contient toutes.
+- Si le gestionnaire `OnError` lève lui-même une exception, l'erreur d'origine n'est pas perdue : une
+  `InvalidOperationException` est levée, avec une `AggregateException` intérieure qui contient l'échec du
+  gestionnaire puis l'erreur d'origine. Avec plusieurs erreurs, cette paire reste groupée dans sa propre
+  `AggregateException`, à l'intérieur de celle qui contient toutes les erreurs.
+- Les erreurs qui restent quand le composant est fermé ne sont plus signalées.
 - Le document refusé est reconnu par sa référence. Un parent qui crée un nouveau `TimelineDocument` à chaque
   rendu, avec un `OnError` qui le fait se redessiner, renvoie le document à chaque fois : garder le document
   dans un champ et n'en créer un nouveau que quand il change.
@@ -74,8 +83,10 @@ Le dossier `Stage/` contient le contrat qu'utilisera le paramètre `Stage` du fu
   `Properties` (nombres lus par la scène, avec une interpolation par nom : `Linear`, `Step`, `Floor`, `Round`)
   et `RenderAsync(frame)`. `Targets` et `Properties` sont lus une seule fois, quand la scène est branchée.
 - `TimelineStageFrame` : le temps, l'état compact de chaque calque (`LayerId`, `Target`, `Values`, `Active`,
-  `Visible`) et les calques retirés depuis l'image précédente (`Released`), chacun une seule fois avec la
-  cible qu'il avait. Appliquer `Released` avant `Layers` : un calque qui change de cible est dans les deux.
+  `Visible`) et les calques retirés depuis l'image précédente (`Released`), avec la cible qu'ils avaient.
+  Appliquer `Released` avant `Layers` : un calque qui change de cible est dans les deux. Un calque peut y
+  figurer plusieurs fois (une fois par cible perdue, par exemple un changement de cible puis une suppression
+  entre deux images) ; ignorer une paire calque + cible jamais reçue dans `Layers`.
   Quand l'éditeur ou le lecteur se termine (ou change de scène), une dernière image sans calque apporte les
   derniers retraits.
 - `FrameCallbackMode` : `Off` (jamais), `IntegerFrames` (à chaque image affichée, après un nouveau document ou

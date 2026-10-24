@@ -79,8 +79,9 @@ internal sealed class FakeJsObject : IJSObjectReference
         return default!;
     }
 
+    /// <summary>Honours the token like the real interop: a call held open is abandoned when it is cancelled.</summary>
     public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args) =>
-        InvokeAsync<TValue>(identifier, args);
+        new(InvokeAsync<TValue>(identifier, args).AsTask().WaitAsync(cancellationToken));
 
     public ValueTask DisposeAsync()
     {

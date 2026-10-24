@@ -232,6 +232,30 @@ describe('errors, released layers and detach', () => {
     expect(frame.layers.map((l) => l.target)).toEqual([{ ref: 'villain', stage: 'dotnet' }]);
   });
 
+  it('resends the releases of a frame without layers that fails during destroy', async () => {
+    // Arrange: the only layer is deleted; the frame telling .NET (no layers, one release) is in flight.
+    const errors: unknown[] = [];
+    const receiver = new FakeDotNetReference();
+    const player = playerWith(receiver, 'everyTick', (error) => errors.push(error));
+    await receiver.resolveAll();
+    player.update({ ...heroDocument(), layers: [] });
+    await flush();
+    const inFlight = receiver.frames[receiver.frames.length - 1];
+
+    // Act: destroy (nothing left to release), then the frame in flight fails.
+    player.destroy();
+    await receiver.rejectNext(new Error('RenderAsync threw'));
+    await receiver.resolveAll();
+
+    // Assert: a last frame repeats the release.
+    const last = receiver.frames[receiver.frames.length - 1];
+    expect(inFlight.layers).toEqual([]);
+    expect(inFlight.released).toEqual([HERO_RELEASE]);
+    expect(last).not.toBe(inFlight);
+    expect(last.released).toEqual([HERO_RELEASE]);
+    expect(errors).toEqual([]);
+  });
+
   it('puts the releases of a call failing after destroy into the last frame', async () => {
     // Arrange: the layer moves from hero to villain; the frame telling .NET about hero is in flight
     // when the player is destroyed (which releases the layer from villain).

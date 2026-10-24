@@ -41,7 +41,7 @@ describe('resolveCreateTarget', () => {
     const result = resolveCreateTarget(doc, cells('a', 2, 6));
 
     // Assert
-    expect(result).toEqual({ ok: false, code: MotionTweenCodes.AMBIGUOUS_SELECTION, message: 'Sélection ambiguë' });
+    expect(result).toEqual({ ok: false, code: MotionTweenCodes.AMBIGUOUS_SELECTION, message: 'Sélection ambiguë.' });
   });
 
   it('goes from the first to the last keyframe when there are two or more', () => {
@@ -54,7 +54,7 @@ describe('resolveCreateTarget', () => {
     const result = resolveCreateTarget(doc, [...cells('a', 1), ...cells('b', 1)]);
 
     // Assert
-    expect(result).toEqual({ ok: false, code: MotionTweenCodes.MULTIPLE_LAYERS, message: "Sélectionnez des images d'un seul calque" });
+    expect(result).toEqual({ ok: false, code: MotionTweenCodes.MULTIPLE_LAYERS, message: "Sélectionnez des images d'un seul calque." });
   });
 
   it('reports no keyframe for an empty selection, a folder row, frames past the last span and unknown rows', () => {
@@ -63,7 +63,7 @@ describe('resolveCreateTarget', () => {
       expect(resolveCreateTarget(doc, selection)).toEqual({
         ok: false,
         code: MotionTweenCodes.NO_KEYFRAME,
-        message: 'Aucune image clé sélectionnée'
+        message: 'Aucune image clé à interpoler.'
       })
     );
   });
@@ -95,7 +95,7 @@ describe('resolveRemoveTargets', () => {
       expect(resolveRemoveTargets(doc, selection)).toEqual({
         ok: false,
         code: MotionTweenCodes.NO_TWEEN,
-        message: 'Aucune interpolation sélectionnée'
+        message: 'Aucune interpolation à supprimer.'
       })
     );
   });

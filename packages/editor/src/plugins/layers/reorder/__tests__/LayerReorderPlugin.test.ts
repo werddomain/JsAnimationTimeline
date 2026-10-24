@@ -603,6 +603,30 @@ describe('lost button release', () => {
     expect(h.selection.selected()).toEqual(['c', 'd']);
   });
 
+  it('does not let a stale suppression swallow a click of a new press outside the list', () => {
+    const h = setup();
+    press(h, 'c', y(4));
+    moveTo(y(1, 0.1));
+    document.dispatchEvent(pointer('pointermove', y(0), { buttons: 0 }));
+
+    document.body.dispatchEvent(pointer('pointerdown', y(0)));
+    const outside = click(document.body);
+    release(y(0));
+
+    expect(outside.defaultPrevented).toBe(false);
+  });
+
+  it('keeps swallowing the release click when only a non-primary pointer presses in between', () => {
+    const h = setup();
+    h.selection.select(['c', 'd'], 'replace');
+    dragRow(h, 'c', y(0, 0.05));
+
+    document.body.dispatchEvent(pointer('pointerdown', y(0), { isPrimary: false, pointerId: 2 }));
+    const swallowed = click(row(h, 'c'), { ctrlKey: true });
+
+    expect(swallowed.defaultPrevented).toBe(true);
+  });
+
   it('does not swallow a click after a press aborted before the threshold', () => {
     const h = setup();
     press(h, 'c', y(4));

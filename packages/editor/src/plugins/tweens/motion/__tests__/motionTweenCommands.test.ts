@@ -112,13 +112,13 @@ describe('createMotionTweenCommands', () => {
     const doc = sample();
 
     // Assert
-    expect(refusalOf(() => commands.createFromSpan('b', 2).do(doc))).toBe('Déjà une interpolation');
+    expect(refusalOf(() => commands.createFromSpan('b', 2).do(doc))).toBe('Déjà une interpolation.');
     expect(refusalOf(() => commands.createBetween('a', 5, 1).do(doc))).toBe(
-      'La seconde image clé doit suivre la première'
+      'La seconde image clé doit suivre la première.'
     );
-    expect(refusalOf(() => commands.remove([{ layerId: 'a', frames: [1] }]).do(doc))).toBe('Aucune interpolation sélectionnée');
+    expect(refusalOf(() => commands.remove([{ layerId: 'a', frames: [1] }]).do(doc))).toBe('Aucune interpolation à supprimer.');
     expect(refusalOf(() => commands.createFromSpan('zz', 1).do(doc))).toContain('introuvable');
-    expect(refusalOf(() => commands.refused('create', 'Sélection ambiguë').do(doc))).toBe('Sélection ambiguë');
+    expect(refusalOf(() => commands.refused('create', 'Sélection ambiguë.').do(doc))).toBe('Sélection ambiguë.');
     expect(commands.refused('remove', 'x').label).toBe(MotionTweenCommandLabels.REMOVE);
   });
 
