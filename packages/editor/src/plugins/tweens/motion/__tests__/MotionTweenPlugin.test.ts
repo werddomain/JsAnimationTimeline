@@ -16,6 +16,7 @@ import type { IEditor } from '../../../../core/editor/types';
 import type { CommandRefusedEvent } from '../../../../core/commands/commandEvents';
 import { LayoutPlugin } from '../../../layout/LayoutPlugin';
 import { cleanBody, createContainer, createManualScheduler } from '../../../layout/__tests__/layoutFixtures';
+import { createShortcutsPlugin } from '../../../interaction/shortcuts';
 import { FramesPlugin } from '../../../frames/FramesPlugin';
 import type { IFramesSelectionService } from '../../../frames/selection/types';
 import { TweensPlugin } from '../../TweensPlugin';
@@ -59,7 +60,7 @@ function setup(data: ITimelineDocument = sample(), registry?: PropertyRegistry):
   const editor = createEditor(createContainer(), {
     data,
     ...(registry === undefined ? {} : { registry }),
-    defaultPlugins: [new LayoutPlugin({ scrollSync: { scheduler: createManualScheduler() } }), new FramesPlugin(), new TweensPlugin()]
+    defaultPlugins: [new LayoutPlugin({ scrollSync: { scheduler: createManualScheduler() } }), new FramesPlugin(), createShortcutsPlugin(), new TweensPlugin()]
   });
   const selection = editor.getService('frames.selection');
   const motion = editor.getService('tweens.motion');
