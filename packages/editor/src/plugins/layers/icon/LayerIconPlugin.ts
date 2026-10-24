@@ -54,6 +54,8 @@ export class LayerIconPlugin implements EditorPlugin {
   private cleanups: Array<() => void> = [];
   private menu: IconMenu | undefined;
   private anchorId: string | undefined;
+  /** Id de la ligne dont l'icône a été pressée alors que son menu était ouvert. */
+  private pressedOpenFor: string | undefined;
 
   readonly init = (ctx: IEditorContext): void => {
     const list = ctx.services.require('layers.list');
@@ -63,10 +65,13 @@ export class LayerIconPlugin implements EditorPlugin {
     };
     const onClick = (event: MouseEvent): void => this.onClick(ctx, list, event);
     const onKeyDown = (event: KeyboardEvent): void => this.onKeyDown(ctx, list, event);
+    const onMouseDown = (event: MouseEvent): void => this.onMouseDown(list, event);
+    ctx.container.addEventListener('mousedown', onMouseDown, true);
     ctx.container.addEventListener('click', onClick);
     ctx.container.addEventListener('keydown', onKeyDown);
     this.cleanups = [
       ctx.services.provide(LAYERS_ICON_PLUGIN_ID, service),
+      () => ctx.container.removeEventListener('mousedown', onMouseDown, true),
       () => ctx.container.removeEventListener('click', onClick),
       () => ctx.container.removeEventListener('keydown', onKeyDown),
       ctx.events.on('document:changed', () => this.closeIfStale(ctx)),
@@ -121,12 +126,27 @@ export class LayerIconPlugin implements EditorPlugin {
     this.anchorId = id;
   }
 
+  /**
+   * Retient, avant tout changement de focus, si le menu était ouvert pour
+   * l'icône pressée : la sélection (Y5) donne le focus à la ligne pendant le
+   * clic, ce qui ferme le menu avant que `onClick` ne s'exécute.
+   */
+  private onMouseDown(list: ILayerListService, event: MouseEvent): void {
+    const target = event.target;
+    const onIcon = target instanceof Element && target.closest(ICON_SELECTOR) !== null;
+    const id = onIcon ? list.rowIdAt(target) : undefined;
+    this.pressedOpenFor = id !== undefined && this.menu !== undefined && this.anchorId === id ? id : undefined;
+  }
+
   private onClick(ctx: IEditorContext, list: ILayerListService, event: MouseEvent): void {
+    const pressedOpenFor = this.pressedOpenFor;
+    this.pressedOpenFor = undefined;
     const target = event.target;
     if (!(target instanceof Element) || target.closest(ICON_SELECTOR) === null) return;
     const id = list.rowIdAt(target);
     if (id === undefined) return;
-    if (this.menu !== undefined && this.anchorId === id) this.menu.close();
+    const wasOpen = pressedOpenFor === id || (this.menu !== undefined && this.anchorId === id);
+    if (wasOpen) this.menu?.close();
     else this.openChooser(ctx, list, id);
   }
 
