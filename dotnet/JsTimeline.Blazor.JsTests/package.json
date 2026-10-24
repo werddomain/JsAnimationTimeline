@@ -1,0 +1,11 @@
+{
+  "name": "@werddomain/blazor-js-tests",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Jest tests of the JavaScript modules shipped by JsTimeline.Blazor (wwwroot).",
+  "scripts": {
+    "test": "jest",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "license": "MIT"
+}

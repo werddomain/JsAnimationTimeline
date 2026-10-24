@@ -110,7 +110,15 @@ export type {
 } from './core/playback';
 
 // Scènes : option `stage`, façade `IEditorStage` (`ctx.stage`, `editor.stage`) et `stage:report`.
-export type { EditorStageOption, IEditorStage, StageErrorHandler, StageReportEvent } from './core/stage';
+export { createEditorHtmlStage } from './core/stage';
+export type {
+  EditorStageOption,
+  IEditorHtmlStageOptions,
+  IEditorStage,
+  StageErrorHandler,
+  StageReportEvent,
+  StageTargetsChangedEvent
+} from './core/stage';
 
 // Plugins de mise en page (epic `layout`) : coquille, emplacements, défilement, règle et tête de lecture.
 export {
@@ -145,24 +153,46 @@ export type {
 
 // Plugins des calques (epic `layers`) : liste des calques, contrôles de ligne et sélection.
 export {
+  LAYERS_GROUPS_PLUGIN_ID,
+  LAYERS_COLOR_PLUGIN_ID,
+  LAYERS_ICON_PLUGIN_ID,
   LAYERS_LIST_PLUGIN_ID,
   LAYER_LIST_CLASSES,
   LAYERS_SELECTION_PLUGIN_ID,
+  LAYERS_TOOLBAR_PLUGIN_ID,
   LAYER_ROW_CLASSES,
+  LayerGroupsPlugin,
+  LayerColorPlugin,
+  LayerIconPlugin,
   LayerListPlugin,
   LayerSelectionPlugin,
+  LayerToolbarPlugin,
   LayersPlugin,
+  LAYERS_REORDER_PLUGIN_ID,
+  LayerReorderPlugin,
   SELECTED_ROW_CLASS,
   NAME_EDITING_ATTRIBUTE,
   createSetCollapsedCommand,
   createToggleCollapsedCommand,
+  createMoveLayersCommand,
+  detachNodes,
+  findNodeLocation,
+  insertNodes,
+  moveNodes,
+  topMostIds,
   updateLayerNode
 } from './plugins/layers';
 export type {
+  ILayerGroupsService,
+  ILayerDropTarget,
+  ILayerColorService,
+  ILayerIconService,
   ILayerListService,
+  ILayerReorderService,
   ILayerRow,
   ILayerRowControl,
   ILayerSelectionService,
+  ILayerToolbarService,
   LayerNodeUpdater,
   LayerRowsChangedEvent,
   LayerSelectionChangedEvent,
@@ -173,9 +203,12 @@ export type {
 export {
   FRAMES_GRID_CLASSES,
   FRAMES_GRID_PLUGIN_ID,
+  FRAMES_KEYFRAMES_CLASSES,
+  FRAMES_KEYFRAMES_PLUGIN_ID,
   FRAMES_SELECTION_CLASSES,
   FRAMES_SELECTION_PLUGIN_ID,
   FramesGridPlugin,
+  FramesKeyframesPlugin,
   FramesPlugin,
   FramesSelectionPlugin
 } from './plugins/frames';
@@ -190,12 +223,47 @@ export type {
   GridSegmentKind,
   IFrameRange,
   IFramesGridService,
+  IFramesKeyframesService,
   IGridCell,
   IGridMark,
   IGridSegment,
   IGridWindow,
   IRowRange
 } from './plugins/frames';
+
+// Epic tweens : interpolations de mouvement (tweens.motion), opérations pures, commandes et erreurs.
+export {
+  MOTION_TWEEN_PLUGIN_ID,
+  MotionTweenCodes,
+  MotionTweenCommandLabels,
+  MotionTweenError,
+  MotionTweenMessages,
+  MotionTweenPlugin,
+  TweensPlugin,
+  createMotionTween,
+  createMotionTweenBetween,
+  createMotionTweenCommands,
+  createMotionTweenFromSpan,
+  removeMotionTween,
+  removeMotionTweens,
+  resolveCreateTarget,
+  resolveRemoveTargets
+} from './plugins/tweens';
+export type {
+  IMotionTarget,
+  IMotionTweenAvailability,
+  IMotionTweenCommands,
+  IMotionTweenService,
+  IRemoveTarget,
+  MotionAvailabilityChangedEvent,
+  MotionTweenCode,
+  MotionTweenCommandKind,
+  MotionTweenEvent,
+  MotionTweenRefusal,
+  IResolutionRefusal,
+  IResolved,
+  Resolution
+} from './plugins/tweens';
 
 // Plugin interaction.shortcuts (raccourcis clavier déclarés par les plugins).
 export { SHORTCUTS_PLUGIN_ID, ShortcutError, createShortcutsPlugin } from './plugins/interaction/shortcuts';

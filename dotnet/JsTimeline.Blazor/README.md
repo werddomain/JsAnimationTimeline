@@ -75,6 +75,31 @@ Limites :
   dans un champ et n'en créer un nouveau que quand il change.
 - Seule la scène HTML est prise en charge pour l'instant.
 
+## Scène écrite en C# (préparation de B3)
+
+Le dossier `Stage/` contient le contrat qu'utilisera le paramètre `Stage` du futur composant d'éditeur :
+
+- `ITimelineStage` : `Id`, `Targets` (objets proposés aux calques, ciblés par `{ "ref": ..., "stage": Id }`),
+  `Properties` (nombres lus par la scène, avec une interpolation par nom : `Linear`, `Step`, `Floor`, `Round`)
+  et `RenderAsync(frame)`. `Targets` et `Properties` sont lus une seule fois, quand la scène est branchée.
+- `TimelineStageFrame` : le temps, l'état compact de chaque calque (`LayerId`, `Target`, `Values`, `Active`,
+  `Visible`) et les calques retirés depuis l'image précédente (`Released`), chacun une seule fois avec la
+  cible qu'il avait. Appliquer `Released` avant `Layers` : un calque qui change de cible est dans les deux.
+  Quand l'éditeur ou le lecteur se termine (ou change de scène), une dernière image sans calque apporte les
+  derniers retraits.
+- `FrameCallbackMode` : `Off` (jamais), `IntegerFrames` (à chaque image affichée, après un nouveau document ou
+  un saut dans le temps ; c'est le défaut) ou `EveryTick` (à chaque rendu).
+- Un seul appel à `RenderAsync` à la fois tant que la scène est branchée : les images produites pendant un
+  appel se remplacent, et seule la plus récente est envoyée ensuite. Débrancher la scène attend (deux
+  secondes au plus) l'appel en cours, pour qu'une scène rebranchée ne le chevauche pas. Une exception de
+  `RenderAsync` est signalée à la timeline et la lecture continue.
+- `TimelineStageOption` décrit les choix : `Html()` (défaut), `JsModule("./js/maScene.js")`, `DotNet(scène)` et
+  `None()`. Ces méthodes sont la seule façon d'en créer un, donc un choix est toujours valide. Aucun composant
+  ne les utilise encore ; `TimelinePlayer` reste en HTML.
+
+Côté navigateur, `_content/JsTimeline.Blazor/stage/dotnetStage.js` fait d'une scène .NET une `IStage` du
+runtime, utilisable avec `createEditor({ stage })` ou `createPlayer({ stage })`.
+
 ## Construire le package
 
 ```bash

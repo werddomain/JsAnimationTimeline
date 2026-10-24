@@ -35,7 +35,7 @@ export const LAYERS_LOCK_PLUGIN_ID = 'layers.lock';
 export const LOCK_CONTROL_ORDER = 20;
 
 /** Note ajoutée au cadenas d'une ligne verrouillée par un dossier parent. */
-export const LOCK_INHERITED_NOTE = 'Verrouillé par un dossier parent';
+export const LOCK_INHERITED_NOTE = 'verrouillé par le dossier';
 
 /** Classe du bouton de verrouillage. */
 export const LOCK_BUTTON_CLASS = 'jt-layer-flag--lock';
@@ -80,7 +80,7 @@ export class LockPlugin implements EditorPlugin {
       className: LOCK_BUTTON_CLASS,
       pressed: resolveLocked,
       inherited: (row) => row.lockedByAncestor && !resolveLocked(row.node),
-      glyph: (pressed) => (pressed ? '🔒' : '🔓'),
+      glyph: (pressed, inherited) => (pressed || inherited ? '🔒' : '🔓'),
       rowLabel: (node) => `Verrou de « ${node.name} »`,
       rowTitle: (pressed) => (pressed ? LockLabels.unlock : LockLabels.lock),
       inheritedNote: LOCK_INHERITED_NOTE,

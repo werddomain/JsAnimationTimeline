@@ -225,6 +225,7 @@ describe('createEditor plugin sets', () => {
       'layout',
       'layers',
       'frames',
+      'tweens',
       'interaction.shortcuts',
       'toolbar',
       'playback',
