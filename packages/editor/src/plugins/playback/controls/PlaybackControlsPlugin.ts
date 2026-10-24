@@ -3,7 +3,7 @@
  * Plugin : playback.controls
  * Epic : playback
  * Dépend de : playback, toolbar.main, interaction.shortcuts
- * Écoute : playback:play, playback:pause, playback:loop, playback:complete
+ * Écoute : playback:play, playback:pause, playback:loop, playback:complete, playhead:changed
  * Émet : —
  *
  * Contrôles de lecture dans le groupe `playback` de la barre d'outils :
@@ -13,9 +13,13 @@
  *
  * Tout passe par `ctx.playback` : la lecture marche avec ou sans scène.
  * Les contrôles suivent l'état de la lecture par ses événements (icône
- * Lire / Pause), et relisent boucle et vitesse à chaque changement. Le
- * raccourci est déclaré auprès de `interaction.shortcuts` (aucun écouteur
- * clavier global) ; Entrée dans un champ de saisie garde son sens.
+ * Lire / Pause). Le noyau n'annonce pas un changement de boucle ou de
+ * vitesse fait ailleurs : les contrôles les relisent à chaque événement de
+ * lecture et à chaque déplacement de la tête de lecture.
+ *
+ * Le raccourci est déclaré auprès de `interaction.shortcuts` (aucun
+ * écouteur clavier global). Entrée garde son sens dans un champ de saisie
+ * et sur un bouton ou un lien qui a le focus (il l'active).
  */
 
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
@@ -41,6 +45,14 @@ export const PLAYBACK_SPEEDS: readonly number[] = Object.freeze([0.25, 0.5, 1, 1
 /** Libellé français d'une vitesse (`1.5` -> `×1,5`). */
 export function formatSpeed(speed: number): string {
   return `×${String(speed).replace('.', ',')}`;
+}
+
+/** Éléments qu'Entrée active déjà : le raccourci leur laisse la touche. */
+const ENTER_ACTIVATED_SELECTOR = 'button, a[href], summary, [role="button"], [role="link"], [role="menuitem"], [role="tab"]';
+
+/** Vrai si Entrée sur `target` active déjà un élément (bouton, lien...). */
+export function isEnterActivated(target: EventTarget | null): boolean {
+  return typeof Element !== 'undefined' && target instanceof Element && target.closest(ENTER_ACTIVATED_SELECTOR) !== null;
 }
 
 /** Éléments du contrôle rendu. */
@@ -92,12 +104,18 @@ export class PlaybackControlsPlugin implements EditorPlugin {
       cleanups.push(ctx.events.on('playback:pause', update));
       cleanups.push(ctx.events.on('playback:loop', update));
       cleanups.push(ctx.events.on('playback:complete', update));
+      cleanups.push(ctx.events.on('playhead:changed', update));
       cleanups.push(
         shortcuts.register({
           id: PLAYBACK_TOGGLE_SHORTCUT_ID,
           keys: PLAYBACK_TOGGLE_KEYS,
           label: 'Lire / Pause',
-          run: () => ctx.playback.toggle()
+          run: (event) => {
+            // `false` : touche laissée au navigateur, qui active le bouton ou le lien.
+            if (isEnterActivated(event.target)) return false;
+            ctx.playback.toggle();
+            return true;
+          }
         })
       );
       cleanups.push(
@@ -142,12 +160,18 @@ export class PlaybackControlsPlugin implements EditorPlugin {
 
     const onToggle = (): void => playback.toggle();
     const onLoop = (): void => {
-      playback.loop = !playback.loop;
-      this.update();
+      try {
+        playback.loop = !playback.loop;
+      } finally {
+        this.update();
+      }
     };
     const onSpeed = (): void => {
-      playback.speed = Number(speed.value);
-      this.update();
+      try {
+        playback.speed = Number(speed.value);
+      } finally {
+        this.update();
+      }
     };
     toggle.button.addEventListener('click', onToggle);
     loop.button.addEventListener('click', onLoop);

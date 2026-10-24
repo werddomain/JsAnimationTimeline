@@ -14,7 +14,13 @@ import type { IEditor } from '../../../../core/editor/types';
 import { createAnimatedDocument, DISPLAY_FRAME_MS } from '../../../../core/playback/__tests__/fixtures';
 import { toolbarBasePlugins } from '../../../toolbar/__tests__/toolbarFixtures';
 import { PlaybackPlugin } from '../../PlaybackPlugin';
-import { formatSpeed, PLAYBACK_CONTROLS_PLUGIN_ID, PLAYBACK_SPEEDS } from '../PlaybackControlsPlugin';
+import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
+import {
+  formatSpeed,
+  PLAYBACK_CONTROLS_PLUGIN_ID,
+  PLAYBACK_SPEEDS,
+  PlaybackControlsPlugin
+} from '../PlaybackControlsPlugin';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -190,5 +196,93 @@ describe('playback.controls destroy', () => {
     // Assert
     expect(host?.querySelector('.jt-playbackControls')).toBeNull();
     expect(() => toggle.click()).not.toThrow();
+  });
+});
+
+describe('playback.controls keyboard and lifecycle details', () => {
+  it('leaves Enter to a focused button or link, which it activates', () => {
+    // Arrange
+    const { editor, loop } = mount();
+    const link = document.createElement('a');
+    link.href = '#aide';
+    editor.container.appendChild(link);
+
+    // Act
+    const onButton = press(loop, { key: 'Enter' });
+    const onLink = press(link, { key: 'Enter' });
+
+    // Assert
+    expect(onButton.defaultPrevented).toBe(false);
+    expect(onLink.defaultPrevented).toBe(false);
+    expect(editor.playback.playing).toBe(false);
+  });
+
+  it('shows a loop changed elsewhere once the playhead moves', () => {
+    // Arrange
+    const { editor, clock, loop } = mount();
+
+    // Act
+    editor.playback.loop = true;
+    editor.playback.seek(5);
+    clock.advance(DISPLAY_FRAME_MS);
+
+    // Assert
+    expect(loop.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('adds an option for an unknown speed only once', () => {
+    // Arrange
+    const { editor, speed } = mount();
+    editor.playback.speed = 3;
+
+    // Act
+    editor.playback.play();
+    editor.playback.pause();
+    editor.playback.play();
+
+    // Assert
+    expect(Array.from(speed.options).filter((option) => option.value === '3')).toHaveLength(1);
+  });
+
+  it('frees Enter and stops listening once destroyed', () => {
+    // Arrange
+    const plugin = new PlaybackControlsPlugin();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const editor = createEditor(container, {
+      data: createAnimatedDocument(),
+      clock: createManualClock(),
+      defaultPlugins: [...toolbarBasePlugins(), { id: 'playback', dependencies: [], children: [plugin], init: () => {}, destroy: () => {} }]
+    });
+    const shortcuts = editor.getService('interaction.shortcuts');
+
+    // Act
+    plugin.destroy();
+    editor.playback.play();
+
+    // Assert
+    expect(shortcuts?.lookup('Enter')).toBeUndefined();
+    expect(editor.container.querySelector('.jt-playbackControls')).toBeNull();
+  });
+
+  it('rolls back its listeners and shortcut when the toolbar refuses its control', () => {
+    // Arrange
+    const squatter: EditorPlugin = {
+      id: 'test.squatter',
+      dependencies: ['toolbar.main'],
+      init: (ctx) =>
+        void ctx.services.require('toolbar.main').addButton({ id: PLAYBACK_CONTROLS_PLUGIN_ID, label: 'X', onClick: () => {} }),
+      destroy: () => {}
+    };
+    let captured: IEditorContext | undefined;
+    const probe: EditorPlugin = { id: 'test.probe', dependencies: ['test.squatter'], init: (ctx) => (captured = ctx), destroy: () => {} };
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    createEditor(container, { defaultPlugins: [...toolbarBasePlugins(), squatter, probe] });
+    const ctx = captured as IEditorContext;
+
+    // Act + Assert
+    expect(() => new PlaybackControlsPlugin().init(ctx)).toThrow();
+    expect(ctx.services.require('interaction.shortcuts').lookup('Enter')).toBeUndefined();
   });
 });
