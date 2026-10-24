@@ -142,7 +142,22 @@ const V2_NAMES = [
   'FIT_OPTION_VALUE',
   'ZOOM_CONTROL_PLUGIN_ID',
   'ZoomControlPlugin',
-  'createZoomControlPlugin'
+  'createZoomControlPlugin',
+  'MOTION_TWEEN_PLUGIN_ID',
+  'MotionTweenCodes',
+  'MotionTweenCommandLabels',
+  'MotionTweenError',
+  'MotionTweenMessages',
+  'MotionTweenPlugin',
+  'TweensPlugin',
+  'createMotionTween',
+  'createMotionTweenBetween',
+  'createMotionTweenCommands',
+  'createMotionTweenFromSpan',
+  'removeMotionTween',
+  'removeMotionTweens',
+  'resolveCreateTarget',
+  'resolveRemoveTargets'
 ];
 
 describe('editor package entry point', () => {
