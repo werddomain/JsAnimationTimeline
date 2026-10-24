@@ -237,6 +237,42 @@ describe('tweens.motion canCreate after create', () => {
   });
 });
 
+describe('tweens.motion eased tweens', () => {
+  function eased(): ITimelineDocument {
+    return doc([
+      layer('a', {
+        spans: [
+          { id: 'a1', start: 1, end: 4, kind: 'tween', easing: 'ease-in', tracks: { x: [{ frame: 1, value: 0 }] } },
+          { id: 'a2', start: 5, end: 8, kind: 'static', tracks: { x: [{ frame: 5, value: 100 }] } }
+        ]
+      })
+    ]);
+  }
+
+  it('aims an eased one-span tween at k2, keeps its easing, then refuses a re-create untouched', () => {
+    // Arrange
+    const { editor, selection, motion, refused } = setup(eased());
+    selection.set(cells('a', 1, 5));
+
+    // Act
+    const done = motion.create();
+    const afterFirst = editor.document;
+    const verdict = motion.canCreate();
+    const again = motion.create();
+
+    // Assert
+    expect(done).toBe(true);
+    expect(motion.tweenAt('a', 2)?.easing).toBe('ease-in');
+    expect(editor.sample(4).layers[0].values.x).toBe(100);
+    expect(verdict).toEqual({ enabled: false, reason: 'Déjà une interpolation.' });
+    expect(again).toBe(false);
+    expect(editor.document).toBe(afterFirst);
+    expect(refused.map((event) => event.reason)).toEqual(['Déjà une interpolation.']);
+    expect(editor.undo()).toBe(true);
+    expect(editor.canUndo).toBe(false);
+  });
+});
+
 describe('tweens.motion remove', () => {
   it('removes the tweens touched on several layers as one history entry', () => {
     // Arrange
