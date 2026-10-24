@@ -63,7 +63,7 @@ function rethrowFirst(errors: readonly unknown[]): void {
 
 /** Liste des calques : arbre des calques, en-tête et contrôles de ligne. */
 export class LayerListPlugin implements EditorPlugin {
-  readonly id = LAYERS_LIST_PLUGIN_ID;
+  readonly id = 'layers.list';
   readonly dependencies: readonly string[] = ['layout.shell'];
   readonly slot = LAYOUT_SLOTS.layers;
 
