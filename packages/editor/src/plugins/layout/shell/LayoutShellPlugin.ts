@@ -55,7 +55,7 @@ function createZone(doc: Document, zone: LayoutZone): HTMLElement {
 /** Coquille de la timeline : grille de zones exposées comme emplacements de rendu. */
 export class LayoutShellPlugin implements EditorPlugin {
   readonly id = 'layout.shell';
-  readonly dependencies = ['layout'];
+  readonly dependencies: readonly string[] = ['layout'];
 
   private ctx: IEditorContext | undefined;
   private shell: HTMLElement | undefined;

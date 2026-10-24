@@ -22,7 +22,9 @@
  *   règle et les calques restent alignés jusqu'au bout ;
  * - `layout:scrolled` est émis une fois par image d'affichage quand la
  *   position ou la taille visible change (le legacy l'émettait avec un
- *   délai), pour que la grille puisse ne dessiner que la partie visible.
+ *   délai), pour que la grille puisse ne dessiner que la partie visible ;
+ *   l'état initial est annoncé à la première image d'affichage après le rendu ;
+ * - Ctrl / Cmd + molette n'est pas détourné (zoom du navigateur ou de la timeline).
  *
  * Service `layout.scrollSync` : lire l'état, faire défiler, demander une
  * nouvelle mesure après un changement de contenu.
@@ -101,9 +103,26 @@ function windowScheduler(element: HTMLElement): IFrameScheduler {
       cancel: (handle) => view.cancelAnimationFrame(handle)
     };
   }
+  // Sans requestAnimationFrame : minuteries, gardées par numéro pour pouvoir les annuler.
+  const timers = new Map<number, ReturnType<typeof setTimeout>>();
+  let next = 1;
   return {
-    request: (callback) => Number(setTimeout(callback, 0)),
-    cancel: (handle) => clearTimeout(handle)
+    request: (callback) => {
+      const handle = next;
+      next += 1;
+      timers.set(
+        handle,
+        setTimeout(() => {
+          timers.delete(handle);
+          callback();
+        }, 0)
+      );
+      return handle;
+    },
+    cancel: (handle) => {
+      clearTimeout(timers.get(handle));
+      timers.delete(handle);
+    }
   };
 }
 
@@ -118,7 +137,7 @@ function requireZone(shell: ILayoutShellApi, zone: 'ruler' | 'layers'): HTMLElem
 /** Synchronise le défilement de la règle et des calques sur la zone des images. */
 export class ScrollSyncPlugin implements EditorPlugin {
   readonly id = 'layout.scrollSync';
-  readonly dependencies = ['layout.shell'];
+  readonly dependencies: readonly string[] = ['layout.shell'];
   readonly slot = LAYOUT_SLOTS.frames;
 
   private ctx: IEditorContext | undefined;
@@ -158,6 +177,9 @@ export class ScrollSyncPlugin implements EditorPlugin {
     this.scheduler = this.options.scheduler ?? windowScheduler(frames);
     this.listen(elements);
     this.sync(false);
+    // État initial annoncé à la première image d'affichage, une fois la mise en page faite.
+    this.last = undefined;
+    this.schedule();
   }
 
   destroy(): void {
@@ -203,6 +225,8 @@ export class ScrollSyncPlugin implements EditorPlugin {
   /** Applique la molette à la zone des images ; bloque le défilement de la page si elle a bougé. */
   private forwardWheel(event: WheelEvent, delta: IScrollDelta): void {
     const frames = this.elements?.frames;
+    // Ctrl / Cmd + molette : laissée au navigateur (zoom) et au futur zoom de la timeline.
+    if (event.ctrlKey || event.metaKey) return;
     if (frames === undefined || (delta.dx === 0 && delta.dy === 0)) return;
     const before = readScrollState(frames);
     frames.scrollLeft = before.scrollLeft + delta.dx;

@@ -36,6 +36,19 @@ function wheel(init: WheelEventInit): WheelEvent {
   return new WheelEvent('wheel', { cancelable: true, bubbles: true, ...init });
 }
 
+describe('layout.scrollSync initial state', () => {
+  it('announces the initial state on the first display frame after render', () => {
+    // Arrange
+    const { scheduler, events } = setup();
+
+    // Act
+    scheduler.flush();
+
+    // Assert
+    expect(events).toEqual([{ scrollLeft: 0, scrollTop: 0, viewportWidth: 500, viewportHeight: 300 }]);
+  });
+});
+
 describe('layout.scrollSync frames scroll', () => {
   it('copies the frames position to the ruler and the layers on the next display frame', () => {
     // Arrange
@@ -162,6 +175,23 @@ describe('layout.scrollSync wheel', () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
+  it('leaves Ctrl or Cmd + wheel to the browser (zoom)', () => {
+    // Arrange
+    const { zone } = setup();
+    const withCtrl = wheel({ deltaY: 40, ctrlKey: true });
+    const withMeta = wheel({ deltaY: 40, metaKey: true });
+
+    // Act
+    zone('ruler').dispatchEvent(withCtrl);
+    zone('layers').dispatchEvent(withMeta);
+
+    // Assert
+    expect(zone('frames').scrollLeft).toBe(0);
+    expect(zone('frames').scrollTop).toBe(0);
+    expect(withCtrl.defaultPrevented).toBe(false);
+    expect(withMeta.defaultPrevented).toBe(false);
+  });
+
   it('ignores a wheel event without movement', () => {
     // Arrange
     const { zone } = setup();
@@ -262,5 +292,30 @@ describe('layout.scrollSync lifecycle', () => {
     expect(raf).toHaveBeenCalledTimes(1);
     editor.destroy();
     raf.mockRestore();
+  });
+
+  it('falls back to cancellable timers when requestAnimationFrame is missing', () => {
+    // Arrange
+    jest.useFakeTimers();
+    const original = window.requestAnimationFrame;
+    Object.defineProperty(window, 'requestAnimationFrame', { configurable: true, writable: true, value: undefined });
+    const events: IScrollState[] = [];
+    try {
+      const editor = createEditor(createContainer());
+      editor.on('layout:scrolled', (state) => events.push(state));
+
+      // Act
+      jest.runOnlyPendingTimers();
+      editor.getService('layout.scrollSync')?.refresh();
+      editor.destroy();
+      jest.runOnlyPendingTimers();
+
+      // Assert
+      expect(events).toHaveLength(1);
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      Object.defineProperty(window, 'requestAnimationFrame', { configurable: true, writable: true, value: original });
+      jest.useRealTimers();
+    }
   });
 });
