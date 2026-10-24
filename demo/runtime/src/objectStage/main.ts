@@ -3,13 +3,15 @@
  * Page de démo « scène sans HTML animé » : un sprite canvas et un volume audio
  * (deux `createObjectStage`) animés avec un calque HTML (scène HTML par défaut)
  * par le même lecteur. `?clock=manual` remplace l'horloge du navigateur par
- * une horloge manuelle, pour piloter le temps depuis les tests.
+ * une horloge manuelle, pour piloter le temps depuis les tests ; la scène HTML
+ * passe alors en mode `frame` pour suivre cette horloge (le mode `waapi`
+ * avance seul, en temps réel).
  */
 
 import { buildStageRegistry, createHtmlStage, createManualClock, createPlayer, defaultPropertyRegistry } from '@werddomain/timeline-runtime';
 import type { IManualClock, IPlayerOptions } from '@werddomain/timeline-runtime';
 import { AudioTrack, createAudioStage } from './audioStage';
-import { createCanvasStage } from './canvasStage';
+import { createCanvasStage, createSprite } from './canvasStage';
 import { AUDIO_STAGE_ID, CANVAS_STAGE_ID, OBJECT_STAGE_DOCUMENT } from './document';
 import { createDemoHook } from './hook';
 import type { ReceivedLog } from './received';
@@ -23,6 +25,11 @@ function byId<T extends HTMLElement>(id: string): T {
   return element as T;
 }
 
+/** Volume as shown to the user: two decimals, French decimal comma. */
+function formatVolume(volume: number): string {
+  return volume.toFixed(2).replace('.', ',');
+}
+
 function setUp(): void {
   const manual = new URLSearchParams(window.location.search).get('clock') === 'manual';
   const clock: IManualClock | null = manual ? createManualClock() : null;
@@ -34,19 +41,22 @@ function setUp(): void {
 
   const received: ReceivedLog = { [CANVAS_STAGE_ID]: [], [AUDIO_STAGE_ID]: [] };
   const track = new AudioTrack();
-  const canvasStage = createCanvasStage(context, received[CANVAS_STAGE_ID]);
+  const hero = createSprite();
+  const canvasStage = createCanvasStage(context, received[CANVAS_STAGE_ID], hero);
   const audioStage = createAudioStage(track, received[AUDIO_STAGE_ID]);
-  const htmlStage = createHtmlStage({ root: byId('html-zone'), mode: 'waapi' });
+  const htmlStage = createHtmlStage({ root: byId('html-zone'), mode: manual ? 'frame' : 'waapi' });
 
   const options: IPlayerOptions = { stage: [canvasStage, audioStage, htmlStage] };
   const player = createPlayer(OBJECT_STAGE_DOCUMENT, clock === null ? options : { ...options, clock });
   const registry = buildStageRegistry(defaultPropertyRegistry, [canvasStage, audioStage]);
-  window.__objectStageDemo = createDemoHook(player, clock, OBJECT_STAGE_DOCUMENT, received, registry);
+  window.__objectStageDemo = createDemoHook(player, clock, OBJECT_STAGE_DOCUMENT, received, registry, hero, track);
 
   const playButton = byId<HTMLButtonElement>('play');
   const pauseButton = byId<HTMLButtonElement>('pause');
   const stepButton = byId<HTMLButtonElement>('step');
   const soundButton = byId<HTMLButtonElement>('sound');
+  const loopInput = byId<HTMLInputElement>('loop');
+  const volumeOutput = byId<HTMLOutputElement>('volume');
   const seekInput = byId<HTMLInputElement>('seek');
   const frameOutput = byId<HTMLOutputElement>('frame');
   const soundState = byId<HTMLElement>('sound-state');
@@ -61,10 +71,22 @@ function setUp(): void {
     frameOutput.value = `Image ${frame} / ${player.totalFrames}`;
     seekInput.value = String(frame);
   };
+  const showSound = (): void => {
+    if (!track.started) {
+      return;
+    }
+    soundState.textContent = player.playing
+      ? 'Son activé : le volume suit la piste « Musique ».'
+      : 'Son activé : appuyez sur Lecture pour l’entendre';
+  };
   const showState = (): void => {
     playButton.disabled = player.playing;
     pauseButton.disabled = !player.playing;
     document.body.dataset.playing = String(player.playing);
+    showSound();
+  };
+  track.onVolume = (volume) => {
+    volumeOutput.value = formatVolume(volume);
   };
 
   player.on('frame', ({ frame }) => showFrame(frame));
@@ -77,11 +99,14 @@ function setUp(): void {
     clock?.advance(1000 / player.fps);
     player.pause();
   });
+  loopInput.addEventListener('change', () => {
+    player.loop = loopInput.checked;
+  });
   seekInput.addEventListener('input', () => player.seek(Number(seekInput.value)));
   soundButton.addEventListener('click', () => {
     track.start().then(
       () => {
-        soundState.textContent = 'Son activé : le volume suit la piste « Musique ».';
+        showSound();
         soundButton.disabled = true;
       },
       () => {
@@ -90,9 +115,21 @@ function setUp(): void {
     );
   });
 
-  window.addEventListener('pagehide', () => {
+  // The tone must not outlive the rendering: a hidden page stops drawing frames.
+  document.addEventListener('visibilitychange', () => track.setVisible(!document.hidden));
+  window.addEventListener('pagehide', (event) => {
+    if (event.persisted) {
+      // Kept in the back/forward cache: the player stays usable after a restore.
+      track.setVisible(false);
+      return;
+    }
     player.destroy();
     track.dispose();
+  });
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+      track.setVisible(!document.hidden);
+    }
   });
 
   showFrame(player.frame);

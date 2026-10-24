@@ -2,11 +2,14 @@
 /**
  * Point d'accès de test de la page : `window.__objectStageDemo`. Il donne aux
  * tests Playwright le lecteur, l'horloge manuelle, les valeurs reçues par les
- * scènes et de quoi calculer les valeurs attendues avec `evaluateDocument`.
+ * scènes, l'état réel du sprite et de la piste audio, et de quoi calculer les
+ * valeurs attendues avec `evaluateDocument`.
  */
 
 import { evaluateDocument } from '@werddomain/timeline-runtime';
 import type { IManualClock, IPlayer, ITimelineDocument, PropertyRegistry, PropertyValues } from '@werddomain/timeline-runtime';
+import type { AudioTrack } from './audioStage';
+import type { ISprite } from './canvasStage';
 import type { ReceivedLog } from './received';
 
 /** What the page exposes on `window.__objectStageDemo`. */
@@ -17,6 +20,10 @@ export interface IObjectStageDemoHook {
   readonly document: ITimelineDocument;
   /** Values received by each object stage, one entry per rendered frame. */
   readonly received: ReceivedLog;
+  /** The sprite drawn by the canvas stage (what `apply` really set). */
+  readonly sprite: ISprite;
+  /** The audio track (its `volume` is what `apply` really set). */
+  readonly track: AudioTrack;
   /**
    * Moves the manual clock so that the player renders the (possibly
    * fractional) `frame`, then pauses there. Throws without the manual clock
@@ -39,13 +46,17 @@ export function createDemoHook(
   clock: IManualClock | null,
   document: ITimelineDocument,
   received: ReceivedLog,
-  registry: PropertyRegistry
+  registry: PropertyRegistry,
+  sprite: ISprite,
+  track: AudioTrack
 ): IObjectStageDemoHook {
   return {
     player,
     clock,
     document,
     received,
+    sprite,
+    track,
     advanceToFrame(frame) {
       if (clock === null) {
         throw new Error('advanceToFrame needs the manual clock (?clock=manual).');

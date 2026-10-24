@@ -3,7 +3,8 @@
  * Scène `audio` de la démo : une piste non visuelle dont le volume (propriété
  * `value` de 0 à 1) pilote un GainNode par `setTargetAtTime`. Le graphe audio
  * n'est construit qu'après un geste de l'utilisateur (`AudioTrack.start`) :
- * avant, la scène retient seulement le volume demandé.
+ * avant, la scène retient seulement le volume demandé. Le contexte ne tourne
+ * que si la timeline joue et que la page est visible.
  */
 
 import { createObjectStage } from '@werddomain/timeline-runtime';
@@ -20,11 +21,15 @@ const TONE_HZ = 220;
 export class AudioTrack {
   /** Last volume asked by the timeline (0 when inactive). */
   volume = 0;
+  /** Called with each volume the timeline asks for (e.g. a readout). */
+  onVolume: ((volume: number) => void) | null = null;
   private context: AudioContext | null = null;
   private gain: GainNode | null = null;
   private oscillator: OscillatorNode | null = null;
   /** Whether the timeline is playing; the context only runs while it is. */
   private playing = false;
+  /** Whether the page is visible; a hidden page stops rendering, so the tone must stop too. */
+  private visible = true;
   /** Resume/suspend calls run one after the other, so a fast play/pause cannot race. */
   private queue: Promise<void> = Promise.resolve();
 
@@ -56,6 +61,7 @@ export class AudioTrack {
   /** Remembers `volume` and, once started, moves the gain to it smoothly. */
   setVolume(volume: number): void {
     this.volume = volume;
+    this.onVolume?.(volume);
     if (this.context !== null && this.gain !== null) {
       this.gain.gain.setTargetAtTime(volume, this.context.currentTime, VOLUME_TIME_CONSTANT);
     }
@@ -64,6 +70,12 @@ export class AudioTrack {
   /** Runs the sound while the timeline plays and suspends it otherwise. */
   setPlaying(playing: boolean): void {
     this.playing = playing;
+    void this.enqueuePlayState();
+  }
+
+  /** Suspends the sound while the page is hidden; resumes it only if the timeline is playing. */
+  setVisible(visible: boolean): void {
+    this.visible = visible;
     void this.enqueuePlayState();
   }
 
@@ -89,9 +101,10 @@ export class AudioTrack {
     if (context === null || context.state === 'closed') {
       return;
     }
-    if (this.playing && context.state !== 'running') {
+    const shouldRun = this.playing && this.visible;
+    if (shouldRun && context.state !== 'running') {
       await context.resume();
-    } else if (!this.playing && context.state === 'running') {
+    } else if (!shouldRun && context.state === 'running') {
       await context.suspend();
     }
   }
