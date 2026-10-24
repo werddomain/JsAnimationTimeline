@@ -61,6 +61,26 @@ Limites :
   Sans gestionnaire, un document refusé est levé et une erreur de scène va dans la console du navigateur.
 - Seule la scène HTML est prise en charge pour l'instant.
 
+## Scène écrite en C# (préparation de B3)
+
+Le dossier `Stage/` contient le contrat qu'utilisera le paramètre `Stage` du futur composant d'éditeur :
+
+- `ITimelineStage` : `Id`, `Targets` (objets proposés aux calques, ciblés par `{ "ref": ..., "stage": Id }`),
+  `Properties` (nombres lus par la scène, avec une interpolation par nom : `Linear`, `Step`, `Floor`, `Round`)
+  et `RenderAsync(frame)`. `Targets` et `Properties` sont lus une seule fois, quand la scène est branchée.
+- `TimelineStageFrame` : le temps, l'état compact de chaque calque (`LayerId`, `Target`, `Values`, `Active`,
+  `Visible`) et les calques retirés depuis l'image précédente (`Released`).
+- `FrameCallbackMode` : `Off` (jamais), `IntegerFrames` (à chaque image affichée, après un nouveau document ou
+  un saut dans le temps ; c'est le défaut) ou `EveryTick` (à chaque rendu).
+- Un seul appel à `RenderAsync` à la fois : les images produites pendant un appel se remplacent, et seule la
+  plus récente est envoyée ensuite. Une exception de `RenderAsync` est signalée à la timeline et la lecture
+  continue.
+- `TimelineStageOption` décrit les choix : `Html` (défaut), `JsModule("./js/maScene.js")`, `DotNet(scène)` et
+  `None`. Aucun composant ne les utilise encore ; `TimelinePlayer` reste en HTML.
+
+Côté navigateur, `_content/JsTimeline.Blazor/stage/dotnetStage.js` fait d'une scène .NET une `IStage` du
+runtime, utilisable avec `createEditor({ stage })` ou `createPlayer({ stage })`.
+
 ## Construire le package
 
 ```bash

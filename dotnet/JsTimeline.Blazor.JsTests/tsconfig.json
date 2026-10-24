@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "types": ["jest", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "@werddomain/timeline-runtime": ["../../packages/runtime/src/index.ts"],
+      "@werddomain/timeline-editor": ["../../packages/editor/src/index.ts"],
+      "../js/timeline-runtime.mjs": ["../../packages/runtime/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts"]
+}
