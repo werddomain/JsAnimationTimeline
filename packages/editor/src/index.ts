@@ -178,9 +178,22 @@ export type {
 } from './plugins/layers';
 
 // Plugins des images (epic `frames`) : grille des plages et des images clés.
-export { FRAMES_GRID_CLASSES, FRAMES_GRID_PLUGIN_ID, FramesGridPlugin, FramesPlugin } from './plugins/frames';
+export {
+  FRAMES_GRID_CLASSES,
+  FRAMES_GRID_PLUGIN_ID,
+  FRAMES_SELECTION_CLASSES,
+  FRAMES_SELECTION_PLUGIN_ID,
+  FramesGridPlugin,
+  FramesPlugin,
+  FramesSelectionPlugin
+} from './plugins/frames';
 export type {
   FramesGridRenderedEvent,
+  FramesSelectionChangedEvent,
+  IFrameCell,
+  IFramesSelectionService,
+  ISelectedKeyframe,
+  SelectedKeyframeKind,
   GridMarkKind,
   GridSegmentKind,
   IFrameRange,
@@ -273,3 +286,11 @@ export {
   PlaybackPlugin,
   createPlaybackControlsPlugin
 } from './plugins/playback';
+
+// Plugin toolbar.zoomControl : liste et curseur du zoom de la règle.
+export {
+  FIT_OPTION_VALUE,
+  ZOOM_CONTROL_PLUGIN_ID,
+  ZoomControlPlugin,
+  createZoomControlPlugin
+} from './plugins/toolbar';

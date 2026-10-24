@@ -53,6 +53,9 @@ const V2_NAMES = [
   'HistoryPlugin',
   'FRAMES_GRID_CLASSES',
   'FRAMES_GRID_PLUGIN_ID',
+  'FRAMES_SELECTION_CLASSES',
+  'FRAMES_SELECTION_PLUGIN_ID',
+  'FramesSelectionPlugin',
   'FramesGridPlugin',
   'FramesPlugin',
   'LAYOUT_SLOTS',
@@ -116,7 +119,11 @@ const V2_NAMES = [
   'createTimeSettingsPlugin',
   'createToolbarMainPlugin',
   'createUndoRedoPlugin',
-  'defaultPlugins'
+  'defaultPlugins',
+  'FIT_OPTION_VALUE',
+  'ZOOM_CONTROL_PLUGIN_ID',
+  'ZoomControlPlugin',
+  'createZoomControlPlugin'
 ];
 
 describe('editor package entry point', () => {
