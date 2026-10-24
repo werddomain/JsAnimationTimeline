@@ -46,7 +46,7 @@ export function nextFolderName(nodes: readonly LayerNode[]): string {
 }
 
 /** Ids de l'arbre : ceux des nœuds et ceux des plages (les ids sont uniques sur les deux). */
-function allIds(nodes: readonly LayerNode[]): string[] {
+export function allIds(nodes: readonly LayerNode[]): string[] {
   return flattenLayers(nodes).flatMap(({ node }) =>
     isFolder(node) ? [node.id] : [node.id, ...node.spans.map((span) => span.id)]
   );

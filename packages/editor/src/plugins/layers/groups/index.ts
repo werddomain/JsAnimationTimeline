@@ -11,6 +11,7 @@ export {
 export type { IFolderCommand } from './groupCommands';
 export {
   addFolder,
+  allIds,
   groupNodes,
   insertNode,
   locateNode,

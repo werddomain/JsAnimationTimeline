@@ -5,6 +5,7 @@
  */
 
 import { findNodeById } from '@werddomain/timeline-runtime';
+import { createCommand } from '../../../../core/commands/createCommand';
 import { NAME_EDITING_ATTRIBUTE } from '../../list/LayerRowView';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';
 import { RENAME_INPUT_CLASS } from '../inlineEdit';
@@ -239,11 +240,129 @@ describe('inline editing review fixes', () => {
     input.focus();
     input.value = 'Renommé';
 
-    // Un vrai blur du navigateur : blur (validation, saisie détachée, document:changed) puis focusout.
+    // Un clic hors de la liste : appui, puis vrai blur du navigateur (validation, saisie détachée, document:changed) puis focusout.
+    document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
     input.blur();
 
     expect(nameOf(editor.document, 'a')).toBe('Renommé');
     expect(document.activeElement).toBe(document.body);
+  });
+
+  it('gives the focus to a neighbour row when the row is removed after a Chromium-style blur on removal', () => {
+    const { host, editor } = mount(tree);
+    focusableRow(host, 'b');
+    editor.getService('layers.selection')?.select(['b']);
+    doubleClick(nameElement(host, 'b'));
+    const input = inputOf(host);
+    input.focus();
+
+    // Chromium envoie blur puis focusout (relatedTarget nul) à l'élément retiré, avant de le détacher.
+    input.dispatchEvent(new FocusEvent('blur'));
+    input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    editor.execute(
+      createCommand(
+        'Supprimer',
+        (d) => ({ ...d, layers: d.layers.filter((node) => node.id !== 'b') }),
+        (d) => d
+      )
+    );
+
+    expect(document.activeElement?.closest('[data-row-id]')?.getAttribute('data-row-id')).toBe('a');
+  });
+
+  function renameWithChange(host: HTMLElement, editor: ReturnType<typeof mount>['editor']): HTMLInputElement {
+    focusableRow(host, 'a');
+    editor.getService('layers.selection')?.select(['a']);
+    doubleClick(nameElement(host, 'a'));
+    const input = inputOf(host);
+    input.focus();
+    input.value = 'Renommé';
+    return input;
+  }
+
+  it('commits with Tab and lets the focus land on the next element instead of the row', () => {
+    const { host, editor } = mount(tree);
+    const next = document.createElement('button');
+    document.body.appendChild(next);
+    renameWithChange(host, editor);
+
+    next.focus();
+
+    expect(nameOf(editor.document, 'a')).toBe('Renommé');
+    expect(document.activeElement).toBe(next);
+  });
+
+  it('also marks a Tab keydown, even when the focus has no known destination', () => {
+    const { host, editor } = mount(tree);
+    const input = renameWithChange(host, editor);
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+    input.blur();
+
+    expect(nameOf(editor.document, 'a')).toBe('Renommé');
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('marks a touch press (pointerdown only) and a mouse press (mousedown only)', () => {
+    ['pointerdown', 'mousedown'].forEach((type) => {
+      const { host, editor } = mount(tree);
+      const input = renameWithChange(host, editor);
+
+      document.body.dispatchEvent(new MouseEvent(type, { bubbles: true }));
+      input.blur();
+
+      expect(document.activeElement).toBe(document.body);
+      unmountAll();
+    });
+  });
+
+  it('removes its document listeners and timer on destroy', () => {
+    jest.useFakeTimers();
+    try {
+      const { editor } = mount(tree);
+      document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+      const pending = jest.getTimerCount();
+
+      editor.destroy();
+      document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+
+      expect(pending).toBeGreaterThan(0);
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('forgets an outside press once its task is over: a later removal refocuses a row', async () => {
+    const { host, editor } = mount(tree);
+    focusableRow(host, 'b');
+    editor.getService('layers.selection')?.select(['b']);
+    doubleClick(nameElement(host, 'b'));
+    inputOf(host).focus();
+    document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    editor.execute(createCommand('Supprimer', (d) => ({ ...d, layers: d.layers.filter((node) => node.id !== 'b') }), (d) => d));
+
+    expect(document.activeElement?.closest('[data-row-id]')?.getAttribute('data-row-id')).toBe('a');
+  });
+
+  it('gives the focus to a neighbour row when the row being renamed is removed', () => {
+    const { host, editor } = mount(tree);
+    focusableRow(host, 'b');
+    editor.getService('layers.selection')?.select(['b']);
+    doubleClick(nameElement(host, 'b'));
+    inputOf(host).focus();
+
+    editor.execute(
+      createCommand(
+        'Supprimer',
+        (d) => ({ ...d, layers: d.layers.filter((node) => node.id !== 'b') }),
+        (d) => d
+      )
+    );
+
+    expect(document.activeElement?.closest('[data-row-id]')?.getAttribute('data-row-id')).toBe('a');
   });
 
   it('ignores a blur of an input that is no longer connected (no command during document:changed)', () => {

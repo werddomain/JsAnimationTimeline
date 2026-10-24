@@ -7,9 +7,9 @@
  * (le document est figé).
  */
 
-import { findNodeById, flattenLayers, isFolder } from '@werddomain/timeline-runtime';
+import { flattenLayers } from '@werddomain/timeline-runtime';
 import type { ILayer, LayerNode } from '@werddomain/timeline-runtime';
-import { insertNode, locateNode, numbersWithPrefix, smallestFree } from '../groups/groupsTree';
+import { allIds, insertNode, locateNode, numbersWithPrefix, smallestFree } from '../groups/groupsTree';
 
 /** Préfixe des noms de calque créés par l'éditeur (« Calque 1 »). */
 export const LAYER_NAME_PREFIX = 'Calque';
@@ -23,9 +23,9 @@ export function nextLayerName(nodes: readonly LayerNode[]): string {
   return `${LAYER_NAME_PREFIX} ${smallestFree(numbersWithPrefix(names, `${LAYER_NAME_PREFIX} `))}`;
 }
 
-/** Id `layer-N`, N étant le plus petit numéro non utilisé par un id de l'arbre (déterministe). */
+/** Id `layer-N`, N étant le plus petit numéro non utilisé par un id de l'arbre, plages comprises (déterministe). */
 export function nextLayerId(nodes: readonly LayerNode[]): string {
-  const ids = flattenLayers(nodes).map((visit) => visit.node.id);
+  const ids = allIds(nodes);
   return `${LAYER_ID_PREFIX}${smallestFree(numbersWithPrefix(ids, LAYER_ID_PREFIX))}`;
 }
 
@@ -42,21 +42,6 @@ export function addLayer(
 ): readonly LayerNode[] {
   const location = anchorId === undefined ? undefined : locateNode(nodes, anchorId);
   return insertNode(nodes, location?.parentId, location?.index ?? 0, layer);
-}
-
-/**
- * Ancre visible de `id` : le dossier replié le plus haut parmi ses ancêtres
- * (le nouveau calque se place au-dessus de lui, donc reste visible), sinon
- * `id` lui-même.
- */
-export function visibleAnchor(nodes: readonly LayerNode[], id: string | undefined): string | undefined {
-  if (id === undefined) return undefined;
-  const visit = flattenLayers(nodes).find((item) => item.node.id === id);
-  const collapsed = visit?.parentIds.find((parentId) => {
-    const parent = findNodeById(nodes, parentId);
-    return parent !== undefined && isFolder(parent) && parent.collapsed === true;
-  });
-  return collapsed ?? id;
 }
 
 /**
