@@ -122,6 +122,7 @@ export {
   DEFAULT_TOOLBAR_GROUP,
   TOOLBAR_MAIN_PLUGIN_ID,
   ToolbarError,
+  ToolbarGroupOrders,
   ToolbarMainPlugin,
   ToolbarPlugin,
   createToolbarMainPlugin

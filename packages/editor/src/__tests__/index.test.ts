@@ -62,6 +62,7 @@ const V2_NAMES = [
   'StoreError',
   'TOOLBAR_MAIN_PLUGIN_ID',
   'ToolbarError',
+  'ToolbarGroupOrders',
   'ToolbarMainPlugin',
   'ToolbarPlugin',
   'createCommand',

@@ -13,7 +13,7 @@
  *   label: 'Annuler',
  *   icon: '↶',
  *   group: 'history',
- *   order: 10,
+ *   order: ToolbarGroupOrders.history + 1,
  *   shortcut: 'Mod+Z',
  *   onClick: () => ctx.commands.undo(),
  *   enabled: () => ctx.commands.canUndo
@@ -38,7 +38,8 @@ export interface IToolbarItemDefinition {
   readonly group?: string;
   /**
    * Rang dans le groupe (croissant ; à égalité, l'ordre d'ajout). Les groupes
-   * sont rangés par le plus petit rang de leurs éléments. Par défaut : 0.
+   * sont rangés par le plus petit rang de leurs éléments : partir du rang
+   * du groupe dans `ToolbarGroupOrders`. Par défaut : 0.
    */
   readonly order?: number;
 }
@@ -72,7 +73,8 @@ export interface IToolbarControlDefinition extends IToolbarItemDefinition {
   /**
    * Dessine le contrôle dans `element` (un conteneur vide, nommé par
    * `label`). Appelé une seule fois, au rendu de la barre ou tout de suite
-   * si elle est déjà rendue.
+   * si elle est déjà rendue. S'il lève, le contrôle est retiré : il ne doit
+   * alors rien laisser derrière lui (écouteurs, abonnements).
    *
    * @returns Une fonction de nettoyage, appelée au retrait du contrôle ou à
    *   la destruction de la barre.

@@ -12,7 +12,7 @@ export {
   ToolbarMainPlugin,
   createToolbarMainPlugin
 } from './ToolbarMainPlugin';
-export { DEFAULT_TOOLBAR_GROUP } from './ToolbarItems';
+export { DEFAULT_TOOLBAR_GROUP, ToolbarGroupOrders } from './ToolbarItems';
 export { ToolbarError } from './ToolbarError';
 export type { ToolbarErrorCode } from './ToolbarError';
 export type {

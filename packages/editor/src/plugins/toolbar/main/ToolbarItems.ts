@@ -16,6 +16,21 @@ import type {
 /** Groupe des éléments ajoutés sans `group`. */
 export const DEFAULT_TOOLBAR_GROUP = 'main';
 
+/**
+ * Rangs de départ des groupes des plugins de la barre. `order` est global :
+ * un groupe se place par le plus petit rang de ses éléments. Chaque plugin
+ * range ses éléments à partir du rang de son groupe
+ * (`ToolbarGroupOrders.history + 1`...), pour que l'ordre des groupes ne
+ * dépende pas de l'ordre d'initialisation des plugins.
+ */
+export const ToolbarGroupOrders = Object.freeze({
+  keyframes: 100,
+  history: 200,
+  time: 300,
+  playback: 400,
+  zoom: 500
+});
+
 /** Élément enregistré : sa définition, sa description et son rang d'ajout. */
 export type ToolbarEntry =
   | { readonly kind: 'button'; readonly definition: IToolbarButtonDefinition; readonly info: IToolbarItemInfo; readonly seq: number }

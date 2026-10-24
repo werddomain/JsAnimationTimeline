@@ -9,6 +9,7 @@ export {
   TOOLBAR_CLASS,
   TOOLBAR_MAIN_PLUGIN_ID,
   ToolbarError,
+  ToolbarGroupOrders,
   ToolbarMainPlugin,
   createToolbarMainPlugin
 } from './main';
