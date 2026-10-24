@@ -64,3 +64,20 @@ export type {
   LayerSelectionChangedEvent,
   SelectionMode
 } from './selection';
+export {
+  LAYERS_REORDER_PLUGIN_ID,
+  LAYER_MOVE_LABEL,
+  LayerReorderPlugin,
+  childrenOf,
+  computeDropTarget,
+  createMoveLayersCommand,
+  detachNodes,
+  findNodeLocation,
+  insertNodes,
+  isSameOrDescendant,
+  keyboardMoveTarget,
+  moveNodes,
+  sameArrangement,
+  topMostIds
+} from './reorder';
+export type { DetachResult, ILayerDropTarget, ILayerReorderService, IDropPlacement, NodeLocation } from './reorder';

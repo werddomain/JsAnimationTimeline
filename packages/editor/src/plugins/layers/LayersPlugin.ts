@@ -17,6 +17,7 @@
  * - `layers.lock` : cadenas de verrouillage (ligne et en-tête).
  * - `layers.target` : cible animée de chaque calque et alerte de cible manquante.
  * - `layers.selection` : la sélection multiple des calques et la navigation au clavier.
+ * - `layers.reorder` : le glisser-déposer des calques (ordre, entrée et sortie d'un dossier).
  *
  * Les tâches suivantes (Y6 à Y8) ajoutent leur plugin à `children`.
  */
@@ -30,6 +31,7 @@ import { TargetPlugin } from './target/TargetPlugin';
 import { RenamePlugin } from './rename/RenamePlugin';
 import { VisibilityPlugin } from './visibility/VisibilityPlugin';
 import { LayerSelectionPlugin } from './selection/LayerSelectionPlugin';
+import { LayerReorderPlugin } from './reorder/LayerReorderPlugin';
 
 /** Epic `layers` : liste des calques et ses fonctionnalités. */
 export class LayersPlugin implements EditorPlugin {
@@ -47,6 +49,7 @@ export class LayersPlugin implements EditorPlugin {
       new LockPlugin(),
       new TargetPlugin(),
       new LayerSelectionPlugin(),
+      new LayerReorderPlugin(),
     ];
   }
 
