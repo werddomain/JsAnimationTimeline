@@ -2,8 +2,8 @@
 /**
  * Plugin : layout.playhead
  * Epic : layout
- * Dépend de : layout.ruler, layout.scrollSync
- * Écoute : playhead:changed, document:loaded, document:changed, layout:scrolled
+ * Dépend de : layout.shell, layout.ruler, layout.scrollSync
+ * Écoute : playhead:changed, playback:pause, document:loaded, document:changed, layout:scrolled
  * Émet : —
  *
  * Tête de lecture, reprise de `legacy/ui/TimeRuler.ts` (déplacement) : un
@@ -21,7 +21,12 @@
  *   lecture en cours est mise en pause au début du glisser, comme dans Flash.
  * - Le repère est un curseur accessible (`role="slider"`) : flèches (une
  *   image), Page précédente / suivante (10 images), Début / Fin.
- * - Pendant la lecture, la zone des images défile pour garder la tête visible.
+ * - Quand la tête sort de la partie visible (lecture, clavier, `seek` d'un
+ *   autre plugin), la zone des images défile pour la montrer ; pas pendant
+ *   un glisser, qui suit le pointeur.
+ * - Un glisser suit un seul pointeur : un deuxième doigt est ignoré.
+ * - Pendant la lecture, la valeur du curseur accessible n'est mise à jour
+ *   qu'à la pause (pas soixante annonces par seconde).
  */
 
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
@@ -77,7 +82,7 @@ function keyTarget(key: string, frame: number, totalFrames: number): number | un
 /** Tête de lecture : repère sur la règle, ligne dans les images, glisser et clavier. */
 export class PlayheadPlugin implements EditorPlugin {
   readonly id = 'layout.playhead';
-  readonly dependencies: readonly string[] = ['layout.ruler', 'layout.scrollSync'];
+  readonly dependencies: readonly string[] = ['layout.shell', 'layout.ruler', 'layout.scrollSync'];
   readonly slot = LAYOUT_SLOTS.ruler;
 
   private ctx: IEditorContext | undefined;
@@ -92,6 +97,7 @@ export class PlayheadPlugin implements EditorPlugin {
         this.place(event.frame);
         if (this.stopDrag === undefined) this.follow(event.frame);
       }),
+      ctx.events.on('playback:pause', () => this.place(ctx.playback.frame)),
       ctx.events.on('document:loaded', () => this.place(ctx.playback.frame)),
       ctx.events.on('document:changed', () => this.place(ctx.playback.frame)),
       ctx.events.on('layout:scrolled', (state) => this.alignLine(state.scrollTop))
@@ -117,6 +123,7 @@ export class PlayheadPlugin implements EditorPlugin {
     this.elements = { ruler, head, line };
     this.listen(this.elements);
     this.place(ctx.playback.frame);
+    this.alignLine(ctx.services.get('layout.scrollSync')?.getScroll().scrollTop ?? 0);
   }
 
   destroy(): void {
@@ -151,6 +158,7 @@ export class PlayheadPlugin implements EditorPlugin {
     elements.head.style.left = `${frameLeft(frame, width)}px`;
     elements.head.style.width = `${width}px`;
     elements.line.style.left = `${frameCenter(frame, width)}px`;
+    if (ctx.playback.playing) return;
     elements.head.setAttribute('aria-valuemax', String(totalFrames));
     elements.head.setAttribute('aria-valuenow', String(frame));
     elements.head.setAttribute('aria-valuetext', `Image ${frame} sur ${totalFrames}`);
@@ -161,10 +169,10 @@ export class PlayheadPlugin implements EditorPlugin {
     if (this.elements !== undefined) this.elements.line.style.transform = `translateY(${scrollTop}px)`;
   }
 
-  /** Fait défiler la zone des images si l'image `frame` en sort pendant la lecture. */
+  /** Fait défiler la zone des images si l'image `frame` sort de la partie visible. */
   private follow(frame: number): void {
     const ctx = this.ctx;
-    if (ctx === undefined || !ctx.playback.playing) return;
+    if (ctx === undefined) return;
     const scroll = ctx.services.get('layout.scrollSync');
     if (scroll === undefined) return;
     const state = scroll.getScroll();
@@ -185,14 +193,20 @@ export class PlayheadPlugin implements EditorPlugin {
     const ctx = this.ctx;
     const elements = this.elements;
     if (ctx === undefined || elements === undefined || event.button !== PRIMARY_BUTTON) return;
+    // Un autre pointeur (deuxième doigt) pendant un glisser : ignoré.
+    if (this.stopDrag !== undefined) return;
     event.preventDefault();
-    this.stopDrag?.();
     if (ctx.playback.playing) ctx.playback.pause();
     elements.head.focus({ preventScroll: true });
     this.seek(this.ruler().frameAtClientX(event.clientX));
     const doc = elements.ruler.ownerDocument;
-    const onMove = (move: PointerEvent): void => this.seek(this.ruler().frameAtClientX(move.clientX));
-    const onEnd = (): void => this.stopDrag?.();
+    const pointerId = event.pointerId;
+    const onMove = (move: PointerEvent): void => {
+      if (move.pointerId === pointerId) this.seek(this.ruler().frameAtClientX(move.clientX));
+    };
+    const onEnd = (end: PointerEvent): void => {
+      if (end.pointerId === pointerId) this.stopDrag?.();
+    };
     doc.addEventListener('pointermove', onMove);
     doc.addEventListener('pointerup', onEnd);
     doc.addEventListener('pointercancel', onEnd);

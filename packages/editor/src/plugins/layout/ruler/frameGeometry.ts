@@ -59,9 +59,15 @@ export function labelStep(frameWidth: number): number {
   return step ?? LABEL_STEPS[LABEL_STEPS.length - 1] ?? 1;
 }
 
-/** Images étiquetées : l'image 1, puis chaque multiple de `step` jusqu'à `totalFrames`. */
-export function labelledFrames(totalFrames: number, step: number): number[] {
+/**
+ * Images étiquetées : l'image 1, puis chaque multiple de `step` jusqu'à
+ * `totalFrames`, sauf un multiple à moins de `MIN_LABEL_SPACING_PX` de
+ * l'image 1 (les deux étiquettes se chevaucheraient).
+ */
+export function labelledFrames(totalFrames: number, step: number, frameWidth: number): number[] {
   const frames = totalFrames >= 1 ? [1] : [];
-  for (let frame = step; frame <= totalFrames; frame += step) frames.push(frame);
+  for (let frame = step; frame <= totalFrames; frame += step) {
+    if (frameLeft(frame, frameWidth) >= MIN_LABEL_SPACING_PX) frames.push(frame);
+  }
   return frames;
 }

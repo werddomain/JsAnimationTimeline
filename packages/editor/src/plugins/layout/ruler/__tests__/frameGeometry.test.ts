@@ -64,8 +64,14 @@ describe('labels', () => {
 
   it('labels frame 1, then each multiple of the step', () => {
     // Assert
-    expect(labelledFrames(22, 5)).toEqual([1, 5, 10, 15, 20]);
-    expect(labelledFrames(3, 5)).toEqual([1]);
-    expect(labelledFrames(0, 5)).toEqual([]);
+    expect(labelledFrames(22, 5, 15)).toEqual([1, 5, 10, 15, 20]);
+    expect(labelledFrames(3, 5, 15)).toEqual([1]);
+    expect(labelledFrames(0, 5, 15)).toEqual([]);
+  });
+
+  it('drops a multiple too close to the label of frame 1', () => {
+    // Assert
+    expect(labelledFrames(30, 10, 3)).toEqual([1, 20, 30]);
+    expect(labelledFrames(30, 5, 6)).toEqual([1, 10, 15, 20, 25, 30]);
   });
 });

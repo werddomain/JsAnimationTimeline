@@ -125,7 +125,7 @@ export class RulerPlugin implements EditorPlugin {
   }
 
   private frameAtClientX(clientX: number): number {
-    const totalFrames = this.ctx?.document.settings.totalFrames ?? 1;
+    const totalFrames = this.ctx?.playback.totalFrames ?? 1;
     const zone = this.zone;
     if (zone === undefined) return 1;
     const x = clientX - zone.getBoundingClientRect().left + zone.scrollLeft;
@@ -137,7 +137,7 @@ export class RulerPlugin implements EditorPlugin {
     const element = this.element;
     const ctx = this.ctx;
     if (element === undefined || ctx === undefined) return;
-    const totalFrames = ctx.document.settings.totalFrames;
+    const totalFrames = ctx.playback.totalFrames;
     if (this.drawn?.totalFrames === totalFrames && this.drawn.frameWidth === this.width) return;
     element.style.width = `${timelineWidth(totalFrames, this.width)}px`;
     element.style.setProperty(FRAME_WIDTH_VAR, `${this.width}px`);
@@ -146,7 +146,7 @@ export class RulerPlugin implements EditorPlugin {
   }
 
   private labels(doc: Document, totalFrames: number): HTMLElement[] {
-    return labelledFrames(totalFrames, labelStep(this.width)).map((frame) => {
+    return labelledFrames(totalFrames, labelStep(this.width), this.width).map((frame) => {
       const label = doc.createElement('span');
       label.classList.add(RULER_LABEL_CLASS);
       label.style.left = `${frameLeft(frame, this.width)}px`;

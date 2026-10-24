@@ -88,6 +88,25 @@ describe('layout.playhead rendering', () => {
     expect(head.getAttribute('aria-valuenow')).toBe('5');
   });
 
+  it('keeps the slider value still while playing, and updates it on pause', () => {
+    // Arrange
+    const { editor, head, tick } = setup();
+    editor.playback.play();
+    tick();
+
+    // Act
+    tick(500);
+    const whilePlaying = head.getAttribute('aria-valuenow');
+    const moved = head.style.left;
+    editor.playback.pause();
+    tick();
+
+    // Assert
+    expect(whilePlaying).toBe('1');
+    expect(moved).not.toBe('0px');
+    expect(head.getAttribute('aria-valuenow')).toBe(String(editor.playback.frame));
+  });
+
   it('updates the slider range when the number of frames changes', () => {
     // Arrange
     const { editor, head } = setup(100);
@@ -172,6 +191,27 @@ describe('layout.playhead pointer', () => {
     expect(editor.playback.frame).toBe(1);
   });
 
+  it('follows a single pointer: a second finger is ignored', () => {
+    // Arrange
+    const { editor, zone, tick } = setup();
+    const touch = (type: string, clientX: number, pointerId: number): Event => {
+      const event = pointer(type, clientX);
+      Object.defineProperty(event, 'pointerId', { value: pointerId });
+      return event;
+    };
+    zone('ruler').dispatchEvent(touch('pointerdown', 100 + 15 * 2, 1));
+
+    // Act
+    zone('ruler').dispatchEvent(touch('pointerdown', 100 + 15 * 30, 2));
+    document.dispatchEvent(touch('pointermove', 100 + 15 * 40, 2));
+    document.dispatchEvent(touch('pointerup', 0, 2));
+    document.dispatchEvent(touch('pointermove', 100 + 15 * 5, 1));
+    tick();
+
+    // Assert
+    expect(editor.playback.frame).toBe(6);
+  });
+
   it('ends a drag on pointercancel', () => {
     // Arrange
     const { editor, zone, tick } = setup();
@@ -236,16 +276,39 @@ describe('layout.playhead follow', () => {
     expect(zone('frames').scrollLeft).toBe((frame - 1 - FOLLOW_MARGIN_FRAMES) * 15);
   });
 
-  it('does not scroll on a seek while paused', () => {
+  it('shows the head after a paused seek or a key that leaves the view', () => {
     // Arrange
-    const { editor, zone, tick } = setup();
+    const { editor, zone, head, tick } = setup();
     makeScrollable(zone('frames'), { scrollWidth: 1500, scrollHeight: 200, clientWidth: 150, clientHeight: 200 });
 
     // Act
     editor.playback.seek(60);
     tick();
+    const afterSeek = zone('frames').scrollLeft;
+    head.dispatchEvent(key('Home'));
+    tick();
 
     // Assert
+    expect(afterSeek).toBe((60 - 1 - FOLLOW_MARGIN_FRAMES) * 15);
+    expect(zone('frames').scrollLeft).toBe(0);
+  });
+
+  it('does not scroll while the head is visible or being dragged', () => {
+    // Arrange
+    const { editor, zone, tick } = setup();
+    makeScrollable(zone('frames'), { scrollWidth: 1500, scrollHeight: 200, clientWidth: 150, clientHeight: 200 });
+
+    // Act
+    editor.playback.seek(8);
+    tick();
+    const visible = zone('frames').scrollLeft;
+    zone('ruler').dispatchEvent(pointer('pointerdown', 100));
+    document.dispatchEvent(pointer('pointermove', 100 + 15 * 40));
+    tick();
+
+    // Assert
+    expect(visible).toBe(0);
+    expect(editor.playback.frame).toBe(41);
     expect(zone('frames').scrollLeft).toBe(0);
   });
 });
