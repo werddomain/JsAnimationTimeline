@@ -127,3 +127,15 @@ describe('ajv and validateDocument agree', () => {
     expect(validateDocument(json, { allowLiveTargets: false }).length).toBeGreaterThan(0);
   });
 });
+
+/**
+ * Known divergence: the schema pattern accepts any cubic-bezier numbers, while
+ * validateDocument also requires x1 and x2 in [0, 1] (semantic easing check).
+ */
+describe('known divergence between ajv and validateDocument', () => {
+  it('only validateDocument rejects a cubic-bezier with x outside [0, 1]', () => {
+    const json = roundTrip(makeDoc({}, { easing: 'cubic-bezier(2, 0, 0, 1)' }));
+    expect(ajvValidate(json)).toBe(true);
+    expect(validateDocument(json, { allowLiveTargets: false }).map((issue) => issue.code)).toEqual(['invalid-easing']);
+  });
+});

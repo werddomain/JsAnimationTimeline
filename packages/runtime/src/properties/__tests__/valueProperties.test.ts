@@ -5,7 +5,7 @@
  */
 
 import { computeCssDeclarations } from '../compose';
-import { floorInterpolator, interpolators, roundInterpolator, stepInterpolator } from '../interpolators';
+import { floorInterpolator, getInterpolator, interpolators, roundInterpolator, stepInterpolator } from '../interpolators';
 import { assertValidDescriptor, createPropertyRegistry } from '../PropertyRegistry';
 import { isCssProperty } from '../types';
 import type { IValuePropertyDescriptor, PropertyDescriptor } from '../types';
@@ -17,6 +17,13 @@ const FRAME_INDEX: IValuePropertyDescriptor = {
 const VOLUME: IValuePropertyDescriptor = { name: 'volume', kind: 'value', unit: '%', defaultValue: 100, min: 0, max: 100 };
 
 describe('interpolators', () => {
+  it('looks interpolators up by name without reaching Object.prototype', () => {
+    expect(getInterpolator('floor')).toBe(floorInterpolator);
+    expect(getInterpolator('constructor')).toBeUndefined();
+    expect(getInterpolator('toString')).toBeUndefined();
+    expect(getInterpolator('__proto__')).toBeUndefined();
+  });
+
   it('step holds the start value until t reaches 1', () => {
     expect([0, 0.5, 0.999, 1, 1.2].map((t) => stepInterpolator(2, 8, t))).toEqual([2, 2, 2, 8, 8]);
     expect(stepInterpolator(2, 8, -0.5)).toBe(2);

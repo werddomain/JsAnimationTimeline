@@ -23,6 +23,7 @@ describe('properties entry point', () => {
       'defaultPropertyRegistry',
       'floorInterpolator',
       'formatCssValue',
+      'getInterpolator',
       'interpolateValue',
       'interpolators',
       'isCssProperty',

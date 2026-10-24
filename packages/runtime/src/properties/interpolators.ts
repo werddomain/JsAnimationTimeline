@@ -33,3 +33,13 @@ export const interpolators: Readonly<Record<InterpolatorName, PropertyInterpolat
   floor: floorInterpolator,
   round: roundInterpolator
 });
+
+/**
+ * Ready-made interpolator called `name`, or `undefined` for any other name
+ * (`constructor`, `toString`, `__proto__`... never reach `Object.prototype`).
+ */
+export function getInterpolator(name: string): PropertyInterpolator | undefined {
+  return Object.prototype.hasOwnProperty.call(interpolators, name)
+    ? interpolators[name as InterpolatorName]
+    : undefined;
+}

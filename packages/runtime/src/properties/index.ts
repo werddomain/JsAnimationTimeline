@@ -26,7 +26,7 @@ export {
   registerProperty
 } from './PropertyRegistry';
 export { clampValue, CSS_VALUE_PRECISION, formatCssValue, interpolateValue, lerp, roundCssNumber } from './values';
-export { floorInterpolator, interpolators, roundInterpolator, stepInterpolator } from './interpolators';
+export { floorInterpolator, getInterpolator, interpolators, roundInterpolator, stepInterpolator } from './interpolators';
 export type { InterpolatorName } from './interpolators';
 export { composeTransform, computeCssDeclarations, cssNameToCamelCase } from './compose';
 export type { CssDeclarations } from './compose';
