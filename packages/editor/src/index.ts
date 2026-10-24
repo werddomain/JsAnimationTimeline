@@ -167,9 +167,22 @@ export type {
 } from './plugins/layers';
 
 // Plugins des images (epic `frames`) : grille des plages et des images clés.
-export { FRAMES_GRID_CLASSES, FRAMES_GRID_PLUGIN_ID, FramesGridPlugin, FramesPlugin } from './plugins/frames';
+export {
+  FRAMES_GRID_CLASSES,
+  FRAMES_GRID_PLUGIN_ID,
+  FRAMES_SELECTION_CLASSES,
+  FRAMES_SELECTION_PLUGIN_ID,
+  FramesGridPlugin,
+  FramesPlugin,
+  FramesSelectionPlugin
+} from './plugins/frames';
 export type {
   FramesGridRenderedEvent,
+  FramesSelectionChangedEvent,
+  IFrameCell,
+  IFramesSelectionService,
+  ISelectedKeyframe,
+  SelectedKeyframeKind,
   GridMarkKind,
   GridSegmentKind,
   IFrameRange,
