@@ -13,14 +13,16 @@
  * - `layers.rename` : renommage sur place des calques et des dossiers.
  * - `layers.visibility` : œil de visibilité (ligne et en-tête).
  * - `layers.lock` : cadenas de verrouillage (ligne et en-tête).
+ * - `layers.target` : cible animée de chaque calque et alerte de cible manquante.
  * - `layers.selection` : la sélection multiple des calques et la navigation au clavier.
  *
- * Les tâches suivantes (Y3, Y4, Y6 à Y8) ajoutent leur plugin à `children`.
+ * Les tâches suivantes (Y3, Y6 à Y8) ajoutent leur plugin à `children`.
  */
 
 import type { EditorPlugin } from '../../core/context/IEditorContext';
 import { LayerListPlugin } from './list/LayerListPlugin';
 import { LockPlugin } from './lock/LockPlugin';
+import { TargetPlugin } from './target/TargetPlugin';
 import { RenamePlugin } from './rename/RenamePlugin';
 import { VisibilityPlugin } from './visibility/VisibilityPlugin';
 import { LayerSelectionPlugin } from './selection/LayerSelectionPlugin';
@@ -37,6 +39,7 @@ export class LayersPlugin implements EditorPlugin {
       new RenamePlugin(),
       new VisibilityPlugin(),
       new LockPlugin(),
+      new TargetPlugin(),
       new LayerSelectionPlugin(),
     ];
   }
