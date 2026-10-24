@@ -63,7 +63,12 @@ export interface IEditorStage {
    *   arrière, avertissements, `stage:targetsChanged`) : seul son rendu est
    *   retenu ;
    * - la lecture passe outre (une retenue oubliée ne fige jamais la
-   *   lecture), et l'arrêt de la lecture rend l'image d'arrêt.
+   *   lecture), et l'arrêt de la lecture rend l'image d'arrêt ;
+   * - deux cas du `StageHost` passent aussi outre, car ils remettent une
+   *   scène dans un état cohérent : le retour arrière d'un document refusé
+   *   (`StageDocumentError`), et la nouvelle résolution des cibles
+   *   (`refreshTargets`, `targets.subscribe`), qui font `update`, `sync` et
+   *   `render` des scènes concernées à l'instant courant.
    *
    * `flush()` rattrape tout de suite l'image courante (une seule fois s'il
    * n'y a rien de nouveau) ; le dernier `release()` fait de même. Plusieurs

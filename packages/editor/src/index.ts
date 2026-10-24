@@ -355,3 +355,13 @@ export {
   ZoomControlPlugin,
   createZoomControlPlugin
 } from './plugins/toolbar';
+
+// Plugin playback.livePreview : aperçu de la scène pendant le glisser de la tête de lecture.
+export {
+  DEFAULT_PREVIEW_MAX_FPS,
+  LIVE_PREVIEW_MODES,
+  LIVE_PREVIEW_PLUGIN_ID,
+  LivePreviewPlugin,
+  createLivePreviewPlugin
+} from './plugins/playback';
+export type { ILivePreviewApi, ILivePreviewOptions, LivePreviewMode, PreviewChangedEvent } from './plugins/playback';

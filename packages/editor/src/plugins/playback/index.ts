@@ -9,3 +9,11 @@ export {
   PlaybackControlsPlugin,
   createPlaybackControlsPlugin
 } from './controls';
+export {
+  DEFAULT_PREVIEW_MAX_FPS,
+  LIVE_PREVIEW_MODES,
+  LIVE_PREVIEW_PLUGIN_ID,
+  LivePreviewPlugin,
+  createLivePreviewPlugin
+} from './livePreview';
+export type { ILivePreviewApi, ILivePreviewOptions, LivePreviewMode, PreviewChangedEvent } from './livePreview';

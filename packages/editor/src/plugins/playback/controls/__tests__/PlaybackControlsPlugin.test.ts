@@ -93,7 +93,7 @@ describe('playback.controls rendering', () => {
 
     // Assert
     expect(ids.indexOf('playback')).toBeGreaterThan(ids.indexOf('toolbar'));
-    expect(new PlaybackPlugin().children.map((child) => child.id)).toEqual(['playback.controls']);
+    expect(new PlaybackPlugin().children.map((child) => child.id)).toEqual(['playback.controls', 'playback.livePreview']);
   });
 });
 
