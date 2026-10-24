@@ -9,8 +9,9 @@
  * Sélection des images et des images clés de la grille, reprise de
  * `legacy/core/SelectionManager.ts` et du clic de `legacy/ui/TimelineGrid.ts`
  * (`addFrameClickHandler`) :
- * - clic seul : sélectionne seulement l'image cliquée et y déplace la tête
- *   de lecture ;
+ * - clic seul : sélectionne seulement l'image cliquée ; au relâchement, la
+ *   tête de lecture y va (jamais pendant l'appui, qui ferait défiler la vue) ;
+ * - au toucher, la sélection suit un tap (relâché sans bouger) ;
  * - Ctrl / Cmd + clic : ajoute l'image ou la retire ;
  * - Maj + clic : rectangle de l'ancre à l'image cliquée (Ctrl + Maj : ajouté
  *   à la sélection) ;
@@ -66,6 +67,12 @@ export const FRAMES_SELECTION_CLASSES = Object.freeze({
 
 /** Fonction vide (aucun relâchement en attente). */
 const NO_OP = (): void => undefined;
+
+/** Touches modificatrices d'un clic (Cmd compte comme Ctrl). */
+interface IClickModifiers {
+  readonly ctrl: boolean;
+  readonly shift: boolean;
+}
 
 /** Bouton principal de la souris. */
 const PRIMARY_BUTTON = 0;
@@ -138,50 +145,77 @@ export class FramesSelectionPlugin implements EditorPlugin {
 
   private onPointerDown(event: PointerEvent): void {
     if (event.button !== PRIMARY_BUTTON) return;
-    const ctx = this.requireContext();
-    const cell = ctx.services.require('frames.grid').cellAt(event.clientX, event.clientY);
+    const cell = this.requireContext().services.require('frames.grid').cellAt(event.clientX, event.clientY);
     if (cell === undefined) return;
     const target: IFrameCell = { rowId: cell.rowId, frame: cell.frame };
-    const ctrl = event.ctrlKey || event.metaKey;
-    if (event.shiftKey) {
-      // Pas de sélection de texte du navigateur sur Maj+clic.
-      event.preventDefault();
-      this.apply((rows, total) => selectRectangle(this.state, target, ctrl, rows, total));
-    } else if (ctrl) {
+    const click: IClickModifiers = { ctrl: event.ctrlKey || event.metaKey, shift: event.shiftKey };
+    // Pas de sélection de texte du navigateur sur Maj+clic.
+    if (click.shift) event.preventDefault();
+    // Toucher : la sélection suit un tap (relâché sans bouger), pas l'appui.
+    const tap = event.pointerType === 'touch';
+    // Appui sur une image d'une sélection de plusieurs images (comme Flash) : elle
+    // reste entière pour un glisser (K2) et se réduit à cette image au relâchement.
+    const keepForDrag = !click.ctrl && !click.shift && this.state.cells.length > 1 && this.keys.has(cellKey(target));
+    if (!tap && !keepForDrag) this.applyClick(target, click);
+    this.trackRelease(event.pointerId, target, () => {
+      if (tap) this.applyClick(target, click);
+      else if (keepForDrag) this.apply((rows, total) => selectOnly(target, rows, total));
+      this.seekTo(target);
+    });
+  }
+
+  /** Applique un clic (seul, Ctrl, Maj, Ctrl+Maj) sur `target`. */
+  private applyClick(target: IFrameCell, click: IClickModifiers): void {
+    if (click.shift) {
+      this.apply((rows, total) => selectRectangle(this.state, target, click.ctrl, rows, total));
+    } else if (click.ctrl) {
       this.apply((rows, total) => toggleCell(this.state, target, rows, total));
-    } else if (this.keys.has(cellKey(target)) && this.state.cells.length > 1) {
-      // Appui sur une image déjà sélectionnée (comme Flash) : la sélection reste
-      // entière pour un glisser (K2) ; elle se réduit à cette image au relâchement
-      // si le pointeur est toujours dessus.
-      this.collapseOnRelease(target);
     } else {
       this.apply((rows, total) => selectOnly(target, rows, total));
     }
-    // Comme le legacy (`movePlayheadOnFrameClick`) et Flash : la tête de lecture suit
-    // le clic, seulement si l'image cliquée est (encore) sélectionnée.
-    if (this.keys.has(cellKey(target)) && cell.frame !== ctx.playback.frame) ctx.playback.seek(cell.frame);
   }
 
-  /** Au prochain relâchement du bouton, sélectionne seulement `target` si le pointeur est encore dessus. */
-  private collapseOnRelease(target: IFrameCell): void {
-    const doc = this.overlay?.ownerDocument;
-    if (doc === undefined) return;
+  /**
+   * Comme le legacy (`movePlayheadOnFrameClick`) et Flash : la tête de lecture
+   * suit le clic, au relâchement (un `seek` pendant l'appui ferait défiler la
+   * vue sous le pointeur), seulement si l'image est sélectionnée.
+   */
+  private seekTo(target: IFrameCell): void {
+    const playback = this.ctx?.playback;
+    if (playback === undefined || !this.keys.has(cellKey(target))) return;
+    if (target.frame !== playback.frame) playback.seek(target.frame);
+  }
+
+  /**
+   * Suit le relâchement du pointeur `pointerId` (phase de capture, sur tout le
+   * document) : `onClick` est appelé s'il est relâché sur `target` (un clic,
+   * pas un glisser). Annulé par `pointercancel` ou une perte de capture.
+   */
+  private trackRelease(pointerId: number, target: IFrameCell, onClick: () => void): void {
+    const overlay = this.overlay;
+    const grid = overlay?.parentElement;
+    if (overlay === undefined || grid === null || grid === undefined) return;
     this.cancelRelease();
+    const doc = overlay.ownerDocument;
     const onUp = (up: PointerEvent): void => {
+      if (up.pointerId !== pointerId) return;
       this.cancelRelease();
       const cell = this.ctx?.services.get('frames.grid')?.cellAt(up.clientX, up.clientY);
-      if (cell?.rowId === target.rowId && cell.frame === target.frame) {
-        this.apply((rows, total) => selectOnly(target, rows, total));
-      }
+      if (cell?.rowId === target.rowId && cell.frame === target.frame) onClick();
     };
-    doc.addEventListener('pointerup', onUp);
+    const onCancel = (cancel: PointerEvent): void => {
+      if (cancel.pointerId === pointerId) this.cancelRelease();
+    };
+    doc.addEventListener('pointerup', onUp, true);
+    doc.addEventListener('pointercancel', onCancel, true);
+    grid.addEventListener('lostpointercapture', onCancel);
     this.cancelRelease = () => {
-      doc.removeEventListener('pointerup', onUp);
+      doc.removeEventListener('pointerup', onUp, true);
+      doc.removeEventListener('pointercancel', onCancel, true);
+      grid.removeEventListener('lostpointercapture', onCancel);
       this.cancelRelease = NO_OP;
     };
   }
-
-
 
   /** Calcule le nouvel état sur les lignes et la durée courantes, puis le publie. */
   private apply(next: (rows: readonly IVisibleRow[], totalFrames: number) => IFrameSelectionState): void {
@@ -217,16 +251,16 @@ export class FramesSelectionPlugin implements EditorPlugin {
     const nodes = new Map<string, LayerNode>();
     walkLayers(doc.layers, ({ node }) => void nodes.set(node.id, node));
     const { totalFrames } = doc.settings;
-    return this.state.cells.flatMap((cell) => {
-      const node = nodes.get(cell.rowId);
+    // Une seule recherche des marques par suite d'images contiguës (et non par cellule).
+    return cellRuns(this.state.cells).flatMap((run) => {
+      const node = nodes.get(run.rowId);
       if (node === undefined) return [];
-      const marks = rowMarks(node, totalFrames, { first: cell.frame, last: cell.frame });
-      const mark = marks.find((candidate): candidate is IGridMark & { kind: SelectedKeyframeKind } =>
-        candidate.kind !== 'spanEnd'
-      );
-      return mark === undefined ? [] : [{ rowId: cell.rowId, frame: cell.frame, kind: mark.kind, spanId: mark.spanId }];
+      return rowMarks(node, totalFrames, { first: run.first, last: run.last })
+        .filter((mark): mark is IGridMark & { kind: SelectedKeyframeKind } => mark.kind !== 'spanEnd')
+        .map((mark) => ({ rowId: run.rowId, frame: mark.frame, kind: mark.kind, spanId: mark.spanId }));
     });
   }
+
 
   /** Redessine les rectangles de la sélection dans la fenêtre dessinée par la grille. */
   private draw(): void {

@@ -50,7 +50,8 @@ export interface IFramesSelectionService {
   toggle(cell: IFrameCell): void;
   /**
    * Sélectionne le rectangle de l'ancre à `to` (Maj+clic), en remplaçant la
-   * sélection ou, si `additive`, en la complétant. Sans ancre : comme `select`.
+   * sélection ou, si `additive`, en la complétant. Sans ancre : comme
+   * `select`, ou, si `additive`, `to` est ajoutée et devient l'ancre.
    */
   selectRange(to: IFrameCell, additive?: boolean): void;
   /** Remplace la sélection par `cells` (cellules invalides ignorées) ; l'ancre va sur la dernière. */

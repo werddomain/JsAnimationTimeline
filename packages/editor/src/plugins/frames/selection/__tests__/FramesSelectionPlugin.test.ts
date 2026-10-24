@@ -95,22 +95,31 @@ interface IClick {
   readonly meta?: boolean;
   readonly shift?: boolean;
   readonly button?: number;
+  readonly pointerType?: string;
 }
 
 /** Appui (ou, avec `type`, autre événement de pointeur) sur l'image `frame` de la ligne `rowIndex`. */
 function press(grid: HTMLElement, rowIndex: number, frame: number, click: IClick = {}, type = 'pointerdown'): boolean {
-  return grid.dispatchEvent(
-    new MouseEvent(type, {
-      bubbles: true,
-      cancelable: true,
-      clientX: GRID_LEFT + (frame - 1) * FRAME + 3,
-      clientY: GRID_TOP + rowIndex * ROW + 3,
-      button: click.button ?? 0,
-      ctrlKey: click.ctrl ?? false,
-      metaKey: click.meta ?? false,
-      shiftKey: click.shift ?? false
-    })
-  );
+  const event = new MouseEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    clientX: GRID_LEFT + (frame - 1) * FRAME + 3,
+    clientY: GRID_TOP + rowIndex * ROW + 3,
+    button: click.button ?? 0,
+    ctrlKey: click.ctrl ?? false,
+    metaKey: click.meta ?? false,
+    shiftKey: click.shift ?? false
+  });
+  // jsdom n'a pas de PointerEvent : les champs du pointeur sont ajoutés à la main.
+  Object.defineProperty(event, 'pointerId', { value: 1 });
+  Object.defineProperty(event, 'pointerType', { value: click.pointerType ?? 'mouse' });
+  return grid.dispatchEvent(event);
+}
+
+/** Clic complet (appui puis relâchement au même endroit). */
+function click(grid: HTMLElement, rowIndex: number, frame: number, modifiers: IClick = {}): void {
+  press(grid, rowIndex, frame, modifiers);
+  press(grid, rowIndex, frame, modifiers, 'pointerup');
 }
 
 function keys(selection: IFramesSelectionService): string[] {
@@ -133,8 +142,11 @@ describe('frames.selection clicks', () => {
 
     // Act
     press(grid, 0, 6);
+    const frameWhilePressed = editor.playback.frame;
+    press(grid, 0, 6, {}, 'pointerup');
 
-    // Assert
+    // Assert : la tête de lecture ne bouge qu'au relâchement.
+    expect(frameWhilePressed).toBe(1);
     expect(keys(selection)).toEqual(['a:6']);
     expect(selection.anchor()).toEqual({ rowId: 'a', frame: 6 });
     expect(editor.playback.frame).toBe(6);
@@ -236,17 +248,68 @@ describe('frames.selection clicks', () => {
   it('does not move the playhead when the click selects nothing there', () => {
     // Arrange
     const { editor, grid } = setup();
-    press(grid, 0, 2);
-    press(grid, 0, 8, { ctrl: true });
+    click(grid, 0, 2);
+    click(grid, 0, 8, { ctrl: true });
 
     // Act : Ctrl+clic qui retire l'image 8, puis clic sur un dossier.
-    press(grid, 0, 8, { ctrl: true });
+    click(grid, 0, 8, { ctrl: true });
     const afterDeselect = editor.playback.frame;
-    press(grid, 1, 12);
+    click(grid, 1, 12);
 
     // Assert
     expect(afterDeselect).toBe(8);
     expect(editor.playback.frame).toBe(8);
+  });
+
+  it('neither moves the playhead nor scrolls while pressing an edge frame of a multiple selection', () => {
+    // Arrange : la zone montre les images 1 à 41, la 41 coupée par le bord droit.
+    const { editor, grid, frames, scheduler, selection } = setup(doc([layer('a')], 100));
+    makeScrollable(frames, { scrollWidth: 1500, scrollHeight: 300, clientWidth: 41 * FRAME - 5, clientHeight: 300 });
+    scheduler.flush();
+    selection.set([38, 39, 40, 41].map((frame) => ({ rowId: 'a', frame })));
+
+    // Act
+    press(grid, 0, 41);
+    scheduler.flush();
+    const during = { frame: editor.playback.frame, scrollLeft: frames.scrollLeft, cells: keys(selection) };
+    press(grid, 0, 41, {}, 'pointerup');
+
+    // Assert
+    expect(during).toEqual({ frame: 1, scrollLeft: 0, cells: ['a:38', 'a:39', 'a:40', 'a:41'] });
+    expect(keys(selection)).toEqual(['a:41']);
+    expect(editor.playback.frame).toBe(41);
+  });
+
+  it('selects on a tap for touch, not on the press', () => {
+    // Arrange
+    const { grid, selection } = setup();
+
+    // Act
+    press(grid, 0, 4, { pointerType: 'touch' });
+    const whilePressed = keys(selection);
+    press(grid, 0, 4, { pointerType: 'touch' }, 'pointerup');
+
+    // Assert
+    expect(whilePressed).toEqual([]);
+    expect(keys(selection)).toEqual(['a:4']);
+  });
+
+  it('does nothing on release after a pointercancel', () => {
+    // Arrange
+    const { editor, grid, selection } = setup();
+    selection.set([
+      { rowId: 'a', frame: 2 },
+      { rowId: 'a', frame: 3 }
+    ]);
+
+    // Act
+    press(grid, 0, 3);
+    press(grid, 0, 3, {}, 'pointercancel');
+    press(grid, 0, 3, {}, 'pointerup');
+
+    // Assert
+    expect(keys(selection)).toEqual(['a:2', 'a:3']);
+    expect(editor.playback.frame).toBe(1);
   });
 
   it('prevents the native text selection on Shift+click', () => {

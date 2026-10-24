@@ -132,7 +132,8 @@ export function rectangleCells(
 /**
  * Maj+clic : rectangle de l'ancre à `to`, en remplaçant la sélection ou, si
  * `additive` (Ctrl+Maj), en la complétant. L'ancre ne bouge pas. Sans ancre
- * valide : comme un clic seul.
+ * valide : comme un clic seul, ou, si `additive`, `to` est ajoutée et devient
+ * l'ancre.
  */
 export function selectRectangle(
   state: IFrameSelectionState,
@@ -141,9 +142,12 @@ export function selectRectangle(
   rows: readonly IVisibleRow[],
   totalFrames: number
 ): IFrameSelectionState {
-  const anchor = state.anchor;
-  if (anchor === undefined || !isSelectableCell(anchor, rows, totalFrames)) return selectOnly(to, rows, totalFrames);
   if (!isSelectableCell(to, rows, totalFrames)) return state;
+  const anchor = state.anchor;
+  if (anchor === undefined || !isSelectableCell(anchor, rows, totalFrames)) {
+    if (!additive) return selectOnly(to, rows, totalFrames);
+    return { cells: normalize([...state.cells, to], rows, totalFrames), anchor: { rowId: to.rowId, frame: to.frame } };
+  }
   const rectangle = rectangleCells(anchor, to, rows, totalFrames);
   return { cells: normalize(additive ? [...state.cells, ...rectangle] : rectangle, rows, totalFrames), anchor };
 }
