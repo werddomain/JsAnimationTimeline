@@ -10,13 +10,15 @@
  * plugins de fonctionnalité, enregistrés avec lui par l'hôte (et toujours
  * initialisés après lui) :
  * - `frames.grid` : la grille des plages et des images clés de chaque ligne ;
- * - `frames.selection` : la sélection des images et des images clés.
+ * - `frames.selection` : la sélection des images et des images clés ;
+ * - `frames.keyframes` : F5 / F6 / F7 et le glisser des images clés.
  *
- * Les tâches suivantes (K2, K3) ajoutent leur plugin à `children`.
+ * Les tâches suivantes (K3) ajoutent leur plugin à `children`.
  */
 
 import type { EditorPlugin } from '../../core/context/IEditorContext';
 import { FramesGridPlugin } from './grid/FramesGridPlugin';
+import { FramesKeyframesPlugin } from './keyframes/FramesKeyframesPlugin';
 import { FramesSelectionPlugin } from './selection/FramesSelectionPlugin';
 
 /** Epic `frames` : grille des images, sélection et leurs fonctionnalités. */
@@ -26,7 +28,7 @@ export class FramesPlugin implements EditorPlugin {
   readonly children: readonly EditorPlugin[];
 
   constructor() {
-    this.children = [new FramesGridPlugin(), new FramesSelectionPlugin()];
+    this.children = [new FramesGridPlugin(), new FramesSelectionPlugin(), new FramesKeyframesPlugin()];
   }
 
   readonly init = (): void => {};

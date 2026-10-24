@@ -37,7 +37,8 @@ import { PlaybackController } from '../playback/PlaybackController';
 import { createPlaybackFacade } from '../playback/playbackFacade';
 import { PluginHost } from '../plugin/PluginHost';
 import { EditorStageHost } from '../stage/EditorStageHost';
-import { createDefaultHtmlStage, resolveUserStages } from '../stage/resolveStages';
+import { createEditorHtmlStage } from '../stage/editorHtmlStage';
+import { resolveUserStages } from '../stage/resolveStages';
 import { createStageFacade } from '../stage/stageFacade';
 import type { StageErrorHandler } from '../stage/types';
 import { ROOT_SLOT } from '../plugin/SlotRegistry';
@@ -82,15 +83,15 @@ const reportStageError: StageErrorHandler = (error) => {
   console.error("[JsTimeLine] Erreur d'une scène :", error);
 };
 
-/** Branche les scènes : celles du développeur, ou la scène HTML par défaut qui exclut `element`. */
+/** Branche les scènes : celles du développeur, ou la scène HTML par défaut, qui exclut `container` et l'éditeur. */
 function createStageHost(
-  parts: Pick<IEditorParts, 'bus' | 'store' | 'registry' | 'playback' | 'element'>,
+  parts: Pick<IEditorParts, 'bus' | 'store' | 'registry' | 'playback'>,
   userStages: ReturnType<typeof resolveUserStages>,
   options: EditorOptions,
   container: HTMLElement
 ): EditorStageHost {
-  const { bus, store, registry, playback, element } = parts;
-  const stages = userStages ?? [createDefaultHtmlStage(options.root ?? container.ownerDocument, element)];
+  const { bus, store, registry, playback } = parts;
+  const stages = userStages ?? [createEditorHtmlStage(container, { root: options.root ?? container.ownerDocument })];
   const onError = options.onStageError ?? reportStageError;
   const stageHost = new EditorStageHost({ bus, store, stages, registry, onError, now: () => playback.now });
   playback.attachStage(stageHost);
@@ -117,7 +118,7 @@ function createParts(container: HTMLElement, options: EditorOptions): IEditorPar
   const element = createRootElement(container);
   let stageHost: EditorStageHost | undefined;
   try {
-    stageHost = createStageHost({ bus, store, registry, playback, element }, userStages, options, container);
+    stageHost = createStageHost({ bus, store, registry, playback }, userStages, options, container);
     host.slots.define(ROOT_SLOT, element);
     const lifecycle = new EditorLifecycle();
     const assertActive = (operation: string): void => lifecycle.assertActive(operation);
