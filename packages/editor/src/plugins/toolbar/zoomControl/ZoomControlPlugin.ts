@@ -13,6 +13,9 @@
  * - un curseur continu sur la même plage (échelle logarithmique), dont les
  *   graduations sont les paliers du service `layout.zoom`.
  *
+ * « Ajuster à la fenêtre » est sans effet tant que la vue n'est pas affichée
+ * (largeur visible nulle).
+ *
  * Le zoom passe uniquement par le service `layout.zoom` : ce plugin ne
  * connaît pas la largeur d'une image. C'est un réglage de vue, sans commande
  * ni entrée d'historique. Les deux contrôles suivent `zoom:changed` : un zoom
@@ -25,9 +28,11 @@ import '../../layout/zoom/zoomEvents';
 import { ToolbarGroupOrders } from '../main/ToolbarItems';
 import {
   fitZoom,
+  formatCustomZoom,
   formatZoom,
   presetsWithin,
   sameZoom,
+  SLIDER_STEP,
   sliderRange,
   sliderToZoom,
   zoomToSlider
@@ -52,8 +57,10 @@ let ticksCount = 0;
 /** Éléments du contrôle rendu. */
 interface IZoomControlView {
   readonly select: HTMLSelectElement;
+  /** Option d'un zoom hors préréglages : dans la liste seulement quand elle sert. */
   readonly custom: HTMLOptionElement;
   readonly slider: HTMLInputElement;
+  readonly presets: readonly number[];
 }
 
 function option(doc: Document, value: string, text: string): HTMLOptionElement {
@@ -111,9 +118,8 @@ export class ZoomControlPlugin implements EditorPlugin {
     select.setAttribute('aria-label', 'Niveau de zoom');
     select.title = 'Niveau de zoom';
     const custom = option(doc, CUSTOM_OPTION_VALUE, '');
-    custom.hidden = true;
-    select.appendChild(custom);
-    presetsWithin(range).forEach((preset) => select.appendChild(option(doc, String(preset), formatZoom(preset))));
+    const presets = presetsWithin(range);
+    presets.forEach((preset) => select.appendChild(option(doc, String(preset), formatZoom(preset))));
     select.appendChild(option(doc, FIT_OPTION_VALUE, 'Ajuster à la fenêtre'));
 
     const bounds = sliderRange(range);
@@ -122,8 +128,8 @@ export class ZoomControlPlugin implements EditorPlugin {
     slider.classList.add(`${ZOOM_CONTROL_CLASS}__slider`);
     slider.min = String(zoomToSlider(bounds.min));
     slider.max = String(zoomToSlider(bounds.max));
-    slider.step = '1';
-    slider.setAttribute('aria-label', 'Zoom de la règle');
+    slider.step = String(SLIDER_STEP);
+    slider.setAttribute('aria-label', 'Zoom continu');
     ticksCount += 1;
     const ticks = doc.createElement('datalist');
     ticks.id = `${ZOOM_CONTROL_CLASS}-ticks-${ticksCount}`;
@@ -147,7 +153,7 @@ export class ZoomControlPlugin implements EditorPlugin {
     };
     select.addEventListener('change', onSelect);
     slider.addEventListener('input', onSlide);
-    this.view = { select, custom, slider };
+    this.view = { select, custom, slider, presets };
     this.update();
     return () => {
       select.removeEventListener('change', onSelect);
@@ -160,9 +166,13 @@ export class ZoomControlPlugin implements EditorPlugin {
   private fit(zoom: IZoomApi): void {
     const ctx = this.ctx;
     if (ctx === null) return;
-    const frames = ctx.services.get('layout.shell')?.zone('frames');
+    // Même largeur visible que celle dont `layout.zoom` se sert pour ses ancrages.
+    const visibleWidth =
+      ctx.services.get('layout.scrollSync')?.getScroll().viewportWidth ??
+      ctx.services.get('layout.shell')?.zone('frames')?.clientWidth ??
+      0;
     const target = fitZoom(
-      frames?.clientWidth ?? 0,
+      visibleWidth,
       ctx.document.settings.totalFrames,
       zoom.baseFrameWidth(),
       zoom.range()
@@ -176,13 +186,20 @@ export class ZoomControlPlugin implements EditorPlugin {
     const zoom = this.ctx?.services.get('layout.zoom');
     if (view === null || zoom === undefined) return;
     const current = zoom.zoom();
-    const label = formatZoom(current);
-    const preset = Array.from(view.select.options).find(
-      (item) => item !== view.custom && item.value !== FIT_OPTION_VALUE && sameZoom(Number(item.value), current)
-    );
-    view.custom.hidden = preset !== undefined;
-    view.custom.textContent = label;
-    view.select.value = preset?.value ?? CUSTOM_OPTION_VALUE;
+    const preset = view.presets.find((value) => sameZoom(value, current));
+    const label = preset === undefined ? formatCustomZoom(current, view.presets) : formatZoom(preset);
+    if (preset === undefined) {
+      // Zoom hors préréglages : une option à sa place dans l'ordre croissant.
+      view.custom.textContent = label;
+      const next = Array.from(view.select.options).find(
+        (item) => item !== view.custom && (item.value === FIT_OPTION_VALUE || Number(item.value) > current)
+      );
+      view.select.insertBefore(view.custom, next ?? null);
+      view.select.value = CUSTOM_OPTION_VALUE;
+    } else {
+      view.custom.remove();
+      view.select.value = String(preset);
+    }
     view.slider.value = String(zoomToSlider(current));
     view.slider.setAttribute('aria-valuetext', label);
     view.slider.title = `Zoom : ${label}`;

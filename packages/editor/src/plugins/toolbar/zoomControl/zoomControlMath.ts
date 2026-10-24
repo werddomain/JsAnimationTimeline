@@ -13,8 +13,14 @@ import type { IZoomRange } from '../../layout/zoom/zoomLevels';
 /** Préréglages de la liste déroulante (rapport d'analyse, décision par défaut : 25 % à 400 %). */
 export const ZOOM_PRESETS: readonly number[] = Object.freeze([0.25, 0.5, 1, 2, 4]);
 
-/** Pas du curseur : un centième d'octave (2^0,01, environ 0,7 %). */
+/** Graduation interne du curseur : un centième d'octave (2^0,01, environ 0,7 %). */
 export const SLIDER_STEPS_PER_OCTAVE = 100;
+
+/**
+ * Pas du curseur au clavier et au glisser : 5 centièmes d'octave (environ
+ * 3,5 %). Les préréglages tombent sur des multiples de 100, donc sur un pas.
+ */
+export const SLIDER_STEP = 5;
 
 /** Écart sous lequel deux facteurs de zoom sont considérés égaux. */
 const EPSILON = 1e-6;
@@ -68,4 +74,14 @@ export function sameZoom(a: number, b: number): boolean {
 /** Libellé français d'un zoom, arrondi à l'unité (`1.5` -> `150 %`, espace insécable). */
 export function formatZoom(zoom: number): string {
   return `${Math.round(zoom * 100)}\u00a0%`;
+}
+
+/**
+ * Libellé d'un zoom hors préréglages : arrondi à l'unité, ou au dixième si
+ * l'unité le confondrait avec un préréglage (`0.998` -> `99,8 %`, pas `100 %`).
+ */
+export function formatCustomZoom(zoom: number, presets: readonly number[]): string {
+  const label = formatZoom(zoom);
+  if (!presets.some((preset) => formatZoom(preset) === label)) return label;
+  return `${(zoom * 100).toFixed(1).replace('.', ',')}\u00a0%`;
 }

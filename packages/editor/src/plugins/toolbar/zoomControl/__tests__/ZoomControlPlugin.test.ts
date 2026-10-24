@@ -56,9 +56,7 @@ function slide(slider: HTMLInputElement, value: number): void {
 }
 
 function visibleOptions(select: HTMLSelectElement): Array<string | null> {
-  return Array.from(select.options)
-    .filter((option) => !option.hidden)
-    .map((option) => option.textContent);
+  return Array.from(select.options).map((option) => option.textContent);
 }
 
 describe('toolbar.zoomControl rendering', () => {
@@ -72,17 +70,18 @@ describe('toolbar.zoomControl rendering', () => {
     expect(control?.getAttribute('aria-label')).toBe('Zoom de la règle');
     expect(select.getAttribute('aria-label')).toBe('Niveau de zoom');
     expect(visibleOptions(select)).toEqual([
-      '25 %',
-      '50 %',
-      '100 %',
-      '200 %',
-      '400 %',
+      '25\u00a0%',
+      '50\u00a0%',
+      '100\u00a0%',
+      '200\u00a0%',
+      '400\u00a0%',
       'Ajuster à la fenêtre'
     ]);
     expect(select.value).toBe('1');
-    expect(slider.getAttribute('aria-label')).toBe('Zoom de la règle');
+    expect(slider.getAttribute('aria-label')).toBe('Zoom continu');
+    expect(slider.step).toBe('5');
     expect([slider.min, slider.max, slider.value]).toEqual(['-200', '200', '0']);
-    expect(slider.getAttribute('aria-valuetext')).toBe('100 %');
+    expect(slider.getAttribute('aria-valuetext')).toBe('100\u00a0%');
   });
 
   it('marks the zoom service levels as slider ticks', () => {
@@ -111,7 +110,7 @@ describe('toolbar.zoomControl changes the zoom', () => {
     // Assert
     expect(zoom.zoom()).toBe(2);
     expect(slider.value).toBe('100');
-    expect(slider.getAttribute('aria-valuetext')).toBe('200 %');
+    expect(slider.getAttribute('aria-valuetext')).toBe('200\u00a0%');
   });
 
   it('zooms continuously with the slider and shows the value as a custom entry', () => {
@@ -119,15 +118,16 @@ describe('toolbar.zoomControl changes the zoom', () => {
     const { zoom, select, slider } = mount();
 
     // Act
-    slide(slider, 58);
+    slide(slider, 60);
 
     // Assert
-    expect(zoom.zoom()).toBeCloseTo(2 ** 0.58, 6);
+    expect(zoom.zoom()).toBeCloseTo(2 ** 0.6, 6);
     expect(select.value).toBe('custom');
-    expect(select.selectedOptions[0]?.textContent).toBe('149 %');
+    expect(select.selectedOptions[0]?.textContent).toBe('152\u00a0%');
+    expect(visibleOptions(select).indexOf('152\u00a0%')).toBe(3);
     slide(slider, 0);
     expect(select.value).toBe('1');
-    expect(visibleOptions(select)).not.toContain('149 %');
+    expect(visibleOptions(select)).not.toContain('152\u00a0%');
   });
 
   it('fits the whole duration in the visible width', () => {
@@ -167,15 +167,58 @@ describe('toolbar.zoomControl changes the zoom', () => {
     expect(slider.value).toBe('-100');
   });
 
-  it('adds no history entry', () => {
+  it('adds no history entry and changes no document', () => {
     // Arrange
     const { editor, select } = mount();
+    const events: string[] = [];
+    editor.on('history:changed', () => events.push('history'));
+    editor.on('document:changed', () => events.push('document'));
 
     // Act
     choose(select, '4');
 
     // Assert
+    expect(events).toEqual([]);
     expect(editor.canUndo).toBe(false);
+  });
+
+  it('anchors the list and the slider on the playhead, and fit on the centre', () => {
+    // Arrange
+    const { zoom, select, slider } = mount();
+    const setZoom = jest.spyOn(zoom, 'setZoom');
+
+    // Act
+    choose(select, '2');
+    slide(slider, 20);
+    choose(select, FIT_OPTION_VALUE);
+
+    // Assert
+    expect(setZoom.mock.calls.map((call) => call[1])).toEqual(['playhead', 'playhead', 'center']);
+  });
+
+  it('labels a zoom close to a preset with a decimal, so it never reads like that preset', () => {
+    // Arrange
+    const { zoom, select } = mount();
+
+    // Act
+    zoom.setZoom(0.998);
+
+    // Assert
+    expect(select.selectedOptions[0]?.textContent).toBe('99,8\u00a0%');
+  });
+
+  it('fits again when Ajuster is chosen twice, after the duration changed', () => {
+    // Arrange
+    const { editor, zoom, select } = mount(300);
+    choose(select, FIT_OPTION_VALUE);
+    const first = zoom.zoom();
+    editor.load({ ...editor.document, settings: { ...editor.document.settings, totalFrames: 120 } });
+
+    // Act
+    choose(select, FIT_OPTION_VALUE);
+
+    // Assert
+    expect(zoom.zoom()).toBeCloseTo(first / 2, 6);
   });
 });
 
@@ -188,11 +231,17 @@ describe('toolbar.zoomControl destroy', () => {
     const editor = createEditor(container, { defaultPlugins: toolbarBasePlugins({}, [plugin]) });
     const zoom = editor.getService('layout.zoom') as IZoomApi;
 
+    const select = editor.container.querySelector<HTMLSelectElement>('.jt-zoomControl__select') as HTMLSelectElement;
+    const setZoom = jest.spyOn(zoom, 'setZoom');
+
     // Act
     plugin.destroy();
     zoom.setZoom(2);
+    choose(select, '4');
 
     // Assert
     expect(editor.container.querySelector(`[data-toolbar-item="${ZOOM_CONTROL_PLUGIN_ID}"]`)).toBeNull();
+    expect(setZoom).toHaveBeenCalledTimes(1);
+    expect(zoom.zoom()).toBe(2);
   });
 });

@@ -9,9 +9,11 @@ export {
   createZoomControlPlugin
 } from './ZoomControlPlugin';
 export {
+  SLIDER_STEP,
   SLIDER_STEPS_PER_OCTAVE,
   ZOOM_PRESETS,
   fitZoom,
+  formatCustomZoom,
   formatZoom,
   presetsWithin,
   sliderRange,

@@ -56,8 +56,8 @@ describe('fitZoom', () => {
 describe('formatZoom', () => {
   it('writes a rounded percentage with a non-breaking space', () => {
     // Assert
-    expect(formatZoom(1)).toBe('100 %');
-    expect(formatZoom(0.25)).toBe('25 %');
-    expect(formatZoom(1 / 3)).toBe('33 %');
+    expect(formatZoom(1)).toBe('100\u00a0%');
+    expect(formatZoom(0.25)).toBe('25\u00a0%');
+    expect(formatZoom(1 / 3)).toBe('33\u00a0%');
   });
 });
