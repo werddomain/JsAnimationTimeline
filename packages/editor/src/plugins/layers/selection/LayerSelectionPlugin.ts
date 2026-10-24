@@ -24,8 +24,10 @@
  * `layers:selectionChanged` part chaque fois que l'ensemble des ids, l'ancre ou le
  * focus change (un déplacement du focus seul, avec Ctrl+flèche, l'émet aussi) ;
  * `ids` et `previous` sont dans l'ordre d'affichage. Charger un autre document
- * (`document:loaded`) vide la sélection, l'ancre et le focus : un nouveau
- * document peut réutiliser des ids.
+ * (`document:loaded`) vide la sélection et l'ancre en un seul événement : un
+ * nouveau document peut réutiliser des ids. Le focus est vidé aussi, sauf si le
+ * focus DOM était dans la liste : il passe alors sur la première ligne, dans le
+ * même événement.
  *
  * Élagage : à chaque `document:changed` (la liste a déjà annoncé ses lignes avec
  * `layers:rowsChanged`, qui ne fait que repeindre), la sélection perd les ids qui ne sont plus dans le
@@ -104,6 +106,10 @@ export class LayerSelectionPlugin implements EditorPlugin {
   private focusedElement: Element | undefined;
   /** Appui de souris en cours : a-t-il commencé hors de toute ligne ? `undefined` sans appui connu. */
   private pressedOnEmpty: boolean | undefined;
+  /** Où l'appui a été relâché : hors de toute ligne ? `undefined` sans relâchement connu. */
+  private releasedOnEmpty: boolean | undefined;
+  /** Ligne qui a reçu le focus pendant l'appui : le clic (ou la fin de l'appui) la reprend dans le modèle. */
+  private pendingFocus: Element | undefined;
   private pressTimer: ReturnType<typeof setTimeout> | undefined;
   private renderCleanups: Array<() => void> = [];
 
@@ -154,7 +160,7 @@ export class LayerSelectionPlugin implements EditorPlugin {
 
   /** Retire les écouteurs posés par `render` (avant un nouveau `render`, et à la destruction). */
   private releaseRender(): void {
-    this.pressedOnEmpty = undefined;
+    this.resetPress();
     this.clearPressTimer();
     const cleanups = this.renderCleanups;
     this.renderCleanups = [];
@@ -165,9 +171,27 @@ export class LayerSelectionPlugin implements EditorPlugin {
     const target = event.target;
     if (!(target instanceof Element)) return;
     this.focusedElement = target;
-    // Appui de souris en cours : le clic qui suit décidera (un seul événement par clic).
-    if (this.pressedOnEmpty !== undefined) return;
+    // Appui de souris en cours : le clic qui suit décidera (un seul événement par clic) ;
+    // si ce clic ne fait rien, `flushPendingFocus` reprend ce focus.
+    if (this.pressedOnEmpty !== undefined) {
+      this.pendingFocus = target;
+      return;
+    }
     this.syncRowFocus(target);
+  }
+
+  private resetPress(): void {
+    this.pressedOnEmpty = undefined;
+    this.releasedOnEmpty = undefined;
+    this.pendingFocus = undefined;
+    this.clearPressTimer();
+  }
+
+  /** Reprend dans le modèle le focus arrivé pendant l'appui qui vient de finir. */
+  private flushPendingFocus(): void {
+    const target = this.pendingFocus;
+    this.pendingFocus = undefined;
+    if (target !== undefined && this.list !== undefined) this.syncRowFocus(target);
   }
 
   /** Focus arrivé par un autre chemin (lecteur d'écran, autre plugin) : le tabindex suit. */
@@ -186,8 +210,8 @@ export class LayerSelectionPlugin implements EditorPlugin {
     this.clearPressTimer();
     if (this.pressedOnEmpty === undefined || this.list === undefined) return;
     this.pressedOnEmpty = undefined;
-    const active = this.list.element()?.ownerDocument.activeElement ?? null;
-    if (this.list.element()?.contains(active) === true) this.syncRowFocus(active);
+    this.releasedOnEmpty = undefined;
+    this.flushPendingFocus();
   }
 
   private clearPressTimer(): void {
@@ -198,7 +222,10 @@ export class LayerSelectionPlugin implements EditorPlugin {
 
   private listenPressEnd(doc: Document): void {
     // `mouseup` précède le `click` du même geste : la fin d'appui est différée d'un tour.
-    this.listen(doc, 'mouseup', () => {
+    this.listen(doc, 'mouseup', (event) => {
+      if (this.pressedOnEmpty !== undefined && this.list !== undefined) {
+        this.releasedOnEmpty = this.list.rowIdAt(event.target) === undefined;
+      }
       this.clearPressTimer();
       this.pressTimer = setTimeout(() => this.endPress(), 0);
     });
@@ -214,23 +241,36 @@ export class LayerSelectionPlugin implements EditorPlugin {
     this.pressedOnEmpty = this.requireList().rowIdAt(event.target) === undefined;
   }
 
-  /** Vrai si le clic qui finit a commencé dans l'espace vide (ou sans appui connu, clic synthétique) ; remet à zéro. */
+  /**
+   * Vrai si le clic qui finit a commencé ET fini dans l'espace vide (un clic
+   * sans appui connu, synthétique, compte comme vide) ; remet l'appui à zéro.
+   */
   private takePressedOnEmpty(): boolean {
-    const startedEmpty = this.pressedOnEmpty !== false;
+    const onEmpty = this.pressedOnEmpty !== false && this.releasedOnEmpty !== false;
     this.pressedOnEmpty = undefined;
-    return startedEmpty;
+    this.releasedOnEmpty = undefined;
+    this.clearPressTimer();
+    return onEmpty;
   }
 
   private onFocusOut(event: FocusEvent): void {
     const next = event.relatedTarget;
-    if (next instanceof Node && this.list?.element()?.contains(next) !== true) this.focusedElement = undefined;
+    const target = event.target;
+    const toOutside = next instanceof Node && this.list?.element()?.contains(next) !== true;
+    // Focus perdu sans destinataire alors que l'élément est encore là : ce n'est pas un retrait de ligne.
+    const toNothing = next === null && target instanceof Element && target.isConnected;
+    if (toOutside || toNothing) this.focusedElement = undefined;
   }
 
   /** Vrai si le focus DOM était dans la liste, ou sur un élément de la liste retiré depuis. */
   private listHeldFocus(): boolean {
     const element = this.focusedElement;
     if (element === undefined) return false;
-    const active = element.ownerDocument.activeElement;
+    const doc = element.ownerDocument;
+    const active = doc.activeElement;
+    const inListOrNowhere =
+      active === null || active === doc.body || this.list?.element()?.contains(active) === true;
+    if (!inListOrNowhere) return false;
     return !element.isConnected || active === element || element.contains(active);
   }
 
@@ -287,10 +327,10 @@ export class LayerSelectionPlugin implements EditorPlugin {
   private onLoaded(): void {
     const previousIds = orderedIds(this.state, this.knownRows.map((row) => row.id));
     this.knownRows = this.requireList().rows().map(toRef);
-    const held = this.listHeldFocus();
-    this.commit(EMPTY_SELECTION, previousIds);
-    const first = this.requireList().rows()[0];
-    if (held && first !== undefined) this.requireList().rowElement(first.id)?.focus({ preventScroll: true });
+    const first = this.requireList().rows()[0]?.id;
+    const focused = this.listHeldFocus() ? first : undefined;
+    this.commit({ ids: new Set(), anchor: undefined, focused }, previousIds);
+    if (focused !== undefined) this.requireList().rowElement(focused)?.focus({ preventScroll: true });
   }
 
   /** Élague la sélection d'après les lignes visibles. */
@@ -317,11 +357,19 @@ export class LayerSelectionPlugin implements EditorPlugin {
   }
 
   private onClick(event: MouseEvent): void {
+    const onEmpty = this.takePressedOnEmpty();
+    try {
+      this.handleClick(event, onEmpty);
+    } finally {
+      this.flushPendingFocus();
+    }
+  }
+
+  private handleClick(event: MouseEvent, pressOnEmpty: boolean): void {
     const target = event.target;
     if (!(target instanceof Element)) return;
     const list = this.requireList();
     const id = list.rowIdAt(target);
-    const startedEmpty = this.takePressedOnEmpty();
     if (target.closest(IGNORED_CLICK_SELECTOR) !== null) {
       // Repli ou contrôle : la sélection ne bouge pas, mais le clavier reste sur cette ligne.
       if (id !== undefined && target.closest(TEXT_INPUT_SELECTOR) === null) {
@@ -332,7 +380,7 @@ export class LayerSelectionPlugin implements EditorPlugin {
     }
     // Appui sur une ligne, relâché ailleurs (clic maladroit, glissement) : le clic arrive
     // sur la liste, pas sur une ligne ; on ne vide pas la sélection pour autant.
-    if (id === undefined && !startedEmpty) return;
+    if (id === undefined && !pressOnEmpty) return;
     const intent = resolveClick(
       { id, ctrl: event.ctrlKey || event.metaKey, shift: event.shiftKey },
       this.state.anchor
@@ -347,8 +395,9 @@ export class LayerSelectionPlugin implements EditorPlugin {
     const target = event.target;
     const zone = event.currentTarget;
     if (!(target instanceof Element) || !(zone instanceof Element)) return;
-    const startedEmpty = this.takePressedOnEmpty();
-    const onEmpty = startedEmpty && (target === zone || target.closest(`.${LAYER_LIST_CLASSES.empty}`) !== null);
+    const pressOnEmpty = this.takePressedOnEmpty();
+    this.flushPendingFocus();
+    const onEmpty = pressOnEmpty && (target === zone || target.closest(`.${LAYER_LIST_CLASSES.empty}`) !== null);
     if (!onEmpty || event.ctrlKey || event.metaKey || event.shiftKey) return;
     this.commit(clearSelection(this.state));
   }

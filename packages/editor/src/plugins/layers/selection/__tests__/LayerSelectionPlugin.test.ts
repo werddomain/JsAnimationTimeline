@@ -395,6 +395,43 @@ describe('mouse', () => {
     expect(h.selection.selected()).toEqual(['a']);
   });
 
+  it('replays the focus received during a press whose click does nothing (released elsewhere)', () => {
+    const h = setup();
+    h.selection.select(['a']);
+    h.events.length = 0;
+    mouseDown(row(h, 'c'));
+    row(h, 'c').focus();
+    document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    click(h.list.element() as Element);
+    expect(h.selection.selected()).toEqual(['a']);
+    expect(h.selection.focused()).toBe('c');
+    expect(row(h, 'c').tabIndex).toBe(0);
+    expect(row(h, 'a').tabIndex).toBe(-1);
+    expect(h.events).toEqual([{ ids: ['a'], previous: ['a'], anchor: 'a', focused: 'c' }]);
+  });
+
+  it('keeps the selection when a press on empty space is released over a row', () => {
+    const h = setup();
+    h.selection.select(['a', 'c']);
+    mouseDown(h.list.element() as Element);
+    row(h, 'b').dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    click((h.list.element() as HTMLElement).parentElement as Element);
+    expect(h.selection.selected()).toEqual(['a', 'c']);
+    mouseDown(h.list.element() as Element);
+    row(h, 'b').dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    click(h.list.element() as Element);
+    expect(h.selection.selected()).toEqual(['a', 'c']);
+  });
+
+  it('still clears when the press starts and ends on empty space', () => {
+    const h = setup();
+    h.selection.select(['a']);
+    mouseDown(h.list.element() as Element);
+    (h.list.element() as Element).dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    click(h.list.element() as Element);
+    expect(h.selection.selected()).toEqual([]);
+  });
+
   it('forgets a stale press: mousedown without click, then a click without mousedown on the zone clears', async () => {
     const h = setup();
     h.selection.select(['a']);
@@ -636,8 +673,29 @@ describe('pruning', () => {
   it('focuses the first row after a load when the list held the DOM focus', () => {
     const h = setup();
     click(row(h, 'b'));
+    h.events.length = 0;
     h.editor.load(doc([layer('x'), layer('y')]));
     expect(document.activeElement).toBe(row(h, 'x'));
+    expect(h.events).toEqual([{ ids: [], previous: ['b'], focused: 'x' }]);
+    expect(row(h, 'x').tabIndex).toBe(0);
+  });
+
+  it('does not steal the focus on load when it moved elsewhere', () => {
+    const h = setup();
+    click(row(h, 'b'));
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+    h.editor.load(doc([layer('x')]));
+    expect(document.activeElement).toBe(outside);
+  });
+
+  it('does not steal the focus on load after it left to nothing', () => {
+    const h = setup();
+    click(row(h, 'b'));
+    row(h, 'b').blur();
+    h.editor.load(doc([layer('x')]));
+    expect(document.activeElement).toBe(document.body);
   });
 
   it('does not move the focus on load when the list did not hold it', () => {
