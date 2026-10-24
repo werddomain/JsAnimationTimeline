@@ -61,6 +61,8 @@ export const WHEEL_STEP_PX = 50;
 export const WHEEL_IDLE_MS = 300;
 /** Lignes d'un cran de molette usuel (Firefox : 3 lignes). */
 export const WHEEL_NOTCH_LINES = 3;
+/** Pages d'un cran de molette en mode page. */
+export const WHEEL_NOTCH_PAGES = 1;
 /** `WheelEvent.DOM_DELTA_PIXEL`. */
 const WHEEL_DELTA_PIXEL = 0;
 /** `WheelEvent.DOM_DELTA_LINE`. */
@@ -68,10 +70,9 @@ const WHEEL_DELTA_LINE = 1;
 /** Marge d'arrondi sur un cumul de fractions (8 × 0,375 ligne = 3 lignes). */
 const EPSILON_WHEEL = 1e-9;
 
-/** Mouvement cumulé qui fait un palier, dans l'unité `deltaMode`. */
-function wheelThreshold(deltaMode: number): number {
-  if (deltaMode === WHEEL_DELTA_PIXEL) return WHEEL_STEP_PX;
-  return deltaMode === WHEEL_DELTA_LINE ? WHEEL_NOTCH_LINES : 1;
+/** Taille d'un cran en lignes ou en pages, dans l'unité `deltaMode`. */
+function wheelNotch(deltaMode: number): number {
+  return deltaMode === WHEEL_DELTA_LINE ? WHEEL_NOTCH_LINES : WHEEL_NOTCH_PAGES;
 }
 /** Événements du pincement de Safari. */
 const GESTURE_EVENTS: readonly string[] = ['gesturestart', 'gesturechange', 'gestureend'];
@@ -149,8 +150,9 @@ function assertZoom(value: number, name: string): void {
 /**
  * Options vérifiées : bornes cohérentes ; paliers triés et limités aux
  * bornes (`levels()` ne propose jamais une valeur que `setZoom` bornerait),
- * au moins un (sans paliers donnés et hors des paliers par défaut, les
- * bornes elles-mêmes ; avec des paliers donnés, une `RangeError`).
+ * au moins un. Sans paliers donnés, si les bornes coupent les paliers par
+ * défaut, les bornes s'y ajoutent ; avec des paliers donnés hors des bornes,
+ * une `RangeError`.
  */
 function resolveOptions(options: ZoomOptions): { range: IZoomRange; levels: readonly number[]; initial: number } {
   const min = options.minZoom ?? DEFAULT_MIN_ZOOM;
@@ -166,8 +168,10 @@ function resolveOptions(options: ZoomOptions): { range: IZoomRange; levels: read
   if (inBounds.length === 0 && options.levels !== undefined) {
     throw new RangeError(`layout.zoom : aucun palier entre minZoom (${min}) et maxZoom (${max}).`);
   }
-  // Bornes seules, sans paliers donnés, hors des paliers par défaut : les bornes servent de paliers.
-  const levels = inBounds.length > 0 ? inBounds : Array.from(new Set([min, max]));
+  // Sans paliers donnés, si des paliers par défaut sortent des bornes, les bornes deviennent des
+  // paliers : `{ minZoom: 4 }` donne [4, 8], la molette peut encore aller de l'un à l'autre.
+  const trimmed = options.levels === undefined && inBounds.length < given.length;
+  const levels = trimmed ? Array.from(new Set([min, ...inBounds, max])) : inBounds;
   const range = { min, max };
   return { range, levels: Object.freeze(levels), initial: clampZoom(initial, range) };
 }
@@ -295,17 +299,18 @@ export class ZoomPlugin implements EditorPlugin {
   }
 
   /**
-   * Ctrl / Cmd + molette, ancré sous le pointeur : un cran de souris fait un
-   * palier, qu'il arrive en un événement ou découpé en fractions.
-   * - En lignes : un événement d'au moins 1 ligne (le cran de 3 lignes de
-   *   Firefox) fait un palier tout de suite ; des fractions de ligne (roues
-   *   fines, anciens Firefox) s'additionnent jusqu'à `WHEEL_NOTCH_LINES`,
-   *   soit un cran entier.
-   * - En pages : un palier par page, fractions additionnées.
+   * Ctrl / Cmd + molette, ancré sous le pointeur.
+   * - En lignes ou en pages (cran de souris) : le premier événement d'un cran
+   *   fait un palier tout de suite ; la suite du cran est ignorée jusqu'à un
+   *   cran entier (`WHEEL_NOTCH_LINES` ou `WHEEL_NOTCH_PAGES`) ou jusqu'à une
+   *   pause de `WHEEL_IDLE_MS`. Un cran fait donc un palier, en un événement
+   *   (3 lignes dans Firefox) ou en morceaux (1,5 + 1,5 ; 8 × 0,375). Une
+   *   roue fine qui donne moins d'un cran entier par cran (8 × 0,125 ligne)
+   *   fait un palier par geste séparé d'une pause, et un toutes les 3 lignes
+   *   quand on la fait tourner sans pause.
    * - En pixels : un palier par `WHEEL_STEP_PX` cumulés (pincement d'un pavé
-   *   tactile).
-   * Le cumul repart de zéro au changement de sens ou d'unité, après chaque
-   * palier et après `WHEEL_IDLE_MS` sans mouvement.
+   *   tactile), pas avant.
+   * Un changement de sens ou d'unité commence toujours un nouveau cran.
    */
   private onWheel(event: WheelEvent): void {
     if (!(event.ctrlKey || event.metaKey) || event.deltaY === 0) return;
@@ -313,17 +318,23 @@ export class ZoomPlugin implements EditorPlugin {
     const idle = event.timeStamp - this.lastWheel > WHEEL_IDLE_MS;
     this.lastWheel = event.timeStamp;
     const direction = event.deltaY < 0 ? 1 : -1;
-    if (event.deltaMode === WHEEL_DELTA_LINE && Math.abs(event.deltaY) >= 1) {
+    const sameRun =
+      !idle && event.deltaMode === this.wheelMode && Math.sign(event.deltaY) === Math.sign(this.wheelTotal);
+    this.wheelMode = event.deltaMode;
+    if (event.deltaMode === WHEEL_DELTA_PIXEL) {
+      this.wheelTotal = (sameRun ? this.wheelTotal : 0) + event.deltaY;
+      if (Math.abs(this.wheelTotal) < WHEEL_STEP_PX - EPSILON_WHEEL) return;
       this.wheelTotal = 0;
       this.step(direction, event.clientX);
       return;
     }
-    const sameRun =
-      !idle && event.deltaMode === this.wheelMode && Math.sign(event.deltaY) === Math.sign(this.wheelTotal);
-    this.wheelMode = event.deltaMode;
-    this.wheelTotal = (sameRun ? this.wheelTotal : 0) + event.deltaY;
-    if (Math.abs(this.wheelTotal) < wheelThreshold(event.deltaMode) - EPSILON_WHEEL) return;
-    this.wheelTotal = 0;
+    // Lignes ou pages : un palier au début de chaque cran, le reste du cran est ignoré.
+    const notchDone = Math.abs(this.wheelTotal) >= wheelNotch(event.deltaMode) - EPSILON_WHEEL;
+    if (sameRun && !notchDone) {
+      this.wheelTotal += event.deltaY;
+      return;
+    }
+    this.wheelTotal = event.deltaY;
     this.step(direction, event.clientX);
   }
 
