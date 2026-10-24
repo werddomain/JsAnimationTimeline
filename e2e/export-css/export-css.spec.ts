@@ -22,7 +22,8 @@ const FRAMES = [1, 12, 24, 25, 30, 32, 33, 40, 48];
 interface IRenderedState {
   readonly tx: number;
   readonly ty: number;
-  readonly rotation: number;
+  /** Linear part of the transform matrix (rotation, scale, skew), compared without angle wrapping. */
+  readonly linear: readonly [number, number, number, number];
   readonly opacity: number;
   readonly visibility: string;
 }
@@ -40,7 +41,7 @@ async function renderedStates(page: Page): Promise<Record<string, IRenderedState
       states[selector] = {
         tx: matrix.m41,
         ty: matrix.m42,
-        rotation: (Math.atan2(matrix.m12, matrix.m11) * 180) / Math.PI,
+        linear: [matrix.m11, matrix.m12, matrix.m21, matrix.m22],
         opacity: Number(style.opacity),
         visibility: style.visibility
       };
@@ -111,7 +112,7 @@ test.describe('export CSS matches the runtime (scenario 12)', () => {
         expect(actual.visibility, `${selector} visibility`).toBe(expected.visibility);
         expect(actual.tx, `${selector} tx`).toBeCloseTo(expected.tx, 2);
         expect(actual.ty, `${selector} ty`).toBeCloseTo(expected.ty, 2);
-        expect(actual.rotation, `${selector} rotation`).toBeCloseTo(expected.rotation, 2);
+        actual.linear.forEach((value, i) => expect(value, `${selector} matrix[${i}]`).toBeCloseTo(expected.linear[i], 3));
         expect(actual.opacity, `${selector} opacity`).toBeCloseTo(expected.opacity, 3);
       }
     });
