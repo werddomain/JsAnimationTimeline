@@ -4,6 +4,7 @@
  * dossier, annulation, raccourcis Ctrl+G / Ctrl+Maj+G et nettoyage.
  */
 
+import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
 import { isFolder } from '@werddomain/timeline-runtime';
 import type { LayerNode } from '@werddomain/timeline-runtime';
 import { createEditor } from '../../../../core/editor/createEditor';
@@ -11,7 +12,7 @@ import { LayoutPlugin } from '../../../layout/LayoutPlugin';
 import { LayersPlugin } from '../../LayersPlugin';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';
 import type { IListHarness } from '../../list/__tests__/fixtures';
-import type { ILayerSelectionService } from '../../selection';
+import type { ILayerSelectionService, LayerSelectionChangedEvent } from '../../selection';
 import type { ILayerGroupsService } from '../types';
 
 afterEach(unmountAll);
@@ -24,8 +25,8 @@ interface IHarness extends IListHarness {
 /** f(a, g(b)), c : lignes visibles f, a, g, b, c. */
 const tree = doc([folder('f', [layer('a'), folder('g', [layer('b')])]), layer('c')]);
 
-function setup(data = tree): IHarness {
-  const harness = mount(data);
+function setup(data = tree, plugins: readonly EditorPlugin[] = []): IHarness {
+  const harness = mount(data, plugins);
   const groups = harness.editor.getService('layers.groups');
   const selection = harness.editor.getService('layers.selection');
   if (groups === undefined || selection === undefined) throw new Error('services absents');
@@ -176,6 +177,65 @@ describe('locks, undo and redo', () => {
   });
 });
 
+describe('focus and events', () => {
+  function recorder(events: LayerSelectionChangedEvent[]): EditorPlugin {
+    return {
+      id: 'test.selectionRecorder',
+      dependencies: ['layers.selection'],
+      init: (ctx: IEditorContext) => {
+        ctx.events.on('layers:selectionChanged', (event) => events.push(event));
+      },
+      destroy: () => undefined
+    };
+  }
+
+  it('keeps DOM focus on the new folder row after Ctrl+G on a non-contiguous selection', () => {
+    const h = setup();
+    h.selection.select(['a', 'c']);
+    const row = focusRow(h, 'c');
+    press(row, 'g', { ctrlKey: true });
+    const folderRow = h.list.rowElement('folder-1');
+    expect(document.activeElement).toBe(folderRow);
+    // Le clavier marche encore : Ctrl+Z annule le regroupement.
+    press(folderRow as Element, 'z', { ctrlKey: true });
+    expect(shapeOf(h)).toBe('f(a,g(b)),c');
+  });
+
+  it('does not steal focus when the list did not have it', () => {
+    const h = setup();
+    h.selection.select(['a', 'c']);
+    (document.activeElement as HTMLElement | null)?.blur();
+    h.groups.groupSelection();
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('focuses the last child row after ungroup', () => {
+    const h = setup();
+    h.selection.select(['f']);
+    focusRow(h, 'f');
+    h.groups.ungroup('f');
+    expect(document.activeElement).toBe(h.list.rowElement('g'));
+  });
+
+  it('emits a single layers:selectionChanged when ungrouping an expanded folder', () => {
+    const events: LayerSelectionChangedEvent[] = [];
+    const h = setup(tree, [recorder(events)]);
+    h.selection.select(['f']);
+    events.length = 0;
+    h.groups.ungroup('f');
+    expect(events).toHaveLength(1);
+    expect(events[0]?.ids).toEqual(['a', 'g']);
+  });
+});
+
+describe('ids', () => {
+  it('avoids span ids when numbering folders', () => {
+    const span = { id: 'folder-1', start: 1, end: 3, kind: 'static' as const };
+    const h = setup(doc([{ ...layer('a'), spans: [span] }]));
+    expect(h.groups.createFolder()).toBe('folder-2');
+  });
+});
+
 describe('default plugin set', () => {
   it('provides layers.groups after interaction.shortcuts', () => {
     const host = document.createElement('div');
@@ -229,11 +289,37 @@ describe('keyboard', () => {
     expect(shapeOf(h)).toBe('f(a,g(b)),c');
   });
 
-  it('registers the shortcuts and destroys cleanly', () => {
+  it('unregisters the shortcuts on destroy', () => {
     const h = setup();
     const shortcuts = h.editor.getService('interaction.shortcuts');
     expect(shortcuts?.lookup('Mod+G')?.id).toBe('layers.groups.group');
+    expect(shortcuts?.lookup('Mod+Shift+G')?.id).toBe('layers.groups.ungroup');
     h.editor.destroy();
-    expect(h.editor.isDestroyed).toBe(true);
+    expect(shortcuts?.lookup('Mod+G')).toBeUndefined();
+    expect(shortcuts?.lookup('Mod+Shift+G')).toBeUndefined();
+  });
+
+  it('keeps the first shortcut cleanable when another plugin already owns the second chord', () => {
+    const squatter: EditorPlugin = {
+      id: 'test.squatter',
+      dependencies: ['interaction.shortcuts'],
+      init: (ctx: IEditorContext) => {
+        ctx.services.require('interaction.shortcuts').register({
+          id: 'test.squatter.chord',
+          keys: 'Mod+Shift+G',
+          label: 'Autre',
+          run: () => true
+        });
+      },
+      destroy: () => undefined
+    };
+    const logged = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const h = setup(tree, [squatter]);
+    expect(logged).toHaveBeenCalled();
+    logged.mockRestore();
+    const shortcuts = h.editor.getService('interaction.shortcuts');
+    expect(shortcuts?.lookup('Mod+Shift+G')?.id).toBe('test.squatter.chord');
+    h.editor.destroy();
+    expect(shortcuts?.lookup('Mod+G')).toBeUndefined();
   });
 });

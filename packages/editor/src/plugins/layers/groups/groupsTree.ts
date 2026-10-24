@@ -45,9 +45,16 @@ export function nextFolderName(nodes: readonly LayerNode[]): string {
   return `${FOLDER_NAME_PREFIX} ${smallestFree(numbersWithPrefix(names, `${FOLDER_NAME_PREFIX} `))}`;
 }
 
-/** Id `folder-N`, N étant le plus petit numéro non utilisé par un id de l'arbre (déterministe). */
+/** Ids de l'arbre : ceux des nœuds et ceux des plages (les ids sont uniques sur les deux). */
+function allIds(nodes: readonly LayerNode[]): string[] {
+  return flattenLayers(nodes).flatMap(({ node }) =>
+    isFolder(node) ? [node.id] : [node.id, ...node.spans.map((span) => span.id)]
+  );
+}
+
+/** Id `folder-N`, N étant le plus petit numéro non utilisé par un id de l'arbre, plages comprises (déterministe). */
 export function nextFolderId(nodes: readonly LayerNode[]): string {
-  const ids = flattenLayers(nodes).map((visit) => visit.node.id);
+  const ids = allIds(nodes);
   return `${FOLDER_ID_PREFIX}${smallestFree(numbersWithPrefix(ids, FOLDER_ID_PREFIX))}`;
 }
 
