@@ -1,0 +1,18 @@
+// Sélection des images (frames.selection) : calque de décoration posé sur la
+// grille (.jt-grid), couleurs reprises du legacy (.selected : #4a90e2 / #2a70c2).
+// Il laisse passer les clics vers la grille.
+
+.JsTimeLine {
+  .jt-frame-selection {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .jt-frame-selection__run {
+    position: absolute;
+    box-sizing: border-box;
+    background-color: rgba(74, 144, 226, 0.45);
+    border: 1px solid #2a70c2;
+  }
+}

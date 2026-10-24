@@ -9,22 +9,24 @@
  * Epic des images de la timeline. Il ne fait rien lui-même : il regroupe ses
  * plugins de fonctionnalité, enregistrés avec lui par l'hôte (et toujours
  * initialisés après lui) :
- * - `frames.grid` : la grille des plages et des images clés de chaque ligne.
+ * - `frames.grid` : la grille des plages et des images clés de chaque ligne ;
+ * - `frames.selection` : la sélection des images et des images clés.
  *
- * Les tâches suivantes (G2, K2, K3) ajoutent leur plugin à `children`.
+ * Les tâches suivantes (K2, K3) ajoutent leur plugin à `children`.
  */
 
 import type { EditorPlugin } from '../../core/context/IEditorContext';
 import { FramesGridPlugin } from './grid/FramesGridPlugin';
+import { FramesSelectionPlugin } from './selection/FramesSelectionPlugin';
 
-/** Epic `frames` : grille des images et ses fonctionnalités. */
+/** Epic `frames` : grille des images, sélection et leurs fonctionnalités. */
 export class FramesPlugin implements EditorPlugin {
   readonly id = 'frames';
   readonly dependencies: readonly string[] = [];
   readonly children: readonly EditorPlugin[];
 
   constructor() {
-    this.children = [new FramesGridPlugin()];
+    this.children = [new FramesGridPlugin(), new FramesSelectionPlugin()];
   }
 
   readonly init = (): void => {};
