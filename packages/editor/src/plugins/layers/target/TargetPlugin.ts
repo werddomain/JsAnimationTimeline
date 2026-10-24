@@ -2,7 +2,7 @@
 /**
  * Plugin : layers.target
  * Epic : layers
- * Dépend de : layers.list (contrôles de ligne), noyau `ctx.stage` (C7)
+ * Dépend de : layers.list
  * Écoute : editor:ready, stage:targetsChanged, document:changed, document:loaded
  * Émet : —
  *
@@ -21,6 +21,13 @@
  * changent (`stage:targetsChanged`, dont `refreshTargets`). Aucune alerte en
  * mode timeline seule (`stage: false`) ni pour un calque sans cible. La cible
  * ne change jamais l'icône du calque.
+ *
+ * Lit aussi le noyau `ctx.stage` (C7) et réutilise les combinaisons
+ * d'annuler / rétablir de `history.undoRedo` et la lecture des touches de
+ * `interaction.shortcuts` (constantes et fonctions pures, voir
+ * `historyKeys.ts`) sans dépendre de ces plugins. Une scène qui lève dans
+ * `describe` ou `listTargets` ne casse pas la liste : on retombe sur le
+ * sélecteur ou la ref.
  *
  * Service `layers.target` : `setTarget`, `alert`, `open`, `close`.
  */
@@ -69,6 +76,16 @@ declare module '../../../core/context/IEditorContext' {
   }
 }
 
+/** Libellé de `target` par la scène, ou `undefined` (scène qui lève, libellé qui n'est pas un texte). */
+function stageLabel(ctx: IEditorContext, target: LayerTarget): string | undefined {
+  try {
+    const label = ctx.stage.describe(target)?.label;
+    return typeof label === 'string' && label !== '' ? label : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Texte d'une cible : sélecteur, ou ref suivie de sa scène. */
 function targetText(target: LayerTarget): string {
   if (isSelectorTarget(target)) return target.selector;
@@ -78,7 +95,7 @@ function targetText(target: LayerTarget): string {
 
 /** Cible des calques. */
 export class TargetPlugin implements EditorPlugin {
-  readonly id = LAYERS_TARGET_PLUGIN_ID;
+  readonly id = 'layers.target';
   readonly dependencies: readonly string[] = ['layers.list'];
 
   private cleanups: Array<() => void> = [];
@@ -97,16 +114,14 @@ export class TargetPlugin implements EditorPlugin {
       alert: (id) => computeTargetAlert(ctx.stage, id, layerOf(id)?.target),
       open: (id) => {
         const button = control.button(id);
-        if (button === undefined) return false;
-        this.openPopup(ctx, id, button, service);
-        return true;
+        return button !== undefined && this.openPopup(ctx, id, button, service);
       },
       close: () => this.closePopup(false)
     };
     const control: ITargetControl = createTargetControl({
       id: LAYERS_TARGET_PLUGIN_ID,
       order: TARGET_CONTROL_ORDER,
-      describe: (target) => (target === undefined ? NO_TARGET_TEXT : ctx.stage.describe(target)?.label ?? targetText(target)),
+      describe: (target) => (target === undefined ? NO_TARGET_TEXT : stageLabel(ctx, target) ?? targetText(target)),
       alertOf: service.alert,
       onActivate: (id, button) => {
         if (this.popup?.layerId === id) this.closePopup(true);
@@ -136,11 +151,11 @@ export class TargetPlugin implements EditorPlugin {
     cleanups.forEach((cleanup) => cleanup());
   }
 
-  private openPopup(ctx: IEditorContext, layerId: string, button: HTMLButtonElement, service: ILayerTargetService): void {
+  /** Ouvre la fenêtre du calque `layerId` ; `false` si ce n'est pas un calque. */
+  private openPopup(ctx: IEditorContext, layerId: string, button: HTMLButtonElement, service: ILayerTargetService): boolean {
     this.closePopup(false);
     const layer = findNodeById(ctx.document.layers, layerId);
-    if (layer === undefined || !isLayer(layer)) return;
-    button.setAttribute('aria-expanded', 'true');
+    if (layer === undefined || !isLayer(layer)) return false;
     const view = openTargetPopup({
       stage: ctx.stage,
       parent: ctx.container,
@@ -157,6 +172,8 @@ export class TargetPlugin implements EditorPlugin {
       }
     });
     this.popup = { layerId, view };
+    button.setAttribute('aria-expanded', 'true');
+    return true;
   }
 
   private closePopup(restoreFocus: boolean): void {

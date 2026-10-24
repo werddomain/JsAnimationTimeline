@@ -162,6 +162,7 @@ describe('target popup: pick on the stage', () => {
 
     // Act
     pickButton(dialog).click();
+    expect(stage.picks).toHaveLength(1);
     stage.picks[0]?.resolve({ ref: 'tree', stage: 'canvas' });
     await flushPromises();
 
@@ -178,6 +179,7 @@ describe('target popup: pick on the stage', () => {
 
     // Act
     pickButton(dialog).click();
+    expect(stage.picks).toHaveLength(1);
     stage.picks[0]?.resolve(null);
     await flushPromises();
 
@@ -228,6 +230,7 @@ describe('target popup: pick on the stage', () => {
 
     // Act
     pickButton(dialog).click();
+    expect(stage.picks).toHaveLength(1);
     stage.picks[0]?.resolve({ element: document.createElement('div') });
     await flushPromises();
 
@@ -248,5 +251,64 @@ describe('target popup: pick on the stage', () => {
     // Assert
     expect(button.disabled).toBe(true);
     expect(stage.picks).toHaveLength(0);
+  });
+});
+
+describe('target popup: review follow-ups', () => {
+  it('starts exactly one pick, and Escape inside the popup aborts only the pick', () => {
+    // Arrange
+    const stage = createFakeStage();
+    const { host } = mountTarget({ stage });
+    const dialog = open(host);
+    const button = pickButton(dialog);
+
+    // Act
+    button.click();
+    button.click();
+    press(button, 'Escape');
+
+    // Assert
+    expect(stage.picks).toHaveLength(1);
+    expect(stage.picks[0]?.signal?.aborted).toBe(true);
+    expect(popup(host)).not.toBeNull();
+    expect(document.activeElement).toBe(button);
+  });
+
+  it('shows a message when pick rejects', async () => {
+    // Arrange
+    const stage = createFakeStage();
+    const { editor, host } = mountTarget({ stage });
+    const dialog = open(host);
+
+    // Act
+    pickButton(dialog).click();
+    expect(stage.picks).toHaveLength(1);
+    stage.picks[0]?.reject(new Error('caméra'));
+    await flushPromises();
+
+    // Assert
+    expect(dialog.querySelector('[role="status"]')?.textContent).toMatch(/échoué/);
+    expect(editor.canUndo).toBe(false);
+    expect(popup(host)).not.toBeNull();
+  });
+
+  it('keeps working with a stage whose list and describe throw', () => {
+    // Arrange
+    const stage = createFakeStage();
+    const targets = stage.targets as { list: () => never; describe: () => never };
+    targets.list = () => {
+      throw new Error('liste');
+    };
+    targets.describe = () => {
+      throw new Error('describe');
+    };
+    const { host } = mountTarget({ stage, onStageError: () => undefined });
+
+    // Act
+    const dialog = open(host);
+
+    // Assert
+    expect(targetButton(host, 'hero').getAttribute('aria-label')).toBe('Cible de « Héros » : hero (canvas)');
+    expect(dialog.querySelector('.jt-target-popup__empty')).not.toBeNull();
   });
 });

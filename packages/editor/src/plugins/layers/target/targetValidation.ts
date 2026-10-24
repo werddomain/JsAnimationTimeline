@@ -49,10 +49,20 @@ export function checkTargetShape(value: unknown): IValidationIssue[] {
     .map((issue) => ({ ...issue, path: issue.path.slice(TARGET_PATH.length) }));
 }
 
-/** Copie simple de `value` si c'est une cible enregistrable, `undefined` sinon. */
+/** Vrai si `value` est une cible enregistrable (forme de F06, jamais d'élément vivant). */
+export function isSavableTarget(value: unknown): value is SerializableLayerTarget {
+  return checkTargetShape(value).length === 0;
+}
+
+/**
+ * Copie simple de `value` si c'est une cible enregistrable, `undefined`
+ * sinon. Les propriétés propres sont d'abord copiées, puis la copie est
+ * contrôlée et relue : un accesseur ou un prototype ne peut pas changer la
+ * cible entre le contrôle et l'enregistrement.
+ */
 export function toSavableTarget(value: unknown): SerializableLayerTarget | undefined {
-  if (checkTargetShape(value).length > 0) return undefined;
-  const target = value as SerializableLayerTarget;
-  if ('selector' in target) return { selector: target.selector };
-  return target.stage === undefined ? { ref: target.ref } : { ref: target.ref, stage: target.stage };
+  const snapshot = typeof value === 'object' && value !== null ? { ...value } : value;
+  if (!isSavableTarget(snapshot)) return undefined;
+  if ('selector' in snapshot) return { selector: snapshot.selector };
+  return snapshot.stage === undefined ? { ref: snapshot.ref } : { ref: snapshot.ref, stage: snapshot.stage };
 }

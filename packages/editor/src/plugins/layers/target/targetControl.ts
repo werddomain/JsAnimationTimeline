@@ -14,6 +14,7 @@
 import { isLayer } from '@werddomain/timeline-runtime';
 import type { LayerTarget } from '@werddomain/timeline-runtime';
 import type { ILayerRow, ILayerRowControl } from '../list/types';
+import { isHistoryChord } from './historyKeys';
 import type { ITargetAlert } from './targetAlert';
 
 /** Classes du bouton de cible. */
@@ -69,8 +70,12 @@ export function createTargetControl(options: ITargetControlOptions): ITargetCont
     button.classList.add(TARGET_BUTTON_CLASSES.button);
     button.setAttribute('aria-haspopup', 'dialog');
     button.setAttribute('aria-expanded', 'false');
-    // La ligne ne doit pas réagir (sélection, clavier) : touches, pointeur et clic ne concernent que la cible.
-    (['keydown', 'mousedown', 'pointerdown'] as const).forEach((type) =>
+    // La ligne ne doit pas réagir (sélection, clavier) : touches, pointeur et clic ne concernent que la cible,
+    // sauf annuler / rétablir, qui restent des raccourcis de l'éditeur.
+    button.addEventListener('keydown', (event) => {
+      if (!isHistoryChord(event)) event.stopPropagation();
+    });
+    (['mousedown', 'pointerdown'] as const).forEach((type) =>
       button.addEventListener(type, (event) => event.stopPropagation())
     );
     button.addEventListener('click', (event) => {

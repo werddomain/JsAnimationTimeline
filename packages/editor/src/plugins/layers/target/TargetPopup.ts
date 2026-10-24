@@ -14,17 +14,19 @@
  * (Tab), sur un clic extérieur, ou à la demande du plugin (calque supprimé,
  * destruction). Pendant un choix sur la scène, le clic extérieur et la perte
  * du focus ne la ferment pas (l'utilisateur clique justement sur la scène) ;
- * Échap abandonne alors le choix.
+ * Échap, où que soit le focus, abandonne alors seulement le choix et rend le
+ * focus au bouton « Choisir sur la scène » (sans atteindre les raccourcis).
  *
  * Les touches pressées dans la fenêtre ne remontent pas aux raccourcis de
- * l'éditeur, sauf annuler / rétablir (Ctrl+Z, Ctrl+Y, Ctrl+Maj+Z).
+ * l'éditeur, sauf annuler / rétablir (Ctrl+Z, Ctrl+Y, Ctrl+Maj+Z). Une scène
+ * qui lève dans `listTargets` ou `describe` donne une liste vide ou le libellé
+ * brut ; une erreur de `pick` affiche un message.
  */
 
 import { sameTarget } from '@werddomain/timeline-runtime';
-import type { IStageTargets, LayerTarget } from '@werddomain/timeline-runtime';
+import type { IStageTargets, ITargetInfo, LayerTarget } from '@werddomain/timeline-runtime';
 import type { IEditorStage } from '../../../core/stage/types';
-import { UndoRedoKeys } from '../../history/undoRedo/UndoRedoPlugin';
-import { chordToString, chordsFromEvent, parseChord } from '../../interaction/shortcuts/keyChord';
+import { isHistoryChord } from './historyKeys';
 import { targetFromInput } from './targetValidation';
 import type { ITargetInput } from './targetValidation';
 
@@ -48,20 +50,14 @@ export const TargetPopupLabels = Object.freeze({
   refused: 'Cette cible ne peut pas être enregistrée (un sélecteur CSS ou une référence seulement).'
 });
 
-/** Classes de la fenêtre. */
+/** Classe de la fenêtre (préfixe des classes de ses parties). */
 export const TARGET_POPUP_CLASS = 'jt-target-popup';
-
-/** Chaînes canoniques des raccourcis annuler / rétablir, laissées remonter. */
-const HISTORY_CHORDS = new Set(
-  [UndoRedoKeys.UNDO, ...UndoRedoKeys.REDO].map((keys) => chordToString(parseChord(keys)))
-);
 
 /** Événements gardés dans la fenêtre (la ligne et la sélection n'y réagissent pas). */
 const ISOLATED_EVENTS = ['click', 'dblclick', 'mousedown', 'pointerdown', 'keyup'] as const;
 
-function isHistoryChord(event: KeyboardEvent): boolean {
-  return chordsFromEvent(event).some((chord) => HISTORY_CHORDS.has(chordToString(chord)));
-}
+/** Cibles d'une scène qui sait faire choisir un objet. */
+type PickingTargets = IStageTargets & Required<Pick<IStageTargets, 'pick'>>;
 
 /** Ce que la fenêtre reçoit du plugin. */
 export interface ITargetPopupOptions {
@@ -72,7 +68,7 @@ export interface ITargetPopupOptions {
   readonly anchor: HTMLElement;
   readonly layerName: string;
   readonly current: LayerTarget | undefined;
-  /** Enregistre la cible ; `false` si elle est refusée (forme) ou inchangée. */
+  /** Enregistre la cible : appliquée, inchangée, ou refusée (forme). */
   readonly apply: (target: unknown) => 'applied' | 'unchanged' | 'refused';
   /** Appelé une fois, à la fermeture. */
   readonly onClose: () => void;
@@ -88,8 +84,14 @@ export interface ITargetPopup {
 interface IPopupParts {
   readonly element: HTMLElement;
   readonly status: HTMLElement;
-  readonly pick: HTMLButtonElement;
+  readonly pickButton: HTMLButtonElement;
   readonly firstFocus: HTMLElement;
+}
+
+interface IClosingHooks {
+  readonly isPicking: () => boolean;
+  readonly abortPick: () => void;
+  readonly close: (restoreFocus: boolean) => void;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(doc: Document, tag: K, className: string, text?: string): HTMLElementTagNameMap[K] {
@@ -97,6 +99,40 @@ function el<K extends keyof HTMLElementTagNameMap>(doc: Document, tag: K, classN
   element.className = className;
   if (text !== undefined) element.textContent = text;
   return element;
+}
+
+/** `<option>` créé dans `doc` (et non dans la fenêtre globale). */
+function option(doc: Document, label: string, value: string): HTMLOptionElement {
+  const element = doc.createElement('option');
+  element.textContent = label;
+  element.value = value;
+  return element;
+}
+
+/** Cibles de la première scène qui sait faire choisir un objet, ou `undefined`. */
+function findPicker(stage: IEditorStage): PickingTargets | undefined {
+  return stage.stages
+    .map((candidate) => candidate.targets)
+    .find((targets): targets is PickingTargets => typeof targets?.pick === 'function');
+}
+
+/** Cibles proposées ; vide si une scène lève. */
+function safeList(stage: IEditorStage): readonly ITargetInfo[] {
+  try {
+    return stage.listTargets();
+  } catch {
+    return [];
+  }
+}
+
+/** Libellé de `target` par la scène (texte non vide), sinon `fallback` ; une scène qui lève donne `fallback`. */
+function describeLabel(stage: IEditorStage, target: LayerTarget, fallback: string): string {
+  try {
+    const label = stage.describe(target)?.label;
+    return typeof label === 'string' && label !== '' ? label : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 /** Ouvre la fenêtre de choix pour `options.anchor`. */
@@ -117,34 +153,33 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
   };
 
   const finish = (target: unknown): void => {
-    const result = options.apply(target);
-    if (result === 'refused') {
+    if (options.apply(target) === 'refused') {
       parts.status.textContent = TargetPopupLabels.refused;
       return;
     }
     close(true);
   };
 
-  const parts = buildPopup(doc, options, finish, () => void startPick());
-
   const startPick = async (): Promise<void> => {
-    const targets = options.stage.stages.map((stage) => stage.targets).find(
-      (candidate): candidate is IStageTargets & Required<Pick<IStageTargets, 'pick'>> => typeof candidate?.pick === 'function'
-    );
-    if (targets === undefined || pickController !== null || closed) return;
+    if (pickController !== null || closed) return;
     const controller = new AbortController();
     pickController = controller;
-    parts.status.textContent = TargetPopupLabels.picking;
+    let picked: LayerTarget | null;
     try {
-      const picked = await targets.pick(controller.signal);
-      if (controller.signal.aborted || closed) return;
-      parts.status.textContent = '';
-      if (picked !== null) finish(picked);
+      const targets = findPicker(options.stage);
+      if (targets === undefined) return;
+      parts.status.textContent = TargetPopupLabels.picking;
+      picked = await targets.pick(controller.signal);
     } catch {
       if (!controller.signal.aborted && !closed) parts.status.textContent = TargetPopupLabels.pickFailed;
+      return;
     } finally {
       if (pickController === controller) pickController = null;
     }
+    if (controller.signal.aborted || closed) return;
+    parts.status.textContent = '';
+    // Hors du `try` : une erreur d'enregistrement n'est pas prise pour un échec du choix.
+    if (picked !== null) finish(picked);
   };
 
   const abortPick = (): void => {
@@ -152,8 +187,10 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
     pickController.abort();
     pickController = null;
     parts.status.textContent = '';
+    if (!parts.pickButton.disabled) parts.pickButton.focus();
   };
 
+  const parts = buildPopup(doc, options, finish, () => void startPick());
   wireClosing(parts.element, options.anchor, doc, listeners.signal, {
     isPicking: () => pickController !== null,
     abortPick,
@@ -166,12 +203,6 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
   return { element: parts.element, close };
 }
 
-interface IClosingHooks {
-  readonly isPicking: () => boolean;
-  readonly abortPick: () => void;
-  readonly close: (restoreFocus: boolean) => void;
-}
-
 /** Échap, Tab hors de la fenêtre, clic extérieur ; touches gardées hors des raccourcis. */
 function wireClosing(element: HTMLElement, anchor: HTMLElement, doc: Document, signal: AbortSignal, hooks: IClosingHooks): void {
   const inside = (target: EventTarget | null): boolean =>
@@ -181,7 +212,8 @@ function wireClosing(element: HTMLElement, anchor: HTMLElement, doc: Document, s
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
-      hooks.close(true);
+      if (hooks.isPicking()) hooks.abortPick();
+      else hooks.close(true);
       return;
     }
     if (!isHistoryChord(event)) event.stopPropagation();
@@ -193,7 +225,10 @@ function wireClosing(element: HTMLElement, anchor: HTMLElement, doc: Document, s
     if (!hooks.isPicking() && !inside(event.target)) hooks.close(false);
   }, { capture: true, signal });
   doc.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && hooks.isPicking() && !inside(event.target)) hooks.abortPick();
+    if (event.key !== 'Escape' || !hooks.isPicking() || inside(event.target)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    hooks.abortPick();
   }, { capture: true, signal });
 }
 
@@ -212,7 +247,7 @@ function buildPopup(
   const list = buildList(doc, options, finish);
   const pickButton = el(doc, 'button', `${TARGET_POPUP_CLASS}__pick`, TargetPopupLabels.pick);
   pickButton.type = 'button';
-  const canPick = options.stage.stages.some((stage) => typeof stage.targets?.pick === 'function');
+  const canPick = findPicker(options.stage) !== undefined;
   pickButton.disabled = !canPick;
   if (!canPick) pickButton.title = TargetPopupLabels.pickUnavailable;
   pickButton.addEventListener('click', () => {
@@ -220,11 +255,7 @@ function buildPopup(
   });
   const form = buildForm(doc, options, finish, status);
   element.append(list.element, pickButton, form.element, status);
-  return { element, status, pick: pickButton, firstFocus: list.first ?? form.text };
-}
-
-function describeLabel(stage: IEditorStage, target: LayerTarget, fallback: string): string {
-  return stage.describe(target)?.label ?? fallback;
+  return { element, status, pickButton, firstFocus: list.first ?? form.text };
 }
 
 /** Liste des cibles proposées : un bouton par cible. */
@@ -233,16 +264,17 @@ function buildList(
   options: ITargetPopupOptions,
   finish: (target: unknown) => void
 ): { element: HTMLElement; first: HTMLButtonElement | undefined } {
-  const infos = options.stage.listTargets();
+  const infos = safeList(options.stage);
   if (infos.length === 0) return { element: el(doc, 'p', `${TARGET_POPUP_CLASS}__empty`, TargetPopupLabels.empty), first: undefined };
   const element = el(doc, 'ul', `${TARGET_POPUP_CLASS}__list`);
   element.setAttribute('aria-label', TargetPopupLabels.list);
   const buttons = infos.map((info) => {
     const item = el(doc, 'li', `${TARGET_POPUP_CLASS}__item`);
-    const button = el(doc, 'button', `${TARGET_POPUP_CLASS}__option`, describeLabel(options.stage, info.target, info.label));
+    const label = describeLabel(options.stage, info.target, String(info.label));
+    const button = el(doc, 'button', `${TARGET_POPUP_CLASS}__option`, label);
     button.type = 'button';
     button.setAttribute('aria-pressed', String(sameTarget(info.target, options.current)));
-    if (info.group !== undefined) button.title = info.group;
+    if (typeof info.group === 'string') button.title = info.group;
     button.addEventListener('click', () => finish(info.target));
     item.appendChild(button);
     element.appendChild(item);
@@ -261,7 +293,7 @@ function buildForm(
   const form = el(doc, 'form', `${TARGET_POPUP_CLASS}__form`);
   const kind = el(doc, 'select', `${TARGET_POPUP_CLASS}__kind`);
   kind.setAttribute('aria-label', TargetPopupLabels.kind);
-  kind.append(new Option(TargetPopupLabels.selector, 'selector'), new Option(TargetPopupLabels.ref, 'ref'));
+  kind.append(option(doc, TargetPopupLabels.selector, 'selector'), option(doc, TargetPopupLabels.ref, 'ref'));
   const text = el(doc, 'input', `${TARGET_POPUP_CLASS}__text`);
   text.type = 'text';
   text.setAttribute('aria-label', TargetPopupLabels.text);
@@ -276,9 +308,11 @@ function buildForm(
   const stageSelect = buildStageSelect(doc, options.stage, current);
   if (stageSelect !== null) {
     form.appendChild(stageSelect);
-    const sync = (): void => void (stageSelect.hidden = kind.value !== 'ref');
-    kind.addEventListener('change', sync);
-    sync();
+    const showStage = (): void => {
+      stageSelect.hidden = kind.value !== 'ref';
+    };
+    kind.addEventListener('change', showStage);
+    showStage();
   }
   const apply = el(doc, 'button', `${TARGET_POPUP_CLASS}__apply`, TargetPopupLabels.apply);
   apply.type = 'submit';
@@ -300,12 +334,13 @@ function buildForm(
   return { element: form, text };
 }
 
+/** Choix de la scène d'une ref, seulement quand il y a plusieurs scènes. */
 function buildStageSelect(doc: Document, stage: IEditorStage, current: LayerTarget | undefined): HTMLSelectElement | null {
   if (stage.stages.length < 2) return null;
   const select = el(doc, 'select', `${TARGET_POPUP_CLASS}__stage`);
   select.setAttribute('aria-label', TargetPopupLabels.stage);
-  select.appendChild(new Option(TargetPopupLabels.anyStage, ''));
-  stage.stages.forEach((candidate) => select.appendChild(new Option(candidate.id, candidate.id)));
+  select.appendChild(option(doc, TargetPopupLabels.anyStage, ''));
+  stage.stages.forEach((candidate) => select.appendChild(option(doc, candidate.id, candidate.id)));
   if (current !== undefined && 'ref' in current && current.stage !== undefined) select.value = current.stage;
   return select;
 }
@@ -314,6 +349,6 @@ function buildStageSelect(doc: Document, stage: IEditorStage, current: LayerTarg
 function position(element: HTMLElement, anchor: HTMLElement, parent: HTMLElement): void {
   const anchorBox = anchor.getBoundingClientRect();
   const parentBox = parent.getBoundingClientRect();
-  element.style.left = `${Math.max(0, anchorBox.left - parentBox.left)}px`;
-  element.style.top = `${anchorBox.bottom - parentBox.top}px`;
+  element.style.left = `${Math.max(0, anchorBox.left - parentBox.left + parent.scrollLeft)}px`;
+  element.style.top = `${anchorBox.bottom - parentBox.top + parent.scrollTop}px`;
 }

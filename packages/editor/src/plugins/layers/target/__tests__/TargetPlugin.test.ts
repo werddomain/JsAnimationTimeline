@@ -166,3 +166,24 @@ describe('layers.target cleanup', () => {
     expect(() => document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))).not.toThrow();
   });
 });
+
+describe('layers.target row button keys', () => {
+  it('lets Ctrl+Z reach the editor from the row button, and toggles the popup', () => {
+    // Arrange
+    const { editor, host, service } = mountTarget();
+    service.setTarget('hero', { ref: 'sun', stage: 'canvas' });
+    const button = targetButton(host, 'hero');
+
+    // Act
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true }));
+    button.click();
+    const expanded = button.getAttribute('aria-expanded');
+    button.click();
+
+    // Assert
+    expect(editor.document.layers[0]).toMatchObject({ target: { ref: 'hero', stage: 'canvas' } });
+    expect(expanded).toBe('true');
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(host.querySelector('.jt-target-popup')).toBeNull();
+  });
+});
