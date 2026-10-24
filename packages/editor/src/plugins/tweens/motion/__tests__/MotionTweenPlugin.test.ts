@@ -173,11 +173,12 @@ describe('tweens.motion create', () => {
 });
 
 describe('tweens.motion canCreate after create', () => {
-  it('disables canCreate once the selection is a tween, and a second create is refused', () => {
-    // Arrange
-    const { selection, motion, created, refused } = setup();
-    selection.set(cells('a', 1, 5));
-    motion.create();
+  it('disables canCreate once a single span is a tween, and a second create changes nothing', () => {
+    // Arrange: keyframe 5 alone, so the one-span path makes the tween [5, 8].
+    const { editor, selection, motion, created, refused } = setup();
+    selection.set(cells('a', 5));
+    expect(motion.create()).toBe(true);
+    const afterFirst = editor.document;
 
     // Act
     const verdict = motion.canCreate();
@@ -186,26 +187,53 @@ describe('tweens.motion canCreate after create', () => {
     // Assert
     expect(verdict).toEqual({ enabled: false, reason: 'Déjà une interpolation.' });
     expect(again).toBe(false);
+    expect(editor.document).toBe(afterFirst);
     expect(created).toHaveLength(1);
     expect(refused.map((event) => event.reason)).toEqual(['Déjà une interpolation.']);
+    expect(editor.undo()).toBe(true);
+    expect(editor.canUndo).toBe(false);
   });
 
-  it('disables canCreate after a two-keyframe create, and a second create is refused', () => {
+  it('disables canCreate after a two-keyframe create, and a second create changes nothing', () => {
     // Arrange: keyframes 1 and 5 of layer a become the tween [1, 4].
-    const { selection, motion, created, refused } = setup();
+    const { editor, selection, motion, created, refused } = setup();
     selection.set(cells('a', 1, 5));
+    expect(motion.create()).toBe(true);
+    selection.set(cells('a', 1, 5));
+    const afterFirst = editor.document;
+
+    // Act
+    const verdict = motion.canCreate();
+    const again = motion.create();
+
+    // Assert
+    expect(verdict).toEqual({ enabled: false, reason: 'Déjà une interpolation.' });
+    expect(again).toBe(false);
+    expect(editor.document).toBe(afterFirst);
+    expect(created).toHaveLength(1);
+    expect(refused.map((event) => event.reason)).toEqual(['Déjà une interpolation.']);
+    expect(editor.undo()).toBe(true);
+    expect(editor.canUndo).toBe(false);
+  });
+
+  it('aims a one-span tween at a second keyframe, and canCreate matches', () => {
+    // Arrange: tween [1, 4] holding x = 0, then the keyframes 1 and 5 are selected.
+    const { editor, selection, motion, created } = setup();
+    selection.set(cells('a', 1));
     expect(motion.create()).toBe(true);
     selection.set(cells('a', 1, 5));
 
     // Act
     const verdict = motion.canCreate();
-    const again = motion.create();
+    const done = motion.create();
 
     // Assert
-    expect(verdict).toEqual({ enabled: false, reason: 'Déjà une interpolation.' });
-    expect(again).toBe(false);
-    expect(created).toHaveLength(1);
-    expect(refused.map((event) => event.reason)).toEqual(['Déjà une interpolation.']);
+    expect(verdict).toEqual({ enabled: true });
+    expect(done).toBe(true);
+    expect(created).toHaveLength(2);
+    expect(editor.sample(1).layers.find((layer) => layer.layerId === 'a')?.values.x).toBe(0);
+    expect(editor.sample(4).layers.find((layer) => layer.layerId === 'a')?.values.x).toBe(100);
+    expect(motion.canCreate().enabled).toBe(false);
   });
 });
 

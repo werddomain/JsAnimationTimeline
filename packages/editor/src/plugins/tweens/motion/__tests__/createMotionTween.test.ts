@@ -205,10 +205,36 @@ describe('createMotionTweenBetween', () => {
     expect(spansOf(next, 'l1')[0].tracks).toEqual({ x: [{ frame: 1, value: 0 }, { frame: 6, value: 100 }, { frame: 10, value: 100 }] });
   });
 
-  it('refuses a range that is already exactly one tween', () => {
+  it('aims a one-span tween at k2 instead of refusing it', () => {
+    // Arrange
+    const doc = createDoc([layer('l1', [stat('a', 1, 4, { x: [{ frame: 1, value: 0 }] }), stat('b', 5, 8, { x: [{ frame: 5, value: 100 }] })])]);
+    const single = createMotionTweenFromSpan(doc, 'l1', 1);
+
+    // Act
+    const next = createMotionTweenBetween(single, 'l1', 1, 5, registry);
+
+    // Assert
+    expectValid(next);
+    expect(spansOf(next, 'l1')[0].tracks).toEqual({ x: [{ frame: 1, value: 0 }, { frame: 4, value: 100 }] });
+  });
+
+  it('applies the merge when it would change the easing of an existing tween', () => {
     // Arrange
     const doc = createDoc([
-      layer('l1', [{ id: 't', start: 1, end: 5, kind: 'tween', easing: 'ease-in', tracks: { x: [{ frame: 1, value: 0 }, { frame: 5, value: 9 }] } }, stat('b', 6, 8)])
+      layer('l1', [{ id: 't', start: 1, end: 5, kind: 'tween', easing: 'ease-in', tracks: { x: [{ frame: 1, value: 0 }, { frame: 5, value: 9 }] } }, stat('b', 6, 8, { x: [{ frame: 6, value: 9 }] })])
+    ]);
+
+    // Act
+    const next = createMotionTweenBetween(doc, 'l1', 1, 6, registry);
+
+    // Assert
+    expect(spansOf(next, 'l1')[0].easing).toBeUndefined();
+  });
+
+  it('refuses a range whose merge would leave the tween unchanged', () => {
+    // Arrange
+    const doc = createDoc([
+      layer('l1', [{ id: 't', start: 1, end: 5, kind: 'tween', tracks: { x: [{ frame: 1, value: 0 }, { frame: 5, value: 9 }] } }, stat('b', 6, 8, { x: [{ frame: 6, value: 9 }] })])
     ]);
 
     // Act
