@@ -25,6 +25,7 @@ import {
   createSetFpsCommand,
   createSetTotalFramesCommand
 } from './timeSettingsCommands';
+import { ToolbarGroupOrders } from '../main/ToolbarItems';
 import './TimeSettings.less';
 
 /** Identifiant du plugin (et de son contrôle dans la barre d'outils). */
@@ -99,7 +100,7 @@ export class TimeSettingsPlugin implements EditorPlugin {
           id: TIME_SETTINGS_PLUGIN_ID,
           label: 'Réglages du temps',
           group: 'time',
-          order: 100,
+          order: ToolbarGroupOrders.time + 1,
           render: (element) => this.renderControl(element)
         })
       );
