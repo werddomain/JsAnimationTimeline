@@ -36,15 +36,15 @@ const PRIMARY_BUTTON = 0;
 /** Bit de `event.buttons` du bouton principal. */
 const PRIMARY_BUTTONS_MASK = 1;
 /** Éléments sur lesquels un appui ne démarre pas de glisser : contrôles, repli, saisie. */
-const IGNORED_SELECTOR = [
-  `.${LAYER_ROW_CLASSES.control}`,
-  '[data-action="toggle"]',
+/** Champs de saisie, y compris le nom en cours de renommage. */
+const TEXT_INPUT_SELECTOR = [
   `[${NAME_EDITING_ATTRIBUTE}]`,
   'input',
   'textarea',
   'select',
   '[contenteditable]:not([contenteditable="false"])'
 ].join(',');
+const IGNORED_SELECTOR = `.${LAYER_ROW_CLASSES.control},[data-action="toggle"],${TEXT_INPUT_SELECTOR}`;
 
 /** Ce dont le contrôleur a besoin : services des deux plugins parents, document courant, déplacement. */
 export interface IDragDeps {
@@ -131,7 +131,7 @@ export class DragController {
     doc.addEventListener('pointercancel', onEnd);
     doc.addEventListener('keydown', onKey, true);
     // Le relâchement peut ne jamais arriver (menu contextuel, fenêtre qui perd le focus) : on abandonne alors.
-    const onAbort = (): void => this.endSession();
+    const onAbort = (): void => this.abort();
     const win = doc.defaultView;
     doc.addEventListener('contextmenu', onAbort);
     win?.addEventListener('blur', onAbort);
@@ -165,8 +165,9 @@ export class DragController {
     const session = this.session;
     if (session === undefined || event.pointerId !== session.pointerId) return;
     // Plus de bouton enfoncé : le relâchement a été perdu, ce survol ne doit pas démarrer ni poursuivre un glisser.
-    if ((event.buttons & PRIMARY_BUTTONS_MASK) === 0) {
-      this.endSession();
+    // (Un stylet ou un doigt peut annoncer 0 en contact : seule la souris est contrôlée.)
+    if (event.pointerType === 'mouse' && (event.buttons & PRIMARY_BUTTONS_MASK) === 0) {
+      this.abort();
       return;
     }
     if (session.cancelled) return;
@@ -194,7 +195,9 @@ export class DragController {
     if (drop && placement !== undefined && this.deps.move(ids, toDropTarget(placement))) {
       // Comme au clavier : le focus suit la première ligne déplacée (ses éléments ont été réordonnés).
       const first = ids[0];
-      if (first !== undefined) this.deps.list.rowElement(first)?.focus({ preventScroll: true });
+      const active = this.listElement?.ownerDocument.activeElement;
+      const typing = active?.closest(TEXT_INPUT_SELECTOR) != null;
+      if (first !== undefined && !typing) this.deps.list.rowElement(first)?.focus({ preventScroll: true });
     }
   }
 
@@ -220,7 +223,10 @@ export class DragController {
     session.indicator = new DropIndicator(list, element);
     session.dragged = this.markDragged(session.ids);
     element.classList.add(REORDER_CLASSES.listDragging);
-    const onLost = (): void => this.endSession();
+    // Le doigt reçoit une capture implicite sur la ligne : seul le relâchement de NOTRE capture (cible = liste) compte.
+    const onLost = (lost: Event): void => {
+      if (lost.target === element && (lost as PointerEvent).pointerId === session.pointerId) this.abort();
+    };
     element.addEventListener('lostpointercapture', onLost);
     session.stopLost = () => element.removeEventListener('lostpointercapture', onLost);
     try {
@@ -283,6 +289,17 @@ export class DragController {
     } catch {
       // La capture a déjà pris fin avec le pointeur.
     }
+  }
+
+  /**
+   * Abandon sans dépôt (menu contextuel, perte du focus, bouton relâché ailleurs,
+   * capture perdue). Si le glisser avait démarré, le clic du relâchement tardif
+   * est supprimé comme après un dépôt : il ne doit ni resélectionner ni vider la sélection.
+   */
+  private abort(): void {
+    const started = this.session?.started === true;
+    this.endSession();
+    if (started) this.armClickSuppression();
   }
 
   private endSession(): void {

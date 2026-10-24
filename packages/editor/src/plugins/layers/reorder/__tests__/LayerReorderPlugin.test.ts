@@ -84,15 +84,20 @@ function y(rowIndex: number, ratio = 0.5): number {
 interface IPointerInit extends MouseEventInit {
   pointerId?: number;
   isPrimary?: boolean;
+  pointerType?: string;
 }
 
 /** Événement pointeur : jsdom n'a pas `PointerEvent`, on ajoute `pointerId` et `isPrimary` à un événement souris. */
 function pointer(type: string, clientY: number, init: IPointerInit = {}): PointerEvent {
-  const { pointerId = 1, isPrimary = true, ...mouse } = init;
+  const { pointerId = 1, isPrimary = true, pointerType = 'mouse', ...mouse } = init;
   // Bouton principal enfoncé (buttons = 1), sauf au relâchement ou à l'annulation.
   const buttons = type === 'pointerup' || type === 'pointercancel' ? 0 : 1;
   const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: 10, clientY, button: 0, buttons, ...mouse });
-  Object.defineProperties(event, { pointerId: { value: pointerId }, isPrimary: { value: isPrimary } });
+  Object.defineProperties(event, {
+    pointerId: { value: pointerId },
+    isPrimary: { value: isPrimary },
+    pointerType: { value: pointerType }
+  });
   return event as PointerEvent;
 }
 
@@ -114,6 +119,13 @@ function dragRow(h: IHarness, id: string, toY: number): void {
   press(h, id, y(index));
   moveTo(toY);
   release(toY);
+}
+
+/** `lostpointercapture` lancé depuis `target` (il remonte jusqu'à la liste, comme dans un navigateur). */
+function lostCapture(target: EventTarget | undefined, pointerId = 1): void {
+  const event = new Event('lostpointercapture', { bubbles: true });
+  Object.defineProperty(event, 'pointerId', { value: pointerId });
+  target?.dispatchEvent(event);
 }
 
 function dropLine(): HTMLElement | null {
@@ -479,20 +491,75 @@ describe('lost button release', () => {
     const h = setup();
     const element = h.list.element();
     press(h, 'a', y(1));
-    element?.dispatchEvent(new Event('lostpointercapture'));
+    lostCapture(element);
     moveTo(y(5, 0.9));
     const started = draggingIds(h).length > 0;
     release(y(5, 0.9));
     press(h, 'c', y(4));
     moveTo(y(1, 0.1));
 
-    element?.dispatchEvent(new Event('lostpointercapture'));
+    lostCapture(element);
     release(y(1, 0.1));
 
     expect(started).toBe(true);
     expect(draggingIds(h)).toEqual([]);
     expect(h.editor.document.layers).not.toBe(tree.layers);
     expect(show(h.editor.document.layers)).toBe('f(g(b)),c,d,a');
+  });
+
+  it('ignores lostpointercapture from a row or another pointer (touch implicit capture)', () => {
+    const h = setup();
+    press(h, 'c', y(4));
+    moveTo(y(1, 0.1));
+
+    lostCapture(row(h, 'c'));
+    lostCapture(h.list.element(), 2);
+    const stillDragging = draggingIds(h);
+    release(y(1, 0.1));
+
+    expect(stillDragging).toEqual(['c']);
+    expect(show(h.editor.document.layers)).toBe('f(c,a,g(b)),d');
+  });
+
+  it('does not abort on a move without button for a pen or touch pointer', () => {
+    const h = setup();
+    press(h, 'c', y(4), { pointerType: 'pen' });
+
+    document.dispatchEvent(pointer('pointermove', y(1, 0.1), { buttons: 0, pointerType: 'pen' }));
+    const dragging = draggingIds(h);
+    release(y(1, 0.1));
+
+    expect(dragging).toEqual(['c']);
+  });
+
+  const aborts: Array<[string, (h: IHarness) => void]> = [
+    ['buttons = 0', () => document.dispatchEvent(pointer('pointermove', y(0), { buttons: 0 }))],
+    ['contextmenu', () => document.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))],
+    ['blur', () => window.dispatchEvent(new Event('blur'))],
+    ['lostpointercapture', (h) => lostCapture(h.list.element())]
+  ];
+
+  it.each(aborts)('swallows the release click after a started drag aborted by %s', (_name, abort) => {
+    const h = setup();
+    h.selection.select(['c', 'd'], 'replace');
+    press(h, 'c', y(4));
+    moveTo(y(1, 0.1));
+
+    abort(h);
+    const swallowed = click(row(h, 'c'), { ctrlKey: true });
+
+    expect(swallowed.defaultPrevented).toBe(true);
+    expect(h.selection.selected()).toEqual(['c', 'd']);
+  });
+
+  it('does not swallow a click after a press aborted before the threshold', () => {
+    const h = setup();
+    press(h, 'c', y(4));
+    window.dispatchEvent(new Event('blur'));
+
+    const event = click(row(h, 'c'));
+
+    expect(event.defaultPrevented).toBe(false);
   });
 
   it('removes the extra listeners after a normal drop', () => {
@@ -508,6 +575,17 @@ describe('lost button release', () => {
 });
 
 describe('after a mouse drop', () => {
+  it('keeps the focus in an input or an editing name', () => {
+    const h = setup();
+    const input = document.createElement('input');
+    row(h, 'a').appendChild(input);
+    input.focus();
+
+    dragRow(h, 'c', y(1, 0.1));
+
+    expect(document.activeElement).toBe(input);
+  });
+
   it('focuses the first moved row, like the keyboard path', () => {
     const h = setup();
     h.selection.select(['a', 'c'], 'replace');

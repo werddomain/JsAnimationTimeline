@@ -173,6 +173,19 @@ describe('keyboardMoveTarget', () => {
     expect(keyboardMoveTarget(wide, visibleRows(wide), ['x'], 'down')).toEqual({ parentId: 'p', index: 0 });
   });
 
+  it('enters an expanded empty folder nested in a folder when moving down onto it', () => {
+    const nested = doc([folder('p', [layer('x'), folder('e', [])])]);
+
+    expect(keyboardMoveTarget(nested, visibleRows(nested), ['x'], 'down')).toEqual({ parentId: 'e', index: 0 });
+  });
+
+  it('leaves the folder first when the last child is followed by an empty expanded folder after its parent', () => {
+    const after = doc([folder('p', [layer('q')]), folder('e', [])]);
+
+    // Une case à la fois : sortir de p (après lui), puis, à la pression suivante, entrer dans e.
+    expect(keyboardMoveTarget(after, visibleRows(after), ['q'], 'down')).toEqual({ index: 1 });
+  });
+
   it('leaves a folder downward after its last child', () => {
     expect(keyboardMoveTarget(data, rows, ['b'], 'down')).toEqual({ parentId: 'f', index: 2 });
     expect(keyboardMoveTarget(data, rows, ['g'], 'down')).toEqual({ index: 1 });
