@@ -15,7 +15,8 @@ export interface IManualClock extends IPlayerClock {
    * Moves `now()` forward by `deltaMs` (finite, ≥ 0), then runs once the frame
    * callbacks requested before this call. Callbacks requested meanwhile wait
    * for the next `advance`. When callbacks throw, all of them still run and
-   * the first error is rethrown.
+   * the first error is rethrown. A callback cancelled by an earlier one of the
+   * same batch does not run, as with `requestAnimationFrame`.
    */
   advance(deltaMs: number): void;
 }
@@ -49,10 +50,15 @@ export function createManualClock(startMs = 0): IManualClock {
     advance(deltaMs: number): void {
       assertFiniteTime(deltaMs, 'deltaMs');
       time += deltaMs;
-      const due = Array.from(callbacks.values());
-      callbacks.clear();
+      // Handles only: a callback cancelled by an earlier one in this batch is skipped.
+      const due = Array.from(callbacks.keys());
       const errors: unknown[] = [];
-      due.forEach((callback) => {
+      due.forEach((handle) => {
+        const callback = callbacks.get(handle);
+        if (callback === undefined) {
+          return;
+        }
+        callbacks.delete(handle);
         try {
           callback();
         } catch (error) {
