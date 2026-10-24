@@ -211,7 +211,9 @@ export {
   createMotionTweenCommands,
   createMotionTweenFromSpan,
   removeMotionTween,
-  removeMotionTweens
+  removeMotionTweens,
+  resolveCreateTarget,
+  resolveRemoveTargets
 } from './plugins/tweens';
 export type {
   IMotionTarget,
@@ -222,7 +224,11 @@ export type {
   MotionAvailabilityChangedEvent,
   MotionTweenCode,
   MotionTweenCommandKind,
-  MotionTweenEvent
+  MotionTweenEvent,
+  MotionTweenRefusal,
+  IResolutionRefusal,
+  IResolved,
+  Resolution
 } from './plugins/tweens';
 
 // Plugin interaction.shortcuts (raccourcis clavier déclarés par les plugins).

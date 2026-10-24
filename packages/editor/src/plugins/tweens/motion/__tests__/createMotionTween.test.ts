@@ -82,6 +82,18 @@ describe('createMotionTweenFromSpan', () => {
     expect(codeOf(() => createMotionTweenFromSpan(doc, 'nope', 1))).toBe(SpanOperationCodes.LAYER_NOT_FOUND);
   });
 
+  it('refuses a one-frame static span, which could not move', () => {
+    // Arrange
+    const doc = createDoc([layer('l1', [stat('s1', 1, 1), stat('s2', 2, 4)])]);
+
+    // Act
+    const run = (): unknown => createMotionTweenFromSpan(doc, 'l1', 1);
+
+    // Assert
+    expect(run).toThrow('Il faut au moins deux images entre les images clés pour interpoler.');
+    expect(codeOf(run)).toBe(MotionTweenCodes.ADJACENT_KEYFRAMES);
+  });
+
   it('refuses a locked layer and a locked parent folder', () => {
     // Arrange
     const locked = createDoc([layer('l1', [stat('s1', 1, 3)], { locked: true })]);

@@ -53,7 +53,7 @@ export const MOTION_TWEEN_PLUGIN_ID = 'tweens.motion';
 const ENABLED: IMotionTweenAvailability = Object.freeze({ enabled: true });
 
 function disabled(reason: string): IMotionTweenAvailability {
-  return { enabled: false, reason };
+  return Object.freeze({ enabled: false, reason });
 }
 
 function sameAvailability(a: IMotionTweenAvailability, b: IMotionTweenAvailability): boolean {

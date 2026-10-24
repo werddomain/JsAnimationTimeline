@@ -3,7 +3,7 @@
 
 export { MOTION_TWEEN_PLUGIN_ID, MotionTweenPlugin } from './MotionTweenPlugin';
 export { MotionTweenCodes, MotionTweenError, MotionTweenMessages } from './MotionTweenError';
-export type { MotionTweenCode } from './MotionTweenError';
+export type { MotionTweenCode, MotionTweenRefusal } from './MotionTweenError';
 export { createMotionTween, createMotionTweenBetween, createMotionTweenFromSpan } from './createMotionTween';
 export type { IMotionTarget } from './createMotionTween';
 export { removeMotionTween, removeMotionTweens } from './removeMotionTween';

@@ -9,6 +9,12 @@
  * qu'elle n'animait pas ne sont pas touchées. Toutes les valeurs sont lues
  * dans le calque d'origine, même quand plusieurs interpolations d'un même
  * calque sont supprimées d'un coup.
+ *
+ * Effet de bord : une plage suivante sans piste pour une propriété hérite de
+ * la valeur de fin de l'interpolation ; une fois celle-ci supprimée, elle
+ * hérite de la valeur de début. Les plages créées par les opérations de plage
+ * posent des pistes explicites, donc ce cas ne concerne que des documents
+ * écrits à la main.
  */
 
 import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
@@ -28,8 +34,10 @@ function toStatic(layer: ILayer, span: ISpan, registry: PropertyRegistry): ISpan
   const base: ISpan = { id: span.id, start: span.start, end: span.end, kind: 'static' };
   if (names.length === 0) return base;
   const values = evaluateValues(layer, span.start, registry);
-  const tracks = Object.fromEntries(names.map((name) => [name, [{ frame: span.start, value: values[name] }]]));
-  return withTracks(base, tracks);
+  const entries = names.flatMap((name) =>
+    Number.isFinite(values[name]) ? [[name, [{ frame: span.start, value: values[name] }]] as const] : []
+  );
+  return withTracks(base, entries.length === 0 ? undefined : Object.fromEntries(entries));
 }
 
 /** Supprime les interpolations qui contiennent `frames` sur le calque `layerId`. */

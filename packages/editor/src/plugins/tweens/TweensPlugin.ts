@@ -28,7 +28,7 @@ export class TweensPlugin implements EditorPlugin {
     this.children = [new MotionTweenPlugin()];
   }
 
-  readonly init = (): void => {};
+  init(): void {}
 
   destroy(): void {}
 }

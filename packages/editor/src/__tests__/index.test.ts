@@ -135,7 +135,9 @@ const V2_NAMES = [
   'createMotionTweenCommands',
   'createMotionTweenFromSpan',
   'removeMotionTween',
-  'removeMotionTweens'
+  'removeMotionTweens',
+  'resolveCreateTarget',
+  'resolveRemoveTargets'
 ];
 
 describe('editor package entry point', () => {

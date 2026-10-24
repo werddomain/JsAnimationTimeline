@@ -19,6 +19,10 @@
  *   image clé vide : pas de mouvement).
  * k2 reste une image clé de contenu, inchangée : les valeurs à k2 et hors de
  * [k1, k2] ne bougent pas. L'accélération des plages absorbées est perdue.
+ * Quand k2 est une image clé vide, l'interpolation finit sur les valeurs de
+ * k1 (pas de mouvement) : la cible reste fixe puis disparaît à k2.
+ * Une plage statique d'une seule image est refusée (code ADJACENT_KEYFRAMES) :
+ * une interpolation d'une image ne peut pas bouger.
  */
 
 import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry, PropertyTracks } from '@werddomain/timeline-runtime';
@@ -44,6 +48,7 @@ export function createMotionTweenFromSpan(doc: ITimelineDocument, layerId: strin
   const span = layer.spans[index];
   if (span.kind === 'blank') throw motionTweenRefusal('BLANK_SPAN');
   if (span.kind === 'tween') throw motionTweenRefusal('ALREADY_TWEEN');
+  if (span.start === span.end) throw motionTweenRefusal('ADJACENT_KEYFRAMES');
   const tween: ISpan = withTracks({ ...span, kind: 'tween' }, span.tracks);
   return replaceLayer(doc, withSpans(layer, layer.spans.map((candidate, i) => (i === index ? tween : candidate))));
 }
