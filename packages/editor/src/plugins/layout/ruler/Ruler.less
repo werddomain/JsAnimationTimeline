@@ -1,6 +1,8 @@
 // packages/editor/src/plugins/layout/ruler/Ruler.less
 // Règle des images (layout.ruler). Graduations en fond répété, de la largeur
-// d'une image (--jt-frame-width) ; une graduation plus haute toutes les 5 images.
+// d'une image (--jt-frame-width, posée sur la coquille par layout.ruler) ; une
+// graduation plus haute sur les images 5, 10, 15... (décalée de 4 images, comme
+// les étiquettes et le legacy : frame % 5 === 0).
 
 .JsTimeLine {
   .jt-ruler {
@@ -16,7 +18,9 @@
       calc(var(--jt-frame-width, 15px) * 5) 12px,
       var(--jt-frame-width, 15px) 6px;
     background-repeat: repeat-x;
-    background-position: left bottom;
+    background-position:
+      calc(var(--jt-frame-width, 15px) * 4) bottom,
+      left bottom;
   }
 
   .jt-ruler__label {

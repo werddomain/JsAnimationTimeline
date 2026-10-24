@@ -176,7 +176,7 @@ describe('layout.scrollSync wheel', () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
-  it('leaves Ctrl or Cmd + wheel to the browser (zoom)', () => {
+  it('does not scroll on Ctrl or Cmd + wheel (left to the zoom)', () => {
     // Arrange
     const { zone } = setup();
     const withCtrl = wheel({ deltaY: 40, ctrlKey: true });
@@ -189,7 +189,6 @@ describe('layout.scrollSync wheel', () => {
     // Assert
     expect(zone('frames').scrollLeft).toBe(0);
     expect(zone('frames').scrollTop).toBe(0);
-    expect(withCtrl.defaultPrevented).toBe(false);
     expect(withMeta.defaultPrevented).toBe(false);
   });
 
