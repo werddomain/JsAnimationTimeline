@@ -175,3 +175,31 @@ describe('destroy', () => {
     expect(second.calls).toEqual([]);
   });
 });
+
+describe('destroy during subscribe', () => {
+  it('unsubscribes at once when onError destroys the host from inside subscribe', () => {
+    const canvas = createFakeStage('canvas');
+    const unsubscribe = jest.fn();
+    const stage: IStage<IFakeObject> = {
+      ...canvas.stage,
+      targets: {
+        list: () => [],
+        subscribe: () => {
+          canvas.ctx?.error(new Error('subscribe'));
+          return unsubscribe;
+        }
+      }
+    };
+    const errors: unknown[] = [];
+    const host: StageHost = hostWith([stage], undefined, (error) => {
+      errors.push(error);
+      host.destroy();
+    });
+    host.load(docOf([]));
+    expect(errors).toHaveLength(1);
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+    expect(canvas.calls).toEqual(['attach', 'detach']);
+    host.destroy();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+});

@@ -19,20 +19,23 @@ const toWarning = (report) => ({
  * Creates a player animating the elements under `root`.
  * @param {Element} root Element where the layer selectors are resolved.
  * @param {string} documentJson Timeline document, serialized by TimelineJson.
- * @param {{ autoplay: boolean, loop: boolean, speed: number, notifyFrames: boolean, notifyErrors: boolean }} options
+ * @param {{ autoplay: boolean, loop: boolean, speed: number, notifyFrames: boolean }} options
  * @param {{ invokeMethodAsync(name: string, ...args: unknown[]): Promise<unknown> }} events .NET receiver.
  */
 export function createTimelinePlayer(root, documentJson, options, events) {
   let destroyed = false;
-  // Stage and listener errors (playback goes on): to .NET when it handles them, otherwise the
-  // runtime default, which rethrows them asynchronously to the console.
-  const onListenerError = options.notifyErrors
-    ? (error) => {
-        if (destroyed) return;
-        const message = error instanceof Error ? error.message : String(error);
-        events.invokeMethodAsync('OnPlayerError', message).catch((e) => console.debug('TimelinePlayer:', e));
-      }
-    : undefined;
+  // Stage and listener errors (playback goes on): to OnError when .NET handles them, otherwise to
+  // the console. Asked on every error, since the handler may be set or removed after creation.
+  const onListenerError = (error) => {
+    if (destroyed) return;
+    const message = error instanceof Error ? error.message : String(error);
+    events
+      .invokeMethodAsync('OnPlayerError', message)
+      .then((handled) => {
+        if (!handled) console.error('TimelinePlayer:', error);
+      })
+      .catch(() => console.error('TimelinePlayer:', error));
+  };
   const player = createPlayer(JSON.parse(documentJson), { root, loop: options.loop, speed: options.speed, onListenerError });
 
   const notify = (name, frame) => {

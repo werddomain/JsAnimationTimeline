@@ -1,7 +1,10 @@
 // e2e/runtime/demoUrl.ts
 /**
  * Adresse de la démo du runtime (demo/runtime), servie après `npm run build:demo`.
- * Le port doit rester celui de `preview` dans demo/runtime/vite.config.ts.
+ * Le port vient de `E2E_RUNTIME_PORT` (9001 par défaut), comme pour la
+ * configuration Vite de la démo : voir tools/devPorts.ts.
  */
-export const RUNTIME_DEMO_PORT = 9001;
+import { runtimePort } from '../../tools/devPorts';
+
+export const RUNTIME_DEMO_PORT = runtimePort();
 export const RUNTIME_DEMO_URL = `http://localhost:${RUNTIME_DEMO_PORT}`;
