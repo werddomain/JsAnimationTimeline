@@ -145,7 +145,7 @@ describe('tweens.motion create', () => {
     // Assert
     expect(done).toBe(false);
     expect(refused).toHaveLength(1);
-    expect(refused[0].reason).toBe('Une plage vide ne peut pas être interpolée');
+    expect(refused[0].reason).toBe('Une plage vide ne peut pas être interpolée.');
     expect(created).toEqual([]);
     expect(editor.document).toBe(before);
     expect(editor.canUndo).toBe(false);
@@ -165,10 +165,29 @@ describe('tweens.motion create', () => {
 
     // Assert
     expect(refused.map((event) => event.reason)).toEqual([
-      'Aucune image clé sélectionnée',
-      "Sélectionnez des images d'un seul calque",
+      'Aucune image clé à interpoler.',
+      "Sélectionnez des images d'un seul calque.",
       'Le calque « a » est verrouillé.'
     ]);
+  });
+});
+
+describe('tweens.motion canCreate after create', () => {
+  it('disables canCreate once the selection is a tween, and a second create is refused', () => {
+    // Arrange
+    const { selection, motion, created, refused } = setup();
+    selection.set(cells('a', 1, 5));
+    motion.create();
+
+    // Act
+    const verdict = motion.canCreate();
+    const again = motion.create();
+
+    // Assert
+    expect(verdict).toEqual({ enabled: false, reason: 'Déjà une interpolation.' });
+    expect(again).toBe(false);
+    expect(created).toHaveLength(1);
+    expect(refused.map((event) => event.reason)).toEqual(['Déjà une interpolation.']);
   });
 });
 
@@ -227,9 +246,9 @@ describe('tweens.motion remove', () => {
     // Assert
     expect(viaApi).toBe(false);
     expect(refused.map((event) => event.reason)).toEqual([
-      'Aucune interpolation sélectionnée',
+      'Aucune interpolation à supprimer.',
       'Le calque « b » est verrouillé.',
-      'Aucune interpolation sélectionnée'
+      'Aucune interpolation à supprimer.'
     ]);
     expect(removed).toEqual([]);
   });
@@ -297,7 +316,7 @@ describe('tweens.motion availability', () => {
       [false, true],
       [false, false]
     ]);
-    expect(availability[0].canRemove).toEqual({ enabled: false, reason: 'Aucune interpolation sélectionnée' });
+    expect(availability[0].canRemove).toEqual({ enabled: false, reason: 'Aucune interpolation à supprimer.' });
   });
 
   it('follows the document: undo and load recompute the availability', () => {
@@ -317,7 +336,7 @@ describe('tweens.motion availability', () => {
     expect(afterUndo).toBe(afterCreate + 1);
     expect(availability[afterUndo - 1]).toEqual({
       canCreate: { enabled: true },
-      canRemove: { enabled: false, reason: 'Aucune interpolation sélectionnée' }
+      canRemove: { enabled: false, reason: 'Aucune interpolation à supprimer.' }
     });
     expect(motion.canCreate().enabled).toBe(false);
   });
