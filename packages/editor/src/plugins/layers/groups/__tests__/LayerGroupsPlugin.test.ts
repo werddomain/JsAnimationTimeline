@@ -15,7 +15,10 @@ import type { IListHarness } from '../../list/__tests__/fixtures';
 import type { ILayerSelectionService, LayerSelectionChangedEvent } from '../../selection';
 import type { ILayerGroupsService } from '../types';
 
-afterEach(unmountAll);
+afterEach(() => {
+  jest.restoreAllMocks();
+  unmountAll();
+});
 
 interface IHarness extends IListHarness {
   readonly groups: ILayerGroupsService;
@@ -228,6 +231,62 @@ describe('focus and events', () => {
   });
 });
 
+describe('ungroup edge cases', () => {
+  function veto(): EditorPlugin {
+    return {
+      id: 'test.veto',
+      dependencies: [],
+      init: (ctx: IEditorContext) => {
+        ctx.events.onCancellable('command:before', (event) => event.cancel());
+      },
+      destroy: () => undefined
+    };
+  }
+
+  it('restores the previous selection when the command is vetoed', () => {
+    const h = setup(tree, [veto()]);
+    h.selection.select(['f', 'c']);
+    expect(h.groups.ungroup('f')).toBe(false);
+    expect(shapeOf(h)).toBe('f(a,g(b)),c');
+    expect(h.selection.selected()).toEqual(['f', 'c']);
+  });
+
+  it('selects the children after the command for a folder nested in a collapsed parent', () => {
+    const data = doc([folder('p', [folder('q', [layer('x'), layer('y')])], { collapsed: true }), layer('c')]);
+    const h = setup(data);
+    expect(h.list.row('q')).toBeUndefined();
+    expect(h.groups.ungroup('q')).toBe(true);
+    expect(shapeOf(h)).toBe('p(x,y),c');
+    expect(h.selection.selected()).toEqual([]);
+  });
+
+  it('ungroups a collapsed folder: children selected after the command', () => {
+    const events: LayerSelectionChangedEvent[] = [];
+    const recorder: EditorPlugin = {
+      id: 'test.recorder2',
+      dependencies: ['layers.selection'],
+      init: (ctx: IEditorContext) => {
+        ctx.events.on('layers:selectionChanged', (event) => events.push(event));
+      },
+      destroy: () => undefined
+    };
+    const h = setup(doc([folder('f', [layer('a'), layer('b')], { collapsed: true }), layer('c')]), [recorder]);
+    h.selection.select(['f']);
+    events.length = 0;
+    expect(h.groups.ungroup('f')).toBe(true);
+    expect(h.selection.selected()).toEqual(['a', 'b']);
+    expect(events.length).toBeLessThanOrEqual(2);
+  });
+
+  it('keeps DOM focus in the list when ungrouping an empty folder', () => {
+    const h = setup(doc([folder('e', []), layer('c')]));
+    h.selection.select(['e']);
+    focusRow(h, 'e');
+    expect(h.groups.ungroup('e')).toBe(true);
+    expect(document.activeElement).not.toBe(document.body);
+  });
+});
+
 describe('ids', () => {
   it('avoids span ids when numbering folders', () => {
     const span = { id: 'folder-1', start: 1, end: 3, kind: 'static' as const };
@@ -316,7 +375,6 @@ describe('keyboard', () => {
     const logged = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     const h = setup(tree, [squatter]);
     expect(logged).toHaveBeenCalled();
-    logged.mockRestore();
     const shortcuts = h.editor.getService('interaction.shortcuts');
     expect(shortcuts?.lookup('Mod+Shift+G')?.id).toBe('test.squatter.chord');
     h.editor.destroy();

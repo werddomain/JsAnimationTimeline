@@ -143,16 +143,30 @@ export class LayerGroupsPlugin implements EditorPlugin {
     const command: ICommand = ungroupCommand(ctx.document, folderId);
     const hadFocus = this.listHasFocus();
     const childIds = folder.children.map((child) => child.id);
-    // Dossier déplié : les enfants sont déjà des lignes visibles, on les sélectionne avant la commande
-    // pour que l'élagage qui suit ne change rien (un seul `selection:changed`). Replié : après la commande.
-    const early = childIds.length > 0 && !resolveCollapsed(folder);
-    if (early) this.requireSelection().select(childIds);
-    if (!ctx.commands.execute(command)) return false;
+    // Dossier déplié et visible : les enfants sont déjà des lignes visibles, on les sélectionne avant la
+    // commande pour que l'élagage qui suit ne change rien (un seul `selection:changed`). Dossier replié ou
+    // dans un dossier replié : les enfants ne sont pas des lignes, on les sélectionne après la commande
+    // (deux événements possibles : l'élagage du dossier disparu, puis les enfants).
+    const selection = this.requireSelection();
+    const early =
+      childIds.length > 0 && !resolveCollapsed(folder) && this.requireList().row(folderId) !== undefined;
+    const previous = { ids: selection.selected() };
+    if (early) selection.select(childIds);
+    if (!ctx.commands.execute(command)) {
+      // Refus (veto, no-op) : la sélection d'avant revient, rien n'est à annuler.
+      if (early) this.restoreSelection(previous.ids);
+      return false;
+    }
     // Dossier vide : rien à sélectionner, l'élagage de `layers.selection` retire le dossier disparu.
     if (childIds.length > 0 && !early) this.requireSelection().select(childIds);
     const last = childIds[childIds.length - 1];
     if (hadFocus && last !== undefined) this.focusRow(last);
     return true;
+  }
+
+  /** Rend la sélection d'avant ; l'ancre et le focus vont sur le dernier id (limite du service). */
+  private restoreSelection(ids: readonly string[]): void {
+    this.requireSelection().select(ids, 'replace');
   }
 
   /** Donne le focus DOM à la ligne `id`, si elle est affichée. */
