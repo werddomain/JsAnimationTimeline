@@ -14,7 +14,6 @@
 import { isLayer } from '@werddomain/timeline-runtime';
 import type { LayerTarget } from '@werddomain/timeline-runtime';
 import type { ILayerRow, ILayerRowControl } from '../list/types';
-import { isHistoryChord } from './historyKeys';
 import type { ITargetAlert } from './targetAlert';
 
 /** Classes du bouton de cible. */
@@ -70,16 +69,14 @@ export function createTargetControl(options: ITargetControlOptions): ITargetCont
     button.classList.add(TARGET_BUTTON_CLASSES.button);
     button.setAttribute('aria-haspopup', 'dialog');
     button.setAttribute('aria-expanded', 'false');
-    // La ligne ne doit pas réagir (sélection, clavier) : touches, pointeur et clic ne concernent que la cible,
-    // sauf annuler / rétablir, qui restent des raccourcis de l'éditeur.
+    // Comme les boutons à bascule : seuls Entrée et Espace sont retenus (Entrée est le raccourci de lecture) ;
+    // Ctrl+Z, flèches, raccourcis, pointeur et vrais clics remontent (la ligne se sélectionne).
     button.addEventListener('keydown', (event) => {
-      if (!isHistoryChord(event)) event.stopPropagation();
+      if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
     });
-    (['mousedown', 'pointerdown'] as const).forEach((type) =>
-      button.addEventListener(type, (event) => event.stopPropagation())
-    );
     button.addEventListener('click', (event) => {
-      event.stopPropagation();
+      // Le clic d'une activation au clavier (detail 0) ne doit pas atteindre la ligne, qui prendrait le focus.
+      if (event.detail === 0) event.stopPropagation();
       options.onActivate(row.id, button);
     });
     element.appendChild(button);

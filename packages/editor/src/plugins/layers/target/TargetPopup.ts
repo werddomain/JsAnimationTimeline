@@ -6,16 +6,23 @@
  * - bouton « Choisir sur la scène » : `targets.pick(signal)` de la première
  *   scène qui en a un (désactivé sinon), abandonné par la fermeture, Échap ou
  *   la destruction ; un résultat tardif ou annulé (`null`) ne change rien ;
- * - saisie libre : sélecteur CSS ou référence, avec la scène quand il y en a
- *   plusieurs.
+ * - saisie libre : sélecteur CSS ou référence. Une référence est rattachée à
+ *   la scène choisie (liste affichée quand il y a plusieurs scènes), sinon à
+ *   la seule scène quand il n'y en a qu'une, sinon garde la scène de la cible
+ *   courante : appliquer le texte prérempli ne change donc rien.
  *
- * Fenêtre `role="dialog"` ajoutée dans l'élément de l'éditeur. Elle se ferme
- * sur Échap (focus rendu au bouton de la ligne), quand le focus la quitte
- * (Tab), sur un clic extérieur, ou à la demande du plugin (calque supprimé,
- * destruction). Pendant un choix sur la scène, le clic extérieur et la perte
- * du focus ne la ferment pas (l'utilisateur clique justement sur la scène) ;
- * Échap, où que soit le focus, abandonne alors seulement le choix et rend le
- * focus au bouton « Choisir sur la scène » (sans atteindre les raccourcis).
+ * Fenêtre `role="dialog"` ajoutée dans l'élément de l'éditeur, placée comme
+ * le menu de `layers.icon`. Elle se ferme sur Échap (focus rendu au bouton de
+ * la ligne), quand le focus la quitte (Tab), sur un clic extérieur, ou à la
+ * demande du plugin (calque supprimé, destruction) : si le focus était dans
+ * la fenêtre, il revient au bouton, ou à l'éditeur si le bouton a disparu.
+ * Un mousedown dans la fenêtre ne déplace pas le focus (sauf dans les champs) :
+ * Safari et Firefox macOS ne focalisent pas les boutons, et une zone vide
+ * donnerait le focus à l'éditeur, ce qui fermerait la fenêtre avant le clic.
+ * Pendant un choix sur la scène, le clic extérieur et la perte du focus ne la
+ * ferment pas (l'utilisateur clique justement sur la scène) ; Échap, où que
+ * soit le focus, abandonne alors seulement le choix ; à la fin du choix
+ * (annulé, refusé, échoué), le focus revient au bouton « Choisir sur la scène ».
  *
  * Les touches pressées dans la fenêtre ne remontent pas aux raccourcis de
  * l'éditeur, sauf annuler / rétablir (Ctrl+Z, Ctrl+Y, Ctrl+Maj+Z). Une scène
@@ -46,6 +53,7 @@ export const TargetPopupLabels = Object.freeze({
   text: 'Sélecteur CSS ou référence',
   stage: 'Scène',
   anyStage: 'Automatique',
+  unknownStage: (id: string): string => `${id} (inconnue)`,
   apply: 'Appliquer',
   emptyText: 'Saisissez un sélecteur CSS ou une référence.',
   refused: 'Cette cible ne peut pas être enregistrée (un sélecteur CSS ou une référence seulement).'
@@ -60,17 +68,22 @@ const ISOLATED_EVENTS = ['click', 'dblclick', 'mousedown', 'pointerdown', 'keyup
 /** Cibles d'une scène qui sait faire choisir un objet. */
 type PickingTargets = IStageTargets & Required<Pick<IStageTargets, 'pick'>>;
 
+/** Résultat d'un enregistrement : appliqué, inchangé (même cible) ou refusé avec un motif. */
+export type ITargetApplyResult =
+  | { readonly kind: 'applied' | 'unchanged' }
+  | { readonly kind: 'refused'; readonly message: string };
+
 /** Ce que la fenêtre reçoit du plugin. */
 export interface ITargetPopupOptions {
   readonly stage: IEditorStage;
-  /** Élément où la fenêtre est ajoutée (l'élément de l'éditeur). */
+  /** Élément où la fenêtre est ajoutée (l'élément de l'éditeur), qui reprend le focus si le bouton a disparu. */
   readonly parent: HTMLElement;
   /** Bouton de la ligne : position, focus rendu, clics qui ne ferment pas. */
   readonly anchor: HTMLElement;
   readonly layerName: string;
   readonly current: LayerTarget | undefined;
-  /** Enregistre la cible : appliquée, inchangée, ou refusée (forme). */
-  readonly apply: (target: unknown) => 'applied' | 'unchanged' | 'refused';
+  /** Enregistre la cible. */
+  readonly apply: (target: unknown) => ITargetApplyResult;
   /** Appelé une fois, à la fermeture. */
   readonly onClose: () => void;
 }
@@ -78,8 +91,12 @@ export interface ITargetPopupOptions {
 /** Fenêtre ouverte. */
 export interface ITargetPopup {
   readonly element: HTMLElement;
-  /** Ferme la fenêtre (abandonne un choix en cours) ; rend le focus au bouton si `restoreFocus`. */
-  close(restoreFocus: boolean): void;
+  /**
+   * Ferme la fenêtre (abandonne un choix en cours). Le focus revient au bouton
+   * si `restoreFocus`, ou s'il était dans la fenêtre (à l'éditeur si le bouton
+   * a disparu).
+   */
+  close(restoreFocus: boolean, anchorGone?: boolean): void;
 }
 
 interface IPopupParts {
@@ -136,6 +153,11 @@ function describeLabel(stage: IEditorStage, target: LayerTarget, fallback: strin
   }
 }
 
+/** Champ de saisie qui garde son comportement au mousedown (curseur, liste déroulante). */
+function isField(target: EventTarget | null): boolean {
+  return target instanceof HTMLInputElement || target instanceof HTMLSelectElement;
+}
+
 /** Ouvre la fenêtre de choix pour `options.anchor`. */
 export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
   const doc = options.parent.ownerDocument;
@@ -143,19 +165,25 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
   let pickController: AbortController | null = null;
   let closed = false;
 
-  const close = (restoreFocus: boolean): void => {
+  const close = (restoreFocus: boolean, anchorGone = false): void => {
     if (closed) return;
     closed = true;
+    const hadFocus = parts.element.contains(doc.activeElement);
     pickController?.abort();
     listeners.abort();
     parts.element.remove();
-    if (restoreFocus && options.anchor.isConnected) options.anchor.focus();
+    if (restoreFocus || hadFocus) (!anchorGone && options.anchor.isConnected ? options.anchor : options.parent).focus();
     options.onClose();
   };
 
+  const backToPickButton = (): void => {
+    if (!closed && !parts.pickButton.disabled) parts.pickButton.focus();
+  };
+
   const finish = (target: unknown): void => {
-    if (options.apply(target) === 'refused') {
-      parts.status.textContent = TargetPopupLabels.refused;
+    const result = options.apply(target);
+    if (result.kind === 'refused') {
+      parts.status.textContent = result.message;
       return;
     }
     close(true);
@@ -172,7 +200,10 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
       parts.status.textContent = TargetPopupLabels.picking;
       picked = await targets.pick(controller.signal);
     } catch {
-      if (!controller.signal.aborted && !closed) parts.status.textContent = TargetPopupLabels.pickFailed;
+      if (!controller.signal.aborted && !closed) {
+        parts.status.textContent = TargetPopupLabels.pickFailed;
+        backToPickButton();
+      }
       return;
     } finally {
       if (pickController === controller) pickController = null;
@@ -181,6 +212,7 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
     parts.status.textContent = '';
     // Hors du `try` : une erreur d'enregistrement n'est pas prise pour un échec du choix.
     if (picked !== null) finish(picked);
+    backToPickButton();
   };
 
   const abortPick = (): void => {
@@ -188,7 +220,7 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
     pickController.abort();
     pickController = null;
     parts.status.textContent = '';
-    if (!parts.pickButton.disabled) parts.pickButton.focus();
+    backToPickButton();
   };
 
   const parts = buildPopup(doc, options, finish, () => void startPick());
@@ -208,7 +240,13 @@ export function openTargetPopup(options: ITargetPopupOptions): ITargetPopup {
 function wireClosing(element: HTMLElement, anchor: HTMLElement, doc: Document, signal: AbortSignal, hooks: IClosingHooks): void {
   const inside = (target: EventTarget | null): boolean =>
     target instanceof Node && (element.contains(target) || anchor.contains(target));
+  // Un ancêtre (l'éditeur, focalisable, ou la ligne du bouton) qui prend le focus n'est pas une sortie :
+  // les vrais clics extérieurs passent par le pointerdown du document.
+  const isAncestor = (target: Node): boolean => target.contains(element) || target.contains(anchor);
   ISOLATED_EVENTS.forEach((type) => element.addEventListener(type, (event) => event.stopPropagation(), { signal }));
+  element.addEventListener('mousedown', (event) => {
+    if (!isField(event.target)) event.preventDefault();
+  }, { signal });
   element.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -220,7 +258,9 @@ function wireClosing(element: HTMLElement, anchor: HTMLElement, doc: Document, s
     if (!isHistoryChord(event)) event.stopPropagation();
   }, { signal });
   element.addEventListener('focusout', (event) => {
-    if (!hooks.isPicking() && event.relatedTarget !== null && !inside(event.relatedTarget)) hooks.close(false);
+    const next = event.relatedTarget;
+    if (hooks.isPicking() || !(next instanceof Node) || inside(next) || isAncestor(next)) return;
+    hooks.close(false);
   }, { signal });
   doc.addEventListener('pointerdown', (event) => {
     if (!hooks.isPicking() && !inside(event.target)) hooks.close(false);
@@ -284,6 +324,18 @@ function buildList(
   return { element, first: buttons[0] };
 }
 
+/**
+ * Scène d'une ref saisie : celle de la liste quand elle est affichée
+ * (« Automatique » : aucune) ; sinon la scène de la cible courante, sinon la
+ * seule scène quand il n'y en a qu'une.
+ */
+function refStageOf(stage: IEditorStage, current: LayerTarget | undefined, select: HTMLSelectElement | null): string | undefined {
+  if (select !== null) return select.value === '' ? undefined : select.value;
+  const currentStage = current !== undefined && 'ref' in current ? current.stage : undefined;
+  if (currentStage !== undefined) return currentStage;
+  return stage.stages.length === 1 ? stage.stages[0]?.id : undefined;
+}
+
 /** Saisie libre : type, texte, scène (plusieurs scènes seulement), bouton Appliquer. */
 function buildForm(
   doc: Document,
@@ -320,10 +372,11 @@ function buildForm(
   form.appendChild(apply);
   form.addEventListener('submit', (event) => {
     event.preventDefault();
+    const isRef = kind.value === 'ref';
     const input: ITargetInput = {
-      kind: kind.value === 'ref' ? 'ref' : 'selector',
+      kind: isRef ? 'ref' : 'selector',
       text: text.value,
-      stage: stageSelect?.value
+      stage: isRef ? refStageOf(options.stage, current, stageSelect) : undefined
     };
     const target = targetFromInput(input);
     if (target === undefined) {
@@ -335,14 +388,24 @@ function buildForm(
   return { element: form, text };
 }
 
-/** Choix de la scène d'une ref, seulement quand il y a plusieurs scènes. */
+/**
+ * Choix de la scène d'une ref, seulement quand il y a plusieurs scènes. Une
+ * scène courante absente de la liste y est ajoutée (et choisie) pour ne pas
+ * être perdue.
+ */
 function buildStageSelect(doc: Document, stage: IEditorStage, current: LayerTarget | undefined): HTMLSelectElement | null {
   if (stage.stages.length < 2) return null;
   const select = el(doc, 'select', `${TARGET_POPUP_CLASS}__stage`);
   select.setAttribute('aria-label', TargetPopupLabels.stage);
   select.appendChild(option(doc, TargetPopupLabels.anyStage, ''));
   stage.stages.forEach((candidate) => select.appendChild(option(doc, candidate.id, candidate.id)));
-  if (current !== undefined && 'ref' in current && current.stage !== undefined) select.value = current.stage;
+  const currentStage = current !== undefined && 'ref' in current ? current.stage : undefined;
+  if (currentStage !== undefined) {
+    if (!stage.stages.some((candidate) => candidate.id === currentStage)) {
+      select.appendChild(option(doc, TargetPopupLabels.unknownStage(currentStage), currentStage));
+    }
+    select.value = currentStage;
+  }
   return select;
 }
 

@@ -61,7 +61,13 @@ export function isSavableTarget(value: unknown): value is SerializableLayerTarge
  * cible entre le contrôle et l'enregistrement.
  */
 export function toSavableTarget(value: unknown): SerializableLayerTarget | undefined {
-  const snapshot = typeof value === 'object' && value !== null ? { ...value } : value;
+  let snapshot: unknown;
+  try {
+    // Un accesseur qui lève (objet d'une scène) donne une cible refusée, jamais une exception.
+    snapshot = typeof value === 'object' && value !== null ? { ...value } : value;
+  } catch {
+    return undefined;
+  }
   if (!isSavableTarget(snapshot)) return undefined;
   if ('selector' in snapshot) return { selector: snapshot.selector };
   return snapshot.stage === undefined ? { ref: snapshot.ref } : { ref: snapshot.ref, stage: snapshot.stage };

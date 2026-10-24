@@ -122,7 +122,8 @@ describe('target popup: closing and keys', () => {
     document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     const closedByClick = popup(host) === null;
     const dialog = open(host);
-    dialog.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body }));
+    const outside = document.body.appendChild(document.createElement('button'));
+    dialog.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: outside }));
 
     // Assert
     expect(closedByClick).toBe(true);

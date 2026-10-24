@@ -7,7 +7,7 @@
  *   n'est pas une cible perdue) ;
  * - sinon, alerte si le calque est dans `missingTargets`, avec la raison
  *   tirée des avertissements de ce calque : aucune scène ne l'accepte, scène
- *   inconnue, ou objet introuvable.
+ *   inconnue, erreur de la scène (son `resolve` a levé), ou objet introuvable.
  */
 
 import { StageReportCodes } from '@werddomain/timeline-runtime';
@@ -21,7 +21,7 @@ export interface ITargetAlertSource {
 }
 
 /** Raison d'une cible manquante. */
-export type TargetAlertReason = 'unrouted' | 'unknown-stage' | 'not-found';
+export type TargetAlertReason = 'unrouted' | 'unknown-stage' | 'stage-error' | 'not-found';
 
 /** Alerte d'un calque : `missing` faux et libellé vide quand tout va bien. */
 export interface ITargetAlert {
@@ -34,6 +34,7 @@ export interface ITargetAlert {
 export const TargetAlertLabels = Object.freeze({
   unrouted: 'Cible introuvable : aucune scène ne la prend en charge',
   unknownStage: (stageId: string): string => `Cible introuvable : la scène « ${stageId} » n'existe pas`,
+  stageError: 'Cible introuvable : la scène a signalé une erreur',
   notFound: 'Cible introuvable sur la scène'
 });
 
@@ -48,13 +49,17 @@ export function computeTargetAlert(
   if (source.stages.length === 0 || target === undefined || !source.missingTargets.includes(layerId)) return NO_ALERT;
   const warning = source.warnings.find((report) =>
     report.layerId === layerId &&
-    (report.code === StageReportCodes.UNROUTED || report.code === StageReportCodes.UNKNOWN_STAGE));
+    (report.code === StageReportCodes.UNROUTED || report.code === StageReportCodes.UNKNOWN_STAGE ||
+      report.code === StageReportCodes.STAGE_ERROR));
   if (warning?.code === StageReportCodes.UNROUTED) {
     return Object.freeze({ missing: true, reason: 'unrouted', label: TargetAlertLabels.unrouted });
   }
   if (warning?.code === StageReportCodes.UNKNOWN_STAGE) {
     const label = TargetAlertLabels.unknownStage(warning.stageId ?? '');
     return Object.freeze({ missing: true, reason: 'unknown-stage', label });
+  }
+  if (warning?.code === StageReportCodes.STAGE_ERROR) {
+    return Object.freeze({ missing: true, reason: 'stage-error', label: TargetAlertLabels.stageError });
   }
   return Object.freeze({ missing: true, reason: 'not-found', label: TargetAlertLabels.notFound });
 }
