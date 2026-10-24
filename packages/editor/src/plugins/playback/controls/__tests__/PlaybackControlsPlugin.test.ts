@@ -17,6 +17,7 @@ import { PlaybackPlugin } from '../../PlaybackPlugin';
 import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
 import {
   formatSpeed,
+  isEnterActivated,
   PLAYBACK_CONTROLS_PLUGIN_ID,
   PLAYBACK_SPEEDS,
   PlaybackControlsPlugin
@@ -286,3 +287,70 @@ describe('playback.controls keyboard and lifecycle details', () => {
     expect(ctx.services.require('interaction.shortcuts').lookup('Enter')).toBeUndefined();
   });
 });
+
+describe('playback.controls review follow-ups', () => {
+  it('toggles once when Enter is held down', () => {
+    // Arrange
+    const { editor } = mount();
+
+    // Act
+    press(editor.container, { key: 'Enter' });
+    const repeated = press(editor.container, { key: 'Enter', repeat: true });
+
+    // Assert
+    expect(editor.playback.playing).toBe(true);
+    expect(repeated.defaultPrevented).toBe(false);
+  });
+
+  it('recognises a button from another document (iframe stage) by its node type', () => {
+    // Arrange
+    const frame = document.createElement('iframe');
+    document.body.appendChild(frame);
+    const foreign = frame.contentDocument?.createElement('button') ?? null;
+
+    // Assert
+    expect(isEnterActivated(foreign)).toBe(true);
+    expect(isEnterActivated(document.createTextNode('x'))).toBe(false);
+    expect(isEnterActivated(null)).toBe(false);
+  });
+
+  it('inserts an unknown speed in order, with a rounded French label', () => {
+    // Arrange
+    const { editor, speed } = mount();
+
+    // Act
+    editor.playback.speed = 0.1 + 0.2;
+    editor.playback.play();
+
+    // Assert
+    const labels = Array.from(speed.options).map((option) => option.textContent);
+    expect(labels).toEqual(['×0,25', '×0,3', '×0,5', '×1', '×1,5', '×2']);
+  });
+});
+
+describe('formatSpeed', () => {
+  it('never gives a custom speed the label of another one', () => {
+    // Assert
+    expect(formatSpeed(1.001)).toBe('×1,001');
+    expect(formatSpeed(0.001)).toBe('×0,001');
+    expect(formatSpeed(0.004)).toBe('×0,004');
+    expect(formatSpeed(1 / 3)).toBe('×0,3333');
+    expect(formatSpeed(0.1 + 0.2)).toBe('×0,3');
+  });
+
+  it('emits no shortcut:triggered for Enter repeats', () => {
+    // Arrange
+    const { editor } = mount();
+    const triggered: string[] = [];
+    editor.on('shortcut:triggered', (event) => triggered.push(event.id));
+
+    // Act
+    press(editor.container, { key: 'Enter' });
+    press(editor.container, { key: 'Enter', repeat: true });
+    press(editor.container, { key: 'Enter', repeat: true });
+
+    // Assert
+    expect(triggered).toEqual(['playback.controls.toggle']);
+  });
+});
+

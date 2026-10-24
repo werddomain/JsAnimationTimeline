@@ -13,6 +13,7 @@ import { validateDocument } from '../model/validate';
 import { defaultPropertyRegistry } from '../properties/PropertyRegistry';
 import { createHtmlStage } from '../stage/html/createHtmlStage';
 import { buildStageRegistry } from '../stage/registry';
+import { assertValidStages } from '../stage/routing';
 import type { IStageReport } from '../stage/reports';
 import { StageHost } from '../stage/StageHost';
 import type { IStage } from '../stage/types';
@@ -37,7 +38,7 @@ function reportAsync(error: unknown): void {
   }, 0);
 }
 
-/** Stages of the options: the given ones, or the default HTML stage on `root`. */
+/** Stages of the options: the given ones (checked before building the registry), or the default HTML stage on `root`. */
 function resolveStages(options: IPlayerOptions): readonly IStage[] {
   if (options.stage !== undefined) {
     if (options.root !== undefined) {
@@ -47,6 +48,7 @@ function resolveStages(options: IPlayerOptions): readonly IStage[] {
     if (stages.length === 0) {
       throw new Error('The stage option needs at least one stage.');
     }
+    assertValidStages(stages);
     return stages;
   }
   return [createHtmlStage({ root: options.root ?? document, mode: 'waapi' })];

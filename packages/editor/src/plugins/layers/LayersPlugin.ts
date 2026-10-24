@@ -10,16 +10,22 @@
  * fonctionnalité, enregistrés avec lui par l'hôte (et toujours initialisés
  * après lui) :
  * - `layers.list` : la liste des calques, ses lignes et leurs contrôles.
+ * - `layers.rename` : renommage sur place des calques et des dossiers.
+ * - `layers.visibility` : œil de visibilité (ligne et en-tête).
+ * - `layers.lock` : cadenas de verrouillage (ligne et en-tête).
  * - `layers.selection` : la sélection multiple des calques et la navigation au clavier.
  * - `layers.reorder` : le glisser-déposer des calques (ordre, entrée et sortie d'un dossier).
  *
- * Les tâches suivantes (Y2 à Y8) ajoutent leur plugin à `children`.
+ * Les tâches suivantes (Y3, Y4, Y6 à Y8) ajoutent leur plugin à `children`.
  */
 
 import type { EditorPlugin } from '../../core/context/IEditorContext';
 import { LayerListPlugin } from './list/LayerListPlugin';
-import { LayerReorderPlugin } from './reorder/LayerReorderPlugin';
+import { LockPlugin } from './lock/LockPlugin';
+import { RenamePlugin } from './rename/RenamePlugin';
+import { VisibilityPlugin } from './visibility/VisibilityPlugin';
 import { LayerSelectionPlugin } from './selection/LayerSelectionPlugin';
+import { LayerReorderPlugin } from './reorder/LayerReorderPlugin';
 
 /** Epic `layers` : liste des calques et ses fonctionnalités. */
 export class LayersPlugin implements EditorPlugin {
@@ -28,7 +34,14 @@ export class LayersPlugin implements EditorPlugin {
   readonly children: readonly EditorPlugin[];
 
   constructor() {
-    this.children = [new LayerListPlugin(), new LayerSelectionPlugin(), new LayerReorderPlugin()];
+    this.children = [
+      new LayerListPlugin(),
+      new RenamePlugin(),
+      new VisibilityPlugin(),
+      new LockPlugin(),
+      new LayerSelectionPlugin(),
+      new LayerReorderPlugin(),
+    ];
   }
 
   readonly init = (): void => {};

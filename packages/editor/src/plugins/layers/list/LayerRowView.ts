@@ -10,7 +10,7 @@
  * retournées à la liste, qui les relance une fois son travail fini.
  */
 
-import { isFolder, resolveCollapsed, resolveVisible } from '@werddomain/timeline-runtime';
+import { isFolder, resolveCollapsed } from '@werddomain/timeline-runtime';
 import { ROW_HEIGHT } from '../../../model/rows';
 import { renderLayerIcon } from './layerIcon';
 import type { ILayerRow, ILayerRowControl } from './types';
@@ -97,19 +97,24 @@ export class LayerRowView {
 
   /** Met à jour la ligne et ses contrôles ; retourne les erreurs des contrôles. */
   update(row: ILayerRow): unknown[] {
-    const kindChanged = row.kind !== this.current.kind;
+    const previous = this.current;
+    const kindChanged = row.kind !== previous.kind;
     this.current = row;
     this.paint(row, kindChanged);
     const errors: unknown[] = [];
     this.cells.forEach(({ control, element }) =>
-      collectError(errors, () => {
+      {
         if (control.update !== undefined) {
-          control.update(row, element);
-        } else {
+          collectError(errors, () => control.update?.(row, element));
+          return;
+        }
+        // Un `dispose` en panne n'empêche pas le nouveau rendu.
+        collectError(errors, () => control.dispose?.(previous, element));
+        collectError(errors, () => {
           element.replaceChildren();
           control.render(row, element);
-        }
-      })
+        });
+      }
     );
     return errors;
   }
@@ -151,7 +156,7 @@ export class LayerRowView {
     element.classList.toggle(LAYER_ROW_CLASSES.folder, folder);
     element.classList.toggle(LAYER_ROW_CLASSES.layer, !folder);
     element.classList.toggle(LAYER_ROW_CLASSES.collapsed, collapsed);
-    element.classList.toggle(LAYER_ROW_CLASSES.hidden, !resolveVisible(node));
+    element.classList.toggle(LAYER_ROW_CLASSES.hidden, row.hiddenByAncestor);
     element.classList.toggle(LAYER_ROW_CLASSES.locked, row.lockedByAncestor);
     element.dataset.rowKind = row.kind;
     element.setAttribute('aria-level', String(row.depth + 1));

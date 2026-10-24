@@ -31,6 +31,36 @@ Limites :
 - Les types du modèle sont des `record`, mais leurs listes et dictionnaires se comparent par référence :
   deux documents lus séparément ne sont pas égaux avec `==`. Comparer plutôt leur JSON.
 
+## Jouer une animation : `TimelinePlayer`
+
+```razor
+@using JsTimeline.Blazor.Player
+
+<TimelinePlayer @ref="_player" Data="_document" Autoplay Loop Speed="1.5"
+                OnFrame="frame => _frame = frame" OnComplete="Finished" class="scene">
+    <div id="logo">Logo</div>
+</TimelinePlayer>
+```
+
+- Les sélecteurs des calques sont cherchés dans l'élément rendu autour du contenu.
+- La lecture tourne dans le navigateur (Web Animations), sans aller-retour avec .NET.
+- Un nouveau `Data` remplace l'animation en gardant le temps et l'état de lecture. `Loop` et `Speed` peuvent
+  changer à tout moment.
+- Méthodes : `PlayAsync`, `PauseAsync`, `SeekAsync(image)`, `GetStateAsync()` (image, lecture en cours,
+  calques sans élément, avertissements de la scène) et `RefreshTargetsAsync()`. Elles sont utilisables
+  après `OnReady`.
+- Les cibles sont cherchées quand un document est appliqué. Si le contenu affiche un élément animé plus
+  tard (bloc `@if`, composant enfant qui charge ses données, liste), appeler `RefreshTargetsAsync()`.
+  Un sélecteur qui ne trouve rien n'est pas une erreur : le calque apparaît dans `MissingTargets`.
+- Événements : `OnPlay`, `OnPause`, `OnComplete`, `OnLoop` et `OnFrame`. `OnFrame` doit être donné dès le
+  premier rendu, car chaque image fait alors un appel vers .NET.
+- `OnError` (à donner dès le premier rendu) reçoit :
+  - une `JSException` quand le lecteur refuse un document. Le lecteur garde le document précédent, et ce
+    document refusé n'est pas renvoyé ; un nouveau document l'est ;
+  - une `TimelineStageException` quand la scène échoue pendant la lecture, qui continue.
+  Sans gestionnaire, un document refusé est levé et une erreur de scène va dans la console du navigateur.
+- Seule la scène HTML est prise en charge pour l'instant.
+
 ## Construire le package
 
 ```bash

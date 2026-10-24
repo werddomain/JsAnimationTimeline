@@ -13,6 +13,7 @@ import type { EditorPlugin } from '../../../core/context/IEditorContext';
 import { LayoutPlugin } from '../LayoutPlugin';
 import type { IFrameScheduler } from '../scrollSync/ScrollSyncPlugin';
 import type { LayoutZone } from '../shell/layoutSlots';
+import type { ZoomOptions } from '../zoom/ZoomPlugin';
 
 /** Crée un conteneur hôte ajouté à `document.body`. */
 export function createContainer(): HTMLElement {
@@ -111,6 +112,7 @@ export interface IMountedLayout {
 export interface IMountOptions {
   readonly data?: ITimelineDocument;
   readonly frameWidth?: number;
+  readonly zoom?: ZoomOptions;
 }
 
 /** Monte un éditeur avec l'epic `layout` (ordonnanceur et horloge manuels) puis `plugins`. */
@@ -121,7 +123,7 @@ export function mountLayout(plugins: readonly EditorPlugin[] = [], options: IMou
   const editor = createEditor(container, {
     data: options.data,
     clock,
-    defaultPlugins: [new LayoutPlugin({ scrollSync: { scheduler }, ruler: { frameWidth: options.frameWidth } })],
+    defaultPlugins: [new LayoutPlugin({ scrollSync: { scheduler }, ruler: { frameWidth: options.frameWidth }, zoom: options.zoom })],
     plugins
   });
   const zone = (name: LayoutZone): HTMLElement => {

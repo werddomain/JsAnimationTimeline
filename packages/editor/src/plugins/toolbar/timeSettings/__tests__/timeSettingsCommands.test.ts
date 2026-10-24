@@ -14,6 +14,8 @@ import {
   createSetFpsCommand,
   createSetTotalFramesCommand,
   lastUsedFrame,
+  MAX_TOTAL_FRAMES,
+  maxTotalFrames,
   TimeSettingsLabels,
   totalFramesError
 } from '../timeSettingsCommands';
@@ -121,7 +123,7 @@ describe('createSetTotalFramesCommand', () => {
     expect(editor.document.settings.totalFrames).toBe(120);
   });
 
-  it.each([0, -5, 12.5])('refuses %p with a clear French message', (totalFrames) => {
+  it.each([0, -5, 12.5, 100_001, 1e21])('refuses %p with a clear French message', (totalFrames) => {
     // Arrange
     const { editor, refusals } = mount();
 
@@ -130,7 +132,7 @@ describe('createSetTotalFramesCommand', () => {
 
     // Assert
     expect(editor.document.settings.totalFrames).toBe(60);
-    expect(refusals).toEqual(["La durée doit être un nombre entier d'au moins 1 image."]);
+    expect(refusals).toEqual(['La durée doit être un nombre entier de 1 à 100 000 images.']);
   });
 
   it('refuses to end before the last span, naming its layer even inside a folder', () => {
@@ -161,11 +163,34 @@ describe('createSetTotalFramesCommand', () => {
   });
 });
 
+describe('MAX_TOTAL_FRAMES', () => {
+  it('accepts the maximum duration and nothing above it', () => {
+    // Arrange
+    const { editor } = mount();
+
+    // Act + Assert
+    expect(MAX_TOTAL_FRAMES).toBe(100_000);
+    expect(editor.execute(createSetTotalFramesCommand(MAX_TOTAL_FRAMES))).toBe(true);
+    expect(editor.execute(createSetTotalFramesCommand(MAX_TOTAL_FRAMES + 1))).toBe(false);
+    expect(editor.document.settings.totalFrames).toBe(MAX_TOTAL_FRAMES);
+  });
+});
+
 describe('lastUsedFrame', () => {
   it('returns undefined without any span, and the furthest span end otherwise', () => {
     // Assert
     expect(lastUsedFrame(createDoc([]))).toBeUndefined();
     expect(lastUsedFrame(spanDoc())).toEqual({ frame: 48, layerName: 'Ombre' });
     expect(totalFramesError(spanDoc(), 48)).toBeUndefined();
+  });
+});
+
+describe('maxTotalFrames', () => {
+  it('is MAX_TOTAL_FRAMES, or the document duration when it is longer', () => {
+    // Assert
+    expect(maxTotalFrames(createDoc([], 60))).toBe(MAX_TOTAL_FRAMES);
+    expect(maxTotalFrames(createDoc([], 200_000))).toBe(200_000);
+    expect(totalFramesError(createDoc([], 200_000), 150_000)).toBeUndefined();
+    expect(totalFramesError(createDoc([], 200_000), 200_001)).toBe('La durée doit être un nombre entier de 1 à 200 000 images.');
   });
 });
