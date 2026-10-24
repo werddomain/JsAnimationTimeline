@@ -10,13 +10,12 @@ export {
 } from './ZoomControlPlugin';
 export {
   SLIDER_STEP,
-  SLIDER_STEPS_PER_OCTAVE,
-  ZOOM_PRESETS,
+  SLIDER_UNITS_PER_OCTAVE,
   fitZoom,
   formatCustomZoom,
   formatZoom,
-  presetsWithin,
-  sliderRange,
+  sliderBounds,
   sliderToZoom,
+  stepSlider,
   zoomToSlider
 } from './zoomControlMath';

@@ -1,53 +1,56 @@
 // packages/editor/src/plugins/toolbar/zoomControl/zoomControlMath.ts
 /**
- * Calculs sans DOM de `toolbar.zoomControl` : préréglages de la liste,
- * bornes et échelle du curseur, zoom « Ajuster à la fenêtre » et libellés
- * en pourcentage.
+ * Calculs sans DOM de `toolbar.zoomControl` : échelle et pas du curseur,
+ * zoom « Ajuster à la fenêtre » et libellés en pourcentage.
  *
- * Le curseur suit une échelle logarithmique (base 2) : passer de 25 % à
- * 50 % fait le même trajet que de 200 % à 400 %.
+ * Le curseur couvre toutes les bornes du service `layout.zoom` (`range()`),
+ * sur une échelle logarithmique (base 2) : passer de 25 % à 50 % fait le
+ * même trajet que de 200 % à 400 %. Sa valeur est exacte (aucun arrondi) :
+ * un zoom fait ailleurs (« Ajuster à la fenêtre », pincement, autre plugin)
+ * s'y affiche tel quel, et un palier comme 75 % tombe juste.
  */
 
 import type { IZoomRange } from '../../layout/zoom/zoomLevels';
 
-/** Préréglages de la liste déroulante (rapport d'analyse, décision par défaut : 25 % à 400 %). */
-export const ZOOM_PRESETS: readonly number[] = Object.freeze([0.25, 0.5, 1, 2, 4]);
-
-/** Graduation interne du curseur : un centième d'octave (2^0,01, environ 0,7 %). */
-export const SLIDER_STEPS_PER_OCTAVE = 100;
+/** Unités du curseur par octave (doublement du zoom). */
+export const SLIDER_UNITS_PER_OCTAVE = 100;
 
 /**
- * Pas du curseur au clavier et au glisser : 5 centièmes d'octave (environ
- * 3,5 %). Les préréglages tombent sur des multiples de 100, donc sur un pas.
+ * Pas du curseur au clavier, en unités : 5 centièmes d'octave (environ
+ * 3,5 %). Un pas qui enjamberait un palier s'arrête dessus.
  */
 export const SLIDER_STEP = 5;
 
 /** Écart sous lequel deux facteurs de zoom sont considérés égaux. */
-const EPSILON = 1e-6;
+const EPSILON = 1e-9;
 
-/** Préréglages compris dans `range` (bornes du service `layout.zoom`). */
-export function presetsWithin(range: IZoomRange): number[] {
-  return ZOOM_PRESETS.filter((preset) => preset >= range.min - EPSILON && preset <= range.max + EPSILON);
-}
-
-/**
- * Bornes du curseur : celles des préréglages (25 % à 400 %), réduites à
- * `range` ; `range` lui-même s'il ne contient aucun préréglage.
- */
-export function sliderRange(range: IZoomRange): IZoomRange {
-  const presets = presetsWithin(range);
-  if (presets.length === 0) return range;
-  return { min: Math.max(range.min, presets[0]), max: Math.min(range.max, presets[presets.length - 1]) };
-}
-
-/** Valeur entière du curseur pour `zoom` (échelle logarithmique). */
+/** Valeur du curseur pour `zoom` (échelle logarithmique, exacte). */
 export function zoomToSlider(zoom: number): number {
-  return Math.round(Math.log2(zoom) * SLIDER_STEPS_PER_OCTAVE);
+  return Math.log2(zoom) * SLIDER_UNITS_PER_OCTAVE;
 }
 
 /** Zoom d'une valeur du curseur. */
 export function sliderToZoom(value: number): number {
-  return 2 ** (value / SLIDER_STEPS_PER_OCTAVE);
+  return 2 ** (value / SLIDER_UNITS_PER_OCTAVE);
+}
+
+/** Bornes du curseur : toutes celles du zoom. */
+export function sliderBounds(range: IZoomRange): { readonly min: number; readonly max: number } {
+  return { min: zoomToSlider(range.min), max: zoomToSlider(range.max) };
+}
+
+/**
+ * Zoom après un pas de curseur (`direction` 1 vers la droite, -1 vers la
+ * gauche) depuis `zoom` : `SLIDER_STEP` unités, arrêté sur un palier de
+ * `levels` qu'il enjamberait, borné à `range`.
+ */
+export function stepSlider(zoom: number, direction: 1 | -1, levels: readonly number[], range: IZoomRange): number {
+  const target = sliderToZoom(zoomToSlider(zoom) + direction * SLIDER_STEP);
+  const crossed = levels.filter((level) =>
+    direction === 1 ? level > zoom + EPSILON && level < target - EPSILON : level < zoom - EPSILON && level > target + EPSILON
+  );
+  const next = crossed.length === 0 ? target : direction === 1 ? Math.min(...crossed) : Math.max(...crossed);
+  return Math.min(range.max, Math.max(range.min, next));
 }
 
 /**
@@ -71,17 +74,28 @@ export function sameZoom(a: number, b: number): boolean {
   return Math.abs(a - b) < EPSILON;
 }
 
-/** Libellé français d'un zoom, arrondi à l'unité (`1.5` -> `150 %`, espace insécable). */
-export function formatZoom(zoom: number): string {
-  return `${Math.round(zoom * 100)}\u00a0%`;
+/** Pourcentage français avec `decimals` décimales et une espace insécable. */
+function percent(zoom: number, decimals: number): string {
+  return `${(zoom * 100).toFixed(decimals).replace('.', ',')}\u00a0%`;
 }
 
+/** Libellé français d'un zoom, arrondi à l'unité (`1.5` -> `150 %`). */
+export function formatZoom(zoom: number): string {
+  return percent(zoom, 0);
+}
+
+/** Décimales au plus d'un libellé hors paliers. */
+const MAX_DECIMALS = 6;
+
 /**
- * Libellé d'un zoom hors préréglages : arrondi à l'unité, ou au dixième si
- * l'unité le confondrait avec un préréglage (`0.998` -> `99,8 %`, pas `100 %`).
+ * Libellé d'un zoom hors paliers : le moins de décimales possible sans
+ * qu'il se lise comme un palier de `levels` (`0.998` -> `99,8 %`,
+ * `0.9996` -> `99,96 %`, jamais `100 %` ni `100,0 %`).
  */
-export function formatCustomZoom(zoom: number, presets: readonly number[]): string {
-  const label = formatZoom(zoom);
-  if (!presets.some((preset) => formatZoom(preset) === label)) return label;
-  return `${(zoom * 100).toFixed(1).replace('.', ',')}\u00a0%`;
+export function formatCustomZoom(zoom: number, levels: readonly number[]): string {
+  for (let decimals = 0; decimals < MAX_DECIMALS; decimals += 1) {
+    const shown = Number((zoom * 100).toFixed(decimals));
+    if (!levels.some((level) => Math.abs(level * 100 - shown) < EPSILON)) return percent(zoom, decimals);
+  }
+  return percent(zoom, MAX_DECIMALS);
 }

@@ -14,6 +14,7 @@ import type { IZoomApi } from '../../../layout/zoom/ZoomPlugin';
 import { toolbarBasePlugins } from '../../__tests__/toolbarFixtures';
 import { ToolbarPlugin } from '../../ToolbarPlugin';
 import { FIT_OPTION_VALUE, ZOOM_CONTROL_PLUGIN_ID, ZoomControlPlugin } from '../ZoomControlPlugin';
+import { zoomToSlider } from '../zoomControlMath';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -62,7 +63,7 @@ function visibleOptions(select: HTMLSelectElement): Array<string | null> {
 describe('toolbar.zoomControl rendering', () => {
   it('adds a labelled list and slider to the zoom group of the toolbar', () => {
     // Act
-    const { editor, select, slider } = mount();
+    const { editor, select, slider, zoom } = mount();
 
     // Assert
     const control = editor.container.querySelector(`[data-toolbar-item="${ZOOM_CONTROL_PLUGIN_ID}"]`);
@@ -70,17 +71,16 @@ describe('toolbar.zoomControl rendering', () => {
     expect(control?.getAttribute('aria-label')).toBe('Zoom de la règle');
     expect(select.getAttribute('aria-label')).toBe('Niveau de zoom');
     expect(visibleOptions(select)).toEqual([
-      '25\u00a0%',
-      '50\u00a0%',
-      '100\u00a0%',
-      '200\u00a0%',
-      '400\u00a0%',
+      ...zoom.levels().map((level) => `${level * 100}\u00a0%`),
       'Ajuster à la fenêtre'
     ]);
+    expect(visibleOptions(select)).toContain('75\u00a0%');
     expect(select.value).toBe('1');
     expect(slider.getAttribute('aria-label')).toBe('Zoom continu');
-    expect(slider.step).toBe('5');
-    expect([slider.min, slider.max, slider.value]).toEqual(['-200', '200', '0']);
+    expect(slider.step).toBe('any');
+    expect(Number(slider.min)).toBeCloseTo(zoomToSlider(zoom.range().min), 9);
+    expect(Number(slider.max)).toBeCloseTo(zoomToSlider(zoom.range().max), 9);
+    expect(Number(slider.value)).toBe(0);
     expect(slider.getAttribute('aria-valuetext')).toBe('100\u00a0%');
   });
 
@@ -109,7 +109,7 @@ describe('toolbar.zoomControl changes the zoom', () => {
 
     // Assert
     expect(zoom.zoom()).toBe(2);
-    expect(slider.value).toBe('100');
+    expect(Number(slider.value)).toBe(100);
     expect(slider.getAttribute('aria-valuetext')).toBe('200\u00a0%');
   });
 
@@ -124,7 +124,7 @@ describe('toolbar.zoomControl changes the zoom', () => {
     expect(zoom.zoom()).toBeCloseTo(2 ** 0.6, 6);
     expect(select.value).toBe('custom');
     expect(select.selectedOptions[0]?.textContent).toBe('152\u00a0%');
-    expect(visibleOptions(select).indexOf('152\u00a0%')).toBe(3);
+    expect(visibleOptions(select).indexOf('152\u00a0%')).toBe(5);
     slide(slider, 0);
     expect(select.value).toBe('1');
     expect(visibleOptions(select)).not.toContain('152\u00a0%');
@@ -164,7 +164,7 @@ describe('toolbar.zoomControl changes the zoom', () => {
 
     // Assert
     expect(select.value).toBe('0.5');
-    expect(slider.value).toBe('-100');
+    expect(Number(slider.value)).toBe(-100);
   });
 
   it('adds no history entry and changes no document', () => {
@@ -245,3 +245,76 @@ describe('toolbar.zoomControl destroy', () => {
     expect(zoom.zoom()).toBe(2);
   });
 });
+
+function key(slider: HTMLInputElement, name: string): KeyboardEvent {
+  const event = new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true });
+  slider.dispatchEvent(event);
+  return event;
+}
+
+describe('toolbar.zoomControl beyond the presets', () => {
+  it('shows a 10 % fit on the slider and steps up from there, not to 25 %', () => {
+    // Arrange
+    const { editor, zoom, select, slider } = mount(900);
+    editor.load({ ...editor.document, settings: { ...editor.document.settings, totalFrames: 2000 } });
+
+    // Act
+    choose(select, FIT_OPTION_VALUE);
+
+    // Assert
+    expect(zoom.zoom()).toBeCloseTo(0.1, 9);
+    expect(Number(slider.value)).toBeCloseTo(zoomToSlider(0.1), 9);
+    expect(slider.getAttribute('aria-valuetext')).toBe('10\u00a0%');
+    const event = key(slider, 'ArrowRight');
+    expect(event.defaultPrevented).toBe(true);
+    expect(zoom.zoom()).toBeGreaterThan(0.1);
+    expect(zoom.zoom()).toBeLessThan(0.25);
+  });
+
+  it('shows 800 % on the slider and steps down from there, not to 400 %', () => {
+    // Arrange
+    const { zoom, slider } = mount();
+    zoom.setZoom(8);
+    expect(Number(slider.value)).toBeCloseTo(zoomToSlider(8), 9);
+
+    // Act
+    key(slider, 'ArrowLeft');
+
+    // Assert
+    expect(zoom.zoom()).toBeLessThan(8);
+    expect(zoom.zoom()).toBeGreaterThan(4);
+  });
+
+  it('lands exactly on a level: a zoom step to 75 % is a list entry, and the arrows stop on it', () => {
+    // Arrange
+    const { zoom, select, slider } = mount();
+
+    // Act
+    zoom.zoomOut();
+
+    // Assert
+    expect(zoom.zoom()).toBe(0.75);
+    expect(select.value).toBe('0.75');
+    expect(Number(slider.value)).toBeCloseTo(zoomToSlider(0.75), 9);
+    zoom.setZoom(0.74);
+    key(slider, 'ArrowRight');
+    expect(zoom.zoom()).toBe(0.75);
+  });
+
+  it('moves a level with Page Up / Page Down and to the bounds with Home / End', () => {
+    // Arrange
+    const { zoom, slider } = mount();
+
+    // Act + Assert
+    key(slider, 'PageUp');
+    expect(zoom.zoom()).toBe(1.5);
+    key(slider, 'PageDown');
+    expect(zoom.zoom()).toBe(1);
+    key(slider, 'Home');
+    expect(zoom.zoom()).toBe(zoom.range().min);
+    key(slider, 'End');
+    expect(zoom.zoom()).toBe(zoom.range().max);
+    expect(key(slider, 'Tab').defaultPrevented).toBe(false);
+  });
+});
+

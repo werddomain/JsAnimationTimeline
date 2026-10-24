@@ -78,7 +78,7 @@ describe('playback.controls rendering', () => {
     expect(loop.getAttribute('aria-label')).toBe('Boucle');
     expect(loop.getAttribute('aria-pressed')).toBe('false');
     expect(speed.getAttribute('aria-label')).toBe('Vitesse de lecture');
-    expect(Array.from(speed.options).map((option) => option.textContent)).toEqual(PLAYBACK_SPEEDS.map(formatSpeed));
+    expect(Array.from(speed.options).map((option) => option.textContent)).toEqual(PLAYBACK_SPEEDS.map((value) => formatSpeed(value)));
     expect(speed.value).toBe('1');
   });
 
@@ -331,13 +331,12 @@ describe('playback.controls review follow-ups', () => {
 describe('formatSpeed', () => {
   it('never gives a custom speed the label of another one', () => {
     // Assert
-    expect(formatSpeed(1.0005)).toBe('×1,0005');
-    expect(formatSpeed(10.001)).toBe('×10,001');
-    expect(formatSpeed(0.25001)).toBe('×0,25001');
-    expect(formatSpeed(123456.789)).toBe('×123456,789');
-    expect(formatSpeed(1.001)).toBe('×1,001');
-    expect(formatSpeed(0.001)).toBe('×0,001');
-    expect(formatSpeed(0.004)).toBe('×0,004');
+    expect(formatSpeed(1 / 3)).toBe('×0,3333');
+    expect(formatSpeed(25 / 24)).toBe('×1,042');
+    expect(formatSpeed(1.0005, ['×1'])).toBe('×1,001');
+    expect(formatSpeed(10.001, ['×10'])).toBe('×10,001');
+    expect(formatSpeed(0.25001, ['×0,25'])).toBe('×0,25001');
+    expect(formatSpeed(1e-7)).toBe('×0,0000001');
     expect(formatSpeed(0.1 + 0.2)).toBe('×0,3');
   });
 
@@ -382,7 +381,35 @@ describe('playback.controls Enter repeats', () => {
     // Assert
     const labels = Array.from(speed.options).map((option) => option.textContent);
     expect(labels.filter((label) => label === '×1')).toHaveLength(1);
-    expect(labels).toContain('×1,0005');
+    expect(labels).toContain('×1,001');
+  });
+});
+
+describe('playback.controls speed options', () => {
+  it('reuses the preset option for a speed that differs only by float noise', () => {
+    // Arrange
+    const { editor, speed } = mount();
+
+    // Act
+    editor.playback.speed = 2.3 - 0.8;
+    editor.playback.play();
+
+    // Assert
+    const labels = Array.from(speed.options).map((option) => option.textContent);
+    expect(labels.filter((label) => label === '×1,5')).toHaveLength(1);
+    expect(speed.value).toBe('1.5');
+  });
+
+  it('keeps a long custom speed label short', () => {
+    // Arrange
+    const { editor, speed } = mount();
+
+    // Act
+    editor.playback.speed = 25 / 24;
+    editor.playback.play();
+
+    // Assert
+    expect(speed.selectedOptions[0]?.textContent).toBe('×1,042');
   });
 });
 

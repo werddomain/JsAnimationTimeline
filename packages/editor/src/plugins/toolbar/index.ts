@@ -37,7 +37,6 @@ export {
 export {
   FIT_OPTION_VALUE,
   ZOOM_CONTROL_PLUGIN_ID,
-  ZOOM_PRESETS,
   ZoomControlPlugin,
   createZoomControlPlugin
 } from './zoomControl';

@@ -7,11 +7,13 @@
  * Émet : —
  *
  * Zoom de la règle dans la barre d'outils (groupe `zoom`) :
- * - une liste déroulante des préréglages (25 % à 400 %) et « Ajuster à la
- *   fenêtre », qui fait tenir toute la durée du document dans la largeur
- *   visible de la zone des images ;
- * - un curseur continu sur la même plage (échelle logarithmique), dont les
- *   graduations sont les paliers du service `layout.zoom`.
+ * - une liste déroulante des paliers du service `layout.zoom` (`levels()`)
+ *   et « Ajuster à la fenêtre », qui fait tenir toute la durée du document
+ *   dans la largeur visible de la zone des images ;
+ * - un curseur continu sur toutes les bornes du zoom (`range()`, échelle
+ *   logarithmique), gradué aux paliers. Au clavier, une flèche avance d'un
+ *   petit pas (arrêté sur un palier qu'il enjamberait), Page haut / bas d'un
+ *   palier, Début / Fin aux bornes.
  *
  * « Ajuster à la fenêtre » est sans effet tant que la vue n'est pas affichée
  * (largeur visible nulle).
@@ -30,11 +32,10 @@ import {
   fitZoom,
   formatCustomZoom,
   formatZoom,
-  presetsWithin,
   sameZoom,
-  SLIDER_STEP,
-  sliderRange,
+  sliderBounds,
   sliderToZoom,
+  stepSlider,
   zoomToSlider
 } from './zoomControlMath';
 import './ZoomControl.less';
@@ -57,10 +58,11 @@ let ticksCount = 0;
 /** Éléments du contrôle rendu. */
 interface IZoomControlView {
   readonly select: HTMLSelectElement;
-  /** Option d'un zoom hors préréglages : dans la liste seulement quand elle sert. */
+  /** Option d'un zoom hors paliers : dans la liste seulement quand elle sert. */
   readonly custom: HTMLOptionElement;
   readonly slider: HTMLInputElement;
-  readonly presets: readonly number[];
+  /** Paliers du service, croissants (options de la liste). */
+  readonly levels: readonly number[];
 }
 
 function option(doc: Document, value: string, text: string): HTMLOptionElement {
@@ -118,25 +120,24 @@ export class ZoomControlPlugin implements EditorPlugin {
     select.setAttribute('aria-label', 'Niveau de zoom');
     select.title = 'Niveau de zoom';
     const custom = option(doc, CUSTOM_OPTION_VALUE, '');
-    const presets = presetsWithin(range);
-    presets.forEach((preset) => select.appendChild(option(doc, String(preset), formatZoom(preset))));
+    const levels = zoom.levels();
+    levels.forEach((level) => select.appendChild(option(doc, String(level), formatZoom(level))));
     select.appendChild(option(doc, FIT_OPTION_VALUE, 'Ajuster à la fenêtre'));
 
-    const bounds = sliderRange(range);
+    // Curseur sur toutes les bornes du zoom, valeur exacte (`step="any"`) :
+    // le clavier est géré ici, par pas qui s'arrêtent sur les paliers.
+    const bounds = sliderBounds(range);
     const slider = doc.createElement('input');
     slider.type = 'range';
     slider.classList.add(`${ZOOM_CONTROL_CLASS}__slider`);
-    slider.min = String(zoomToSlider(bounds.min));
-    slider.max = String(zoomToSlider(bounds.max));
-    slider.step = String(SLIDER_STEP);
+    slider.min = String(bounds.min);
+    slider.max = String(bounds.max);
+    slider.step = 'any';
     slider.setAttribute('aria-label', 'Zoom continu');
     ticksCount += 1;
     const ticks = doc.createElement('datalist');
     ticks.id = `${ZOOM_CONTROL_CLASS}-ticks-${ticksCount}`;
-    zoom
-      .levels()
-      .filter((level) => level >= bounds.min && level <= bounds.max)
-      .forEach((level) => ticks.appendChild(option(doc, String(zoomToSlider(level)), formatZoom(level))));
+    levels.forEach((level) => ticks.appendChild(option(doc, String(zoomToSlider(level)), formatZoom(level))));
     slider.setAttribute('list', ticks.id);
     element.append(select, slider, ticks);
 
@@ -151,15 +152,49 @@ export class ZoomControlPlugin implements EditorPlugin {
       zoom.setZoom(sliderToZoom(Number(slider.value)), 'playhead');
       this.update();
     };
+    const onKey = (event: KeyboardEvent): void => {
+      const next = this.keyTarget(event.key, zoom);
+      if (next === undefined) return;
+      event.preventDefault();
+      if (next === 'in') zoom.zoomIn('playhead');
+      else if (next === 'out') zoom.zoomOut('playhead');
+      else zoom.setZoom(next, 'playhead');
+      this.update();
+    };
     select.addEventListener('change', onSelect);
     slider.addEventListener('input', onSlide);
-    this.view = { select, custom, slider, presets };
+    slider.addEventListener('keydown', onKey);
+    this.view = { select, custom, slider, levels };
     this.update();
     return () => {
       select.removeEventListener('change', onSelect);
       slider.removeEventListener('input', onSlide);
+      slider.removeEventListener('keydown', onKey);
       this.view = null;
     };
+  }
+
+  /** Zoom visé par une touche du curseur, `'in'` / `'out'` pour un palier, ou `undefined`. */
+  private keyTarget(key: string, zoom: IZoomApi): number | 'in' | 'out' | undefined {
+    const current = zoom.zoom();
+    switch (key) {
+      case 'ArrowRight':
+      case 'ArrowUp':
+        return stepSlider(current, 1, zoom.levels(), zoom.range());
+      case 'ArrowLeft':
+      case 'ArrowDown':
+        return stepSlider(current, -1, zoom.levels(), zoom.range());
+      case 'PageUp':
+        return 'in';
+      case 'PageDown':
+        return 'out';
+      case 'Home':
+        return zoom.range().min;
+      case 'End':
+        return zoom.range().max;
+      default:
+        return undefined;
+    }
   }
 
   /** Zoom qui fait tenir toute la durée du document dans la largeur visible des images. */
@@ -186,8 +221,8 @@ export class ZoomControlPlugin implements EditorPlugin {
     const zoom = this.ctx?.services.get('layout.zoom');
     if (view === null || zoom === undefined) return;
     const current = zoom.zoom();
-    const preset = view.presets.find((value) => sameZoom(value, current));
-    const label = preset === undefined ? formatCustomZoom(current, view.presets) : formatZoom(preset);
+    const preset = view.levels.find((value) => sameZoom(value, current));
+    const label = preset === undefined ? formatCustomZoom(current, view.levels) : formatZoom(preset);
     if (preset === undefined) {
       // Zoom hors préréglages : une option à sa place dans l'ordre croissant.
       view.custom.textContent = label;
