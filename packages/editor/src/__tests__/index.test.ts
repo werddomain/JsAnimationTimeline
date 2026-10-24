@@ -51,6 +51,12 @@ const V2_NAMES = [
   'DEFAULT_TOOLBAR_GROUP',
   'EDITOR_ROOT_CLASS',
   'LAYOUT_SLOTS',
+  'MAX_FPS',
+  'MIN_FPS',
+  'MIN_TOTAL_FRAMES',
+  'TIME_SETTINGS_PLUGIN_ID',
+  'TimeSettingsLabels',
+  'TimeSettingsPlugin',
   'LAYOUT_ZONES',
   'LayoutPlugin',
   'LayoutShellPlugin',
@@ -67,7 +73,10 @@ const V2_NAMES = [
   'createCommand',
   'createEditor',
   'createEmptyDocument',
+  'createSetFpsCommand',
+  'createSetTotalFramesCommand',
   'createShortcutsPlugin',
+  'createTimeSettingsPlugin',
   'createToolbarMainPlugin',
   'defaultPlugins'
 ];

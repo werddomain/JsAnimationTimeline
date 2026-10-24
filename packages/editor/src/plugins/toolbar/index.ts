@@ -21,3 +21,14 @@ export type {
   IToolbarMainService,
   ToolbarErrorCode
 } from './main';
+export {
+  MAX_FPS,
+  MIN_FPS,
+  MIN_TOTAL_FRAMES,
+  TIME_SETTINGS_PLUGIN_ID,
+  TimeSettingsLabels,
+  TimeSettingsPlugin,
+  createSetFpsCommand,
+  createSetTotalFramesCommand,
+  createTimeSettingsPlugin
+} from './timeSettings';
