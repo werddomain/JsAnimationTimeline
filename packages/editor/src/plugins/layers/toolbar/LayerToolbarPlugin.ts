@@ -40,7 +40,7 @@ import { LAYOUT_SLOTS } from '../../layout/shell/layoutSlots';
 import type { ILayerListService } from '../list';
 import type { ILayerSelectionService } from '../selection';
 import { deleteLayersCommand, newLayerCommand } from './toolbarCommands';
-import { rowAfterDelete, visibleAnchor } from './toolbarTree';
+import { rowAfterDelete } from './toolbarTree';
 import { ToolbarView } from './ToolbarView';
 import type { ToolbarAction } from './ToolbarView';
 import type { ILayerToolbarService } from './types';
@@ -145,10 +145,12 @@ export class LayerToolbarPlugin implements EditorPlugin {
 
   private newLayer(): string | undefined {
     const ctx = this.requireContext();
-    const anchor = visibleAnchor(ctx.document.layers, this.requireSelection().selected()[0]);
-    const created = newLayerCommand(ctx.document, anchor);
+    const created = newLayerCommand(ctx.document, this.requireSelection().selected()[0]);
+    const hadFocus = this.listHasFocus();
     if (!ctx.commands.execute(created.command)) return undefined;
     this.requireSelection().select([created.layerId]);
+    // La liste réinsère les lignes : le focus DOM suit la ligne que le modèle focalise.
+    if (hadFocus) this.focusRow(created.layerId);
     return created.layerId;
   }
 
@@ -157,13 +159,20 @@ export class LayerToolbarPlugin implements EditorPlugin {
     const command = deleteLayersCommand(ctx.document, this.requireSelection().selected());
     if (command === undefined) return false;
     const before = this.rowIds();
+    const hadFocus = this.listHasFocus();
     if (!ctx.commands.execute(command)) return false;
     const after = this.rowIds();
     // Aucune ligne visible retirée : la sélection reste telle quelle.
     if (before.length === after.length) return true;
     const next = rowAfterDelete(before, after);
     this.requireSelection().select(next === undefined ? [] : [next]);
+    if (hadFocus && next !== undefined) this.focusRow(next);
     return true;
+  }
+
+  /** Donne le focus DOM à la ligne `id`, si elle est affichée. */
+  private focusRow(id: string): void {
+    this.requireList().rowElement(id)?.focus({ preventScroll: true });
   }
 
   private rowIds(): string[] {

@@ -37,7 +37,7 @@ export const LAYER_TOOLBAR_BUTTONS: readonly IButtonSpec[] = Object.freeze([
 ]);
 
 /** Libellé accessible de la barre. */
-export const LAYER_TOOLBAR_LABEL = 'Outils des calques';
+export const LAYER_TOOLBAR_LABEL = 'Actions sur les calques';
 
 /** Vrai si le bouton est indisponible (`aria-disabled="true"`). */
 function isUnavailable(button: HTMLButtonElement): boolean {
