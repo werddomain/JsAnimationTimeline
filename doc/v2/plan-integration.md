@@ -110,7 +110,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **T2** | 5 | 8 | Plugin `toolbar.keyframeActions` (les 4 boutons du cahier) | T1, K2, W1 | E1 | `plugins/toolbar/keyframeActions/` | ☐ |
 | **T3** | 5 | 6 | Plugin `toolbar.timeSettings` (fps et durée, en commandes) | T1, C3 | E1 | `plugins/toolbar/timeSettings/` | ☑ |
 | **T4** | 5 | 9 | Plugin `toolbar.zoomControl` (liste déroulante + curseur) | T1, L3 | E1 | `plugins/toolbar/zoomControl/` | ☐ |
-| **P1** | 5 | 7 | Plugin `playback.controls` (lecture, pause, boucle, vitesse via `ctx.playback`, avec ou sans scène) | T1, I2, C6 | E1 | `plugins/playback/controls/` | ☐ |
+| **P1** | 5 | 7 | Plugin `playback.controls` (lecture, pause, boucle, vitesse via `ctx.playback`, avec ou sans scène) | T1, I2, C6 | E1 | `plugins/playback/controls/` | ☑ |
 | **P2** | 5 | 8 | Plugin `playback.livePreview` (réglage de l'aperçu : fréquence limitée ou application au relâchement pour les scènes lentes, calques masqués dans l'éditeur) | C7, L2 | E1 | `plugins/playback/livePreview/` | ☐ |
 | **I1** | 5 | 9 | Plugin `interaction.contextMenu` (repris, actions branchées sur les commandes) | K2, W1, Y8 | E1 | `plugins/interaction/contextMenu/` | ☐ |
 | **S1** | 6 | 9 | Plugin optionnel `properties.panel` (propriétés du registre filtrées par l'objet ciblé, valeurs lues avec `editor.sample()`) | W2, Y5, C7 | E1 | `plugins/properties/panel/` | ☐ |
