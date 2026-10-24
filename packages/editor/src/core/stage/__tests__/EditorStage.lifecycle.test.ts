@@ -82,7 +82,7 @@ describe('editor stage: loading and rendering', () => {
     clock.advance(DISPLAY_FRAME_MS);
 
     // Assert
-    expect(stage.log).toEqual(['update:l-hero,l-tree', 'sync:1:pause', 'render:1']);
+    expect(stage.log).toEqual(['update:l-hero,l-tree', 'render:1', 'sync:1:pause', 'render:1']);
   });
 });
 
@@ -101,9 +101,9 @@ describe('editor stage: commands, undo and redo', () => {
     editor.redo();
 
     // Assert
-    expect(afterExecute).toEqual(['release:l-hero:hero', 'resolve:sun', 'update:l-hero,l-tree']);
-    expect(afterUndo).toEqual(['release:l-hero:sun', 'resolve:hero', 'update:l-hero,l-tree']);
-    expect(stage.log).toEqual(['release:l-hero:hero', 'resolve:sun', 'update:l-hero,l-tree']);
+    expect(afterExecute).toEqual(['release:l-hero:hero', 'resolve:sun', 'update:l-hero,l-tree', 'render:1']);
+    expect(afterUndo).toEqual(['release:l-hero:sun', 'resolve:hero', 'update:l-hero,l-tree', 'render:1']);
+    expect(stage.log).toEqual(['release:l-hero:hero', 'resolve:sun', 'update:l-hero,l-tree', 'render:1']);
   });
 
   it('releases a deleted layer and resolves it again on undo', () => {
@@ -117,8 +117,8 @@ describe('editor stage: commands, undo and redo', () => {
     editor.undo();
 
     // Assert
-    expect(afterDelete).toEqual(['release:l-tree:tree', 'update:l-hero']);
-    expect(stage.log).toEqual(['resolve:tree', 'update:l-hero,l-tree']);
+    expect(afterDelete).toEqual(['release:l-tree:tree', 'update:l-hero', 'render:1']);
+    expect(stage.log).toEqual(['resolve:tree', 'update:l-hero,l-tree', 'render:1']);
     expect(editor.stage.missingTargets).toEqual([]);
   });
 });

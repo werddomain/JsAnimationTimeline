@@ -89,13 +89,21 @@ const MAX_DECIMALS = 6;
 
 /**
  * Libellé d'un zoom hors paliers : le moins de décimales possible sans
- * qu'il se lise comme un palier de `levels` (`0.998` -> `99,8 %`,
- * `0.9996` -> `99,96 %`, jamais `100 %` ni `100,0 %`).
+ * qu'il se lise comme un palier de `levels`, ni par sa valeur ni par le
+ * libellé affiché du palier (`0.998` -> `99,8 %`, `0.9996` -> `99,96 %`,
+ * jamais `100 %` ni `100,0 %` ; `0.13` à côté d'un palier 12,5 % affiché
+ * `13 %` -> `13,0 %`).
  */
 export function formatCustomZoom(zoom: number, levels: readonly number[]): string {
+  const levelLabels = levels.map(formatZoom);
   for (let decimals = 0; decimals < MAX_DECIMALS; decimals += 1) {
     const shown = Number((zoom * 100).toFixed(decimals));
-    if (!levels.some((level) => Math.abs(level * 100 - shown) < EPSILON)) return percent(zoom, decimals);
+    const label = percent(zoom, decimals);
+    // Les libellés des paliers sont en pour cent entiers : ils ne peuvent
+    // coïncider qu'à 0 décimale ; la valeur, elle, est comparée à chaque fois.
+    const readsLikeLevel =
+      levelLabels.includes(label) || levels.some((level) => Math.abs(level * 100 - shown) < EPSILON);
+    if (!readsLikeLevel) return label;
   }
   return percent(zoom, MAX_DECIMALS);
 }
