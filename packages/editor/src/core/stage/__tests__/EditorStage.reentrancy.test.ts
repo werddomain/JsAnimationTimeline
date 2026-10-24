@@ -40,7 +40,7 @@ describe('editor stage: edge cases', () => {
 
     // Assert
     expect(editor.document.layers).toHaveLength(1);
-    expect(stage.log).toEqual(['release:l-hero:hero', 'resolve:sun', 'update:l-hero,l-tree', 'release:l-tree:tree', 'update:l-hero']);
+    expect(stage.log).toEqual(['release:l-hero:hero', 'resolve:sun', 'update:l-hero,l-tree', 'release:l-tree:tree', 'update:l-hero', 'render:1']);
   });
 
   it('re-emits initial unrouted warnings to plugins before their editor:ready handler', () => {
