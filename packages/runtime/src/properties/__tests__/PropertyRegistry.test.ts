@@ -125,8 +125,16 @@ describe('PropertyRegistry', () => {
 
 describe('assertValidDescriptor', () => {
   const cases: Array<[string, Record<string, unknown>, string]> = [
-    ['an empty name', { name: '' }, 'the name must be an identifier'],
-    ['a name with a dash', { name: 'border-radius' }, 'the name must be an identifier'],
+    ['an empty name', { name: '' }, 'the name must be letters and digits'],
+    ['a name with a dash', { name: 'border-radius' }, 'the name must be letters and digits'],
+    ['a name with an underscore', { name: 'border_radius' }, 'the name must be letters and digits'],
+    ['a name with a dollar', { name: '$x' }, 'the name must be letters and digits'],
+    ['a name starting with a digit', { name: '1x' }, 'the name must be letters and digits'],
+    ['the name __proto__', { name: '__proto__' }, 'the name must be letters and digits'],
+    ['the name constructor', { name: 'constructor' }, '"constructor" and "prototype" are reserved'],
+    ['the name prototype', { name: 'prototype' }, '"constructor" and "prototype" are reserved'],
+    ['a non-string label', { label: 3 }, 'label and group must be strings'],
+    ['a non-string group', { group: false }, 'label and group must be strings'],
     ['an unknown kind', { kind: 'color' }, 'unknown kind "color"'],
     ['an empty cssName', { cssName: '' }, 'cssName must be a CSS identifier'],
     ['a cssName with spaces', { cssName: 'border radius' }, 'cssName must be a CSS identifier'],

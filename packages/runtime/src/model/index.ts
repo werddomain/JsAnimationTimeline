@@ -6,7 +6,9 @@
 export { SCHEMA_VERSION } from './document';
 export type { ITimelineDocument, ITimelineSettings } from './document';
 export type { IFolder, ILayer, ILayerNodeBase, LayerNode, LayerNodeType } from './layer';
-export type { IElementTarget, ISelectorTarget, LayerTarget } from './target';
+export { TARGET_KEYS } from './target';
+export type { IElementTarget, IRefTarget, ISelectorTarget, LayerTarget, SerializableLayerTarget } from './target';
+export { isValidPropertyName, PROPERTY_NAME_PATTERN, RESERVED_PROPERTY_NAMES } from './names';
 export type { IPropertyKeyframe, ISpan, PropertyTracks, SpanKind } from './span';
 export {
   CUBIC_BEZIER_PATTERN,
@@ -16,7 +18,7 @@ export {
   parseEasing
 } from './easing';
 export type { CubicBezierEasing, Easing, EasingPreset, ICubicBezier } from './easing';
-export { isElementTarget, isFolder, isLayer, isSelectorTarget } from './guards';
+export { isElementTarget, isFolder, isLayer, isRefTarget, isSelectorTarget } from './guards';
 export { findNodeById, flattenLayers, walkLayers } from './traverse';
 export type { ILayerNodeVisit, LayerVisitor } from './traverse';
 export {
@@ -30,4 +32,6 @@ export {
   resolveVisible
 } from './defaults';
 export { validateDocument, ValidationCodes } from './validate';
-export type { IValidationIssue, ValidationCode } from './validate';
+export type { IValidateOptions, IValidationIssue, ValidationCode } from './validate';
+export { checkDocumentShape } from './shape';
+export type { IShapeOptions } from './shape';

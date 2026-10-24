@@ -21,11 +21,16 @@ describe('properties entry point', () => {
       'createPropertyRegistry',
       'cssNameToCamelCase',
       'defaultPropertyRegistry',
+      'floorInterpolator',
       'formatCssValue',
       'interpolateValue',
+      'interpolators',
+      'isCssProperty',
       'lerp',
       'registerProperty',
-      'roundCssNumber'
+      'roundCssNumber',
+      'roundInterpolator',
+      'stepInterpolator'
     ]);
   });
 

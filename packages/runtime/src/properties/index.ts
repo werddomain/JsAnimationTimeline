@@ -1,13 +1,16 @@
 // packages/runtime/src/properties/index.ts
 /**
  * Point d'entrée du registre de propriétés (types, propriétés intégrées,
- * interpolation et composition CSS).
+ * interpolation, interpolateurs prêts à l'emploi et composition CSS).
  */
 
-export { TRANSFORM_STEPS } from './types';
+export { isCssProperty, TRANSFORM_STEPS } from './types';
 export type {
+  CssPropertyDescriptor,
+  CssPropertyKind,
   IStylePropertyDescriptor,
   ITransformPropertyDescriptor,
+  IValuePropertyDescriptor,
   PropertyDescriptor,
   PropertyInterpolator,
   PropertyKind,
@@ -23,5 +26,7 @@ export {
   registerProperty
 } from './PropertyRegistry';
 export { clampValue, CSS_VALUE_PRECISION, formatCssValue, interpolateValue, lerp, roundCssNumber } from './values';
+export { floorInterpolator, interpolators, roundInterpolator, stepInterpolator } from './interpolators';
+export type { InterpolatorName } from './interpolators';
 export { composeTransform, computeCssDeclarations, cssNameToCamelCase } from './compose';
 export type { CssDeclarations } from './compose';

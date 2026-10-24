@@ -30,7 +30,8 @@ export function composeTransform(values: PropertyValues, registry: PropertyRegis
 /**
  * CSS declarations for `values`. `transform` is present only when at least one
  * transform property is in `values`, first; style properties only when they
- * are, in registry order. Throws for a name unknown to the registry.
+ * are, in registry order. `value` properties are ignored (no CSS name).
+ * Throws for a name unknown to the registry.
  */
 export function computeCssDeclarations(values: PropertyValues, registry: PropertyRegistry): CssDeclarations {
   const descriptors = Object.keys(values).map((name) => registry.require(name));

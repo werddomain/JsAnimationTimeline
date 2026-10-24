@@ -4,8 +4,15 @@
  * et l'export CSS, pour que les trois donnent le même rendu.
  */
 
-/** `transform` : composée dans la chaîne `transform` ; `style` : propriété CSS à part. */
-export type PropertyKind = 'transform' | 'style';
+/**
+ * `transform` : composée dans la chaîne `transform` ; `style` : propriété CSS
+ * à part ; `value` : simple nombre sans nom CSS, passé tel quel à une scène
+ * (canvas, audio...) et ignoré par la composition CSS.
+ */
+export type PropertyKind = 'transform' | 'style' | 'value';
+
+/** Kinds written to CSS. */
+export type CssPropertyKind = Exclude<PropertyKind, 'value'>;
 
 /**
  * Step of the fixed transform order (translate → rotate → scale → skew).
@@ -24,8 +31,15 @@ interface IPropertyDescriptorBase {
   /** Name used in the document tracks, e.g. `x`, `opacity`, `borderRadius`. */
   readonly name: string;
   readonly kind: PropertyKind;
-  /** Unit appended to the value in CSS, e.g. `px`, `deg`, `` (none). */
+  /**
+   * Unit appended to the value in CSS, e.g. `px`, `deg`, `` (none). For a
+   * `value` property it is only displayed.
+   */
   readonly unit: string;
+  /** Display name in the editor, e.g. `Rotation`; defaults to `name`. */
+  readonly label?: string;
+  /** Display group in the editor, e.g. `Transform`, `Audio`. */
+  readonly group?: string;
   /** Value used when no keyframe defines the property. */
   readonly defaultValue: number;
   /** Lower bound applied to computed values (e.g. 0 for opacity). */
@@ -51,8 +65,23 @@ export interface IStylePropertyDescriptor extends IPropertyDescriptorBase {
   readonly cssName: string;
 }
 
+/** A plain number with no CSS name, read by a stage (e.g. `frameIndex`, `volume`). */
+export interface IValuePropertyDescriptor extends IPropertyDescriptorBase {
+  readonly kind: 'value';
+  /** A value property has no CSS name. */
+  readonly cssName?: undefined;
+}
+
+/** A property written to CSS. */
+export type CssPropertyDescriptor = ITransformPropertyDescriptor | IStylePropertyDescriptor;
+
 /** Description of an animatable numeric property. */
-export type PropertyDescriptor = ITransformPropertyDescriptor | IStylePropertyDescriptor;
+export type PropertyDescriptor = CssPropertyDescriptor | IValuePropertyDescriptor;
+
+/** True for `transform` and `style` properties (the ones written to CSS). */
+export function isCssProperty(descriptor: PropertyDescriptor): descriptor is CssPropertyDescriptor {
+  return descriptor.kind !== 'value';
+}
 
 /** Numeric value per property name. */
 export type PropertyValues = Readonly<Record<string, number>>;

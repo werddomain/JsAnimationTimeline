@@ -1,15 +1,17 @@
 // packages/runtime/src/properties/PropertyRegistry.ts
 /**
  * Registre des propriétés animables. Contient les propriétés intégrées ; un
- * plugin y ajoute toute propriété CSS numérique avec `register`.
+ * plugin ou une scène y ajoute toute propriété numérique (CSS ou `value`)
+ * avec `register`. Les noms suivent la règle du schéma (`isValidPropertyName`).
  */
 
+import { isValidPropertyName } from '../model/names';
 import { BUILTIN_PROPERTIES } from './builtins';
-import { TRANSFORM_STEPS } from './types';
-import type { ITransformPropertyDescriptor, PropertyDescriptor } from './types';
+import { isCssProperty, TRANSFORM_STEPS } from './types';
+import type { CssPropertyDescriptor, ITransformPropertyDescriptor, PropertyDescriptor } from './types';
 
 const CSS_IDENT = /^-?[a-zA-Z_][\w-]*$/;
-const PROPERTY_NAME = /^[a-zA-Z_$][\w$]*$/;
+const PROPERTY_KINDS: readonly string[] = ['transform', 'style', 'value'];
 
 /** CSS transform functions that take a single value. */
 const TRANSFORM_FUNCTIONS: readonly string[] = [
@@ -28,23 +30,45 @@ function fail(name: string, reason: string): never {
   throw new Error(`Invalid property "${name}": ${reason}.`);
 }
 
+function isOptionalString(value: unknown): boolean {
+  return value === undefined || typeof value === 'string';
+}
+
+/** CSS checks, only for `transform` and `style` properties. */
+function assertValidCss(descriptor: CssPropertyDescriptor): void {
+  const { name } = descriptor;
+  if (typeof descriptor.cssName !== 'string' || !CSS_IDENT.test(descriptor.cssName)) {
+    fail(name, 'cssName must be a CSS identifier');
+  }
+  if (descriptor.kind === 'transform') {
+    if (!TRANSFORM_STEPS.includes(descriptor.step)) {
+      fail(name, `step must be one of ${TRANSFORM_STEPS.join(', ')}`);
+    }
+    if (!TRANSFORM_FUNCTIONS.includes(descriptor.cssName)) {
+      fail(name, `cssName must be a CSS transform function (${TRANSFORM_FUNCTIONS.join(', ')})`);
+    }
+  } else if (RESERVED_STYLE_NAMES.includes(descriptor.cssName)) {
+    fail(name, `cssName "${descriptor.cssName}" is reserved`);
+  }
+}
+
 /** Throws a descriptive `Error` when a descriptor is malformed. */
 export function assertValidDescriptor(descriptor: PropertyDescriptor): void {
   if (typeof descriptor !== 'object' || descriptor === null) {
     fail(String(descriptor), 'a descriptor must be an object');
   }
   const { name } = descriptor;
-  if (typeof name !== 'string' || !PROPERTY_NAME.test(name)) {
-    fail(String(name), 'the name must be an identifier such as "x" or "borderRadius"');
+  if (!isValidPropertyName(name)) {
+    fail(String(name), 'the name must be letters and digits starting with a letter, such as "x" or "borderRadius" ("constructor" and "prototype" are reserved)');
   }
-  if (descriptor.kind !== 'transform' && descriptor.kind !== 'style') {
+  if (!PROPERTY_KINDS.includes(descriptor.kind)) {
     fail(name, `unknown kind "${String((descriptor as { kind: unknown }).kind)}"`);
-  }
-  if (typeof descriptor.cssName !== 'string' || !CSS_IDENT.test(descriptor.cssName)) {
-    fail(name, 'cssName must be a CSS identifier');
   }
   if (typeof descriptor.unit !== 'string') {
     fail(name, 'unit must be a string ("" for none)');
+  }
+  if (!isOptionalString(descriptor.label) || !isOptionalString(descriptor.group)) {
+    fail(name, 'label and group must be strings');
   }
   if (!Number.isFinite(descriptor.defaultValue)) {
     fail(name, 'defaultValue must be a finite number');
@@ -58,15 +82,10 @@ export function assertValidDescriptor(descriptor: PropertyDescriptor): void {
   if (descriptor.interpolate !== undefined && typeof descriptor.interpolate !== 'function') {
     fail(name, 'interpolate must be a function');
   }
-  if (descriptor.kind === 'transform') {
-    if (!TRANSFORM_STEPS.includes(descriptor.step)) {
-      fail(name, `step must be one of ${TRANSFORM_STEPS.join(', ')}`);
-    }
-    if (!TRANSFORM_FUNCTIONS.includes(descriptor.cssName)) {
-      fail(name, `cssName must be a CSS transform function (${TRANSFORM_FUNCTIONS.join(', ')})`);
-    }
-  } else if (RESERVED_STYLE_NAMES.includes(descriptor.cssName)) {
-    fail(name, `cssName "${descriptor.cssName}" is reserved`);
+  if (isCssProperty(descriptor)) {
+    assertValidCss(descriptor);
+  } else if (descriptor.cssName !== undefined) {
+    fail(name, 'a value property has no cssName');
   }
 }
 
@@ -92,9 +111,11 @@ export class PropertyRegistry {
     if (this.descriptors.has(descriptor.name)) {
       throw new Error(`Property "${descriptor.name}" is already registered.`);
     }
-    const sameCss = this.list().find((d) => d.kind === descriptor.kind && d.cssName === descriptor.cssName);
-    if (sameCss !== undefined) {
-      throw new Error(`Property "${descriptor.name}" writes ${descriptor.cssName}, already written by "${sameCss.name}".`);
+    if (isCssProperty(descriptor)) {
+      const sameCss = this.list().find((d) => d.kind === descriptor.kind && d.cssName === descriptor.cssName);
+      if (sameCss !== undefined) {
+        throw new Error(`Property "${descriptor.name}" writes ${descriptor.cssName}, already written by "${sameCss.name}".`);
+      }
     }
     this.descriptors.set(descriptor.name, Object.freeze({ ...descriptor }));
     return this;

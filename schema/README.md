@@ -11,7 +11,7 @@ TypeScript types live in `packages/runtime/src/model/` and are exported by the
 ```text
 ITimelineDocument  { version: "2.x.y", settings: { fps, totalFrames }, layers: LayerNode[] }
 LayerNode          = Layer | Folder            (discriminated by "type")
-Layer   (type "layer")   id, name, color?, visible?, locked?, icon?, target?: { selector }, spans: Span[]
+Layer   (type "layer")   id, name, color?, visible?, locked?, icon?, target?: { selector } | { ref, stage? }, spans: Span[]
 Folder  (type "folder")  id, name, color?, visible?, locked?, collapsed?, children: LayerNode[]
 Span                     id, start, end, kind: "static" | "blank" | "tween", easing?, tracks?
 tracks                   { [propertyName]: { frame, value }[] }
@@ -33,11 +33,17 @@ of the analysis report), `examples/folders.json`.
 - **Spans of a layer are contiguous from frame 1**: sorted by `start`, each one
   starting at `previous.end + 1`. A gap is represented by a `blank` span. The
   layer may stop before `totalFrames` and may have no span at all.
-- **Only selector targets are serialised** (`{ "selector": "#logo" }`). The
-  `{ element }` target form exists only at runtime (`IElementTarget`) and is not
-  part of the schema.
-- **Property names are free** in the schema (`^[a-zA-Z][a-zA-Z0-9]*$`); they are
-  checked against the property registry by the runtime, not here.
+- **Two serialised target forms, told apart by their key**: `{ "selector": "#logo" }`
+  (HTML stage) and `{ "ref": "hero", "stage": "canvas" }` (resolved by a stage;
+  `stage` is optional). The `{ element }` form exists only at runtime
+  (`IElementTarget`) and is not part of the schema. A target has exactly one of
+  the keys `selector`, `ref`, `element`; any future form gets its own key.
+- **Property names** follow `^[a-zA-Z][a-zA-Z0-9]*$`, and `constructor` and
+  `prototype` are reserved, so an imported file can never create a track that
+  touches an object prototype. The runtime registry uses the same rule
+  (`isValidPropertyName`). Names are checked against the registry by the
+  runtime, not here; a name may be a CSS property or a plain `value` property
+  (no CSS name, read by a stage).
 - **Defaults** (applied by the `resolve*` helpers, never written into the document):
   `visible: true`, `locked: false`, `collapsed: false`, `easing: "linear"`, no tracks.
   `color` and `icon` have no default; the editor chooses.
@@ -47,9 +53,18 @@ of the analysis report), `examples/folders.json`.
 
 ## Semantic invariants
 
-The schema cannot express these rules; `validateDocument(doc)` checks them on a
-schema-valid document and returns `{ path, code, message }` issues (paths are
-JSON-pointer-like, e.g. `/layers/0/spans/1/start`):
+`validateDocument(doc, { allowLiveTargets? })` accepts any value (e.g. a parsed
+file) and returns `{ path, code, message }` issues (paths are JSON-pointer-like,
+e.g. `/layers/0/spans/1/start`). It first runs a hand-written **shape check**
+(`checkDocumentShape`, no ajv at runtime) that agrees with this schema (a test
+runs both on the same documents): `invalid-type`, `missing-field`,
+`unknown-field`, `invalid-version`, `out-of-range` (fps 1 to 240, totalFrames
+and frames >= 1), `invalid-value`, `invalid-target`, `live-target`,
+`invalid-property-name`, `non-finite-value`. `allowLiveTargets` defaults to
+`true` (the player accepts `{ element }`); stores and importers pass `false`.
+
+Only a well-formed document then gets the semantic rules the schema cannot
+express:
 
 | Code | Rule |
 |---|---|
@@ -65,4 +80,3 @@ JSON-pointer-like, e.g. `/layers/0/spans/1/start`):
 | `tracks-not-allowed` | A `blank` span has no tracks (also enforced by the schema). |
 | `easing-not-allowed` | Only `tween` spans have an easing (also enforced by the schema). |
 | `invalid-easing` | The easing parses (`parseEasing`); for `cubic-bezier`, x1 and x2 are in `[0, 1]`. |
-| `non-finite-value` | Keyframe values are finite numbers. |

@@ -85,7 +85,13 @@
           "type": "string",
           "minLength": 1
         },
-        "target": { "description": "Element animated by the layer.", "$ref": "#/$defs/SelectorTarget" },
+        "target": {
+          "description": "Object animated by the layer: a CSS selector or a reference resolved by a stage, told apart by their key.",
+          "oneOf": [
+            { "$ref": "#/$defs/SelectorTarget" },
+            { "$ref": "#/$defs/RefTarget" }
+          ]
+        },
         "spans": {
           "description": "Spans covering the layer from frame 1, sorted and contiguous (may be empty).",
           "type": "array",
@@ -114,12 +120,22 @@
       }
     },
     "SelectorTarget": {
-      "description": "Target resolved with a CSS selector in the player root. This is the only serialisable target form.",
+      "description": "Target resolved with a CSS selector in the root of the HTML stage.",
       "type": "object",
       "additionalProperties": false,
       "required": ["selector"],
       "properties": {
         "selector": { "description": "CSS selector of the animated element.", "type": "string", "minLength": 1 }
+      }
+    },
+    "RefTarget": {
+      "description": "Target resolved by a stage from a developer-chosen reference (canvas object, audio channel, data-timeline-target...).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref"],
+      "properties": {
+        "ref": { "description": "Reference of the animated object, interpreted by the stage.", "type": "string", "minLength": 1 },
+        "stage": { "description": "Id of the only stage allowed to resolve the reference (any stage that accepts it when absent).", "type": "string", "minLength": 1 }
       }
     },
     "SpanKind": {
@@ -152,9 +168,13 @@
       ]
     },
     "PropertyTracks": {
-      "description": "Keyframes per animatable property name (property names are not checked against a registry here).",
+      "description": "Keyframes per animatable property name (CSS or not; property names are not checked against a registry here).",
       "type": "object",
-      "propertyNames": { "pattern": "^[a-zA-Z][a-zA-Z0-9]*$" },
+      "propertyNames": {
+        "description": "Property name: letters and digits, starting with a letter; \"constructor\" and \"prototype\" are reserved.",
+        "pattern": "^[a-zA-Z][a-zA-Z0-9]*$",
+        "not": { "enum": ["constructor", "prototype"] }
+      },
       "additionalProperties": {
         "description": "Keyframes of one property, strictly increasing frames inside the span.",
         "type": "array",

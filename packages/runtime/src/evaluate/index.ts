@@ -10,3 +10,14 @@ export type { ISpanRange } from './track';
 export { collectLayerProperties, evaluateLayer, findSpanAt } from './evaluateLayer';
 export type { IEvaluateOptions, ILayerFrameState } from './evaluateLayer';
 export { clampFrame, collectLayers, evaluateDocument } from './evaluateDocument';
+export {
+  applyUnknownPropertyPolicy,
+  EvaluateIssueCodes,
+  findUnknownProperties
+} from './unknownProperties';
+export type {
+  EvaluateIssueCode,
+  EvaluateIssueListener,
+  IEvaluateIssue,
+  UnknownPropertyPolicy
+} from './unknownProperties';

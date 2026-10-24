@@ -151,7 +151,7 @@ describe('validateDocument', () => {
 
   it('escapes property names in paths like a JSON pointer', () => {
     const doc = docWithSpans([{ id: 's1', start: 1, end: 10, kind: 'tween', tracks: { 'a/b~c': [{ frame: 20, value: 0 }] } }]);
-    expect(issueKeys(validateDocument(doc))).toEqual(['keyframe-out-of-span /layers/0/spans/0/tracks/a~1b~0c/0/frame']);
+    expect(issueKeys(validateDocument(doc))).toEqual(['invalid-property-name /layers/0/spans/0/tracks/a~1b~0c']);
   });
 
   it('checks layers nested in folders', () => {

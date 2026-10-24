@@ -8,6 +8,7 @@ import { createEasingFunction } from '../../evaluate/easingFunction';
 import { evaluateLayer } from '../../evaluate/evaluateLayer';
 import type { ILayer } from '../../model/layer';
 import type { ISpan } from '../../model/span';
+import { interpolators } from '../../properties/interpolators';
 import { createPropertyRegistry } from '../../properties/PropertyRegistry';
 import type { PropertyDescriptor } from '../../properties/types';
 import { buildLayerKeyframes, frameToOffset } from '../keyframes';
@@ -203,5 +204,51 @@ describe('agreement with evaluateLayer at every frame', () => {
       const expected = evaluateLayer(target, frame, { registry }).values.opacity;
       expect(opacityAt(keyframes, frameToOffset(frame, totalFrames))).toBeCloseTo(expected, 3);
     }
+  });
+});
+
+describe('value properties in keyframes', () => {
+  const values = createPropertyRegistry([
+    { name: 'frameIndex', kind: 'value', unit: '', defaultValue: 0, interpolate: interpolators.floor },
+    { name: 'gain', kind: 'value', unit: '', defaultValue: 1, min: 0, max: 1 }
+  ]);
+  const valueTracks = {
+    frameIndex: [{ frame: 1, value: 0 }, { frame: 5, value: 4 }, { frame: 10, value: 11 }],
+    gain: [{ frame: 1, value: 2 }]
+  };
+
+  it('returns null for a layer with value tracks only', () => {
+    const spans: ISpan[] = [{ id: 's1', start: 1, end: 10, kind: 'tween', tracks: valueTracks }];
+    expect(buildLayerKeyframes(layer(spans), { fps: 10, totalFrames: 10 }, values)).toBeNull();
+  });
+
+  it('writes visibility only for a value-only layer with a blank span', () => {
+    const spans: ISpan[] = [
+      { id: 's1', start: 1, end: 5, kind: 'tween', tracks: valueTracks },
+      { id: 's2', start: 6, end: 10, kind: 'blank' }
+    ];
+    const keyframes = buildLayerKeyframes(layer(spans), { fps: 10, totalFrames: 10 }, values) ?? [];
+    expect(keyframes.length).toBeGreaterThan(0);
+    keyframes.forEach((keyframe) => expect(Object.keys(keyframe).sort()).toEqual(['easing', 'offset', 'visibility']));
+  });
+
+  it('lets only CSS tracks decide sampling', () => {
+    const spans: ISpan[] = [{ id: 's1', start: 1, end: 10, kind: 'tween', easing: 'ease-in', tracks: {
+      ...valueTracks,
+      x: [{ frame: 1, value: 0 }, { frame: 10, value: 90 }]
+    } }];
+    const keyframes = buildLayerKeyframes(layer(spans), { fps: 10, totalFrames: 10 }, values) ?? [];
+    // Eased tween without inner CSS keyframe: start and end only, the easing on the first one.
+    expect(keyframes.map((k) => [k.offset, k.easing])).toEqual([[0, 'ease-in'], [0.9, 'linear'], [1, 'linear']]);
+    expect(keyframes[1]).not.toHaveProperty('frameIndex');
+  });
+
+  it('does not sample for a CSS property using the linear interpolator explicitly', () => {
+    const linear = createPropertyRegistry([
+      { name: 'width', kind: 'style', cssName: 'width', unit: 'px', defaultValue: 0, interpolate: interpolators.linear }
+    ]);
+    const spans: ISpan[] = [{ id: 's1', start: 1, end: 10, kind: 'tween', tracks: { width: [{ frame: 1, value: 0 }, { frame: 10, value: 9 }] } }];
+    const keyframes = buildLayerKeyframes(layer(spans), { fps: 10, totalFrames: 10 }, linear) ?? [];
+    expect(keyframes.map((k) => k.width)).toEqual(['0px', '9px', '9px']);
   });
 });
