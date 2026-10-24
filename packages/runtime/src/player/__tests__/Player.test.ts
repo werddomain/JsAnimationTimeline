@@ -6,6 +6,7 @@
 
 import * as runtime from '../../index';
 import type { ITimelineDocument } from '../../model/document';
+import type { ILayer } from '../../model/layer';
 import { createPropertyRegistry } from '../../properties/PropertyRegistry';
 import * as player from '../index';
 import { createPlayer } from '../Player';
@@ -104,9 +105,10 @@ describe('creation', () => {
     expect(() => create(doc)).toThrow(/Invalid timeline document \(\d+ issue\(s\)\); first at \/layers\/0\/spans\/0\/end/);
   });
 
-  it('throws for an invalid selector', () => {
+  it('lists a layer with an invalid selector in missingTargets', () => {
     const doc = makeDoc({ layers: [{ id: 'bad', type: 'layer', name: 'B', target: { selector: '##' }, spans: [{ id: 's', start: 1, end: 10, kind: 'blank' }] }] });
-    expect(() => create(doc)).toThrow('Layer "bad" has an invalid selector "##".');
+    expect(create(doc).missingTargets).toEqual(['bad']);
+    expect(fake.animations).toHaveLength(0);
   });
 
   it('throws when Web Animations is not available', () => {
@@ -360,11 +362,18 @@ describe('listeners and destroy', () => {
   });
 });
 
+/** A layer whose element has no `Element.animate` (the failure used by the rollback tests). */
+function layerWithoutAnimate(): ILayer {
+  const element = document.createElement('div');
+  Object.defineProperty(element, 'animate', { value: undefined });
+  return { id: 'bad', type: 'layer', name: 'B', target: { element }, spans: [{ id: 'sx', start: 1, end: 10, kind: 'blank' }] };
+}
+
 describe('robustness', () => {
   it('cancels the animations already created when a later target fails', () => {
     const doc = makeDoc();
-    const bad = { id: 'bad', type: 'layer' as const, name: 'B', target: { selector: '##' }, spans: [{ id: 'sx', start: 1, end: 10, kind: 'blank' as const }] };
-    expect(() => create({ ...doc, layers: [doc.layers[0], bad] })).toThrow('invalid selector');
+    const bad = layerWithoutAnimate();
+    expect(() => create({ ...doc, layers: [doc.layers[0], bad] })).toThrow('The Web Animations API (Element.animate) is not available.');
     expect(fake.animations).toHaveLength(1);
     expect(fake.animations[0].playState).toBe('idle');
   });
@@ -374,8 +383,8 @@ describe('robustness', () => {
     p.play();
     clock.advance(200);
     const doc = makeDoc();
-    const bad = { id: 'bad', type: 'layer' as const, name: 'B', target: { selector: '##' }, spans: [{ id: 'sx', start: 1, end: 10, kind: 'blank' as const }] };
-    expect(() => p.update({ ...doc, layers: [doc.layers[0], bad] })).toThrow('invalid selector');
+    const bad = layerWithoutAnimate();
+    expect(() => p.update({ ...doc, layers: [doc.layers[0], bad] })).toThrow('The Web Animations API (Element.animate) is not available.');
     expect(fake.animations.slice(0, 2).every((a) => a.playState === 'running')).toBe(true);
     expect(fake.animations[2].playState).toBe('idle');
     expect(p.playing).toBe(true);
