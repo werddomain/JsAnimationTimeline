@@ -102,30 +102,43 @@ describe('visibility row control', () => {
     expect(ids.indexOf('layers.visibility')).toBeLessThan(ids.indexOf('layers.lock'));
   });
 
-  it('toggles on click, updates the same button and keeps its focus', () => {
+  it('toggles on click and updates the same button in place', () => {
     const { host, editor } = mount(tree);
     const button = rowButton(host, 'b');
-    button.focus();
     button.click();
     expect(findNodeById(editor.document.layers, 'b')?.visible).toBe(false);
     expect(rowButton(host, 'b')).toBe(button);
     expect(button.getAttribute('aria-pressed')).toBe('false');
     expect(button.getAttribute('aria-label')).toBe('Visibilité de « b »');
     expect(button.title).toBe('Afficher le calque');
-    expect(document.activeElement).toBe(button);
     editor.undo();
     expect(button.getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('does not let click, keydown, mousedown or pointerdown reach the row', () => {
+  it('lets click, mousedown, pointerdown and non-activation keys bubble, but not Enter or Space', () => {
     const { host } = mount(tree);
     const onRow = jest.fn();
     const row = host.querySelector('[data-row-id="b"]');
-    const types = ['click', 'keydown', 'mousedown', 'pointerdown'];
-    types.forEach((type) => row?.addEventListener(type, onRow));
+    const types = ['click', 'mousedown', 'pointerdown'];
+    [...types, 'keydown'].forEach((type) => row?.addEventListener(type, onRow));
     const button = rowButton(host, 'b');
     types.forEach((type) => button.dispatchEvent(new Event(type, { bubbles: true })));
+    expect(onRow).toHaveBeenCalledTimes(3);
+    onRow.mockClear();
+    ['Enter', ' '].forEach((key) => button.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true })));
     expect(onRow).not.toHaveBeenCalled();
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+    expect(onRow).toHaveBeenCalledTimes(1);
+  });
+
+  it('undoes with Ctrl+Z through the shortcuts plugin while the button is focused', () => {
+    const { host, editor } = mount(tree);
+    const button = rowButton(host, 'b');
+    button.focus();
+    button.click();
+    expect(findNodeById(editor.document.layers, 'b')?.visible).toBe(false);
+    button.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true }));
+    expect(findNodeById(editor.document.layers, 'b')?.visible).toBeUndefined();
   });
 
   it('keeps the row buttons in the tab order', () => {

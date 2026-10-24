@@ -71,6 +71,8 @@ export function startInlineEdit(nameElement: HTMLElement, options: IInlineEditOp
   input.addEventListener('keydown', (event) => {
     // Les touches de saisie ne doivent pas déclencher les raccourcis de l'éditeur.
     event.stopPropagation();
+    // Pendant une composition (IME), Entrée et Échap appartiennent au clavier de saisie.
+    if (event.isComposing || event.keyCode === 229) return;
     if (event.key === 'Enter') {
       event.preventDefault();
       finish(true, true);

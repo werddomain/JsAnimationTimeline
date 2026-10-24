@@ -272,3 +272,29 @@ describe('inline editing review fixes', () => {
     expect(editor.canUndo).toBe(false);
   });
 });
+
+describe('IME composition and untrimmed names', () => {
+  it('ignores Enter and Escape during a composition', () => {
+    const { host, editor } = mount(tree);
+    doubleClick(nameElement(host, 'a'));
+    const input = inputOf(host);
+    input.value = 'composé';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true, cancelable: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 229, bubbles: true, cancelable: true }));
+    expect(inputOf(host)).toBe(input);
+    expect(editor.canUndo).toBe(false);
+    press(input, 'Enter');
+    expect(nameOf(editor.document, 'a')).toBe('composé');
+  });
+
+  it('records nothing when the committed name equals the trimmed current name', () => {
+    const spaced = doc([layer('a', { name: ' Hero ' })]);
+    const { editor } = mount(spaced);
+    expect(editor.execute(createRenameCommand(editor.document, 'a', ' Hero '))).toBe(false);
+    expect(editor.canUndo).toBe(false);
+    expect(editor.getService('layers.rename')?.rename('a', 'Hero')).toBe(false);
+    expect(editor.getService('layers.rename')?.rename('a', 'Zero')).toBe(true);
+    editor.undo();
+    expect(nameOf(editor.document, 'a')).toBe(' Hero ');
+  });
+});

@@ -33,7 +33,9 @@ export function createRenameCommand(doc: ITimelineDocument, id: string, name: st
   const next = normalizeLayerName(name);
   if (next === undefined) throw new Error('layers.rename : le nom ne peut pas être vide.');
   const original = node.name;
-  const rename = (value: string) => (current: ITimelineDocument): ITimelineDocument =>
-    updateLayerNode(current, id, (target) => (target.name === value ? target : { ...target, name: value }));
-  return createCommand(RENAME_LABEL, rename(next), rename(original));
+  // Comparaison sur les noms rognés des deux côtés : valider « Hero » sur « Hero » ne laisse aucune trace.
+  const unchanged = (target: { readonly name: string }, value: string): boolean => normalizeLayerName(target.name) === value;
+  const rename = (value: string, skipUnchanged: boolean) => (current: ITimelineDocument): ITimelineDocument =>
+    updateLayerNode(current, id, (target) => (skipUnchanged && unchanged(target, value) ? target : { ...target, name: value }));
+  return createCommand(RENAME_LABEL, rename(next, true), rename(original, false));
 }
