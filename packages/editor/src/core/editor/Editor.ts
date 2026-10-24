@@ -1,14 +1,15 @@
 // packages/editor/src/core/editor/Editor.ts
 /**
  * Implémentation de `IEditor` : délègue au Store, à la `CommandStack`, à
- * l'`EventBus` et au registre des services créés par `createEditor()`, et
- * gère la destruction (ordre : `editor:destroying`, `destroy` des plugins en
- * ordre inverse, abonnements, services, emplacement racine, élément racine).
+ * l'`EventBus`, à la lecture et au registre des services créés par
+ * `createEditor()`, et gère la destruction (ordre : `editor:destroying`,
+ * `destroy` des plugins en ordre inverse, lecture, services, abonnements,
+ * emplacement racine, élément racine).
  *
  * Interne au noyau : l'application ne reçoit que le type `IEditor`.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
 import type { CommandStack } from '../commands/CommandStack';
 import type { ICommand } from '../commands/ICommand';
 import type {
@@ -20,6 +21,8 @@ import type {
 import type { ServiceRegistry } from '../context/ServiceRegistry';
 import type { EventBus, EventHandler } from '../events/EventBus';
 import type { EditorDestroyingEvent, TimelineEventMap } from '../events/TimelineEventMap';
+import type { PlaybackController } from '../playback/PlaybackController';
+import type { FrameListener, IEditorPlayback, IFrameSample } from '../playback/types';
 import type { PluginHost } from '../plugin/PluginHost';
 import { ROOT_SLOT } from '../plugin/SlotRegistry';
 import type { Store } from '../store/Store';
@@ -33,17 +36,24 @@ export interface IEditorParts {
   readonly commands: CommandStack;
   readonly host: PluginHost<IEditorContext>;
   readonly services: ServiceRegistry;
+  /** Registre de propriétés figé. */
+  readonly registry: PropertyRegistry;
+  /** Lecture et rendu regroupé. */
+  readonly playback: PlaybackController;
+  /** Façade de la lecture (`ctx.playback`, `editor.playback`). */
+  readonly playbackFacade: IEditorPlayback;
   /** Élément racine (classe `JsTimeLine`), défini comme `ROOT_SLOT`. */
   readonly element: HTMLElement;
   readonly lifecycle: EditorLifecycle;
 }
 
 /**
- * Libère ce que l'éditeur a mis en place hors des plugins : services,
- * abonnements, emplacement racine et élément racine. Sert à `destroy` et à
- * l'annulation d'un démarrage raté.
+ * Libère ce que l'éditeur a mis en place hors des plugins : lecture,
+ * services, abonnements, emplacement racine et élément racine. Sert à
+ * `destroy` et à l'annulation d'un démarrage raté.
  */
 export function releaseEditorParts(parts: IEditorParts): void {
+  parts.playback.destroy();
   parts.services.clear();
   parts.bus.clear();
   parts.host.slots.remove(ROOT_SLOT);
@@ -66,6 +76,16 @@ export class Editor implements IEditor {
   get document(): ITimelineDocument {
     this.assertActive('document');
     return this.parts.store.document;
+  }
+
+  get playback(): IEditorPlayback {
+    this.assertActive('playback');
+    return this.parts.playbackFacade;
+  }
+
+  get registry(): PropertyRegistry {
+    this.assertActive('registry');
+    return this.parts.registry;
   }
 
   get canUndo(): boolean {
@@ -116,6 +136,16 @@ export class Editor implements IEditor {
   load(doc: ITimelineDocument): void {
     this.assertActive('load');
     this.parts.store.load(doc);
+  }
+
+  sample(frame?: number): IFrameSample {
+    this.assertActive('sample');
+    return this.parts.playback.sample(frame);
+  }
+
+  onFrame(listener: FrameListener): () => void {
+    this.assertActive('onFrame');
+    return this.parts.bus.on('frame:render', ({ sample }) => listener(sample));
   }
 
   getService<K extends EditorServiceId>(id: K): EditorServiceMap[K] | undefined {

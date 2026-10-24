@@ -7,8 +7,8 @@
  *   `attachEventLogger`...) : la page de démo actuelle s'en sert ;
  * - l'éditeur v2 en plugins : `createEditor()`, le jeu de plugins par
  *   défaut, le contrat des plugins (`IEditorContext`, `EditorPlugin`,
- *   `EditorServiceMap`...) et les valeurs du noyau utiles aux plugins
- *   (erreurs, commandes, `ROOT_SLOT`).
+ *   `EditorServiceMap`...), la lecture (`IEditorPlayback`, échantillons) et
+ *   les valeurs du noyau utiles aux plugins (erreurs, commandes, `ROOT_SLOT`).
  *
  * Tous les exports, legacy compris, sont nommés un par un (aucun
  * `export *`). Avec un `export *`, un nom local du même nom masquerait en
@@ -88,8 +88,26 @@ export type {
   HistoryChangedEvent,
   ICommand
 } from './core/commands';
-export { StoreError } from './core/store';
-export type { DocumentChangeCause, DocumentChangedEvent, DocumentLoadedEvent } from './core/store';
+export { StoreError, UNKNOWN_PROPERTY } from './core/store';
+export type {
+  DocumentChangeCause,
+  DocumentChangedEvent,
+  DocumentLoadedEvent,
+  IUnknownPropertyIssue,
+  StoreIssue,
+  StoreWarningHandler
+} from './core/store';
+
+// Lecture : tête de lecture sur le Transport du runtime, échantillons et rendu.
+export type {
+  FrameListener,
+  FrameRenderEvent,
+  IEditorPlayback,
+  IFrameSample,
+  ILayerSample,
+  PlaybackStateEvent,
+  PlayheadChangedEvent
+} from './core/playback';
 
 // Plugins de mise en page (epic `layout`) : coquille, emplacements et défilement.
 export { LAYOUT_SLOTS, LAYOUT_ZONES, LayoutPlugin, LayoutShellPlugin, ScrollSyncPlugin } from './plugins/layout';
@@ -115,3 +133,39 @@ export type {
   ShortcutTriggeredEvent,
   ShortcutsPlugin
 } from './plugins/interaction/shortcuts';
+
+// Epic toolbar : barre d'outils principale (zone « Scène 1 », boutons et contrôles des plugins).
+export {
+  DEFAULT_SCENE_NAME,
+  DEFAULT_TOOLBAR_GROUP,
+  TOOLBAR_MAIN_PLUGIN_ID,
+  ToolbarError,
+  ToolbarGroupOrders,
+  ToolbarMainPlugin,
+  ToolbarPlugin,
+  createToolbarMainPlugin
+} from './plugins/toolbar';
+export type {
+  IToolbarButtonDefinition,
+  IToolbarControlDefinition,
+  IToolbarItemDefinition,
+  IToolbarItemInfo,
+  IToolbarMainOptions,
+  IToolbarMainService,
+  ToolbarErrorCode,
+  ToolbarOptions
+} from './plugins/toolbar';
+
+// Plugin persistence.json (import / export JSON, fichiers v1 migrés).
+export { PERSISTENCE_JSON_PLUGIN_ID, PersistenceError, createPersistenceJsonPlugin } from './plugins/persistence/json';
+export type {
+  IImportResult,
+  IPersistenceJsonOptions,
+  IPersistenceJsonService,
+  IReadResult,
+  IWriteOptions,
+  PersistenceErrorCode,
+  PersistenceExportedEvent,
+  PersistenceImportedEvent,
+  PersistenceJsonPlugin
+} from './plugins/persistence/json';
