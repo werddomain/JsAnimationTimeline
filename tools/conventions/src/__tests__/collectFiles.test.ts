@@ -40,6 +40,26 @@ describe('collectTsFiles', () => {
     ]);
   });
 
+  it('also collects demo/*/src/**/*.ts and demo/*/*.ts, like ESLint, skipping dist* and node_modules', () => {
+    touch('demo/runtime/vite.config.ts');
+    touch('demo/runtime/src/main.ts');
+    touch('demo/runtime/src/objectStage/stage.ts');
+    touch('demo/runtime/src/vite-env.d.ts');
+    touch('demo/runtime/dist/assets/skip.ts');
+    touch('demo/runtime/src/dist-demo/skip.ts');
+    touch('demo/runtime/node_modules/pkg/skip.ts');
+    touch('demo/runtime/other/skip.ts');
+    touch('demo/readme.ts');
+    touch('demo/editor/src/app.ts');
+    expect(collectTsFiles(root)).toEqual([
+      'demo/editor/src/app.ts',
+      'demo/runtime/src/main.ts',
+      'demo/runtime/src/objectStage/stage.ts',
+      'demo/runtime/src/vite-env.d.ts',
+      'demo/runtime/vite.config.ts'
+    ]);
+  });
+
   it('returns an empty list when nothing exists', () => {
     expect(collectTsFiles(root)).toEqual([]);
   });
