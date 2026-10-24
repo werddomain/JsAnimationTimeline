@@ -10,7 +10,9 @@
  *   parents) est calculée une fois par document et mise en cache : les
  *   documents sont immuables, une nouvelle référence veut dire un nouveau
  *   document.
- * - L'échantillon rendu est figé.
+ * - L'échantillon rendu est figé, et calculé à la première lecture de
+ *   `layers` ou de `layer()` : un `frame:render` que personne ne lit ne
+ *   coûte aucune évaluation (les scènes évaluent leurs calques elles-mêmes).
  */
 
 import {
@@ -45,13 +47,30 @@ function collectEntries(doc: ITimelineDocument): readonly ILayerEntry[] {
   return Object.freeze(entries);
 }
 
-function createSample(time: ITransportTime, layers: readonly ILayerSample[]): IFrameSample {
+/** Œil résolu (dossiers parents compris) de chaque calque d'un document, mis en cache par document. */
+const visibilityCache = new WeakMap<ITimelineDocument, ReadonlyMap<string, boolean>>();
+
+/** Œil du calque `layerId` dans l'éditeur : faux si lui ou un dossier parent est masqué (vrai s'il est inconnu). */
+export function isLayerEditorVisible(doc: ITimelineDocument, layerId: string): boolean {
+  let visibility = visibilityCache.get(doc);
+  if (visibility === undefined) {
+    visibility = new Map(collectEntries(doc).map(({ layer, editorVisible }) => [layer.id, editorVisible]));
+    visibilityCache.set(doc, visibility);
+  }
+  return visibility.get(layerId) !== false;
+}
+
+function createSample(time: ITransportTime, evaluate: () => ILayerSample[]): IFrameSample {
+  let layers: readonly ILayerSample[] | undefined;
   let byId: ReadonlyMap<string, ILayerSample> | undefined;
+  const all = (): readonly ILayerSample[] => (layers ??= Object.freeze(evaluate()));
   return Object.freeze<IFrameSample>({
     time: Object.freeze({ ...time }),
-    layers: Object.freeze(layers),
+    get layers(): readonly ILayerSample[] {
+      return all();
+    },
     layer: (layerId) => {
-      byId ??= new Map(layers.map((sample) => [sample.layerId, sample]));
+      byId ??= new Map(all().map((sample) => [sample.layerId, sample]));
       return byId.get(layerId);
     }
   });
@@ -72,11 +91,15 @@ export class FrameSampler {
     return toTransportTime(frameToTime(at, doc.settings.fps), doc.settings);
   }
 
-  /** Échantillon figé de `doc` à `time` (l'image fractionnaire est bornée à 1..totalFrames). */
+  /** Échantillon figé de `doc` à `time` (l'image fractionnaire est bornée à 1..totalFrames), évalué à la première lecture. */
   sample(doc: ITimelineDocument, time: ITransportTime): IFrameSample {
+    return createSample(time, () => this.evaluate(doc, time));
+  }
+
+  private evaluate(doc: ITimelineDocument, time: ITransportTime): ILayerSample[] {
     const at = clampFrame(doc, time.frame);
     const options = { registry: this.registry, unknownProperties: 'skip' as const };
-    const layers = this.layersOf(doc).map(({ layer, editorVisible }): ILayerSample => {
+    return this.layersOf(doc).map(({ layer, editorVisible }): ILayerSample => {
       const state = evaluateLayer(layer, at, options);
       return Object.freeze({
         layerId: layer.id,
@@ -87,7 +110,6 @@ export class FrameSampler {
         editorVisible
       });
     });
-    return createSample(time, layers);
   }
 
   private layersOf(doc: ITimelineDocument): readonly ILayerEntry[] {
