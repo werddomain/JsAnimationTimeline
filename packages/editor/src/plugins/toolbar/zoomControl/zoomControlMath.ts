@@ -67,5 +67,5 @@ export function sameZoom(a: number, b: number): boolean {
 
 /** Libellé français d'un zoom, arrondi à l'unité (`1.5` -> `150 %`, espace insécable). */
 export function formatZoom(zoom: number): string {
-  return `${Math.round(zoom * 100)} %`;
+  return `${Math.round(zoom * 100)}\u00a0%`;
 }
