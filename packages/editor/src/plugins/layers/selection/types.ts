@@ -46,6 +46,12 @@ export interface ILayerSelectionService {
    * Sélectionne `ids` (les ids qui ne sont pas des lignes visibles sont
    * ignorés). L'ancre et le focus vont sur le dernier id valide. `replace`
    * avec aucun id valide vide la sélection.
+   *
+   * `options.previous` remplace, pour cet appel seulement, le `previous` de
+   * l'événement émis (sélection d'avant une commande qui a fait disparaître
+   * des lignes) : copié tel quel, sans validation ni tri ; ignoré si la
+   * sélection ne change pas (aucun événement). `selectRange`, `selectAll` et
+   * `clear` ne l'acceptent pas.
    */
   select(ids: readonly string[], mode?: SelectionMode, options?: SelectOptions): void;
   /**

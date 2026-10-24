@@ -303,7 +303,9 @@ export class LayerSelectionPlugin implements EditorPlugin {
   private blurLeaves(target: Element, event: FocusEvent): boolean {
     if (event.relatedTarget !== null) return true;
     const id = target.closest<HTMLElement>('[data-row-id]')?.dataset.rowId;
-    return id !== undefined && this.list?.row(id) !== undefined;
+    // Saisie hors d'une ligne (en-tête, contrôle) : aucune ligne à retirer, c'est un départ.
+    if (id === undefined) return true;
+    return this.list?.row(id) !== undefined;
   }
 
   private markFocusLeaving(): void {
@@ -373,7 +375,7 @@ export class LayerSelectionPlugin implements EditorPlugin {
   }
 
   private select(ids: readonly string[], mode: SelectionMode, previous?: readonly string[]): void {
-    this.commit(selectIds(this.state, this.rowIds(), ids, mode), previous);
+    this.commit(selectIds(this.state, this.rowIds(), ids, mode), previous === undefined ? undefined : [...previous]);
   }
 
   private rowIds(): readonly string[] {

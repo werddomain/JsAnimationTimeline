@@ -11,6 +11,7 @@ import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixt
 import { RENAME_INPUT_CLASS } from '../inlineEdit';
 import { RENAME_LABEL, createRenameCommand, normalizeLayerName } from '../renameCommands';
 
+afterEach(() => jest.restoreAllMocks());
 afterEach(unmountAll);
 
 const tree = doc([folder('f', [layer('a')]), layer('b', { locked: true })]);
@@ -337,11 +338,11 @@ describe('inline editing review fixes', () => {
     const added: Array<[string, unknown, unknown]> = [];
     const removed: Array<[string, unknown, unknown]> = [];
     const capture = (options: unknown): unknown => (typeof options === 'object' && options !== null ? (options as { capture?: boolean }).capture === true : options === true);
-    const add = jest.spyOn(document, 'addEventListener').mockImplementation(function (this: Document, type: string, listener: unknown, options?: unknown) {
+    jest.spyOn(document, 'addEventListener').mockImplementation(function (this: Document, type: string, listener: unknown, options?: unknown) {
       added.push([type, listener, capture(options)]);
       EventTarget.prototype.addEventListener.call(this, type, listener as EventListener, options as boolean);
     });
-    const remove = jest.spyOn(document, 'removeEventListener').mockImplementation(function (this: Document, type: string, listener: unknown, options?: unknown) {
+    jest.spyOn(document, 'removeEventListener').mockImplementation(function (this: Document, type: string, listener: unknown, options?: unknown) {
       removed.push([type, listener, capture(options)]);
       EventTarget.prototype.removeEventListener.call(this, type, listener as EventListener, options as boolean);
     });
@@ -353,8 +354,6 @@ describe('inline editing review fixes', () => {
     added.forEach(([type, listener, cap]) => {
       expect(removed.some(([t, l, c]) => t === type && l === listener && c === cap)).toBe(true);
     });
-    add.mockRestore();
-    remove.mockRestore();
   });
 
   it('removes its document listeners and timer on destroy', () => {
