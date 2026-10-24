@@ -53,9 +53,14 @@ export class UndoRedoPlugin implements EditorPlugin {
     const redo = (): boolean => canRedo() && commands.redo();
     const cleanups: Array<() => void> = [];
     try {
+      // Chaque retrait est gardé dès son ajout : un échec plus loin défait les précédents.
       cleanups.push(
-        shortcuts.register({ id: UndoRedoIds.UNDO, keys: UndoRedoKeys.UNDO, label: 'Annuler', run: undo, enabled: canUndo }),
-        shortcuts.register({ id: UndoRedoIds.REDO, keys: UndoRedoKeys.REDO, label: 'Rétablir', run: redo, enabled: canRedo }),
+        shortcuts.register({ id: UndoRedoIds.UNDO, keys: UndoRedoKeys.UNDO, label: 'Annuler', run: undo, enabled: canUndo })
+      );
+      cleanups.push(
+        shortcuts.register({ id: UndoRedoIds.REDO, keys: UndoRedoKeys.REDO, label: 'Rétablir', run: redo, enabled: canRedo })
+      );
+      cleanups.push(
         toolbar.addButton({
           id: UndoRedoIds.UNDO,
           label: 'Annuler',
@@ -65,7 +70,9 @@ export class UndoRedoPlugin implements EditorPlugin {
           shortcut: UndoRedoKeys.UNDO,
           onClick: () => void undo(),
           enabled: canUndo
-        }),
+        })
+      );
+      cleanups.push(
         toolbar.addButton({
           id: UndoRedoIds.REDO,
           label: 'Rétablir',

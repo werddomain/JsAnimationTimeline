@@ -14,7 +14,7 @@ import { defaultPlugins } from '../../../../core/editor/defaultPlugins';
 import type { IEditor } from '../../../../core/editor/types';
 import { toolbarBasePlugins } from '../../../toolbar/__tests__/toolbarFixtures';
 import { HistoryPlugin } from '../../HistoryPlugin';
-import { UndoRedoIds } from '../UndoRedoPlugin';
+import { UndoRedoIds, UndoRedoPlugin } from '../UndoRedoPlugin';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -192,5 +192,72 @@ describe('history epic', () => {
       createEditor(container, { defaultPlugins: [...toolbarBasePlugins(), thief, new HistoryPlugin()] })
     ).toThrow();
     expect(container.children.length).toBe(0);
+  });
+});
+
+describe('history.undoRedo lifecycle', () => {
+  /** Éditeur sans l'epic history, avec un plugin qui capture le contexte. */
+  function bareContext(extra: readonly EditorPlugin[] = []): { readonly editor: IEditor; readonly ctx: IEditorContext } {
+    let ctx: IEditorContext | undefined;
+    const probe: EditorPlugin = {
+      id: 'test.probe',
+      dependencies: ['toolbar.main'],
+      init: (context) => (ctx = context),
+      destroy: () => {}
+    };
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const editor = createEditor(container, { defaultPlugins: [...toolbarBasePlugins(), ...extra], plugins: [probe] });
+    return { editor, ctx: ctx as IEditorContext };
+  }
+
+  it('removes what it already registered when init fails halfway', () => {
+    // Arrange
+    const thief: EditorPlugin = {
+      id: 'test.thief',
+      dependencies: ['interaction.shortcuts'],
+      init: (context) =>
+        void context.services.require('interaction.shortcuts').register({
+          id: 'test.thief.redo',
+          keys: 'Mod+Shift+Z',
+          label: 'Voleur',
+          run: () => {}
+        }),
+      destroy: () => {}
+    };
+    const { ctx } = bareContext([thief]);
+    const shortcuts = ctx.services.require('interaction.shortcuts');
+
+    // Act + Assert
+    expect(() => new UndoRedoPlugin().init(ctx)).toThrow();
+    expect(shortcuts.lookup('Mod+Z')).toBeUndefined();
+    expect(ctx.services.require('toolbar.main').items()).toEqual([]);
+  });
+
+  it('removes its shortcuts and buttons on destroy', () => {
+    // Arrange
+    const { ctx } = bareContext();
+    const plugin = new UndoRedoPlugin();
+    plugin.init(ctx);
+    expect(ctx.services.require('interaction.shortcuts').lookup('Mod+Y')?.id).toBe(UndoRedoIds.REDO);
+
+    // Act
+    plugin.destroy();
+
+    // Assert
+    expect(ctx.services.require('interaction.shortcuts').lookup('Mod+Z')).toBeUndefined();
+    expect(ctx.services.require('toolbar.main').items()).toEqual([]);
+  });
+
+  it('turns both buttons off when a loaded document clears the history', () => {
+    // Arrange
+    const { editor, undoButton, redoButton } = mount();
+    editor.execute(lengthen());
+
+    // Act
+    editor.load(editor.document);
+
+    // Assert
+    expect([undoButton.disabled, redoButton.disabled]).toEqual([true, true]);
   });
 });
