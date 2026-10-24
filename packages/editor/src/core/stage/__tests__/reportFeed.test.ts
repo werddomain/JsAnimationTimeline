@@ -37,19 +37,33 @@ describe('StageReportFeed', () => {
     // Act
     feed.beginLoad([]);
     feed.add(unknownStage);
-    feed.endLoad([unknownStage]);
     feed.beginLoad([unknownStage]);
     feed.add(unknownStage);
     feed.add(unrouted);
-    feed.endLoad([unknownStage, unrouted]);
     feed.beginLoad([unknownStage, unrouted]);
-    feed.endLoad([]);
     feed.beginLoad([]);
     feed.add(unknownStage);
-    feed.endLoad([unknownStage]);
 
     // Assert
     expect(emitted).toEqual([unknownStage, unrouted, unknownStage]);
+  });
+
+  it('does not announce again a warning raised after the previous load (render error)', () => {
+    // Arrange
+    const emitted: IStageReport[] = [];
+    const feed = new StageReportFeed((report) => emitted.push(report));
+    const renderError: IStageReport = { code: StageReportCodes.STAGE_ERROR, stageId: 'canvas', message: 'boum' };
+    feed.start([]);
+    feed.beginLoad([]);
+    feed.add(renderError);
+
+    // Act
+    feed.beginLoad([renderError]);
+    feed.add(renderError);
+    feed.add(renderError);
+
+    // Assert
+    expect(emitted).toEqual([renderError]);
   });
 
   it('keys reports by code, stage, layer and property', () => {

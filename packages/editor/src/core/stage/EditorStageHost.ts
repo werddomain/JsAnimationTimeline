@@ -13,25 +13,27 @@
  * - Une scène qui refuse un document de commande (`StageDocumentError`)
  *   garde le document précédent ; l'erreur va à `onError`, le Store garde le
  *   nouveau. Seul le document initial, refusé, fait échouer `createEditor()`.
- * - Un document annoncé pendant un chargement (une scène ou un gestionnaire de
- *   `stage:report` qui exécute une commande) est chargé juste après celui en
- *   cours, même si `onError` lève ; seul le dernier compte. `refreshTargets`
- *   lève pendant un chargement.
+ * - Un document annoncé pendant un chargement ou pendant le rendu qui le suit
+ *   (une scène ou un gestionnaire de `stage:report` qui exécute une commande)
+ *   est chargé juste après, même si `onError` lève ; seul le dernier compte.
+ *   `refreshTargets` lève pendant un chargement.
  * - `IStageLayerState.editorVisible` suit l'œil du calque et de ses dossiers
- *   parents dans le dernier document accepté par les scènes.
- * - `stage:report` n'émet que les avertissements nouveaux par rapport au
- *   document précédent ; ceux qui existent à `editor:ready` sont émis à ce
- *   moment-là (voir `StageReportFeed`). Un avertissement relevé pendant le
- *   chargement d'un document ensuite refusé a déjà été émis ; il ne figure plus
- *   dans `warnings`.
- * - `stage:targetsChanged` est émis quand la liste `missingTargets` change
- *   (contenu comparé) : après un document, `refreshTargets`, ou un changement
- *   signalé par `targets.subscribe` (vérifié en microtâche, une fois que le
- *   `StageHost` a réessayé).
+ *   parents dans le document que montrent les scènes (`StageHost.document` :
+ *   le précédent pendant le retour arrière d'un document refusé).
+ * - `stage:report` n'émet que les avertissements absents du document
+ *   précédent, y compris ceux relevés après son chargement (erreur de
+ *   `render` ou de `sync`) ; ceux qui existent à `editor:ready` sont émis à ce
+ *   moment-là (voir `StageReportFeed`).
+ * - `stage:targetsChanged` est émis quand le contenu de `missingTargets`
+ *   change : après un document (accepté ou refusé), et après une nouvelle
+ *   tentative du `StageHost` (`refreshTargets`, `targets.subscribe` d'une
+ *   scène, signalé par `onTargetsChanged`). Une annonce demandée pendant une
+ *   annonce (un gestionnaire qui appelle `refreshTargets`) part juste après,
+ *   pour que tous les gestionnaires reçoivent la même liste.
  * - Sans scène (`stage: false`), rien n'est routé : aucune cible manquante,
  *   aucun avertissement.
- * - `destroy` relâche chaque calque puis détache chaque scène ; les objets
- *   restent au développeur.
+ * - `destroy` relâche chaque calque puis détache chaque scène, même si un
+ *   désabonnement lève ; les objets restent au développeur.
  */
 
 import { isRefTarget, StageHost } from '@werddomain/timeline-runtime';
@@ -78,24 +80,28 @@ function routeOf(stages: readonly IStage[], target: LayerTarget): IStage | undef
   return stages.find((stage) => stage.accepts(target));
 }
 
+function sameList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((id, index) => id === b[index]);
+}
+
 /** Scènes branchées sur le noyau de l'éditeur ; interne (les plugins voient `IEditorStage`). */
 export class EditorStageHost implements IStageRenderer {
   readonly stages: readonly IStage[];
   /** `null` sans scène (`stage: false`). */
   private readonly host: StageHost | null;
+  private readonly bus: EventBus;
   private readonly onError: StageErrorHandler;
   private readonly now: () => IStageHostClock;
   private readonly feed: StageReportFeed;
-  private readonly bus: EventBus;
-  /** `missingTargets` à la dernière annonce (`stage:targetsChanged`). */
-  private announcedMissing: readonly string[] = NO_LAYERS;
   private readonly unsubscribes: (() => void)[];
-  /** Dernier document accepté par les scènes (œil des calques). */
-  private accepted: ITimelineDocument;
   private destroyed = false;
   private loading = false;
   /** Dernier document annoncé pendant un chargement, chargé ensuite. */
   private queued: ITimelineDocument | null = null;
+  /** `missingTargets` à la dernière annonce (`stage:targetsChanged`). */
+  private announcedMissing: readonly string[] = NO_LAYERS;
+  private announcing = false;
+  private announceAgain = false;
 
   /** Charge le document courant du Store ; lève l'erreur d'une scène qui le refuse (après avoir tout relâché). */
   constructor(options: IEditorStageHostOptions) {
@@ -104,21 +110,20 @@ export class EditorStageHost implements IStageRenderer {
     this.stages = Object.freeze(options.stages.slice());
     this.onError = options.onError;
     this.now = options.now;
-    this.accepted = store.document;
     this.feed = new StageReportFeed((report) => bus.emit('stage:report', report));
     this.host = this.stages.length === 0 ? null : new StageHost({
       stages: this.stages,
       registry: options.registry,
       onError: options.onError,
       onReport: (report) => this.feed.add(report),
-      isEditorVisible: (layerId) => isLayerEditorVisible(this.accepted, layerId),
+      onTargetsChanged: () => this.announceMissing(),
+      isEditorVisible: (layerId) => isLayerEditorVisible(this.host?.document ?? store.document, layerId),
       now: options.now
     });
     this.unsubscribes = [
       bus.on('document:changed', ({ document }) => this.load(document)),
       bus.on('document:loaded', ({ document }) => this.load(document)),
-      bus.once('editor:ready', () => this.feed.start(this.warnings)),
-      ...this.watchTargets()
+      bus.once('editor:ready', () => this.feed.start(this.warnings))
     ];
     try {
       this.loadNow(store.document);
@@ -148,7 +153,6 @@ export class EditorStageHost implements IStageRenderer {
 
   refreshTargets(layerId?: string): void {
     this.host?.refresh(layerId);
-    this.announceMissing();
   }
 
   listTargets(): readonly ITargetInfo[] {
@@ -159,12 +163,15 @@ export class EditorStageHost implements IStageRenderer {
     return this.guard(() => routeOf(this.stages, target)?.targets?.describe?.(target), undefined);
   }
 
-  /** Relâche chaque calque, détache chaque scène et se désabonne. Idempotent. */
+  /** Se désabonne, puis relâche chaque calque et détache chaque scène, quoi qu'il arrive. Idempotent. */
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
-    this.unsubscribes.forEach((unsubscribe) => unsubscribe());
-    this.host?.destroy();
+    try {
+      this.unsubscribes.forEach((unsubscribe) => this.guard(unsubscribe, undefined));
+    } finally {
+      this.host?.destroy();
+    }
   }
 
   private load(doc: ITimelineDocument): void {
@@ -177,34 +184,25 @@ export class EditorStageHost implements IStageRenderer {
       this.loadNow(doc);
       // Un document en attente sera chargé, puis rendu, juste après.
       if (this.queued === null) this.renderNow();
-      this.announceMissing();
     } catch (error) {
       this.onError(error);
     } finally {
+      // Un document refusé peut aussi changer les cibles manquantes (retour arrière).
+      if (this.queued === null) this.announceMissing();
       this.flushQueued();
     }
   }
 
-  /** Charge `doc` dans les scènes ; lève l'erreur d'une scène qui le refuse (le document accepté reste le précédent). */
+  /** Charge `doc` dans les scènes ; lève l'erreur d'une scène qui le refuse (elles gardent le précédent). */
   private loadNow(doc: ITimelineDocument): void {
     const host = this.host;
-    if (host === null) {
-      this.accepted = doc;
-      return;
-    }
+    if (host === null) return;
     this.loading = true;
     this.feed.beginLoad(host.warnings);
-    const previous = this.accepted;
-    // Lu par les rendus faits pendant le chargement (cibles réessayées à sa fin).
-    this.accepted = doc;
     try {
       host.load(doc);
-    } catch (error) {
-      this.accepted = previous;
-      throw error;
     } finally {
       this.loading = false;
-      if (!this.destroyed) this.feed.endLoad(host.warnings);
     }
   }
 
@@ -212,34 +210,39 @@ export class EditorStageHost implements IStageRenderer {
    * Rendu des scènes à l'instant courant, juste après un chargement (pour les
    * scènes en mode `frame`, qui remettent leurs styles d'origine dans
    * `update`). Pas de `sync` : il suit avec le rendu regroupé de la lecture.
+   * Un document annoncé pendant ce rendu est mis en attente comme pendant un
+   * chargement.
    */
   private renderNow(): void {
     if (this.destroyed || this.host === null) return;
-    this.host.render(this.now().time);
+    this.loading = true;
+    try {
+      this.host.render(this.now().time);
+    } finally {
+      this.loading = false;
+    }
   }
 
   /** Émet `stage:targetsChanged` si le contenu de `missingTargets` a changé depuis la dernière annonce. */
   private announceMissing(): void {
     if (this.destroyed) return;
-    const current = this.missingTargets;
-    const previous = this.announcedMissing;
-    if (current.length === previous.length && current.every((id, index) => id === previous[index])) return;
-    this.announcedMissing = current;
-    this.bus.emit('stage:targetsChanged', { missingTargets: current });
-  }
-
-  /** S'abonne à `targets.subscribe` de chaque scène : annonce après la nouvelle tentative du `StageHost`. */
-  private watchTargets(): (() => void)[] {
-    if (this.host === null) return [];
-    return this.stages.flatMap((stage) => {
-      const subscribe = stage.targets?.subscribe;
-      if (typeof subscribe !== 'function') return [];
-      const unsubscribe = this.guard(
-        () => subscribe.call(stage.targets, () => queueMicrotask(() => this.announceMissing())),
-        undefined
-      );
-      return typeof unsubscribe === 'function' ? [unsubscribe] : [];
-    });
+    if (this.announcing) {
+      this.announceAgain = true;
+      return;
+    }
+    this.announcing = true;
+    try {
+      do {
+        this.announceAgain = false;
+        const current = this.missingTargets;
+        if (!sameList(current, this.announcedMissing)) {
+          this.announcedMissing = current;
+          this.bus.emit('stage:targetsChanged', { missingTargets: current });
+        }
+      } while (this.announceAgain && !this.destroyed);
+    } finally {
+      this.announcing = false;
+    }
   }
 
   private flushQueued(): void {

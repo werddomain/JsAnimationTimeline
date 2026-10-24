@@ -62,6 +62,7 @@ export class StageHost {
   /** Stages whose targets changed during a load, with the affected targets; retried when it ends. */
   private readonly pendingRetries = new Map<IStage, LayerTarget[]>();
   private readonly isEditorVisible: EditorVisibility;
+  private readonly notifyTargetsChanged: (() => void) | undefined;
 
   /** Throws for a malformed stage or a duplicate stage id. */
   constructor(options: IStageHostOptions) {
@@ -71,9 +72,15 @@ export class StageHost {
     this.reporter = new StageReporter(options.onError, options.onReport);
     this.now = options.now;
     this.isEditorVisible = options.isEditorVisible ?? ALWAYS_VISIBLE;
+    this.notifyTargetsChanged = options.onTargetsChanged;
   }
 
   /** Ids of the layers without a resolved object (no target, unknown stage, unrouted, resolve failed), in document order. */
+  /** Document the stages currently show (the previous one while a refused document is rolled back), or `null` before the first load. */
+  get document(): ITimelineDocument | null {
+    return this.doc;
+  }
+
   get missingTargets(): readonly string[] {
     return this.missing;
   }
@@ -371,6 +378,9 @@ export class StageHost {
     }
     this.refreshDerived();
     this.reapply(changed);
+    if (!this.destroyed) {
+      this.notifyTargetsChanged?.();
+    }
   }
 
   /**

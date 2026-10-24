@@ -149,7 +149,7 @@ gameLoop(deltaMs => clock.advance(deltaMs));        // en millisecondes
 ## Lecture et aperçu sans HTML
 
 - Le code de temps de `Player.ts` va dans `transport/`, avec une seule fonction temps vers image (`frame = 1 + t * fps / 1000`, plus la règle actuelle pour l'image entière). `IPlayer` est étendu de façon additive : option `stage`, événement `tick` (image fractionnaire), `refreshTargets`, `warnings`.
-- Éditeur : `ctx.playback` et `ctx.registry` remplacent `ctx.root` (C6). `ctx.stage` arrive en C7. Événements : `playhead:changed`, `frame:render`, `playback:play|pause|loop|complete`, `stage:report`.
+- Éditeur : `ctx.playback` et `ctx.registry` remplacent `ctx.root` (C6). `ctx.stage` arrive en C7. Événements : `playhead:changed`, `frame:render`, `playback:play|pause|loop|complete`, `stage:report` (seulement les avertissements nouveaux par rapport au document précédent) et `stage:targetsChanged` (la liste `ctx.stage.missingTargets` a changé : document, `refreshTargets` ou `targets.subscribe` d'une scène ; le `StageHost` le signale par son option `onTargetsChanged`).
 - Glisser la tête de lecture appelle `ctx.playback.seek(n)` : les calques sont évalués, puis la scène reçoit `sync` et/ou `render`. Pas besoin de `getComputedStyle`.
 - Pendant un glisser, les `seek` et les modifications sont regroupés : une seule évaluation et un seul `render` par image d'affichage (C6). `sample(n)` reste synchrone.
 - Le Store refuse les cibles vivantes `{ element }`, parce que `freezeDocument` gèlerait un nœud DOM ou un objet three.js. Un nom de piste inconnu donne un avertissement, ou un refus avec `strictProperties`.
