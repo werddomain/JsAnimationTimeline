@@ -45,12 +45,13 @@ export const PLAYBACK_SPEEDS: readonly number[] = Object.freeze([0.25, 0.5, 1, 1
 /**
  * Libellé français d'une vitesse (`1.5` -> `×1,5`). Le bruit des flottants
  * est arrondi au centième (`0.1 + 0.2` -> `×0,3`). Une vitesse qui n'est pas
- * un centième juste garde quatre chiffres significatifs (`1.001` -> `×1,001`,
- * `0.001` -> `×0,001`) : son libellé ne se confond jamais avec un autre.
+ * un centième juste s'écrit en entier, avec tous ses chiffres (`1.0005` ->
+ * `×1,0005`, `10.001` -> `×10,001`) : deux vitesses différentes n'ont jamais
+ * le même libellé.
  */
 export function formatSpeed(speed: number): string {
   const rounded = Math.round(speed * 100) / 100;
-  const shown = Math.abs(rounded - speed) < 1e-9 ? rounded : Number(speed.toPrecision(4));
+  const shown = Math.abs(rounded - speed) < 1e-9 ? rounded : speed;
   return `×${String(shown).replace('.', ',')}`;
 }
 
@@ -125,8 +126,13 @@ export class PlaybackControlsPlugin implements EditorPlugin {
           run: (event) => {
             // `false` : touche laissée au navigateur, qui active le bouton ou le lien.
             if (isEnterActivated(event.target)) return false;
-            // Touche maintenue : une seule bascule, et pas de `shortcut:triggered` par répétition.
-            if (event.repeat) return false;
+            // Touche maintenue : une seule bascule, et pas de `shortcut:triggered`
+            // par répétition. La répétition reste consommée : l'hôte ne la voit
+            // pas comme une touche Entrée libre.
+            if (event.repeat) {
+              event.preventDefault();
+              return false;
+            }
             ctx.playback.toggle();
             return true;
           }
