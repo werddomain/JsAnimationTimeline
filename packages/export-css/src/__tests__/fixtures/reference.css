@@ -29,14 +29,6 @@
   }
 }
 
-#hero {
-  animation-name: tl-hero;
-  animation-duration: 2000ms;
-  animation-timing-function: linear;
-  animation-fill-mode: both;
-  animation-iteration-count: 1;
-}
-
 @keyframes tl-badge {
   0% {
     transform: translateX(0px) translateY(0px) rotate(0deg) scaleX(1) scaleY(1) skewX(0deg) skewY(0deg);
@@ -55,6 +47,14 @@
     transform: translateX(0px) translateY(0px) rotate(90deg) scaleX(1) scaleY(1) skewX(0deg) skewY(0deg);
     opacity: 1;
   }
+}
+
+#hero {
+  animation-name: tl-hero;
+  animation-duration: 2000ms;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-iteration-count: 1;
 }
 
 .badge > span {

@@ -148,6 +148,43 @@ describe('exportCss', () => {
     expect(warnings.map((w) => w.code)).toEqual(['unsupported-target']);
   });
 
+  it('gives layers on the same selector one rule listing their animations', () => {
+    const fade: ILayer = {
+      id: 'fade',
+      type: 'layer',
+      name: 'Fondu',
+      target: { selector: '#hero' },
+      spans: [{ id: 'f1', start: 1, end: 24, kind: 'tween', tracks: { opacity: [{ frame: 1, value: 0 }, { frame: 24, value: 1 }] } }]
+    };
+
+    const { css } = exportCss(doc([hero, fade]));
+
+    expect(css.match(/^#hero \{/gm)).toHaveLength(1);
+    expect(css).toContain('animation-name: tl-hero, tl-fade;');
+    expect(css).toContain('animation-duration: 2000ms, 2000ms;');
+    expect(css).toContain('animation-fill-mode: both, both;');
+  });
+
+  it('skips a malformed layer with invalid-layer and keeps exporting the others', () => {
+    const malformed = { ...hero, id: 'malformed', spans: [{ id: 'm', start: 1, end: 5, kind: 'tween', tracks: null }] } as unknown as ILayer;
+
+    const result = exportCss(doc([malformed, { ...hero, id: 'ok' }]));
+
+    expect(result.warnings.filter((w) => w.layerId === 'malformed').map((w) => w.code)).toEqual(['invalid-layer']);
+    expect(result.css).toContain('@keyframes tl-ok {');
+  });
+
+  it.each([
+    [{ fps: 0, totalFrames: 24 }],
+    [{ fps: 12, totalFrames: Number.NaN }],
+    [{ fps: Number.POSITIVE_INFINITY, totalFrames: 24 }]
+  ])('exports nothing with an invalid-document warning for settings %p', (settings) => {
+    const result = exportCss({ version: '2.0.0', settings, layers: [hero] });
+
+    expect(result.css).toBe('');
+    expect(result.warnings.map((w) => w.code)).toEqual(['invalid-document']);
+  });
+
   it('returns an empty style sheet for an empty document', () => {
     expect(exportCss(doc([]))).toEqual({ css: '', html: '<style>\n</style>', warnings: [] });
   });

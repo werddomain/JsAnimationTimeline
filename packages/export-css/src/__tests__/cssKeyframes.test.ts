@@ -72,6 +72,16 @@ describe('toCssKeyframes', () => {
     expect(result.map(({ offset, easing }) => [offset, easing])).toEqual([[0, 'linear'], [0.499999, 'step-end'], [0.5, 'linear']]);
   });
 
+  it('writes linear instead of an easing that is not a valid timing function', () => {
+    const [keyframe] = toCssKeyframes([{ offset: 0, easing: 'linear;} body { color: red', opacity: '1' }]);
+
+    expect(keyframe.easing).toBe('linear');
+  });
+
+  it('throws for a declaration that could end the block', () => {
+    expect(() => toCssKeyframes([{ offset: 0, opacity: '1; color: red' }])).toThrow('unsafe CSS declaration');
+  });
+
   it('ignores the composite key and missing values', () => {
     expect(toCssKeyframes([{ composite: 'replace', opacity: '1', color: undefined }])).toEqual([
       { offset: 0, easing: 'linear', declarations: [['opacity', '1']] }

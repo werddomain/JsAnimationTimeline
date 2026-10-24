@@ -13,7 +13,11 @@
  * - Les pourcentages sont arrondis vers le bas (6 décimales) : à l'instant
  *   exact d'un changement net, le CSS montre déjà la nouvelle valeur, comme
  *   le lecteur.
+ * - Avant la première plage, l'état tenu est écrit dès 0 % ; le lecteur, lui,
+ *   n'a pas d'image clé à 0 % et part du style propre de l'élément.
  */
+
+import { parseEasing } from '@werddomain/timeline-runtime';
 
 /** A CSS keyframe: offset in [0, 1], easing of the segment it starts, declarations. */
 export interface ICssKeyframe {
@@ -40,14 +44,30 @@ export function formatFloor(value: number, decimals: number): string {
   return String(Number(floored.toFixed(decimals)));
 }
 
+/** Text that would end a declaration, a block or the `<style>` element. */
+const UNSAFE_DECLARATION_TEXT = /[;{}<]/;
+
+/** Throws when a registry gives a name or value that cannot be written safely. */
+function safeDeclaration(name: string, value: string): [string, string] {
+  if (UNSAFE_DECLARATION_TEXT.test(name) || UNSAFE_DECLARATION_TEXT.test(value)) {
+    throw new Error(`unsafe CSS declaration "${name}: ${value}"`);
+  }
+  return [name, value];
+}
+
 function toCssKeyframe(keyframe: Keyframe): ICssKeyframe {
   const declarations: Array<[string, string]> = [];
   for (const [key, value] of Object.entries(keyframe)) {
     if (!NON_PROPERTY_KEYS.has(key) && value !== undefined && value !== null) {
-      declarations.push([camelCaseToCssName(key), String(value)]);
+      declarations.push(safeDeclaration(camelCaseToCssName(key), String(value)));
     }
   }
-  return { offset: Number(keyframe.offset ?? 0), easing: keyframe.easing ?? 'linear', declarations };
+  return { offset: Number(keyframe.offset ?? 0), easing: safeEasing(keyframe.easing), declarations };
+}
+
+/** `easing` when it is a valid timing function of the model, `linear` otherwise (never copies arbitrary text). */
+function safeEasing(easing: string | undefined): string {
+  return easing !== undefined && parseEasing(easing) !== null ? easing : 'linear';
 }
 
 function sameDeclarations(a: ICssKeyframe, b: ICssKeyframe): boolean {

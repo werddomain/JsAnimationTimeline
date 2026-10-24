@@ -14,7 +14,9 @@ describe('keyframesName', () => {
     ['', '1abc', '_1abc'],
     ['', '-1abc', '_-1abc'],
     ['--', 'x', '_--x'],
-    ['', '', '_']
+    ['', '', '_'],
+    ['', 'none', '_none'],
+    ['', 'Inherit', '_Inherit']
   ])('never starts with a digit or `--` (prefix %p, id %p)', (prefix, id, expected) => {
     expect(keyframesName(prefix, id, new Set())).toBe(expected);
   });
@@ -28,11 +30,28 @@ describe('keyframesName', () => {
 });
 
 describe('isSafeSelector', () => {
-  it.each(['#hero', '.a > .b', '[data-x="y"]', 'svg circle:nth-child(2)'])('accepts %p', (selector) => {
-    expect(isSafeSelector(selector)).toBe(true);
-  });
+  it.each(['#hero', '.a > .b', '[data-x="y"]', 'svg circle:nth-child(2)', '[title="a(b"]', '#a\\:b', ':is(.a, [x="]"])'])(
+    'accepts %p',
+    (selector) => {
+      expect(isSafeSelector(selector)).toBe(true);
+    }
+  );
 
-  it.each(['', '   ', '#a { color: red }', '#a; body', '</style><script>'])('refuses %p', (selector) => {
+  it.each([
+    '',
+    '   ',
+    '#a { color: red }',
+    '#a; body',
+    '</style><script>',
+    '#a[',
+    'a:not(',
+    '.a)',
+    '[x="y]',
+    'x /* note',
+    'x */',
+    '#a\\',
+    '@media print'
+  ])('refuses %p', (selector) => {
     expect(isSafeSelector(selector)).toBe(false);
   });
 });
