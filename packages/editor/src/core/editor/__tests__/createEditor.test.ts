@@ -226,6 +226,7 @@ describe('createEditor plugin sets', () => {
       'layers',
       'interaction.shortcuts',
       'toolbar',
+      'playback',
       'persistence.json',
       'history'
     ]);

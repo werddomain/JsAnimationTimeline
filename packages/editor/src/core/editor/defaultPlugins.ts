@@ -6,8 +6,8 @@
  * Les tâches du plan y ajoutent leurs plugins au fur et à mesure (L1
  * `layout.*` : fait ; Y1 `layers.list` : fait ; Y* `layers.*`, G* `frames.*`, T* `toolbar.*`,
  * P* `playback.*`...). Déjà présents : I2 `interaction.shortcuts`,
- * T1 `toolbar` (`toolbar.main`), S2 `persistence.json` et C5 `history`
- * (`history.undoRedo`). Les plugins optionnels
+ * T1 `toolbar` (`toolbar.main`), P1 `playback` (`playback.controls`),
+ * S2 `persistence.json` et C5 `history` (`history.undoRedo`). Les plugins optionnels
  * (par exemple `properties.panel`) n'y figurent pas : l'application les
  * passe dans `options.plugins`.
  */
@@ -17,6 +17,7 @@ import { LayoutPlugin } from '../../plugins/layout/LayoutPlugin';
 import { LayersPlugin } from '../../plugins/layers/LayersPlugin';
 import { createShortcutsPlugin } from '../../plugins/interaction/shortcuts';
 import { ToolbarPlugin } from '../../plugins/toolbar/ToolbarPlugin';
+import { PlaybackPlugin } from '../../plugins/playback/PlaybackPlugin';
 import { createPersistenceJsonPlugin } from '../../plugins/persistence/json';
 import { HistoryPlugin } from '../../plugins/history/HistoryPlugin';
 
@@ -27,6 +28,7 @@ export function defaultPlugins(): EditorPlugin[] {
     new LayersPlugin(),
     createShortcutsPlugin(),
     new ToolbarPlugin(),
+    new PlaybackPlugin(),
     createPersistenceJsonPlugin(),
     new HistoryPlugin()
   ];

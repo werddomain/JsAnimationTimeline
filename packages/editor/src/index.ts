@@ -222,3 +222,13 @@ export {
   UndoRedoPlugin,
   createUndoRedoPlugin
 } from './plugins/history';
+
+// Epic playback : lire, pause, boucle et vitesse dans la barre d'outils.
+export {
+  PLAYBACK_CONTROLS_PLUGIN_ID,
+  PLAYBACK_SPEEDS,
+  PLAYBACK_TOGGLE_KEYS,
+  PlaybackControlsPlugin,
+  PlaybackPlugin,
+  createPlaybackControlsPlugin
+} from './plugins/playback';
