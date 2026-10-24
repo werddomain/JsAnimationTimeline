@@ -282,9 +282,18 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
 
     private Task HandlePlayerErrorAsync(string message) => InvokeAsync(async () =>
     {
-        if (!_disposed)
+        if (_disposed)
+        {
+            return;
+        }
+        try
         {
             await OnError.InvokeAsync(new TimelineStageException(message));
+        }
+        catch (Exception error)
+        {
+            // A failing OnError handler is a component error, not something to lose in JavaScript.
+            await DispatchExceptionAsync(error);
         }
     });
 
