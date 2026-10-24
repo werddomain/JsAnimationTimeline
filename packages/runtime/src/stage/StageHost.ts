@@ -195,7 +195,10 @@ export class StageHost {
       if (typeof subscribe === 'function' && !this.destroyed) {
         const onChange = (affected?: readonly LayerTarget[]): void => this.onTargetsChanged(stage, affected);
         const unsubscribe = this.reporter.guard(stage.id, undefined, () => subscribe.call(stage.targets, onChange), undefined);
-        if (typeof unsubscribe === 'function') {
+        if (typeof unsubscribe === 'function' && this.destroyed) {
+          // onError destroyed the host during subscribe, after destroy() drained the list.
+          this.reporter.guard(stage.id, undefined, unsubscribe, undefined);
+        } else if (typeof unsubscribe === 'function') {
           this.unsubscribers.push({ stageId: stage.id, unsubscribe });
         }
       }

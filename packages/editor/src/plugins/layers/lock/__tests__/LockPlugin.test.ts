@@ -99,8 +99,10 @@ describe('lock row control', () => {
     const inherited = rowButton(host, 'a');
     expect(inherited.dataset.inherited).toBe('true');
     expect(inherited.getAttribute('aria-pressed')).toBe('false');
-    expect(inherited.title).toBe('Verrouiller le calque (Verrouillé par un dossier parent)');
-    expect(inherited.getAttribute('aria-label')).toBe('Verrou de « a » (Verrouillé par un dossier parent)');
+    expect(inherited.title).toBe('Verrouiller le calque (verrouillé par le dossier)');
+    expect(inherited.getAttribute('aria-label')).toBe('Verrou de « a » (verrouillé par le dossier)');
+    expect(inherited.textContent).toBe('🔒');
+    expect(rowButton(host, 'b').textContent).toBe('🔓');
     expect(rowButton(host, 'd').title).toBe('Déverrouiller le calque');
     expect(rowButton(host, 'd').dataset.inherited).toBeUndefined();
     expect(rowButton(host, 'b').dataset.inherited).toBeUndefined();
@@ -108,9 +110,10 @@ describe('lock row control', () => {
     expect(findNodeById(editor.document.layers, 'a')?.locked).toBe(true);
     expect(findNodeById(editor.document.layers, 'f')?.locked).toBe(true);
     expect(rowButton(host, 'a').dataset.inherited).toBeUndefined();
+    expect(rowButton(host, 'a').textContent).toBe('🔒');
   });
 
-  it('toggles on click, updates the same button and keeps its focus', () => {
+  it('toggles on click and updates the same button in place', () => {
     const { host, editor } = mount(tree);
     const button = rowButton(host, 'b');
     button.focus();

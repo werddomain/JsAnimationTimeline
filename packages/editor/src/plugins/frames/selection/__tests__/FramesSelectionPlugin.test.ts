@@ -97,6 +97,7 @@ interface IClick {
   readonly shift?: boolean;
   readonly button?: number;
   readonly pointerType?: string;
+  readonly pointerId?: number;
 }
 
 /** Appui (ou, avec `type`, autre événement de pointeur) sur l'image `frame` de la ligne `rowIndex`. */
@@ -112,7 +113,7 @@ function press(grid: HTMLElement, rowIndex: number, frame: number, click: IClick
     shiftKey: click.shift ?? false
   });
   // jsdom n'a pas de PointerEvent : les champs du pointeur sont ajoutés à la main.
-  Object.defineProperty(event, 'pointerId', { value: 1 });
+  Object.defineProperty(event, 'pointerId', { value: click.pointerId ?? 1 });
   Object.defineProperty(event, 'pointerType', { value: click.pointerType ?? 'mouse' });
   return grid.dispatchEvent(event);
 }
@@ -310,6 +311,61 @@ describe('frames.selection clicks', () => {
 
     // Assert
     expect(keys(selection)).toEqual(['a:2', 'a:3']);
+    expect(editor.playback.frame).toBe(1);
+  });
+
+  it('ignores the release and the cancel of another pointer', () => {
+    // Arrange
+    const { grid, selection } = setup();
+    selection.set([
+      { rowId: 'a', frame: 2 },
+      { rowId: 'a', frame: 3 }
+    ]);
+
+    // Act
+    press(grid, 0, 3);
+    press(grid, 0, 3, { pointerId: 2 }, 'pointercancel');
+    press(grid, 0, 3, { pointerId: 2 }, 'pointerup');
+    const afterOtherPointer = keys(selection);
+    press(grid, 0, 3, {}, 'pointerup');
+
+    // Assert
+    expect(afterOtherPointer).toEqual(['a:2', 'a:3']);
+    expect(keys(selection)).toEqual(['a:3']);
+  });
+
+  it('does nothing on release after the grid lost the pointer capture', () => {
+    // Arrange
+    const { grid, selection } = setup();
+    selection.set([
+      { rowId: 'a', frame: 2 },
+      { rowId: 'a', frame: 3 }
+    ]);
+
+    // Act
+    press(grid, 0, 3);
+    press(grid, 0, 3, {}, 'lostpointercapture');
+    press(grid, 0, 3, {}, 'pointerup');
+
+    // Assert
+    expect(keys(selection)).toEqual(['a:2', 'a:3']);
+  });
+
+  it('forgets a pending release when another document is loaded', () => {
+    // Arrange
+    const { editor, grid, selection } = setup();
+    selection.set([
+      { rowId: 'a', frame: 2 },
+      { rowId: 'a', frame: 3 }
+    ]);
+    press(grid, 0, 3);
+
+    // Act
+    editor.load(sample);
+    press(grid, 0, 3, {}, 'pointerup');
+
+    // Assert
+    expect(keys(selection)).toEqual([]);
     expect(editor.playback.frame).toBe(1);
   });
 
