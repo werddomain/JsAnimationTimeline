@@ -3,7 +3,7 @@
 # Layers (phase 3, Y0-Y8): remaining work
 
 Y0-Y8 and the follow-ups through #90 are integrated in `v2/base`.
-Y4 target selection is implemented; its remaining target-popup review belongs to #92.
+Y4 target selection is implemented; its target-popup follow-ups are delivered through #92.
 
 ## Y5 window/tab focus follow-up
 
