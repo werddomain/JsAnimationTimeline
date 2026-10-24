@@ -50,10 +50,13 @@ const V2_NAMES = [
   'EDITOR_ROOT_CLASS',
   'PluginError',
   'ROOT_SLOT',
+  'SHORTCUTS_PLUGIN_ID',
+  'ShortcutError',
   'StoreError',
   'createCommand',
   'createEditor',
   'createEmptyDocument',
+  'createShortcutsPlugin',
   'defaultPlugins'
 ];
 
