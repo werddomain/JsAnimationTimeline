@@ -44,6 +44,14 @@ export function sameTarget(a: LayerTarget | undefined, b: LayerTarget | undefine
   return false;
 }
 
+/** Targets named by a stage's `subscribe` notification; anything but an array of objects counts as none. */
+export function toTargetList(value: unknown): LayerTarget[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return (value as unknown[]).filter((item): item is LayerTarget => typeof item === 'object' && item !== null);
+}
+
 function assertValidStage(stage: IStage, index: number): void {
   if (typeof stage !== 'object' || stage === null) {
     throw new Error(`Stage #${index} must be an object.`);

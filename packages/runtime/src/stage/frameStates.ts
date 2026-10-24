@@ -23,12 +23,19 @@ export function renderFrame(time: ITransportTime, totalFrames: number): number {
   return Math.min(totalFrames, Math.max(1, time.frame));
 }
 
+/** Eye of a layer in the editor, by layer id. */
+export type EditorVisibility = (layerId: string) => boolean;
+
+/** The player behaviour: every layer is visible. */
+export const ALWAYS_VISIBLE: EditorVisibility = () => true;
+
 /** State of every layer of a stage at `time` (layers already prepared). */
 export function evaluateStageLayers<T>(
   layers: readonly IStageLayer<T>[],
   time: ITransportTime,
   totalFrames: number,
-  registry: PropertyRegistry
+  registry: PropertyRegistry,
+  isEditorVisible: EditorVisibility = ALWAYS_VISIBLE
 ): IStageLayerState<T>[] {
   const frame = renderFrame(time, totalFrames);
   return layers.map(({ layerId, layer, target, object }) => {
@@ -40,7 +47,7 @@ export function evaluateStageLayers<T>(
       values: state.values,
       spanId: state.spanId,
       active: state.visible,
-      editorVisible: true
+      editorVisible: isEditorVisible(layerId) !== false
     };
   });
 }
