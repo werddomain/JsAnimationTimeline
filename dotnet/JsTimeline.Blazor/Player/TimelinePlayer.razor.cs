@@ -91,7 +91,7 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
     /// <see cref="Loop"/> and <see cref="Speed"/> still apply when the document is refused. A selector that
     /// matches nothing is not an error: see <see cref="TimelinePlayerState.MissingTargets"/>.
     /// Without a handler, a stage error goes to the browser console and the other errors are thrown to
-    /// the renderer: the error itself when there is one, otherwise an <see cref="InvalidOperationException"/>
+    /// the renderer: the error itself when there is only one, otherwise an <see cref="InvalidOperationException"/>
     /// whose inner <see cref="AggregateException"/> holds them all. When the handler itself throws, an
     /// <see cref="InvalidOperationException"/> is thrown (dispatched for a stage error) whose inner
     /// <see cref="AggregateException"/> holds the handler's failure then the original error; with several

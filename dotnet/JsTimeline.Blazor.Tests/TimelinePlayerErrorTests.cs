@@ -155,6 +155,7 @@ public sealed class TimelinePlayerErrorTests : BunitContext
         await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
         // Fails the update on the dispatcher: the application and its report finish inside this call.
         await cut.InvokeAsync(() => update.SetException(new JSException("refused")));
+        await cut.InvokeAsync(() => { });
 
         Assert.False(unhandled.IsCompleted);
     }
