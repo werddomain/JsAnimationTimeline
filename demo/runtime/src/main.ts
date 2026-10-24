@@ -11,7 +11,7 @@ import { DEMO_ANIMATION } from './animation';
 import './demo.less';
 
 /** Event labels shown in the log. */
-const EVENT_LABELS: Readonly<Record<Exclude<PlayerEventName, 'frame'>, string>> = {
+const EVENT_LABELS: Readonly<Record<Exclude<PlayerEventName, 'frame' | 'tick'>, string>> = {
   play: 'Lecture',
   pause: 'Pause',
   complete: 'Fin de l’animation (complete)',
