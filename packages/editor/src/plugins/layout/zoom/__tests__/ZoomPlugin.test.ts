@@ -11,7 +11,7 @@ import type { IMountOptions, IMountedLayout } from '../../__tests__/layoutFixtur
 import { PLAYHEAD_HEAD_CLASS } from '../../playhead/PlayheadPlugin';
 import { FRAME_WIDTH_VAR, RULER_CLASS } from '../../ruler/RulerPlugin';
 import type { ZoomChangedEvent } from '../zoomEvents';
-import { ZoomPlugin } from '../ZoomPlugin';
+import { WHEEL_IDLE_MS, ZoomPlugin } from '../ZoomPlugin';
 import type { IZoomApi } from '../ZoomPlugin';
 
 afterEach(cleanBody);
@@ -266,15 +266,81 @@ describe('layout.zoom gestures and re-entrancy', () => {
     expect(api.zoom()).toBe(1.5);
   });
 
-  it('counts wheel lines as 16 pixels', () => {
+  it('steps one level per notch in line or page mode (Firefox: 3 lines per notch)', () => {
     // Arrange
     const { zone, api } = setup();
+    const lines = { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_LINE };
 
     // Act
-    zone('frames').dispatchEvent(ctrlWheel(-4, 150, { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_LINE }));
+    zone('frames').dispatchEvent(ctrlWheel(-3, 150, lines));
+    const afterOne = api.zoom();
+    zone('frames').dispatchEvent(ctrlWheel(-3, 150, lines));
+    const afterTwo = api.zoom();
+    zone('frames').dispatchEvent(ctrlWheel(1, 150, { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_PAGE }));
 
     // Assert
+    expect([afterOne, afterTwo, api.zoom()]).toEqual([1.5, 2, 1.5]);
+  });
+
+  it('forgets a leftover pixel movement after a pause', () => {
+    // Arrange
+    const { zone, api } = setup();
+    const at = (deltaY: number, timeStamp: number): WheelEvent => {
+      const event = ctrlWheel(deltaY, 150);
+      Object.defineProperty(event, 'timeStamp', { value: timeStamp });
+      return event;
+    };
+
+    // Act : 40 px, pause, puis 40 px : aucun palier ; 40 + 40 sans pause : un palier.
+    zone('frames').dispatchEvent(at(-40, 1000));
+    zone('frames').dispatchEvent(at(-40, 1000 + WHEEL_IDLE_MS + 1));
+    const afterPause = api.zoom();
+    zone('frames').dispatchEvent(at(-40, 1000 + WHEEL_IDLE_MS + 50));
+
+    // Assert
+    expect(afterPause).toBe(1);
     expect(api.zoom()).toBe(1.5);
+  });
+
+  it('zooms continuously on a Safari pinch, without zooming the page', () => {
+    // Arrange
+    const { zone, api } = setup();
+    const gesture = (type: string, scale: number): Event => {
+      const event = new Event(type, { cancelable: true, bubbles: true });
+      Object.defineProperty(event, 'scale', { value: scale });
+      Object.defineProperty(event, 'clientX', { value: 250 });
+      return event;
+    };
+    api.setZoom(2);
+    const start = gesture('gesturestart', 1);
+    const change = gesture('gesturechange', 1.25);
+
+    // Act
+    zone('frames').dispatchEvent(start);
+    zone('frames').dispatchEvent(change);
+    zone('ruler').dispatchEvent(gesture('gesturechange', 10));
+    zone('frames').dispatchEvent(gesture('gestureend', 10));
+
+    // Assert
+    expect(start.defaultPrevented).toBe(true);
+    expect(change.defaultPrevented).toBe(true);
+    expect(api.zoom()).toBe(8);
+  });
+
+  it('stops zoomIn and zoomOut at the last and first levels, while setZoom reaches the bounds', () => {
+    // Arrange
+    const { api } = setup();
+
+    // Act
+    api.setZoom(4);
+    api.zoomIn();
+    const atLastLevel = api.zoom();
+    api.setZoom(6);
+    const beyond = api.zoom();
+    api.zoomOut();
+
+    // Assert
+    expect([atLastLevel, beyond, api.zoom()]).toEqual([4, 6, 4]);
   });
 
   it('ignores a zoom asked from a zoom:changed listener', () => {
