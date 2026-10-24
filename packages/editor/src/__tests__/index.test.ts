@@ -163,7 +163,12 @@ const V2_NAMES = [
   'removeMotionTween',
   'removeMotionTweens',
   'resolveCreateTarget',
-  'resolveRemoveTargets'
+  'resolveRemoveTargets',
+  'DEFAULT_PREVIEW_MAX_FPS',
+  'LIVE_PREVIEW_MODES',
+  'LIVE_PREVIEW_PLUGIN_ID',
+  'LivePreviewPlugin',
+  'createLivePreviewPlugin'
 ];
 
 describe('editor package entry point', () => {

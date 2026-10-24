@@ -38,8 +38,10 @@ function setup(totalFrames = 100): IPlayheadSetup {
   return { ...mounted, head, line, tick: (ms = DISPLAY_FRAME_MS) => mounted.clock.advance(ms) };
 }
 
+/** Évènement de pointeur ; pendant un glisser, le bouton principal reste enfoncé (`buttons` 1). */
 function pointer(type: string, clientX: number, button = 0): MouseEvent {
-  return new MouseEvent(type, { bubbles: true, cancelable: true, clientX, button });
+  const buttons = type === 'pointerup' || type === 'pointercancel' ? 0 : 1;
+  return new MouseEvent(type, { bubbles: true, cancelable: true, clientX, button, buttons });
 }
 
 function key(name: string): KeyboardEvent {
@@ -477,5 +479,93 @@ describe('layout.playhead click with the head out of view', () => {
     expect(zone('frames').scrollLeft).toBe(600);
     expect(editor.playback.frame).toBe(44);
     expect(order).toEqual(['start:44', 'changed:44']);
+  });
+});
+
+describe('layout.playhead scrub abort paths', () => {
+  /** Glisser commencé sur l'image 1 ; `ends` reçoit chaque `playhead:scrubEnd`. */
+  function startScrub(): { readonly mounted: IPlayheadSetup; readonly ends: number[] } {
+    const mounted = setup();
+    const ends: number[] = [];
+    mounted.editor.on('playhead:scrubEnd', (event) => ends.push(event.frame));
+    mounted.zone('ruler').dispatchEvent(pointer('pointerdown', 100));
+    return { mounted, ends };
+  }
+
+  it('ends the drag on pointercancel', () => {
+    // Arrange
+    const { mounted, ends } = startScrub();
+
+    // Act
+    document.dispatchEvent(pointer('pointercancel', 0));
+
+    // Assert
+    expect(ends).toEqual([1]);
+    expect(mounted.editor.getService('layout.playhead')?.isScrubbing()).toBe(false);
+  });
+
+  it('ends the drag on a move with no button pressed (release lost outside the window)', () => {
+    // Arrange
+    const { mounted, ends } = startScrub();
+    const lostRelease = new MouseEvent('pointermove', { bubbles: true, clientX: 100 + 15 * 8, buttons: 0 });
+
+    // Act
+    document.dispatchEvent(lostRelease);
+    mounted.tick();
+
+    // Assert
+    expect(ends).toEqual([1]);
+    expect(mounted.editor.playback.frame).toBe(1);
+  });
+
+  it('keeps following moves while the button is held', () => {
+    // Arrange
+    const { mounted, ends } = startScrub();
+
+    // Act
+    document.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 100 + 15 * 4, buttons: 1 }));
+    mounted.tick();
+
+    // Assert
+    expect(ends).toEqual([]);
+    expect(mounted.editor.playback.frame).toBe(5);
+  });
+
+  it('ends the drag when the window loses focus', () => {
+    // Arrange
+    const { ends } = startScrub();
+
+    // Act
+    window.dispatchEvent(new Event('blur'));
+
+    // Assert
+    expect(ends).toEqual([1]);
+  });
+
+  it('ends the drag on Escape', () => {
+    // Arrange
+    const { ends } = startScrub();
+
+    // Act
+    const escape = key('Escape');
+    document.dispatchEvent(escape);
+
+    // Assert
+    expect(ends).toEqual([1]);
+    expect(escape.defaultPrevented).toBe(true);
+  });
+
+  it('ends each drag only once', () => {
+    // Arrange
+    const { ends } = startScrub();
+
+    // Act
+    document.dispatchEvent(pointer('pointercancel', 0));
+    window.dispatchEvent(new Event('blur'));
+    document.dispatchEvent(key('Escape'));
+    document.dispatchEvent(pointer('pointerup', 0));
+
+    // Assert
+    expect(ends).toEqual([1]);
   });
 });

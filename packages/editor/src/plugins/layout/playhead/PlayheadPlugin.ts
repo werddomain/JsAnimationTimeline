@@ -22,8 +22,12 @@
  *   Le glisser est annoncé par `playhead:scrubStart` / `playhead:scrubEnd`
  *   (et lisible avec le service `layout.playhead`), par exemple pour régler
  *   l'aperçu pendant un glisser. `playhead:scrubStart` part avant le premier
- *   `seek` ; un glisser coupé par la destruction de l'éditeur n'émet pas
- *   `playhead:scrubEnd` (aucun événement pendant la destruction).
+ *   `seek`. Tout glisser se termine par `playhead:scrubEnd` : relâchement,
+ *   `pointercancel`, capture perdue, mouvement sans bouton enfoncé
+ *   (relâchement perdu hors de la fenêtre), perte du focus de la fenêtre et
+ *   Échap. Seul un glisser coupé par la destruction de l'éditeur ne l'émet
+ *   pas (aucun événement pendant la destruction) : les plugins qui en
+ *   dépendent nettoient dans leur propre `destroy`.
  * - Le glisser capture le pointeur et ne suit que lui : un deuxième doigt est
  *   ignoré, et une capture perdue termine le glisser.
  * - Le repère est un curseur accessible (`role="slider"`) : flèches (une
@@ -269,15 +273,33 @@ export class PlayheadPlugin implements EditorPlugin {
     const doc = ruler.ownerDocument;
     const pointerId = event.pointerId;
     const captured = capturePointer(ruler, pointerId);
+    const view = doc.defaultView;
     const onMove = (move: PointerEvent): void => {
-      if (move.pointerId === pointerId) this.seek(this.ruler().frameAtClientX(move.clientX));
+      if (move.pointerId !== pointerId) return;
+      // Plus aucun bouton enfoncé : le relâchement a été perdu (hors de la fenêtre).
+      if (move.buttons === 0) {
+        this.stopDrag?.();
+        return;
+      }
+      this.seek(this.ruler().frameAtClientX(move.clientX));
     };
     const onEnd = (end: PointerEvent): void => {
       if (end.pointerId === pointerId) this.stopDrag?.();
     };
+    const onBlur = (): void => this.stopDrag?.();
+    // Échap termine le glisser à l'image atteinte (sans revenir en arrière) et
+    // garde la touche pour lui : elle ne vide pas, en plus, une sélection.
+    const onEscape = (escape: KeyboardEvent): void => {
+      if (escape.key !== 'Escape') return;
+      escape.preventDefault();
+      escape.stopPropagation();
+      this.stopDrag?.();
+    };
     doc.addEventListener('pointermove', onMove);
     doc.addEventListener('pointerup', onEnd);
     doc.addEventListener('pointercancel', onEnd);
+    doc.addEventListener('keydown', onEscape);
+    view?.addEventListener('blur', onBlur);
     ruler.addEventListener('lostpointercapture', onEnd);
     head.classList.add(PLAYHEAD_DRAGGING_CLASS);
     this.stopDrag = (announce = true) => {
@@ -285,6 +307,8 @@ export class PlayheadPlugin implements EditorPlugin {
       doc.removeEventListener('pointermove', onMove);
       doc.removeEventListener('pointerup', onEnd);
       doc.removeEventListener('pointercancel', onEnd);
+      doc.removeEventListener('keydown', onEscape);
+      view?.removeEventListener('blur', onBlur);
       ruler.removeEventListener('lostpointercapture', onEnd);
       if (captured && ruler.hasPointerCapture(pointerId)) ruler.releasePointerCapture(pointerId);
       head.classList.remove(PLAYHEAD_DRAGGING_CLASS);

@@ -93,7 +93,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **Y1** | 3 | 5 | Plugin `layers.list` : arbre des calques **avec une API d'emplacements de contrôles par ligne** (pour que Y2 à Y4 travaillent en parallèle) | L1, Y0 | Y2, Y3, Y4, Y5 | `plugins/layers/list/` | ☑ |
 | **Y2** | 3 | 6 | Plugins `layers.rename`, `layers.visibility`, `layers.lock` (commandes + contrôles de ligne) | Y1 | E1 | `plugins/layers/rename|visibility|lock/` | ☑ |
 | **Y3** | 3 | 6 | Plugins `layers.color` + `layers.icon` | Y1 | E1 | `plugins/layers/color|icon/` | ☑ |
-| **Y4** | 3 | 8 | Plugin `layers.target` : choix de la cible proposé par la scène (liste, `pick`), saisie libre d'un sélecteur CSS ou d'une `ref`, commande annulable, alerte de cible manquante | Y1, C7 | E1 | `plugins/layers/target/` | ☐ |
+| **Y4** | 3 | 8 | Plugin `layers.target` : choix de la cible proposé par la scène (liste, `pick`), saisie libre d'un sélecteur CSS ou d'une `ref`, commande annulable, alerte de cible manquante | Y1, C7 | E1 | `plugins/layers/target/` | ☑ |
 | **Y5** | 3 | 6 | Plugin `layers.selection` (sélection multiple Ctrl / Maj) | Y1 | Y6, Y7, S1 | `plugins/layers/selection/` | ☑ |
 | **Y6** | 3 | 7 | Plugin `layers.reorder` (glisser-déposer, entrer/sortir d'un dossier) | Y5 | E1 | `plugins/layers/reorder/` | ☑ |
 | **Y7** | 3 | 7 | Plugin `layers.groups` (dossiers + « grouper la sélection ») | Y5 | Y8 | `plugins/layers/groups/` | ☑ |
@@ -111,7 +111,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **T3** | 5 | 6 | Plugin `toolbar.timeSettings` (fps et durée, en commandes) | T1, C3 | E1 | `plugins/toolbar/timeSettings/` | ☑ |
 | **T4** | 5 | 9 | Plugin `toolbar.zoomControl` (liste déroulante + curseur) | T1, L3 | E1 | `plugins/toolbar/zoomControl/` | ☑ |
 | **P1** | 5 | 7 | Plugin `playback.controls` (lecture, pause, boucle, vitesse via `ctx.playback`, avec ou sans scène) | T1, I2, C6 | E1 | `plugins/playback/controls/` | ☑ |
-| **P2** | 5 | 8 | Plugin `playback.livePreview` (réglage de l'aperçu : fréquence limitée ou application au relâchement pour les scènes lentes, calques masqués dans l'éditeur) | C7, L2 | E1 | `plugins/playback/livePreview/` | ☐ |
+| **P2** | 5 | 8 | Plugin `playback.livePreview` (réglage de l'aperçu : fréquence limitée ou application au relâchement pour les scènes lentes, calques masqués dans l'éditeur) | C7, L2 | E1 | `plugins/playback/livePreview/` | ☑ |
 | **I1** | 5 | 9 | Plugin `interaction.contextMenu` (repris, actions branchées sur les commandes) | K2, W1, Y8 | E1 | `plugins/interaction/contextMenu/` | ☐ |
 | **S1** | 6 | 9 | Plugin optionnel `properties.panel` (propriétés du registre filtrées par l'objet ciblé, valeurs lues avec `editor.sample()`) | W2, Y5, C7 | E1 | `plugins/properties/panel/` | ☐ |
 | **S2** | 6 | 5 | Plugin `persistence.json` (import/export, lecture des fichiers v1 via le migrateur, contrôle de forme de F06, cibles transmises telles quelles) | C4, R4, F06 | E1, B3 | `plugins/persistence/` | ☑ |
