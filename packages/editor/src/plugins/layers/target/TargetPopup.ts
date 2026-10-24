@@ -449,7 +449,9 @@ function buildForm(
   if (draft !== undefined) {
     kind.value = draft.kind;
     text.value = draft.text;
-    if (stageSelect !== null && draft.stage !== null) stageSelect.value = draft.stage;
+    // Une scène qui n'est plus dans la liste (« (inconnue) » devenue connue) garde le préréglage.
+    const stillListed = stageSelect !== null && Array.from(stageSelect.options).some((choice) => choice.value === draft.stage);
+    if (stageSelect !== null && draft.stage !== null && stillListed) stageSelect.value = draft.stage;
   }
   if (stageSelect !== null) {
     form.appendChild(stageSelect);

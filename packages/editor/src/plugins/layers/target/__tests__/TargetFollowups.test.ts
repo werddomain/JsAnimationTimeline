@@ -155,7 +155,8 @@ describe('TargetPlugin destroy', () => {
       data: createTargetDocument(), clock: createManualClock(), stage: createFakeStage(),
       defaultPlugins: plugins, plugins: [capture]
     });
-    editor.getService('layers.target')?.open('hero');
+    const service = editor.getService('layers.target');
+    if (service === undefined || !service.open('hero')) throw new Error('fenêtre non ouverte');
 
     try {
       // Act
