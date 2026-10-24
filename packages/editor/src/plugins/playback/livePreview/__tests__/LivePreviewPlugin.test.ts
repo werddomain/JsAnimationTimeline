@@ -7,15 +7,16 @@
  * événement, liste de la barre d'outils et nettoyage.
  */
 
-import { cleanBody } from '../../../../core/editor/__tests__/fixtures';
+import { createEditor } from '../../../../core/editor/createEditor';
+import { defaultPlugins } from '../../../../core/editor/defaultPlugins';
 import { DEFAULT_PREVIEW_MAX_FPS, LIVE_PREVIEW_PLUGIN_ID, LivePreviewPlugin } from '../LivePreviewPlugin';
 import { remainingMs } from '../previewSettings';
 import type { PreviewChangedEvent } from '../types';
-import { DISPLAY_FRAME_MS, mountPreview } from './livePreviewFixtures';
+import { DISPLAY_FRAME_MS, cleanPreviews, mountPreview } from './livePreviewFixtures';
 
 afterEach(() => {
   jest.useRealTimers();
-  cleanBody();
+  cleanPreviews();
 });
 
 describe('playback.livePreview modes', () => {
@@ -280,6 +281,35 @@ describe('playback.livePreview toolbar control', () => {
     expect(select.selectedOptions[0]?.textContent).toBe('Aperçu limité (24 img/s)');
   });
 
+  it('adds the control with the real default plugins (toolbar epic registered before playback)', () => {
+    // Arrange
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    // Act
+    const editor = createEditor(container, { defaultPlugins: defaultPlugins() });
+
+    // Assert
+    expect(editor.container.querySelector(`[data-toolbar-item="${LIVE_PREVIEW_PLUGIN_ID}"] select`)).not.toBeNull();
+    editor.destroy();
+  });
+
+  it('mounts without toolbar.main and still holds during a scrub', () => {
+    // Arrange
+    const { editor, renders, down, move, up } = mountPreview({ mode: 'onRelease' }, { withToolbar: false });
+
+    // Act
+    down(2);
+    move(6);
+    const during = renders();
+    up();
+
+    // Assert
+    expect(editor.container.querySelector(`[data-toolbar-item="${LIVE_PREVIEW_PLUGIN_ID}"]`)).toBeNull();
+    expect(during).toEqual([]);
+    expect(renders()).toEqual(['render:6']);
+  });
+
   it('has no toolbar control with toolbar: false', () => {
     // Act
     const { editor } = mountPreview({ toolbar: false });
@@ -327,6 +357,55 @@ describe('playback.livePreview timers and endings (review follow-ups)', () => {
 
     // Assert
     expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('renders frame 6 once when the release comes before the pending display frame (onRelease)', () => {
+    // Arrange
+    const { renders, clock, down, moveQuiet, up } = mountPreview({ mode: 'onRelease' });
+    down(2);
+
+    // Act
+    moveQuiet(6);
+    up();
+    clock.advance(DISPLAY_FRAME_MS);
+
+    // Assert
+    expect(renders()).toEqual(['render:6']);
+  });
+
+  it('renders frame 6 once when the release comes before the pending display frame (throttled)', () => {
+    // Arrange
+    const { renders, clock, down, moveQuiet, up } = mountPreview({ mode: 'throttled', maxFps: 10 });
+    down(2);
+
+    // Act
+    moveQuiet(6);
+    up();
+    clock.advance(DISPLAY_FRAME_MS);
+
+    // Assert
+    expect(renders()).toEqual(['render:2', 'render:6']);
+  });
+
+  it('holds again when a drag goes on after playback was started then paused', () => {
+    // Arrange
+    const { editor, renders, clock, down, move, up } = mountPreview({ mode: 'onRelease' });
+    down(2);
+    move(4);
+    editor.playback.play();
+    clock.advance(DISPLAY_FRAME_MS);
+    editor.playback.pause();
+    clock.advance(DISPLAY_FRAME_MS);
+    const before = renders();
+
+    // Act
+    move(7);
+    const during = renders();
+    up();
+
+    // Assert
+    expect(during).toEqual(before);
+    expect(renders().slice(-1)).toEqual(['render:7']);
   });
 
   it('renders once when Escape ends an onRelease drag', () => {
