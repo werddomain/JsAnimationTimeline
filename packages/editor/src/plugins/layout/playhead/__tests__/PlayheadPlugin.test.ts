@@ -6,6 +6,8 @@
  * alignée sur le défilement vertical et nettoyage.
  */
 
+import type { EditorPlugin } from '../../../../core/context/IEditorContext';
+import { createShortcutsPlugin } from '../../../interaction/shortcuts';
 import { cleanBody, makeScrollable, mountLayout, placeAt, timelineDocument } from '../../__tests__/layoutFixtures';
 import type { IMountedLayout } from '../../__tests__/layoutFixtures';
 import {
@@ -28,8 +30,8 @@ interface IPlayheadSetup extends IMountedLayout {
   readonly tick: (ms?: number) => void;
 }
 
-function setup(totalFrames = 100): IPlayheadSetup {
-  const mounted = mountLayout([], { data: timelineDocument(totalFrames) });
+function setup(totalFrames = 100, plugins: readonly EditorPlugin[] = []): IPlayheadSetup {
+  const mounted = mountLayout(plugins, { data: timelineDocument(totalFrames) });
   const head = mounted.zone('ruler').querySelector<HTMLElement>(`.${PLAYHEAD_HEAD_CLASS}`);
   const line = mounted.zone('frames').querySelector<HTMLElement>(`.${PLAYHEAD_LINE_CLASS}`);
   if (head === null || line === null) throw new Error('Tête de lecture introuvable.');
@@ -553,6 +555,39 @@ describe('layout.playhead scrub abort paths', () => {
     // Assert
     expect(ends).toEqual([1]);
     expect(escape.defaultPrevented).toBe(true);
+  });
+
+  it('keeps Escape for the drag: a host shortcut on Escape does not run', () => {
+    // Arrange
+    const mounted = setup(100, [createShortcutsPlugin()]);
+    const run = jest.fn();
+    mounted.editor.getService('interaction.shortcuts')?.register({ id: 'test.esc', keys: 'Escape', label: 'x', run });
+    const ends: number[] = [];
+    mounted.editor.on('playhead:scrubEnd', (event) => ends.push(event.frame));
+    mounted.zone('ruler').dispatchEvent(pointer('pointerdown', 100));
+
+    // Act
+    const escape = key('Escape');
+    mounted.head.dispatchEvent(escape);
+
+    // Assert
+    expect(ends).toEqual([1]);
+    expect(run).not.toHaveBeenCalled();
+    expect(escape.defaultPrevented).toBe(true);
+  });
+
+  it('leaves Escape alone when no drag is running', () => {
+    // Arrange
+    const mounted = setup(100, [createShortcutsPlugin()]);
+    const run = jest.fn();
+    mounted.editor.getService('interaction.shortcuts')?.register({ id: 'test.esc', keys: 'Escape', label: 'x', run });
+
+    // Act
+    const escape = key('Escape');
+    mounted.head.dispatchEvent(escape);
+
+    // Assert
+    expect(run).toHaveBeenCalledTimes(1);
   });
 
   it('ends each drag only once', () => {

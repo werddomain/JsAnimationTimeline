@@ -288,7 +288,8 @@ export class PlayheadPlugin implements EditorPlugin {
     };
     const onBlur = (): void => this.stopDrag?.();
     // Échap termine le glisser à l'image atteinte (sans revenir en arrière) et
-    // garde la touche pour lui : elle ne vide pas, en plus, une sélection.
+    // garde la touche pour lui : elle ne vide pas, en plus, une sélection. Écouteur
+    // en phase de capture, pour passer avant les raccourcis (phase de remontée).
     const onEscape = (escape: KeyboardEvent): void => {
       if (escape.key !== 'Escape') return;
       escape.preventDefault();
@@ -298,7 +299,7 @@ export class PlayheadPlugin implements EditorPlugin {
     doc.addEventListener('pointermove', onMove);
     doc.addEventListener('pointerup', onEnd);
     doc.addEventListener('pointercancel', onEnd);
-    doc.addEventListener('keydown', onEscape);
+    doc.addEventListener('keydown', onEscape, true);
     view?.addEventListener('blur', onBlur);
     ruler.addEventListener('lostpointercapture', onEnd);
     head.classList.add(PLAYHEAD_DRAGGING_CLASS);
@@ -307,7 +308,7 @@ export class PlayheadPlugin implements EditorPlugin {
       doc.removeEventListener('pointermove', onMove);
       doc.removeEventListener('pointerup', onEnd);
       doc.removeEventListener('pointercancel', onEnd);
-      doc.removeEventListener('keydown', onEscape);
+      doc.removeEventListener('keydown', onEscape, true);
       view?.removeEventListener('blur', onBlur);
       ruler.removeEventListener('lostpointercapture', onEnd);
       if (captured && ruler.hasPointerCapture(pointerId)) ruler.releasePointerCapture(pointerId);
