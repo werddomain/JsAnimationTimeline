@@ -101,13 +101,15 @@ describe('stage:report only announces new warnings', () => {
 
   it('announces a warning again after it went away and came back', () => {
     // Arrange
-    const { editor } = createStageEditor();
+    const { editor, clock } = createStageEditor();
     const reports: IStageReport[] = [];
     editor.on('stage:report', (report) => reports.push(report));
 
-    // Act
+    // Act : une image entre chaque document (un retour dans la même image reste reporté, voir reportFeed).
     editor.execute(setTarget('l-tree', { ref: 'tree', stage: 'nope' }, { ref: 'tree', stage: 'fake' }));
+    clock.advance(DISPLAY_FRAME_MS);
     editor.undo();
+    clock.advance(DISPLAY_FRAME_MS);
     editor.redo();
 
     // Assert
@@ -220,19 +222,20 @@ describe('stage loads: ordering and visibility', () => {
     const stage = createFakeStage({
       updateError: (doc) => (doc.layers[0]?.visible === false ? new StageDocumentError('non') : undefined)
     });
-    const { editor, clock } = createStageEditor({ onStageError: () => undefined }, stage);
+    const { editor } = createStageEditor({ onStageError: () => undefined }, stage);
     const hide = createCommand(
       'Masquer',
       (doc) => ({ ...doc, layers: [{ ...doc.layers[0], visible: false }, doc.layers[1]] }),
       (doc) => doc
     );
+    stage.lastStates = [];
 
-    // Act
+    // Act : le rendu du retour arrière a lieu pendant le chargement refusé, avant toute image.
     editor.execute(hide);
-    clock.advance(DISPLAY_FRAME_MS);
 
     // Assert
     expect(editor.document.layers[0]?.visible).toBe(false);
+    expect(stage.lastStates).not.toHaveLength(0);
     expect(stage.lastStates.find((state) => state.layerId === 'l-hero')?.editorVisible).toBe(true);
   });
 });
@@ -332,21 +335,4 @@ describe('C7 follow-ups, integrator review', () => {
     expect(seen).toEqual(['a:l-hero', 'b:l-hero', 'a:', 'b:']);
   });
 
-  it('still releases and detaches when a stage unsubscribe throws during destroy', () => {
-    // Arrange
-    const stage = createFakeStage();
-    const targets = stage.targets as { subscribe: (onChange: () => void) => () => void };
-    targets.subscribe = () => () => {
-      throw new Error('désabonnement');
-    };
-    const { editor } = createStageEditor({ onStageError: () => undefined }, stage);
-    stage.log.length = 0;
-
-    // Act
-    editor.destroy();
-
-    // Assert
-    expect(stage.log).toEqual(['release:l-hero:hero', 'release:l-tree:tree', 'detach']);
-    expect(editor.isDestroyed).toBe(true);
-  });
 });

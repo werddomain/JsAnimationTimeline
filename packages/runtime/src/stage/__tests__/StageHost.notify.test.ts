@@ -99,3 +99,69 @@ describe('StageHost document', () => {
     expect(seen.length).toBeGreaterThan(0);
   });
 });
+
+describe('StageHost onTargetsChanged errors', () => {
+  it('rethrows a throwing callback asynchronously and keeps the document error and the other retries', () => {
+    // Arrange
+    jest.useFakeTimers();
+    const canvas = createFakeStage('canvas', { subscribe: true });
+    const audio = createFakeStage('audio', { subscribe: true });
+    const host = hostWith([canvas.stage, audio.stage], () => {
+      throw new Error('rappel');
+    });
+    host.load(docOf([refLayer('a', 'a', 'canvas'), refLayer('b', 'b', 'audio')]));
+    const refused = docOf([refLayer('a', 'a', 'canvas'), { ...refLayer('b', 'b', 'audio'), name: 'refusé' }]);
+    const update = audio.stage.update?.bind(audio.stage);
+    audio.stage.update = (doc, layers) => {
+      update?.(doc, layers);
+      if (doc === refused) {
+        canvas.objects.set('a', { name: 'a' });
+        canvas.notify();
+        audio.objects.set('b', { name: 'b' });
+        audio.notify();
+        throw new StageDocumentError('non');
+      }
+    };
+
+    try {
+      // Act
+      const act = (): void => host.load(refused);
+
+      // Assert
+      expect(act).toThrow(StageDocumentError);
+      expect(host.missingTargets).toEqual([]);
+      expect(jest.getTimerCount()).toBe(2);
+    } finally {
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    }
+  });
+});
+
+describe('StageHost destroy', () => {
+  it('releases and detaches even when a stage unsubscribe throws', () => {
+    // Arrange
+    const fake = createFakeStage('canvas', { subscribe: true });
+    fake.objects.set('a', { name: 'a' });
+    const errors: unknown[] = [];
+    const targets = fake.stage.targets as { subscribe: (onChange: () => void) => () => void };
+    targets.subscribe = () => () => {
+      throw new Error('désabonnement');
+    };
+    const host = new StageHost({
+      stages: [fake.stage],
+      registry: defaultPropertyRegistry,
+      onError: (error) => errors.push(error),
+      now: () => ({ time: timeAt(1), state: { playing: false, speed: 1 } })
+    });
+    host.load(docOf([refLayer('a', 'a', 'canvas')]));
+    fake.calls.length = 0;
+
+    // Act
+    host.destroy();
+
+    // Assert
+    expect(fake.calls).toEqual(['release a a', 'detach']);
+    expect(errors).toHaveLength(1);
+  });
+});

@@ -38,7 +38,10 @@ export interface IStageHostOptions {
   /**
    * Called after a retry (`refresh`, or a stage's `targets.subscribe`)
    * changed the bindings, once `missingTargets` is updated and the stages
-   * are re-applied. Not called by `load` (the owner knows the document changed).
+   * are re-applied. Not called for the document change itself (the owner
+   * knows it), but target changes signalled during a load are retried, and
+   * notified, before `load` returns. An error thrown by the callback is
+   * rethrown asynchronously: the remaining retries still run.
    */
   readonly onTargetsChanged?: () => void;
 }
