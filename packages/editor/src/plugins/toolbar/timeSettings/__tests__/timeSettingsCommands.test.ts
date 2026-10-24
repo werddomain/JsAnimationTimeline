@@ -15,6 +15,7 @@ import {
   createSetTotalFramesCommand,
   lastUsedFrame,
   MAX_TOTAL_FRAMES,
+  maxTotalFrames,
   TimeSettingsLabels,
   totalFramesError
 } from '../timeSettingsCommands';
@@ -181,5 +182,15 @@ describe('lastUsedFrame', () => {
     expect(lastUsedFrame(createDoc([]))).toBeUndefined();
     expect(lastUsedFrame(spanDoc())).toEqual({ frame: 48, layerName: 'Ombre' });
     expect(totalFramesError(spanDoc(), 48)).toBeUndefined();
+  });
+});
+
+describe('maxTotalFrames', () => {
+  it('is MAX_TOTAL_FRAMES, or the document duration when it is longer', () => {
+    // Assert
+    expect(maxTotalFrames(createDoc([], 60))).toBe(MAX_TOTAL_FRAMES);
+    expect(maxTotalFrames(createDoc([], 200_000))).toBe(200_000);
+    expect(totalFramesError(createDoc([], 200_000), 150_000)).toBeUndefined();
+    expect(totalFramesError(createDoc([], 200_000), 200_001)).toBe('La durée doit être un nombre entier de 1 à 200 000 images.');
   });
 });

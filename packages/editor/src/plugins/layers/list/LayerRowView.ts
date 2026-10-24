@@ -103,15 +103,18 @@ export class LayerRowView {
     this.paint(row, kindChanged);
     const errors: unknown[] = [];
     this.cells.forEach(({ control, element }) =>
-      collectError(errors, () => {
+      {
         if (control.update !== undefined) {
-          control.update(row, element);
-        } else {
-          control.dispose?.(previous, element);
+          collectError(errors, () => control.update?.(row, element));
+          return;
+        }
+        // Un `dispose` en panne n'empêche pas le nouveau rendu.
+        collectError(errors, () => control.dispose?.(previous, element));
+        collectError(errors, () => {
           element.replaceChildren();
           control.render(row, element);
-        }
-      })
+        });
+      }
     );
     return errors;
   }
