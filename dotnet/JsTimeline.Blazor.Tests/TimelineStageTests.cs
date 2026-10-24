@@ -242,6 +242,28 @@ public sealed class TimelineStageTests
     }
 
     [Fact]
+    public async Task Handle_dispose_gives_up_on_a_render_that_never_ends()
+    {
+        var js = new FakeJsRuntime();
+        var jsStage = new FakeJsObject();
+        DotNetObjectReference<DotNetStageBridge>? receiver = null;
+        js.Module.Handler = (identifier, args) =>
+        {
+            receiver = (DotNetObjectReference<DotNetStageBridge>)args![1]!;
+            return identifier == "createDotNetStage" ? jsStage : null;
+        };
+        var stage = new RecordingStage { Render = () => new TaskCompletionSource().Task };
+        var handle = await DotNetStageHandle.CreateAsync(js, stage, FrameCallbackMode.IntegerFrames);
+        _ = receiver!.Value.RenderAsync(new TimelineStageFrame(0, 1, 1, [], []));
+
+        var disposing = handle.DisposeAsync().AsTask();
+        var finished = await Task.WhenAny(disposing, Task.Delay(DotNetStageHandle.DisposeTimeout * 3));
+
+        Assert.Same(disposing, finished);
+        Assert.True(jsStage.Disposed);
+    }
+
+    [Fact]
     public async Task Handle_creation_cancelled_before_it_starts_calls_no_script()
     {
         var js = new FakeJsRuntime();

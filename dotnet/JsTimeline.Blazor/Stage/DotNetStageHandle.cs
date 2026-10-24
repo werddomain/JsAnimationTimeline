@@ -77,7 +77,8 @@ internal sealed class DotNetStageHandle : IAsyncDisposable
     /// <summary>
     /// Stops the frames (after the editor or player detached the stage, its last frame is delivered
     /// first), cancels a running render and waits for it, then releases the JavaScript objects. Both
-    /// waits are bounded by <see cref="DisposeTimeout"/>.
+    /// waits are bounded by <see cref="DisposeTimeout"/>. Dispose the handle after destroying the
+    /// editor or player that uses the stage: disposed first, the final releases are not sent.
     /// </summary>
     public async ValueTask DisposeAsync()
     {

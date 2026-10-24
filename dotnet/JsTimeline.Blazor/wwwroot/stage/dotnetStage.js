@@ -96,7 +96,8 @@ function toFrame(time, states, released) {
  * still go. `detach` sends one last frame, without layers, carrying the releases not sent yet (the
  * player or editor releases every layer just before), then ends the frames. `stop()` ends them at
  * once, sending nothing more; after `detach` it first waits for the last frame to be delivered. A
- * stage that was detached or stopped is not reused.
+ * failure of the last frame is not reported (the player or editor is gone). A stage that was
+ * detached or stopped is not reused.
  * @param {DotNetStageDescription} description Id, frame mode, targets and properties of the stage.
  * @param {DotNetReceiver} receiver DotNetObjectReference with a `RenderAsync(frame)` method.
  */
@@ -146,6 +147,10 @@ export function createDotNetStage(description, receiver) {
             released = mergeReleased(frame.released, released);
           }
           changed = true;
+        } else if (!stopped && closing && frame.layers.length > 0 && frame.released.length > 0) {
+          // Detached meanwhile: the last frame carries them (it is created here when there was none).
+          const carried = pending === null ? [] : pending.released;
+          pending = toFrame(lastTime, [], mergeReleased(frame.released, carried));
         }
         report(error);
       })

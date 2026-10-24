@@ -30,15 +30,20 @@ internal sealed class DotNetStageBridge : IDisposable
         {
             return;
         }
+        // Published before the call: a dispose racing with it still waits for this render.
+        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Volatile.Write(ref _running, done.Task);
         try
         {
-            var render = _stage.RenderAsync(frame, _lifetime.Token);
-            Volatile.Write(ref _running, render);
-            await render;
+            await _stage.RenderAsync(frame, _lifetime.Token);
         }
         catch (OperationCanceledException) when (IsDisposed)
         {
             // Cancelled because the stage was released: an expected end, not a stage error.
+        }
+        finally
+        {
+            done.TrySetResult();
         }
     }
 

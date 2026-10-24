@@ -232,6 +232,66 @@ describe('errors, released layers and detach', () => {
     expect(frame.layers.map((l) => l.target)).toEqual([{ ref: 'villain', stage: 'dotnet' }]);
   });
 
+  it('puts the releases of a call failing after destroy into the last frame', async () => {
+    // Arrange: the layer moves from hero to villain; the frame telling .NET about hero is in flight
+    // when the player is destroyed (which releases the layer from villain).
+    const errors: unknown[] = [];
+    const receiver = new FakeDotNetReference();
+    const description = {
+      ...heroDescription('everyTick'),
+      targets: [
+        { ref: 'hero', label: 'Héros', icon: null, group: null, properties: null },
+        { ref: 'villain', label: 'Méchant', icon: null, group: null, properties: null }
+      ]
+    };
+    const stage = createDotNetStage(description, receiver) satisfies IStage;
+    const player = createPlayer(heroDocument(), { stage, clock: createManualClock(), onListenerError: (e) => errors.push(e) });
+    await receiver.resolveAll();
+    const document = heroDocument();
+    const layer = document.layers[0];
+    player.update({ ...document, layers: [{ ...layer, target: { ref: 'villain', stage: 'dotnet' } } as typeof layer] });
+    await flush();
+
+    // Act: destroy, then the frame in flight fails.
+    player.destroy();
+    await receiver.rejectNext(new Error('RenderAsync threw'));
+    await receiver.resolveAll();
+
+    // Assert: the last frame tells .NET about both releases, and nothing is reported.
+    const last = receiver.frames[receiver.frames.length - 1];
+    expect(last.layers).toEqual([]);
+    expect(last.released).toEqual([HERO_RELEASE, { layerId: 'l-hero', target: { ref: 'villain', stage: 'dotnet' } }]);
+    expect(errors).toEqual([]);
+  });
+
+  it('stop() resolves even when the last frame fails', async () => {
+    // Arrange
+    const receiver = new FakeDotNetReference();
+    const stage = createDotNetStage(heroDescription('everyTick'), receiver) satisfies IStage;
+    const player = createPlayer(heroDocument(), { stage, clock: createManualClock() });
+    await receiver.resolveAll();
+    player.destroy();
+
+    // Act
+    const stopping = stage.stop();
+    await receiver.rejectNext(new Error('circuit gone'));
+
+    // Assert
+    await expect(stopping).resolves.toBeUndefined();
+  });
+
+  it('stop() resolves at once after destroy in off mode', async () => {
+    // Arrange
+    const receiver = new FakeDotNetReference();
+    const stage = createDotNetStage(heroDescription('off'), receiver) satisfies IStage;
+    const player = createPlayer(heroDocument(), { stage, clock: createManualClock() });
+    player.destroy();
+
+    // Act + Assert
+    await expect(stage.stop()).resolves.toBeUndefined();
+    expect(receiver.calls).toEqual([]);
+  });
+
   it('lists a layer released twice before a frame only once', () => {
     // Arrange
     const receiver = new FakeDotNetReference();
