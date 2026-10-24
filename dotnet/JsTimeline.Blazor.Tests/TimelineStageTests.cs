@@ -100,13 +100,13 @@ public sealed class TimelineStageTests
     public void A_frame_sent_by_the_script_reads_into_the_model()
     {
         const string json = """
-            {"released":["l-old"],"timeMs":400,"frame":5.5,"integerFrame":5,"layers":[
+            {"released":[{"layerId":"l-old","target":{"ref":"old","stage":"dotnet"}}],"timeMs":400,"frame":5.5,"integerFrame":5,"layers":[
               {"layerId":"l-hero","target":{"ref":"hero","stage":"dotnet"},"values":{"x":40,"frameIndex":4},"active":true,"visible":false}]}
             """;
 
         var frame = JsonSerializer.Deserialize<TimelineStageFrame>(json, InteropJson)!;
 
-        Assert.Equal(["l-old"], frame.Released);
+        Assert.Equal([new TimelineStageReleasedLayer("l-old", LayerTarget.FromRef("old", "dotnet"))], frame.Released);
         Assert.Equal(5, frame.IntegerFrame);
         var layer = Assert.Single(frame.Layers);
         Assert.Equal(LayerTarget.FromRef("hero", "dotnet"), layer.Target);
@@ -171,17 +171,87 @@ public sealed class TimelineStageTests
     }
 
     [Fact]
-    public async Task Handle_stops_the_script_before_releasing_the_receiver()
+    public async Task Handle_stops_the_script_while_the_receiver_is_still_alive()
     {
         var js = new FakeJsRuntime();
         var jsStage = new FakeJsObject();
-        js.Module.Handler = (identifier, _) => identifier == "createDotNetStage" ? jsStage : null;
+        DotNetObjectReference<DotNetStageBridge>? receiver = null;
+        js.Module.Handler = (identifier, args) =>
+        {
+            receiver = (DotNetObjectReference<DotNetStageBridge>)args![1]!;
+            return identifier == "createDotNetStage" ? jsStage : null;
+        };
+        var receiverAliveAtStop = false;
+        jsStage.Handler = (identifier, _) =>
+        {
+            if (identifier == "stop")
+            {
+                // Value throws ObjectDisposedException once the reference is disposed.
+                receiverAliveAtStop = receiver!.Value is not null;
+            }
+            return null;
+        };
         var handle = await DotNetStageHandle.CreateAsync(js, new RecordingStage(), FrameCallbackMode.IntegerFrames);
 
         await handle.DisposeAsync();
 
         Assert.Equal(["stop"], jsStage.Calls);
+        Assert.True(receiverAliveAtStop);
         Assert.True(jsStage.Disposed);
+    }
+
+    [Fact]
+    public async Task Handle_releases_everything_even_when_stop_fails()
+    {
+        var js = new FakeJsRuntime();
+        var jsStage = new FakeJsObject { Handler = (_, _) => throw new JSException("page gone") };
+        js.Module.Handler = (identifier, _) => identifier == "createDotNetStage" ? jsStage : null;
+        var handle = await DotNetStageHandle.CreateAsync(js, new RecordingStage(), FrameCallbackMode.IntegerFrames);
+
+        await handle.DisposeAsync();
+
+        Assert.True(jsStage.Disposed);
+        Assert.True(js.Module.Disposed);
+    }
+
+    [Fact]
+    public async Task Handle_waits_for_a_running_render_on_dispose()
+    {
+        var js = new FakeJsRuntime();
+        var jsStage = new FakeJsObject();
+        DotNetObjectReference<DotNetStageBridge>? receiver = null;
+        js.Module.Handler = (identifier, args) =>
+        {
+            receiver = (DotNetObjectReference<DotNetStageBridge>)args![1]!;
+            return identifier == "createDotNetStage" ? jsStage : null;
+        };
+        var finish = new TaskCompletionSource();
+        var stage = new RecordingStage { Render = () => finish.Task };
+        var handle = await DotNetStageHandle.CreateAsync(js, stage, FrameCallbackMode.IntegerFrames);
+        var rendering = receiver!.Value.RenderAsync(new TimelineStageFrame(0, 1, 1, [], []));
+
+        var disposing = handle.DisposeAsync().AsTask();
+        await Task.Delay(50);
+        var waited = !disposing.IsCompleted;
+        finish.SetResult();
+        await disposing;
+        await rendering;
+
+        Assert.True(waited);
+        Assert.True(stage.LastToken.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task Handle_creation_cancelled_before_it_starts_calls_no_script()
+    {
+        var js = new FakeJsRuntime();
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            DotNetStageHandle.CreateAsync(js, new RecordingStage(), FrameCallbackMode.IntegerFrames, cancelled.Token));
+
+        Assert.Empty(js.Module.Calls);
     }
 
     [Fact]
@@ -245,8 +315,12 @@ public sealed class TimelineStageTests
     {
         var stage = new RecordingStage();
 
-        Assert.IsType<HtmlStageOption>(TimelineStageOption.Html);
-        Assert.IsType<NoStageOption>(TimelineStageOption.None);
+        Assert.IsType<HtmlStageOption>(TimelineStageOption.Html());
+        Assert.IsType<NoStageOption>(TimelineStageOption.None());
+        Assert.Equal(TimelineStageOption.Html(), TimelineStageOption.Html());
+        Assert.Equal(TimelineStageOption.JsModule("./a.js"), TimelineStageOption.JsModule("./a.js"));
+        Assert.NotEqual(TimelineStageOption.DotNet(stage), TimelineStageOption.DotNet(stage, FrameCallbackMode.EveryTick));
+        Assert.Equal(TimelineStageOption.DotNet(stage), TimelineStageOption.DotNet(stage));
         Assert.Equal("./js/myStage.js", Assert.IsType<JsModuleStageOption>(TimelineStageOption.JsModule("./js/myStage.js")).ModulePath);
         var dotNet = Assert.IsType<DotNetStageOption>(TimelineStageOption.DotNet(stage));
         Assert.Same(stage, dotNet.Stage);

@@ -4,18 +4,20 @@ namespace JsTimeline.Blazor.Stage;
 /// <summary>
 /// What the timeline animates (the future <c>Stage</c> parameter of the editor component):
 /// <see cref="Html"/> (the default), <see cref="JsModule"/>, <see cref="DotNet"/> or <see cref="None"/>.
+/// Only these factories create options, so an option is always valid. Two options are equal when
+/// they make the same choice (same module path, same stage instance and mode).
 /// </summary>
-public abstract record TimelineStageOption
+public abstract class TimelineStageOption : IEquatable<TimelineStageOption>
 {
     private protected TimelineStageOption()
     {
     }
 
     /// <summary>The HTML elements of the page, through the default HTML stage.</summary>
-    public static TimelineStageOption Html { get; } = new HtmlStageOption();
+    public static TimelineStageOption Html() => HtmlStageOption.Instance;
 
     /// <summary>No stage: the timeline only edits the document (frames can still be read).</summary>
-    public static TimelineStageOption None { get; } = new NoStageOption();
+    public static TimelineStageOption None() => NoStageOption.Instance;
 
     /// <summary>
     /// A stage written in JavaScript, for full speed (60 frames per second without .NET calls).
@@ -40,19 +42,80 @@ public abstract record TimelineStageOption
         }
         return new DotNetStageOption(stage, mode);
     }
+
+    /// <inheritdoc />
+    public abstract bool Equals(TimelineStageOption? other);
+
+    /// <inheritdoc />
+    public override bool Equals(object? obj) => Equals(obj as TimelineStageOption);
+
+    /// <inheritdoc />
+    public abstract override int GetHashCode();
 }
 
 /// <summary>The default HTML stage.</summary>
-public sealed record HtmlStageOption : TimelineStageOption;
+public sealed class HtmlStageOption : TimelineStageOption
+{
+    internal static readonly HtmlStageOption Instance = new();
+
+    private HtmlStageOption()
+    {
+    }
+
+    /// <inheritdoc />
+    public override bool Equals(TimelineStageOption? other) => other is HtmlStageOption;
+
+    /// <inheritdoc />
+    public override int GetHashCode() => nameof(HtmlStageOption).GetHashCode(StringComparison.Ordinal);
+}
 
 /// <summary>No stage.</summary>
-public sealed record NoStageOption : TimelineStageOption;
+public sealed class NoStageOption : TimelineStageOption
+{
+    internal static readonly NoStageOption Instance = new();
+
+    private NoStageOption()
+    {
+    }
+
+    /// <inheritdoc />
+    public override bool Equals(TimelineStageOption? other) => other is NoStageOption;
+
+    /// <inheritdoc />
+    public override int GetHashCode() => nameof(NoStageOption).GetHashCode(StringComparison.Ordinal);
+}
 
 /// <summary>A JavaScript stage module.</summary>
-/// <param name="ModulePath">Path of the module, relative to the app base.</param>
-public sealed record JsModuleStageOption(string ModulePath) : TimelineStageOption;
+public sealed class JsModuleStageOption : TimelineStageOption
+{
+    internal JsModuleStageOption(string modulePath) => ModulePath = modulePath;
+
+    /// <summary>Path of the module, relative to the app base.</summary>
+    public string ModulePath { get; }
+
+    /// <inheritdoc />
+    public override bool Equals(TimelineStageOption? other) =>
+        other is JsModuleStageOption module && string.Equals(module.ModulePath, ModulePath, StringComparison.Ordinal);
+
+    /// <inheritdoc />
+    public override int GetHashCode() => ModulePath.GetHashCode(StringComparison.Ordinal);
+}
 
 /// <summary>A C# stage.</summary>
-/// <param name="Stage">The stage.</param>
-/// <param name="Mode">When frames are sent to the stage.</param>
-public sealed record DotNetStageOption(ITimelineStage Stage, FrameCallbackMode Mode) : TimelineStageOption;
+public sealed class DotNetStageOption : TimelineStageOption
+{
+    internal DotNetStageOption(ITimelineStage stage, FrameCallbackMode mode) => (Stage, Mode) = (stage, mode);
+
+    /// <summary>The stage.</summary>
+    public ITimelineStage Stage { get; }
+
+    /// <summary>When frames are sent to the stage.</summary>
+    public FrameCallbackMode Mode { get; }
+
+    /// <inheritdoc />
+    public override bool Equals(TimelineStageOption? other) =>
+        other is DotNetStageOption dotNet && ReferenceEquals(dotNet.Stage, Stage) && dotNet.Mode == Mode;
+
+    /// <inheritdoc />
+    public override int GetHashCode() => HashCode.Combine(Stage, Mode);
+}

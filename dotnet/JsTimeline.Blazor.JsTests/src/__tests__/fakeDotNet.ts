@@ -10,7 +10,7 @@ import { createDotNetStage } from '../../../JsTimeline.Blazor/wwwroot/stage/dotn
 
 /** Frame sent by the bridge to `RenderAsync`. */
 export interface ISentFrame {
-  readonly released: readonly string[];
+  readonly released: readonly { readonly layerId: string; readonly target: unknown }[];
   readonly timeMs: number;
   readonly frame: number;
   readonly integerFrame: number;
@@ -89,8 +89,13 @@ export function heroDescription(mode: FrameMode = 'integerFrames') {
 
 /** The bridge stage built from `heroDescription`. */
 export function heroStage(receiver: FakeDotNetReference, mode: FrameMode = 'integerFrames'): IStage {
-  return createDotNetStage(heroDescription(mode), receiver) as IStage;
+  // `satisfies` checks the members against IStage; the cast only drops the extra `stop`.
+  const stage = createDotNetStage(heroDescription(mode), receiver) satisfies IStage;
+  return stage;
 }
+
+/** The release of the `hero` layer, as sent to .NET. */
+export const HERO_RELEASE = { layerId: 'l-hero', target: { ref: 'hero', stage: 'dotnet' } };
 
 /** A 10-frame document at 10 fps: `hero` moves x from 0 to 90 and frameIndex from 0 to 9. */
 export function heroDocument(): ITimelineDocument {

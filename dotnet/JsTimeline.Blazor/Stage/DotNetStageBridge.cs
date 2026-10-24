@@ -14,6 +14,8 @@ internal sealed class DotNetStageBridge : IDisposable
     // render running on another thread may still read its token after Dispose.
     private readonly CancellationTokenSource _lifetime = new();
     private int _disposed;
+    // The render running now, or a completed task.
+    private Task _running = Task.CompletedTask;
 
     public DotNetStageBridge(ITimelineStage stage) => _stage = stage ?? throw new ArgumentNullException(nameof(stage));
 
@@ -30,11 +32,30 @@ internal sealed class DotNetStageBridge : IDisposable
         }
         try
         {
-            await _stage.RenderAsync(frame, _lifetime.Token);
+            var render = _stage.RenderAsync(frame, _lifetime.Token);
+            Volatile.Write(ref _running, render);
+            await render;
         }
         catch (OperationCanceledException) when (IsDisposed)
         {
             // Cancelled because the stage was released: an expected end, not a stage error.
+        }
+    }
+
+    /// <summary>
+    /// Waits, at most <paramref name="timeout"/>, for the render running now to end (whatever its
+    /// outcome), so a new bridge for the same stage does not overlap it.
+    /// </summary>
+    public async Task WaitIdleAsync(TimeSpan timeout)
+    {
+        var running = Volatile.Read(ref _running);
+        try
+        {
+            await running.WaitAsync(timeout);
+        }
+        catch (Exception)
+        {
+            // Its outcome was reported to the script already, or it outlived the wait: stop waiting.
         }
     }
 

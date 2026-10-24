@@ -8,7 +8,7 @@
 import { createManualClock, createPlayer } from '@werddomain/timeline-runtime';
 import type { IPlayer, IStage, ITimelineDocument } from '@werddomain/timeline-runtime';
 import { createDotNetStage } from '../../../JsTimeline.Blazor/wwwroot/stage/dotnetStage.js';
-import { FakeDotNetReference, flush, heroDescription, heroDocument, heroStage } from './fakeDotNet';
+import { FakeDotNetReference, flush, HERO_RELEASE, heroDescription, heroDocument, heroStage } from './fakeDotNet';
 import type { FrameMode } from './fakeDotNet';
 
 function playerWith(receiver: FakeDotNetReference, mode?: FrameMode, onListenerError?: (error: unknown) => void): IPlayer {
@@ -164,17 +164,17 @@ describe('errors, released layers and detach', () => {
 
     // Assert
     const frame = receiver.frames[receiver.frames.length - 1];
-    expect(frame.released).toEqual(['l-hero']);
+    expect(frame.released).toEqual([HERO_RELEASE]);
     expect(frame.layers).toEqual([]);
   });
 
-  it('sends nothing after destroy, and a late failure is not reported', async () => {
+  it('on destroy, sends the final releases in one last frame without layers, then nothing', async () => {
     // Arrange
     const errors: unknown[] = [];
     const receiver = new FakeDotNetReference();
     const player = playerWith(receiver, 'everyTick', (error) => errors.push(error));
-    player.seek(4);
-    const sent = receiver.calls.length;
+    await receiver.resolveAll();
+    const before = receiver.calls.length;
 
     // Act
     player.destroy();
@@ -182,8 +182,90 @@ describe('errors, released layers and detach', () => {
     await flush();
 
     // Assert
-    expect(receiver.calls.length).toBe(sent);
+    const sent = receiver.frames.slice(before);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].layers).toEqual([]);
+    expect(sent[0].released).toEqual([HERO_RELEASE]);
     expect(errors).toEqual([]);
+  });
+
+  it('delivers the last frame after the call in flight when destroyed meanwhile', async () => {
+    // Arrange: a call is in flight when the player is destroyed.
+    const receiver = new FakeDotNetReference();
+    const player = playerWith(receiver, 'everyTick');
+    const before = receiver.calls.length;
+
+    // Act
+    player.destroy();
+    await receiver.resolveAll();
+
+    // Assert
+    const sent = receiver.frames.slice(before);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].released).toEqual([HERO_RELEASE]);
+  });
+
+  it('lists a retargeted layer as released with its old target, and in layers with the new one', async () => {
+    // Arrange: two objects in the same stage; the layer moves from hero to villain.
+    const receiver = new FakeDotNetReference();
+    const description = {
+      ...heroDescription('everyTick'),
+      targets: [
+        { ref: 'hero', label: 'Héros', icon: null, group: null, properties: null },
+        { ref: 'villain', label: 'Méchant', icon: null, group: null, properties: null }
+      ]
+    };
+    const stage = createDotNetStage(description, receiver) satisfies IStage;
+    const player = createPlayer(heroDocument(), { stage, clock: createManualClock() });
+    await receiver.resolveAll();
+    const retargeted = heroDocument();
+    const layer = retargeted.layers[0];
+    const moved: ITimelineDocument = { ...retargeted, layers: [{ ...layer, target: { ref: 'villain', stage: 'dotnet' } } as typeof layer] };
+
+    // Act
+    player.update(moved);
+    await receiver.resolveAll();
+
+    // Assert
+    const frame = receiver.frames[receiver.frames.length - 1];
+    expect(frame.released).toEqual([HERO_RELEASE]);
+    expect(frame.layers.map((l) => l.target)).toEqual([{ ref: 'villain', stage: 'dotnet' }]);
+  });
+
+  it('lists a layer released twice before a frame only once', () => {
+    // Arrange
+    const receiver = new FakeDotNetReference();
+    const stage = createDotNetStage(heroDescription('everyTick'), receiver) satisfies IStage;
+
+    // Act
+    stage.release('l-hero', 'hero');
+    stage.release('l-hero', 'hero');
+    stage.render({ timeMs: 0, frame: 1, integerFrame: 1 }, []);
+
+    // Assert
+    expect(receiver.frames[0].released).toEqual([HERO_RELEASE]);
+  });
+
+  it('stop() after destroy resolves once the last frame is delivered', async () => {
+    // Arrange
+    const receiver = new FakeDotNetReference();
+    const stage = createDotNetStage(heroDescription('everyTick'), receiver) satisfies IStage;
+    const player = createPlayer(heroDocument(), { stage, clock: createManualClock() });
+    player.destroy();
+    let stopped = false;
+
+    // Act
+    const stopping = stage.stop().then(() => {
+      stopped = true;
+    });
+    await flush();
+    const stoppedEarly = stopped;
+    await receiver.resolveAll();
+    await stopping;
+
+    // Assert
+    expect(stoppedEarly).toBe(false);
+    expect(stopped).toBe(true);
   });
 });
 
@@ -201,7 +283,7 @@ describe('review cases: no lost released ids, no stuck pump', () => {
 
     // Assert
     const released = receiver.frames.flatMap((frame) => frame.released);
-    expect(released).toEqual(['l-hero']);
+    expect(released).toEqual([HERO_RELEASE]);
   });
 
   it('sends released ids again after a failed call', async () => {
@@ -218,7 +300,7 @@ describe('review cases: no lost released ids, no stuck pump', () => {
     await flush();
 
     // Assert
-    expect(receiver.frames[receiver.frames.length - 1].released).toEqual(['l-hero']);
+    expect(receiver.frames[receiver.frames.length - 1].released).toEqual([HERO_RELEASE]);
   });
 
   it('moves the ids of a failed call to the frame already waiting', async () => {
@@ -236,7 +318,7 @@ describe('review cases: no lost released ids, no stuck pump', () => {
     // Assert
     const sent = receiver.frames[receiver.frames.length - 1];
     expect(sent.integerFrame).toBe(4);
-    expect(sent.released).toEqual(['l-hero']);
+    expect(sent.released).toEqual([HERO_RELEASE]);
   });
 
   it('keeps sending when the receiver throws instead of rejecting', async () => {
@@ -250,7 +332,7 @@ describe('review cases: no lost released ids, no stuck pump', () => {
         return Promise.resolve();
       }
     };
-    const stage = createDotNetStage({ ...heroDescription('everyTick') }, receiver) as IStage;
+    const stage = createDotNetStage({ ...heroDescription('everyTick') }, receiver) satisfies IStage;
     const player = createPlayer(heroDocument(), { stage, clock: createManualClock(), onListenerError: (e) => errors.push(e) });
     await flush();
 
@@ -282,7 +364,7 @@ describe('review cases: no lost released ids, no stuck pump', () => {
   it('stop() ends the frames before the .NET receiver goes away', async () => {
     // Arrange
     const receiver = new FakeDotNetReference();
-    const stage = heroStage(receiver, 'everyTick') as IStage & { stop(): void };
+    const stage = createDotNetStage(heroDescription('everyTick'), receiver) satisfies IStage;
     const player = createPlayer(heroDocument(), { stage, clock: createManualClock() });
     await receiver.resolveAll();
     const before = receiver.calls.length;

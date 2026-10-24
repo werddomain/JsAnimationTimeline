@@ -58,7 +58,20 @@ function finiteValues(values) {
   return Object.fromEntries(Object.entries(values).filter(([, value]) => Number.isFinite(value)));
 }
 
-/** The compact frame sent to .NET: time, layers released since the last frame, and per layer its state. */
+/** Same layer and same target: the release is already listed. */
+function sameRelease(a, b) {
+  return a.layerId === b.layerId && JSON.stringify(a.target) === JSON.stringify(b.target);
+}
+
+/** `first` then the entries of `second` not already in it (a layer released twice is listed once). */
+function mergeReleased(first, second) {
+  return second.reduce((all, entry) => (all.some((known) => sameRelease(known, entry)) ? all : [...all, entry]), first);
+}
+
+/**
+ * The compact frame sent to .NET: time, layers released since the last frame (each with the target it
+ * had, to be applied before `layers`), and the state of each layer.
+ */
 function toFrame(time, states, released) {
   return {
     released,
@@ -77,10 +90,13 @@ function toFrame(time, states, released) {
 
 /**
  * Creates the stage. Only one `RenderAsync` call is in flight at a time; frames rendered meanwhile
- * replace each other and only the newest is sent next (the last frame wins). Released layer ids are
+ * replace each other and only the newest is sent next (the last frame wins). Released layers are
  * never lost: they move to the replacing frame, and back to the queue when a call fails. A failed
  * call goes to the stage context (`onListenerError` of the player or editor) and the next frames
- * still go. `stop()` (or `detach`) ends the frames for good; a stopped stage is not reused.
+ * still go. `detach` sends one last frame, without layers, carrying the releases not sent yet (the
+ * player or editor releases every layer just before), then ends the frames. `stop()` ends them at
+ * once, sending nothing more; after `detach` it first waits for the last frame to be delivered. A
+ * stage that was detached or stopped is not reused.
  * @param {DotNetStageDescription} description Id, frame mode, targets and properties of the stage.
  * @param {DotNetReceiver} receiver DotNetObjectReference with a `RenderAsync(frame)` method.
  */
@@ -91,16 +107,21 @@ export function createDotNetStage(description, receiver) {
   const sends = description.mode !== 'off';
   let context;
   let stopped = false;
+  // Detached: only the last frame may still go, and nothing is reported any more.
+  let closing = false;
+  let lastTime = { timeMs: 0, frame: 1, integerFrame: 1 };
+  // Target of each bound layer, to tell .NET which object a released layer had.
+  const boundTargets = new Map();
   let inFlight = false;
   let pending = null;
   let lastIntegerFrame = null;
-  // Layers removed (or retargeted) and not yet told to .NET.
+  // Layers removed (or retargeted), with their old target, not yet told to .NET.
   let released = [];
   // Set by a new document or a time jump: the next frame is sent even at the same integer frame.
   let changed = true;
 
   const report = (error) => {
-    if (!stopped) context?.error(error instanceof Error ? error : new Error(String(error)));
+    if (!stopped && !closing) context?.error(error instanceof Error ? error : new Error(String(error)));
   };
 
   const send = () => {
@@ -117,12 +138,12 @@ export function createDotNetStage(description, receiver) {
     }
     Promise.resolve(call)
       .catch((error) => {
-        // .NET did not get these ids: send them with the frame waiting, else with the next one.
-        if (!stopped) {
+        // .NET did not get these releases: send them with the frame waiting, else with the next one.
+        if (!stopped && !closing) {
           if (pending !== null) {
-            pending = { ...pending, released: [...frame.released, ...pending.released] };
+            pending = { ...pending, released: mergeReleased(frame.released, pending.released) };
           } else {
-            released = [...frame.released, ...released];
+            released = mergeReleased(frame.released, released);
           }
           changed = true;
         }
@@ -131,25 +152,44 @@ export function createDotNetStage(description, receiver) {
       .finally(() => {
         inFlight = false;
         send();
+        if (!inFlight && pending === null) {
+          idleWaiters.splice(0).forEach((resolve) => resolve());
+        }
       });
   };
 
   const endFrame = (time, states) => {
-    if (stopped || !sends) return;
+    if (stopped || closing || !sends) return;
+    lastTime = { timeMs: time.timeMs, frame: time.frame, integerFrame: time.integerFrame };
     if (description.mode === 'integerFrames' && !changed && time.integerFrame === lastIntegerFrame) return;
     changed = false;
     lastIntegerFrame = time.integerFrame;
-    // A frame still waiting is replaced, but its released ids carry over.
+    // A frame still waiting is replaced, but its releases carry over.
     const carried = pending === null ? [] : pending.released;
-    pending = toFrame(time, states, [...carried, ...released]);
+    pending = toFrame(time, states, mergeReleased(carried, released));
     released = [];
     send();
   };
 
-  const stop = () => {
+  // Resolved when no call is in flight and no frame waits.
+  const idleWaiters = [];
+
+  const halt = () => {
     stopped = true;
     pending = null;
     released = [];
+  };
+
+  /**
+   * Ends the frames before the .NET receiver goes away (called by DotNetStageHandle.DisposeAsync).
+   * After `detach`, the last frame (if any) is delivered first; the promise resolves once stopped.
+   */
+  const stop = () => {
+    if (closing && (inFlight || pending !== null)) {
+      return new Promise((resolve) => idleWaiters.push(resolve)).then(halt);
+    }
+    halt();
+    return Promise.resolve();
   };
 
   const objectStage = createObjectStage({
@@ -169,6 +209,8 @@ export function createDotNetStage(description, receiver) {
     },
     update(doc, layers) {
       changed = true;
+      boundTargets.clear();
+      layers.forEach((layer) => boundTargets.set(layer.layerId, layer.target));
       objectStage.update?.(doc, layers);
     },
     sync() {
@@ -176,16 +218,28 @@ export function createDotNetStage(description, receiver) {
     },
     release(layerId, object) {
       changed = true;
-      if (sends && !stopped) {
-        released = [...released, layerId];
+      const target = boundTargets.get(layerId) ?? { ref: object, stage: description.id };
+      boundTargets.delete(layerId);
+      if (sends && !stopped && !closing) {
+        released = mergeReleased(released, [{ layerId, target }]);
       }
       objectStage.release?.(layerId, object);
     },
     detach() {
-      stop();
+      if (!stopped && !closing && sends) {
+        const last = mergeReleased(pending === null ? [] : pending.released, released);
+        if (last.length > 0) {
+          pending = toFrame(lastTime, [], last);
+          released = [];
+          send();
+        } else {
+          pending = null;
+        }
+      }
+      closing = true;
+      released = [];
       objectStage.detach?.();
     },
-    /** Ends the frames before the .NET receiver goes away (called by DotNetStageHandle.DisposeAsync). */
     stop,
   };
 }

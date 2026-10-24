@@ -61,20 +61,30 @@ public sealed record TimelineStageLayerState(
     bool Active,
     bool Visible = true);
 
+/// <summary>A layer no longer animated by the stage, with the target it had.</summary>
+/// <param name="LayerId">Id of the layer.</param>
+/// <param name="Target">
+/// Target the layer had: the object to give back its initial state. After a retarget, the same layer
+/// is also in <see cref="TimelineStageFrame.Layers"/> with its new target.
+/// </param>
+public sealed record TimelineStageReleasedLayer(string LayerId, LayerTarget Target);
+
 /// <summary>One rendered frame: the time and the state of every layer of the stage.</summary>
 /// <param name="TimeMs">Milliseconds from the start.</param>
 /// <param name="Frame">Fractional frame, from 1 to TotalFrames + 1.</param>
 /// <param name="IntegerFrame">Displayed frame, 1..TotalFrames.</param>
 /// <param name="Layers">Layers of the stage, in document order.</param>
 /// <param name="Released">
-/// Layers removed or retargeted since the previous frame sent: their objects are no longer animated.
+/// Layers removed or retargeted since the previous frame sent, each once with its old target. Apply
+/// them before <paramref name="Layers"/>: a retargeted layer is in both lists. When the editor or
+/// player ends (or changes stage), a last frame with no layers carries the final releases.
 /// </param>
 public sealed record TimelineStageFrame(
     double TimeMs,
     double Frame,
     int IntegerFrame,
     IReadOnlyList<TimelineStageLayerState> Layers,
-    IReadOnlyList<string> Released);
+    IReadOnlyList<TimelineStageReleasedLayer> Released);
 
 /// <summary>When the frames of a C# stage are sent to .NET.</summary>
 public enum FrameCallbackMode

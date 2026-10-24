@@ -4,7 +4,9 @@ namespace JsTimeline.Blazor.Stage;
 /// <summary>
 /// A stage written in C#: the timeline evaluates the layers in the browser and sends the values of
 /// each frame to <see cref="RenderAsync"/> (for example to drive Blazor state, a device or a game).
-/// One call runs at a time; frames produced during a call are dropped except the newest one.
+/// One call runs at a time while the stage is plugged in; frames produced during a call are dropped
+/// except the newest one. Unplugging waits (up to two seconds) for a running call, so plugging the
+/// same stage in again does not overlap it unless that call takes longer.
 /// <see cref="Targets"/> and <see cref="Properties"/> are read once, when the stage is plugged in.
 /// </summary>
 public interface ITimelineStage

@@ -15,6 +15,9 @@ internal sealed class DotNetStageHandle : IAsyncDisposable
     /// <summary>Path of the bridge module, relative to the app base.</summary>
     public const string ModulePath = "./_content/JsTimeline.Blazor/stage/dotnetStage.js";
 
+    /// <summary>Longest wait, on dispose, for the last frame and for a running render.</summary>
+    internal static readonly TimeSpan DisposeTimeout = TimeSpan.FromSeconds(2);
+
     private readonly IJSObjectReference _module;
     private readonly DotNetObjectReference<DotNetStageBridge> _receiver;
     private int _disposed;
@@ -29,7 +32,11 @@ internal sealed class DotNetStageHandle : IAsyncDisposable
     /// <summary>The runtime stage, to hand to the editor or player script.</summary>
     public IJSObjectReference JsStage { get; }
 
-    /// <summary>Checks the stage, then builds its JavaScript side.</summary>
+    /// <summary>
+    /// Checks the stage, then builds its JavaScript side. <paramref name="cancellationToken"/> is checked
+    /// between the two script calls only: a call that already started runs to its end, so nothing it
+    /// created in the browser is left without an owner.
+    /// </summary>
     /// <exception cref="ArgumentException">The stage is invalid (id, refs, property names...).</exception>
     public static async Task<DotNetStageHandle> CreateAsync(
         IJSRuntime js,
@@ -39,12 +46,14 @@ internal sealed class DotNetStageHandle : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(js);
         var description = DotNetStageDescription.From(stage, mode);
+        cancellationToken.ThrowIfCancellationRequested();
         var receiver = DotNetObjectReference.Create(new DotNetStageBridge(stage));
         IJSObjectReference? module = null;
         try
         {
-            module = await js.InvokeAsync<IJSObjectReference>("import", cancellationToken, ModulePath);
-            var jsStage = await module.InvokeAsync<IJSObjectReference>("createDotNetStage", cancellationToken, description, receiver);
+            module = await js.InvokeAsync<IJSObjectReference>("import", ModulePath);
+            cancellationToken.ThrowIfCancellationRequested();
+            var jsStage = await module.InvokeAsync<IJSObjectReference>("createDotNetStage", description, receiver);
             return new DotNetStageHandle(module, jsStage, receiver);
         }
         catch
@@ -65,7 +74,11 @@ internal sealed class DotNetStageHandle : IAsyncDisposable
         }
     }
 
-    /// <summary>Stops the frames, then releases the JavaScript objects (the editor or player detaches the stage itself).</summary>
+    /// <summary>
+    /// Stops the frames (after the editor or player detached the stage, its last frame is delivered
+    /// first), cancels a running render and waits for it, then releases the JavaScript objects. Both
+    /// waits are bounded by <see cref="DisposeTimeout"/>.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1)
@@ -73,10 +86,15 @@ internal sealed class DotNetStageHandle : IAsyncDisposable
             return;
         }
         // Stop the script first, so no frame reaches a released receiver.
-        await QuietlyAsync(() => JsStage.InvokeVoidAsync("stop"));
+        using (var stopWait = new CancellationTokenSource(DisposeTimeout))
+        {
+            await QuietlyAsync(() => JsStage.InvokeVoidAsync("stop", stopWait.Token));
+        }
+        var bridge = _receiver.Value;
         try
         {
-            _receiver.Value.Dispose();
+            bridge.Dispose();
+            await bridge.WaitIdleAsync(DisposeTimeout);
             _receiver.Dispose();
         }
         finally
