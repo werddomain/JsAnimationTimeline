@@ -74,8 +74,10 @@ Le dossier `Stage/` contient le contrat qu'utilisera le paramètre `Stage` du fu
   `Properties` (nombres lus par la scène, avec une interpolation par nom : `Linear`, `Step`, `Floor`, `Round`)
   et `RenderAsync(frame)`. `Targets` et `Properties` sont lus une seule fois, quand la scène est branchée.
 - `TimelineStageFrame` : le temps, l'état compact de chaque calque (`LayerId`, `Target`, `Values`, `Active`,
-  `Visible`) et les calques retirés depuis l'image précédente (`Released`), chacun une seule fois avec la
-  cible qu'il avait. Appliquer `Released` avant `Layers` : un calque qui change de cible est dans les deux.
+  `Visible`) et les calques retirés depuis l'image précédente (`Released`), avec la cible qu'ils avaient.
+  Appliquer `Released` avant `Layers` : un calque qui change de cible est dans les deux. Un calque peut y
+  figurer plusieurs fois (une fois par cible perdue, par exemple un changement de cible puis une suppression
+  entre deux images) ; ignorer une paire calque + cible jamais reçue dans `Layers`.
   Quand l'éditeur ou le lecteur se termine (ou change de scène), une dernière image sans calque apporte les
   derniers retraits.
 - `FrameCallbackMode` : `Off` (jamais), `IntegerFrames` (à chaque image affichée, après un nouveau document ou
