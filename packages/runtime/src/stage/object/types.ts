@@ -43,13 +43,17 @@ export interface IObjectStageOptions<T> {
    * Called for every layer at every rendered frame. `values` holds the
    * evaluated values completed with the registry defaults of the object's
    * properties; for an inactive layer, and without `reset`, they are all the
-   * defaults.
+   * defaults. Without `reset`, `apply` is also called outside a frame, with
+   * `active: false` and the defaults of every declared property plus the
+   * ones involved: on release, and at `update` for the properties a new
+   * document no longer animates.
    */
   readonly apply: (object: T, values: PropertyValues, state: ObjectStageState<T>) => void;
   /**
    * Gives the object its initial state back: when a layer is released, and
-   * before `apply` for an inactive layer. Without it, `apply` receives the
-   * default values instead.
+   * before `apply` for an inactive layer, and at `update` when a new document
+   * no longer animates a property a layer animated. Without it, `apply`
+   * receives the default values instead.
    */
   readonly reset?: (object: T) => void;
   /** Called once per rendered frame, after every `apply` (e.g. one drawing). */

@@ -11,6 +11,7 @@ import { updateLayerNode } from '../../list/layerTree';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';
 import type { IListHarness } from '../../list/__tests__/fixtures';
 import { createEditor } from '../../../../core/editor/createEditor';
+import { createShortcutsPlugin } from '../../../interaction/shortcuts';
 import { LayoutPlugin } from '../../../layout/LayoutPlugin';
 import { LayersPlugin } from '../../LayersPlugin';
 import { LayerSelectionPlugin } from '../LayerSelectionPlugin';
@@ -679,6 +680,17 @@ describe('keyboard', () => {
 });
 
 describe('pruning', () => {
+  it('leaves an input focused in another row when rows are removed around it', () => {
+    const h = setup();
+    const input = document.createElement('input');
+    row(h, 'c').appendChild(input);
+    input.focus();
+
+    collapse(h.editor, 'f', true);
+
+    expect(document.activeElement).toBe(input);
+  });
+
   it('drops selected children when their folder is collapsed and focuses the folder', () => {
     const h = setup();
     h.selection.select(['a', 'b', 'c']);
@@ -954,7 +966,7 @@ describe('render', () => {
     const plugin = layers.children.find((child) => child instanceof LayerSelectionPlugin);
     const host = document.createElement('div');
     document.body.appendChild(host);
-    const editor = createEditor(host, { data: tree, defaultPlugins: [new LayoutPlugin(), layers], plugins: [recorder(events)] });
+    const editor = createEditor(host, { data: tree, defaultPlugins: [new LayoutPlugin(), createShortcutsPlugin(), layers], plugins: [recorder(events)] });
     (plugin as LayerSelectionPlugin).render();
     const list = editor.getService('layers.list');
     click(list?.rowElement('a') as Element);

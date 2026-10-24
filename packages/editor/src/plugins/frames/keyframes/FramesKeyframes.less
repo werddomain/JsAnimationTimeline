@@ -1,0 +1,27 @@
+// Fantôme du glisser des images clés (frames.keyframes) : calque de décoration
+// posé sur la grille (.jt-grid), un repère par cellule de destination. Il laisse
+// passer les clics vers la grille.
+
+.JsTimeLine {
+  .jt-keyframe-ghost {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .jt-keyframe-ghost__marker {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1px dashed;
+  }
+
+  .jt-keyframe-ghost__marker--valid {
+    background-color: rgba(80, 200, 120, 0.4);
+    border-color: #2f9e55;
+  }
+
+  .jt-keyframe-ghost__marker--invalid {
+    background-color: rgba(230, 70, 70, 0.4);
+    border-color: #c0392b;
+  }
+}

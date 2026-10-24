@@ -16,6 +16,8 @@
  * - `layers.visibility` : œil de visibilité (ligne et en-tête).
  * - `layers.lock` : cadenas de verrouillage (ligne et en-tête).
  * - `layers.selection` : la sélection multiple des calques et la navigation au clavier.
+ * - `layers.toolbar` : les boutons Nouveau / Dossier / Grouper / Supprimer.
+ * - `layers.groups` : les dossiers et « grouper la sélection ».
  * - `layers.reorder` : le glisser-déposer des calques (ordre, entrée et sortie d'un dossier).
  *
  * Les tâches suivantes (Y4, Y6 à Y8) ajoutent leur plugin à `children`.
@@ -29,6 +31,8 @@ import { LockPlugin } from './lock/LockPlugin';
 import { RenamePlugin } from './rename/RenamePlugin';
 import { VisibilityPlugin } from './visibility/VisibilityPlugin';
 import { LayerSelectionPlugin } from './selection/LayerSelectionPlugin';
+import { LayerToolbarPlugin } from './toolbar/LayerToolbarPlugin';
+import { LayerGroupsPlugin } from './groups/LayerGroupsPlugin';
 import { LayerReorderPlugin } from './reorder/LayerReorderPlugin';
 
 /** Epic `layers` : liste des calques et ses fonctionnalités. */
@@ -47,6 +51,8 @@ export class LayersPlugin implements EditorPlugin {
       new LockPlugin(),
       new LayerSelectionPlugin(),
       new LayerReorderPlugin(),
+      new LayerGroupsPlugin(),
+      new LayerToolbarPlugin(),
     ];
   }
 
