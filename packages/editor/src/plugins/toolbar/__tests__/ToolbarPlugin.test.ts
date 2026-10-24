@@ -15,13 +15,13 @@ afterEach(() => {
 });
 
 describe('toolbar epic', () => {
-  it('registers toolbar.main and toolbar.timeSettings as children and depends on nothing', () => {
+  it('registers its feature plugins as children and depends on nothing', () => {
     // Act
     const epic = new ToolbarPlugin();
 
     // Assert
     expect(epic.dependencies).toEqual([]);
-    expect(epic.children.map((child) => child.id)).toEqual(['toolbar.main', 'toolbar.timeSettings', 'toolbar.zoomControl']);
+    expect(epic.children.map((child) => child.id)).toEqual(['toolbar.main', 'toolbar.timeSettings', 'toolbar.zoomControl', 'toolbar.keyframeActions']);
     expect(epic.children[0]).toBeInstanceOf(ToolbarMainPlugin);
   });
 
