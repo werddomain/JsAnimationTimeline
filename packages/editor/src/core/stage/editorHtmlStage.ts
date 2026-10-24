@@ -4,7 +4,9 @@
  * (styles en ligne, rien à reconstruire pendant un glisser), qui ne touche ni
  * ne propose jamais l'éditeur :
  * - le conteneur donné à `createEditor()` lui-même (un `<div id="timeline">`
- *   ne bouge pas sous un sélecteur `div`) ;
+ *   ne bouge pas sous un sélecteur `div`) et chacun de ses ancêtres (un
+ *   `<div id="app">` qui le contient ne s'efface pas sous une piste
+ *   d'opacité : l'éditeur s'effacerait avec lui) ;
  * - tout le sous-arbre de l'éditeur (enfant `.JsTimeLine` direct du conteneur).
  * Les autres enfants du conteneur restent des cibles : il peut aussi contenir
  * la scène du développeur.
@@ -44,10 +46,10 @@ export interface IEditorHtmlStageOptions {
   readonly refs?: HtmlStageRefs;
 }
 
-/** Vrai pour le conteneur lui-même et pour tout élément du sous-arbre de l'éditeur. */
+/** Vrai pour le conteneur, ses ancêtres, et tout élément du sous-arbre de l'éditeur. */
 function createExclusion(container: Element): (element: Element) => boolean {
   return (element) => {
-    if (element === container) return true;
+    if (element.contains(container)) return true;
     return Array.from(container.children).some(
       (child) => child.classList.contains(EDITOR_ROOT_CLASS) && child.contains(element)
     );

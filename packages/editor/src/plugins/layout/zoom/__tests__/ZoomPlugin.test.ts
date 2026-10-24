@@ -229,6 +229,37 @@ describe('layout.zoom options and lifecycle', () => {
     expect(below.api.zoom()).toBe(0.2);
   });
 
+  it('adds the bounds to the default levels they cut, so the wheel can reach them', () => {
+    // Arrange
+    const { zone, api } = setup({ zoom: { minZoom: 4 } });
+    const lines = { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_LINE };
+
+    // Act
+    zone('frames').dispatchEvent(ctrlWheel(-3, 150, lines));
+
+    // Assert
+    expect(api.levels()).toEqual([4, 8]);
+    expect(api.zoom()).toBe(8);
+  });
+
+  it('keeps the default levels unchanged when the bounds cut none of them', () => {
+    // Act
+    const { api } = setup();
+
+    // Assert
+    expect(api.levels()).toEqual([0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4]);
+  });
+
+  it('accepts equal bounds as a single level', () => {
+    // Act
+    const { api } = setup({ zoom: { minZoom: 2, maxZoom: 2 } });
+    api.zoomIn();
+
+    // Assert
+    expect(api.levels()).toEqual([2]);
+    expect(api.zoom()).toBe(2);
+  });
+
   it('keeps only the levels within the bounds', () => {
     // Act
     const { api } = setup({ zoom: { maxZoom: 3, minZoom: 0.5 } });
@@ -413,24 +444,114 @@ describe('layout.zoom gestures and re-entrancy', () => {
     const first = notch();
     const second = notch();
 
-    // Assert : un seul palier par cran, à la fin de chacun.
-    expect(first).toEqual([1, 1, 1, 1, 1, 1, 1, 1.5]);
-    expect(second).toEqual([1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 2]);
+    // Assert : un seul palier par cran, dès son premier morceau.
+    expect(first).toEqual([1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5]);
+    expect(second).toEqual([2, 2, 2, 2, 2, 2, 2, 2]);
   });
 
-  it('restarts the fractions on a change of unit', () => {
+  it('steps one level per notch split into whole lines (2 × 1.5, 3 × 1)', () => {
     // Arrange
     const { zone, api } = setup();
     const lines = { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_LINE };
 
     // Act
-    [-0.75, -0.75, -0.75].forEach((deltaY) => zone('frames').dispatchEvent(ctrlWheel(deltaY, 150, lines)));
-    zone('frames').dispatchEvent(ctrlWheel(-40, 150));
-    const afterUnitChange = api.zoom();
-    [-0.75, -0.75, -0.75, -0.75].forEach((deltaY) => zone('frames').dispatchEvent(ctrlWheel(deltaY, 150, lines)));
+    [-1.5, -1.5].forEach((deltaY) => zone('frames').dispatchEvent(ctrlWheel(deltaY, 150, lines)));
+    const afterHalves = api.zoom();
+    [-1, -1, -1].forEach((deltaY) => zone('frames').dispatchEvent(ctrlWheel(deltaY, 150, lines)));
 
     // Assert
-    expect([afterUnitChange, api.zoom()]).toEqual([1, 1.5]);
+    expect([afterHalves, api.zoom()]).toEqual([1.5, 2]);
+  });
+
+  it('steps once per gesture of a hi-res wheel whose notch is under 3 lines', () => {
+    // Arrange
+    const { zone, api } = setup();
+    const lines = { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_LINE };
+    const at = (deltaY: number, timeStamp: number): WheelEvent => {
+      const event = ctrlWheel(deltaY, 150, lines);
+      Object.defineProperty(event, 'timeStamp', { value: timeStamp });
+      return event;
+    };
+    const notch = (start: number): void => {
+      for (let i = 0; i < 8; i += 1) zone('frames').dispatchEvent(at(-0.125, start + i * 5));
+    };
+
+    // Act : 1 ligne par cran ; deux crans séparés d'une pause, puis deux sans pause.
+    notch(1000);
+    notch(1000 + WHEEL_IDLE_MS + 100);
+    const afterPause = api.zoom();
+    notch(5000);
+    notch(5040);
+
+    // Assert
+    expect(afterPause).toBe(2);
+    expect(api.zoom()).toBe(3);
+  });
+
+  it('starts a new notch on a change of direction and zooms out in line mode', () => {
+    // Arrange
+    const { zone, api } = setup();
+    const lines = { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_LINE };
+
+    // Act
+    zone('frames').dispatchEvent(ctrlWheel(-0.375, 150, lines));
+    const zoomedIn = api.zoom();
+    zone('frames').dispatchEvent(ctrlWheel(0.375, 150, lines));
+    const back = api.zoom();
+    // Cran suivant, après une pause (sinon il continue le cran commencé à 0,375 ligne).
+    const later = ctrlWheel(3, 150, lines);
+    Object.defineProperty(later, 'timeStamp', { value: Number.MAX_SAFE_INTEGER });
+    zone('frames').dispatchEvent(later);
+
+    // Assert
+    expect([zoomedIn, back, api.zoom()]).toEqual([1.5, 1, 0.75]);
+  });
+
+  it('starts a new notch on a change of unit', () => {
+    // Arrange
+    const { zone, api } = setup();
+    const lines = { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_LINE };
+
+    // Act
+    const zooms = [-0.75, -0.75, -0.75].map((deltaY) => {
+      zone('frames').dispatchEvent(ctrlWheel(deltaY, 150, lines));
+      return api.zoom();
+    });
+    zone('frames').dispatchEvent(ctrlWheel(-40, 150));
+    const afterPixels = api.zoom();
+    zone('frames').dispatchEvent(ctrlWheel(-0.75, 150, lines));
+
+    // Assert : le 3e morceau reste dans le cran ; les lignes après les pixels en ouvrent un autre.
+    expect(zooms).toEqual([1.5, 1.5, 1.5]);
+    expect(afterPixels).toBe(1.5);
+    expect(api.zoom()).toBe(2);
+  });
+
+  it('steps at a full page in page mode, fractions included', () => {
+    // Arrange
+    const { zone, api } = setup();
+    const pages = { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_PAGE };
+
+    // Act
+    [-0.5, -0.5].forEach((deltaY) => zone('frames').dispatchEvent(ctrlWheel(deltaY, 150, pages)));
+    const afterOnePage = api.zoom();
+    zone('frames').dispatchEvent(ctrlWheel(-0.5, 150, pages));
+
+    // Assert
+    expect([afterOnePage, api.zoom()]).toEqual([1.5, 2]);
+  });
+
+  it('steps at 50 pixels, not before', () => {
+    // Arrange
+    const { zone, api } = setup();
+
+    // Act
+    zone('frames').dispatchEvent(ctrlWheel(-49, 150));
+    const before = api.zoom();
+    zone('frames').dispatchEvent(ctrlWheel(-1, 150));
+
+    // Assert
+    expect([before, api.zoom()]).toEqual([1, 1.5]);
   });
 
   it('ignores a zoom asked from a zoom:changed listener', () => {

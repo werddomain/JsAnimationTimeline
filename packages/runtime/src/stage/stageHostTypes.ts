@@ -35,6 +35,12 @@ export interface IStageHostOptions {
    * the layer states). Defaults to always true, the player behaviour.
    */
   readonly isEditorVisible?: (layerId: string) => boolean;
+  /**
+   * Called after a retry (`refresh`, or a stage's `targets.subscribe`)
+   * changed the bindings, once `missingTargets` is updated and the stages
+   * are re-applied. Not called by `load` (the owner knows the document changed).
+   */
+  readonly onTargetsChanged?: () => void;
 }
 
 /** A routed layer and its cached resolution (`object` null: resolution failed). */

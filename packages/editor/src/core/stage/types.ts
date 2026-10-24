@@ -34,6 +34,8 @@ export interface IEditorStage {
   /**
    * Ids des calques sans objet animé (pas de cible, scène inconnue, aucune
    * scène ne l'accepte, ou `resolve` a échoué), dans l'ordre du document.
+   * L'événement `stage:targetsChanged` annonce chaque changement de cette
+   * liste (document, `refreshTargets`, `targets.subscribe` d'une scène).
    */
   readonly missingTargets: readonly string[];
   /**

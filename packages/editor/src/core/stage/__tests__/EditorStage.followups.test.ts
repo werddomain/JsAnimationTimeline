@@ -236,3 +236,117 @@ describe('stage loads: ordering and visibility', () => {
     expect(stage.lastStates.find((state) => state.layerId === 'l-hero')?.editorVisible).toBe(true);
   });
 });
+
+describe('C7 follow-ups, integrator review', () => {
+  it('emits one stage:report for a throwing render, not one per command', () => {
+    // Arrange
+    const stage = createFakeStage();
+    const errors = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    stage.render = () => {
+      throw new Error('rendu');
+    };
+    const { editor, clock } = createStageEditor({}, stage);
+    const reports: IStageReport[] = [];
+    editor.on('stage:report', (report) => reports.push(report));
+
+    try {
+      // Act
+      clock.advance(DISPLAY_FRAME_MS);
+      for (let index = 0; index < 10; index += 1) {
+        editor.execute(touch);
+        clock.advance(DISPLAY_FRAME_MS);
+      }
+
+      // Assert
+      expect(reports.map((report) => report.code)).toEqual([StageReportCodes.STAGE_ERROR]);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
+  it('never resolves nor lists an ancestor of the editor container', () => {
+    // Arrange
+    const app = document.createElement('div');
+    app.id = 'app';
+    const host = document.createElement('div');
+    host.id = 'timeline';
+    const box = document.createElement('div');
+    box.className = 'box';
+    app.append(host, box);
+    document.body.appendChild(app);
+    const stage = createEditorHtmlStage(host);
+
+    // Act
+    const resolved = stage.resolve({ selector: 'div' });
+    const labels = stage.targets.list().map((info) => info.label);
+
+    // Assert
+    expect(resolved).toBe(box);
+    expect(labels).not.toContain('app');
+    expect(labels).not.toContain('timeline');
+    expect(stage.targets.describe?.({ selector: '#app' })).toBeUndefined();
+  });
+
+  it('announces targetsChanged once per change through the StageHost hook, without a second subscription', () => {
+    // Arrange
+    const stage = createFakeStage({ missing: ['tree'] });
+    let subscriptions = 0;
+    const targets = stage.targets as { subscribe: (onChange: () => void) => () => void };
+    const subscribe = targets.subscribe;
+    targets.subscribe = (onChange) => {
+      subscriptions += 1;
+      return subscribe(onChange);
+    };
+    const { editor } = createStageEditor({}, stage);
+    const announced: (readonly string[])[] = [];
+    editor.on('stage:targetsChanged', ({ missingTargets }) => announced.push(missingTargets));
+
+    // Act
+    stage.objects.set('tree', { name: 'tree' });
+    stage.notifyTargets();
+
+    // Assert
+    expect(subscriptions).toBe(1);
+    expect(announced).toEqual([[]]);
+  });
+
+  it('gives every targetsChanged listener the same list when one of them refreshes targets', () => {
+    // Arrange
+    const stage = createFakeStage({ missing: ['tree', 'hero'] });
+    const { editor } = createStageEditor({}, stage);
+    const seen: string[] = [];
+    editor.on('stage:targetsChanged', ({ missingTargets }) => {
+      seen.push(`a:${missingTargets.join(',')}`);
+      if (missingTargets.includes('l-hero')) {
+        stage.objects.set('hero', { name: 'hero' });
+        editor.refreshTargets();
+      }
+    });
+    editor.on('stage:targetsChanged', ({ missingTargets }) => seen.push(`b:${missingTargets.join(',')}`));
+
+    // Act
+    stage.objects.set('tree', { name: 'tree' });
+    editor.refreshTargets('l-tree');
+
+    // Assert
+    expect(seen).toEqual(['a:l-hero', 'b:l-hero', 'a:', 'b:']);
+  });
+
+  it('still releases and detaches when a stage unsubscribe throws during destroy', () => {
+    // Arrange
+    const stage = createFakeStage();
+    const targets = stage.targets as { subscribe: (onChange: () => void) => () => void };
+    targets.subscribe = () => () => {
+      throw new Error('désabonnement');
+    };
+    const { editor } = createStageEditor({ onStageError: () => undefined }, stage);
+    stage.log.length = 0;
+
+    // Act
+    editor.destroy();
+
+    // Assert
+    expect(stage.log).toEqual(['release:l-hero:hero', 'release:l-tree:tree', 'detach']);
+    expect(editor.isDestroyed).toBe(true);
+  });
+});

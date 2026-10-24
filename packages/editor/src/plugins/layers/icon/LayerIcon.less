@@ -1,0 +1,78 @@
+// Menu de choix d'icône (layers.icon). Réglages par variables CSS :
+//   --jt-icon-menu-bg      fond du menu
+//   --jt-icon-menu-hover   fond de l'entrée survolée ou focalisée
+
+.JsTimeLine {
+  .jt-layer-row--layer .jt-layer-row__icon {
+    cursor: pointer;
+  }
+
+  .jt-icon-menu {
+    position: fixed;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    min-width: 170px;
+    padding: 4px 0;
+    border: 1px solid #b5b5b5;
+    border-radius: 3px;
+    background: var(--jt-icon-menu-bg, #fff);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+    font-size: 12px;
+  }
+
+  .jt-icon-menu__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover,
+    &:focus {
+      background: var(--jt-icon-menu-hover, #e6eefb);
+      outline: none;
+    }
+
+    &[data-current='true'] {
+      font-weight: 600;
+    }
+  }
+
+  .jt-icon-menu__glyph {
+    display: inline-block;
+    width: 16px;
+    text-align: center;
+  }
+
+  .jt-icon-menu__custom {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 4px 10px;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .jt-icon-menu__input {
+    flex: 1 1 100px;
+    min-width: 0;
+    font: inherit;
+  }
+
+  .jt-icon-menu__error {
+    flex: 1 1 100%;
+    margin: 0;
+    color: #b3261e;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+}
