@@ -53,6 +53,34 @@ export interface IEditorStage {
    * elle est appelée pendant le chargement d'un document (depuis une scène).
    */
   refreshTargets(layerId?: string): void;
+  /**
+   * Retient le rendu des scènes, hors lecture, jusqu'à `release()` : par
+   * exemple pendant le glisser de la tête de lecture sur une scène lente
+   * (`playback.livePreview`). Pendant une retenue :
+   * - les scènes ne reçoivent ni `sync` ni `render` ; la position, elle,
+   *   suit (`playhead:changed`, `frame:render` et `onFrame` continuent) ;
+   * - un document est chargé comme d'habitude (acceptation ou retour
+   *   arrière, avertissements, `stage:targetsChanged`) : seul son rendu est
+   *   retenu ;
+   * - la lecture passe outre (une retenue oubliée ne fige jamais la
+   *   lecture), et l'arrêt de la lecture rend l'image d'arrêt.
+   *
+   * `flush()` rattrape tout de suite l'image courante (une seule fois s'il
+   * n'y a rien de nouveau) ; le dernier `release()` fait de même. Plusieurs
+   * retenues se cumulent. Sans scène (`stage: false`) ou après la destruction
+   * de l'éditeur, la retenue rendue est inerte.
+   */
+  hold(): IStageHold;
+}
+
+/** Retenue du rendu des scènes (voir `IEditorStage.hold`). */
+export interface IStageHold {
+  /** Vrai jusqu'à `release()` (ou la destruction de l'éditeur). */
+  readonly active: boolean;
+  /** Rend tout de suite l'image courante si un rendu a été retenu ; sans effet après `release()`. */
+  flush(): void;
+  /** Termine la retenue (idempotent) ; la dernière rattrape l'image courante. */
+  release(): void;
 }
 
 /** Reçoit les erreurs levées par les scènes (la première par scène et par calque, jusqu'au document suivant). */

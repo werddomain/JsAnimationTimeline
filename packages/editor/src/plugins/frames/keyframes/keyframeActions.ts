@@ -11,6 +11,8 @@
  */
 
 import type { IEditorContext } from '../../../core/context/IEditorContext';
+import { CommandRefusedError } from '../../../core/commands/CommandRefusedError';
+import { createCommand } from '../../../core/commands/createCommand';
 import type { ICommand } from '../../../core/commands/ICommand';
 import { SpanCommandLabels } from '../../../model/spans';
 import type { ISpanCommands } from '../../../model/spans';
@@ -19,9 +21,9 @@ import type { ISelectedKeyframe } from '../selection/types';
 // Types seulement : le service optionnel layers.selection.
 import type {} from '../../layers/selection/types';
 import { batchCommand } from './batchCommand';
-import { clampOffset, movableKeyframes, overwritesKeyframe, planMove, shiftCells } from './keyframeMove';
+import { clampOffset, landedCells, movableKeyframes, overwritesKeyframe, planMove } from './keyframeMove';
 import type { IPlannedMove } from './keyframeMove';
-import { keyframeTargets } from './keyframeTargets';
+import { insertFrameTargets, keyframeTargets } from './keyframeTargets';
 
 /** Actions de plage sur les images visées. */
 export type SpanAction = 'insertKeyframe' | 'insertBlankKeyframe' | 'deleteKeyframe' | 'insertFrame' | 'removeFrame';
@@ -43,11 +45,12 @@ function executeChanged(ctx: IEditorContext, command: ICommand): boolean {
 
 /** Lot d'une action sur les images visées (sélection, sinon tête de lecture sur les calques). */
 function actionBatch(ctx: IEditorContext, commands: ISpanCommands, action: SpanAction): ICommand | undefined {
-  const targets = keyframeTargets(ctx.document, {
+  const all = keyframeTargets(ctx.document, {
     cells: ctx.services.require('frames.selection').cells(),
     playheadFrame: ctx.playback.frame,
     layerIds: ctx.services.get('layers.selection')?.selected()
   });
+  const targets = action === 'insertFrame' ? insertFrameTargets(ctx.document, all) : all;
   return batchCommand(
     ACTION_LABELS[action],
     targets.map((target) => commands[action](target.rowId, target.frame))
@@ -68,9 +71,28 @@ export function moveBatch(commands: ISpanCommands, moves: readonly IPlannedMove[
   );
 }
 
+/** Exécute une commande qui refuse avec `reason` : `command:refused` annonce le refus. */
+function refuse(ctx: IEditorContext, reason: string): false {
+  const label = SpanCommandLabels.MOVE_KEYFRAME;
+  ctx.commands.execute(
+    createCommand(
+      label,
+      () => {
+        throw new CommandRefusedError(label, reason);
+      },
+      (doc) => doc
+    )
+  );
+  return false;
+}
+
+/** Raison du refus d'un déplacement qui écraserait une image clé de propriété. */
+export const OVERWRITE_REASON = "L'image clé arriverait sur une autre image clé de propriété, qui serait remplacée.";
+
 /**
  * Déplace `keyframes` de `offset` images (déjà borné) et, si le document a
- * changé, déplace `cells` (la sélection) avec eux.
+ * changé, reconstruit la sélection d'après la place réelle des images
+ * (voir `landedCells`).
  */
 export function moveKeyframes(
   ctx: IEditorContext,
@@ -79,14 +101,19 @@ export function moveKeyframes(
   cells: readonly IFrameCell[],
   offset: number
 ): boolean {
-  const moves = planMove(ctx.document, keyframes, offset);
-  // Refusé : une image clé de propriété non sélectionnée serait écrasée.
-  if (overwritesKeyframe(ctx.document, moves)) return false;
+  if (offset === 0) return false;
+  const before = ctx.document;
+  const moves = planMove(before, keyframes, offset);
+  if (overwritesKeyframe(before, moves)) return refuse(ctx, OVERWRITE_REASON);
+  const first = keyframes[0];
+  // Toutes les images clés sont sur des lignes verrouillées : le refus de K1 l'explique.
+  if (moves.length === 0 && first !== undefined) {
+    ctx.commands.execute(commands.moveKeyframe(first.rowId, first.frame, first.frame + offset));
+    return false;
+  }
   const batch = moveBatch(commands, moves);
   if (batch === undefined || !executeChanged(ctx, batch)) return false;
-  // Seules les lignes déplacées décalent leur sélection (pas les lignes verrouillées).
-  const movedRows = new Set(moves.map((move) => move.rowId));
-  ctx.services.require('frames.selection').set(shiftCells(cells, offset, movedRows));
+  ctx.services.require('frames.selection').set(landedCells(before, ctx.document, keyframes, cells, moves, offset));
   return true;
 }
 
@@ -95,6 +122,7 @@ export function moveSelectedKeyframes(ctx: IEditorContext, commands: ISpanComman
   const selection = ctx.services.require('frames.selection');
   const keyframes = selection.keyframes();
   const movable = movableKeyframes(ctx.document, keyframes);
-  const bounded = clampOffset(offset, movable, ctx.document.settings.totalFrames);
+  // Toutes sur des lignes verrouillées : bornes calculées sur elles, pour que le refus de K1 s'affiche.
+  const bounded = clampOffset(offset, movable.length > 0 ? movable : keyframes, ctx.document.settings.totalFrames);
   return moveKeyframes(ctx, commands, keyframes, selection.cells(), bounded);
 }

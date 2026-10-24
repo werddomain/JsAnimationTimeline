@@ -36,6 +36,10 @@
  *   aucun avertissement.
  * - `destroy` relâche chaque calque puis détache chaque scène, même si un
  *   désabonnement lève ; les objets restent au développeur.
+ * - `hold()` retient `sync` et `render` hors lecture (y compris le rendu qui
+ *   suit un chargement) ; `flush()` et la dernière libération rattrapent
+ *   l'image courante. L'arrêt de la lecture passe outre, pour laisser les
+ *   scènes sur l'image d'arrêt. `destroy` abandonne les retenues sans rendu.
  */
 
 import { isRefTarget, StageHost } from '@werddomain/timeline-runtime';
@@ -57,7 +61,7 @@ import type { Store } from '../store/Store';
 import { StageReportFeed } from './reportFeed';
 // Import pour effet : garde l'augmentation de TimelineEventMap visible ici.
 import './stageEvents';
-import type { StageErrorHandler } from './types';
+import type { IStageHold, StageErrorHandler } from './types';
 
 /** Pièces dont les scènes ont besoin. */
 export interface IEditorStageHostOptions {
@@ -72,6 +76,9 @@ export interface IEditorStageHostOptions {
 }
 
 const NO_REPORTS: readonly IStageReport[] = Object.freeze([]);
+
+/** Retenue inerte (sans scène, ou après la destruction). */
+const INERT_HOLD: IStageHold = Object.freeze({ active: false, flush: () => {}, release: () => {} });
 const NO_LAYERS: readonly string[] = Object.freeze([]);
 
 /** Scène qui anime `target` : celle nommée par `target.stage`, sinon la première qui l'accepte. */
@@ -104,8 +111,19 @@ export class EditorStageHost implements IStageRenderer {
   private announcedMissing: readonly string[] = NO_LAYERS;
   private announcing = false;
   private announceAgain = false;
-  /** Un `sync` a eu lieu depuis le dernier chargement (le `render` qui suit termine un passage complet). */
+  /** Un `sync` a vraiment eu lieu depuis le dernier chargement (le `render` réel qui suit termine un passage complet). */
   private syncedSinceLoad = false;
+  /** Retenues actives (`hold`). */
+  private readonly holds = new Set<object>();
+  /** Un `sync` / un `render` ont été retenus depuis le dernier rattrapage. */
+  private syncMissed = false;
+  private renderMissed = false;
+  /** État de lecture du dernier `sync` transmis aux scènes. */
+  private lastSyncPlaying = false;
+  /** Retenues abandonnées (`editor:destroying`) : plus aucune retenue ni rattrapage. */
+  private dropped = false;
+  /** L'arrêt de la lecture passe outre la retenue : le rendu qui suit aussi. */
+  private stopPassThrough = false;
 
   /** Charge le document courant du Store ; lève l'erreur d'une scène qui le refuse (après avoir tout relâché). */
   constructor(options: IEditorStageHostOptions) {
@@ -127,7 +145,9 @@ export class EditorStageHost implements IStageRenderer {
     this.unsubscribes = [
       bus.on('document:changed', ({ document }) => this.load(document)),
       bus.on('document:loaded', ({ document }) => this.load(document)),
-      bus.once('editor:ready', () => this.feed.start(this.warnings))
+      bus.once('editor:ready', () => this.feed.start(this.warnings)),
+      // Dès l'annonce de la destruction (avant celle des plugins) : retenues abandonnées, sans rendu.
+      bus.on('editor:destroying', () => this.dropHolds())
     ];
     try {
       this.loadNow(store.document);
@@ -148,15 +168,53 @@ export class EditorStageHost implements IStageRenderer {
   }
 
   sync(time: ITransportTime, state: ITransportSyncState): void {
-    if (this.destroyed) return;
-    this.host?.sync(time, state);
+    if (this.destroyed || this.host === null) return;
+    const stopping = this.lastSyncPlaying && !state.playing;
+    if (this.isHeld(state.playing) && !stopping) {
+      this.syncMissed = true;
+      return;
+    }
+    this.syncMissed = false;
+    this.lastSyncPlaying = state.playing;
+    this.host.sync(time, state);
     this.syncedSinceLoad = true;
+    // Arrêt de la lecture pendant une retenue : les scènes restent sur l'image d'arrêt.
+    this.stopPassThrough = stopping && this.holds.size > 0;
   }
 
   render(time: ITransportTime): void {
-    if (this.destroyed) return;
-    this.host?.render(time);
+    if (this.destroyed || this.host === null) return;
+    const passThrough = this.stopPassThrough;
+    this.stopPassThrough = false;
+    if (!passThrough && this.isHeld(this.now().state.playing)) {
+      this.renderMissed = true;
+      return;
+    }
+    this.renderMissed = false;
+    this.host.render(time);
+    // Un passage complet (sync puis render réels, pas retenus) : les avertissements précédents ne sont plus reportés.
     if (this.syncedSinceLoad) this.feed.completePass();
+  }
+
+  /** Nouvelle retenue du rendu (voir `IEditorStage.hold`) ; inerte sans scène ou après la destruction. */
+  hold(): IStageHold {
+    if (this.destroyed || this.dropped || this.host === null) return INERT_HOLD;
+    const token = {};
+    this.holds.add(token);
+    const isActive = (): boolean => !this.destroyed && !this.dropped && this.holds.has(token);
+    return Object.freeze({
+      get active(): boolean {
+        return isActive();
+      },
+      flush: (): void => {
+        if (isActive()) this.catchUp();
+      },
+      release: (): void => {
+        if (!isActive()) return;
+        this.holds.delete(token);
+        if (this.holds.size === 0) this.catchUp();
+      }
+    });
   }
 
   refreshTargets(layerId?: string): void {
@@ -175,6 +233,7 @@ export class EditorStageHost implements IStageRenderer {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.dropHolds();
     try {
       this.unsubscribes.forEach((unsubscribe) => this.guard(unsubscribe, undefined));
     } finally {
@@ -224,11 +283,63 @@ export class EditorStageHost implements IStageRenderer {
    */
   private renderNow(): void {
     if (this.destroyed || this.host === null) return;
+    this.stopPassThrough = false;
+    if (this.isHeld(this.now().state.playing)) {
+      this.renderMissed = true;
+      return;
+    }
+    this.renderMissed = false;
     this.loading = true;
     try {
       this.host.render(this.now().time);
     } finally {
       this.loading = false;
+    }
+  }
+
+  /** Abandonne toutes les retenues sans rattrapage (destruction de l'éditeur). */
+  private dropHolds(): void {
+    this.dropped = true;
+    this.holds.clear();
+    this.syncMissed = false;
+    this.renderMissed = false;
+  }
+
+  /** Vrai si une retenue s'applique (au moins une retenue, hors lecture). */
+  private isHeld(playing: boolean): boolean {
+    return this.holds.size > 0 && !playing;
+  }
+
+  /**
+   * Rattrape ce qui a été retenu, à l'instant courant : `sync` s'il en manque
+   * un, puis `render`. Sans effet si rien n'a été retenu, ni pendant un
+   * chargement ou un rendu en cours (appel depuis une scène ou un
+   * gestionnaire de `stage:report`) : le rattrapage attend alors le prochain
+   * `flush` ou `release`. Un document annoncé pendant ce rendu est mis en
+   * attente comme pendant un chargement, et une liste de cibles manquantes
+   * changée pendant le rendu est annoncée ensuite.
+   */
+  private catchUp(): void {
+    if (this.destroyed || this.host === null || this.loading) return;
+    if (!this.syncMissed && !this.renderMissed) return;
+    const { time, state } = this.now();
+    const needsSync = this.syncMissed;
+    this.syncMissed = false;
+    this.renderMissed = false;
+    this.stopPassThrough = false;
+    this.loading = true;
+    try {
+      if (needsSync) {
+        this.lastSyncPlaying = state.playing;
+        this.host.sync(time, state);
+        this.syncedSinceLoad = true;
+      }
+      this.host.render(time);
+      if (this.syncedSinceLoad) this.feed.completePass();
+    } finally {
+      this.loading = false;
+      if (this.queued === null) this.announceMissing();
+      this.flushQueued();
     }
   }
 

@@ -189,3 +189,68 @@ describe('stage:targetsChanged around loads', () => {
     expect(announced).toEqual(['@2']);
   });
 });
+
+describe('stage:report with the stage hold (#76)', () => {
+  it('announces a throwing sync once when it first runs at flush, and not again on the next frame', () => {
+    // Arrange
+    const stage = createFakeStage();
+    let throwing = false;
+    stage.sync = () => {
+      if (throwing) throw new Error('synchro');
+    };
+    const errors = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { editor, clock } = createStageEditor({}, stage);
+    clock.advance(DISPLAY_FRAME_MS);
+    const reports: IStageReport[] = [];
+    editor.on('stage:report', (report) => reports.push(report));
+    const hold = editor.stage.hold();
+
+    try {
+      // Act
+      throwing = true;
+      editor.execute(touch);
+      clock.advance(DISPLAY_FRAME_MS);
+      hold.flush();
+      editor.execute(touch);
+      clock.advance(DISPLAY_FRAME_MS);
+      hold.release();
+      clock.advance(DISPLAY_FRAME_MS);
+      editor.execute(touch);
+      clock.advance(DISPLAY_FRAME_MS);
+
+      // Assert
+      expect(reports.map((report) => report.code)).toEqual([StageReportCodes.STAGE_ERROR]);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
+  it('does not announce again a render-time report after two loads while held, then release', () => {
+    // Arrange
+    const stage = createFakeStage();
+    let stageContext: IStageContext | null = null;
+    stage.attach = (ctx) => {
+      stageContext = ctx;
+    };
+    const render = stage.render?.bind(stage);
+    stage.render = (time, states) => {
+      render?.(time, states);
+      stageContext?.report({ code: StageReportCodes.DUPLICATE_TARGET, layerId: 'l-hero', message: 'double' });
+    };
+    const { editor, clock } = createStageEditor({}, stage);
+    clock.advance(DISPLAY_FRAME_MS);
+    const reports: IStageReport[] = [];
+    editor.on('stage:report', (report) => reports.push(report));
+    const hold = editor.stage.hold();
+
+    // Act
+    editor.execute(touch);
+    editor.execute(touch);
+    clock.advance(DISPLAY_FRAME_MS);
+    hold.release();
+    clock.advance(DISPLAY_FRAME_MS);
+
+    // Assert
+    expect(reports).toEqual([]);
+  });
+});
