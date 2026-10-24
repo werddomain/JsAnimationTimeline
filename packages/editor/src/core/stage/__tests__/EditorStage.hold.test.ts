@@ -309,3 +309,30 @@ describe('ctx.stage.hold: review follow-ups', () => {
   });
 });
 
+
+describe('ctx.playback.now: the editor clock', () => {
+  it('reads the clock given to createEditor, for pacing (not wall time)', () => {
+    // Arrange
+    const { editor, clock } = setup();
+    const start = editor.playback.now();
+
+    // Act
+    clock.advance(250);
+
+    // Assert
+    expect(editor.playback.now()).toBe(start + 250);
+    expect(editor.playback.now()).toBe(clock.now());
+  });
+
+  it('stays readable after destroy', () => {
+    // Arrange
+    const { editor } = setup();
+    const playback = editor.playback;
+
+    // Act
+    editor.destroy();
+
+    // Assert
+    expect(() => playback.now()).not.toThrow();
+  });
+});
