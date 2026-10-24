@@ -240,11 +240,48 @@ describe('inline editing review fixes', () => {
     input.focus();
     input.value = 'Renommé';
 
-    // Un vrai blur du navigateur : blur (validation, saisie détachée, document:changed) puis focusout.
+    // Un clic hors de la liste : appui, puis vrai blur du navigateur (validation, saisie détachée, document:changed) puis focusout.
+    document.body.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
     input.blur();
 
     expect(nameOf(editor.document, 'a')).toBe('Renommé');
     expect(document.activeElement).toBe(document.body);
+  });
+
+  it('gives the focus to a neighbour row when the row is removed after a Chromium-style blur on removal', () => {
+    const { host, editor } = mount(tree);
+    focusableRow(host, 'b');
+    editor.getService('layers.selection')?.select(['b']);
+    doubleClick(nameElement(host, 'b'));
+    const input = inputOf(host);
+    input.focus();
+
+    // Chromium envoie blur puis focusout (relatedTarget nul) à l'élément retiré, avant de le détacher.
+    input.dispatchEvent(new FocusEvent('blur'));
+    input.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    editor.execute(
+      createCommand(
+        'Supprimer',
+        (d) => ({ ...d, layers: d.layers.filter((node) => node.id !== 'b') }),
+        (d) => d
+      )
+    );
+
+    expect(document.activeElement?.closest('[data-row-id]')?.getAttribute('data-row-id')).toBe('a');
+  });
+
+  it('forgets an outside press once its task is over: a later removal refocuses a row', async () => {
+    const { host, editor } = mount(tree);
+    focusableRow(host, 'b');
+    editor.getService('layers.selection')?.select(['b']);
+    doubleClick(nameElement(host, 'b'));
+    inputOf(host).focus();
+    document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    editor.execute(createCommand('Supprimer', (d) => ({ ...d, layers: d.layers.filter((node) => node.id !== 'b') }), (d) => d));
+
+    expect(document.activeElement?.closest('[data-row-id]')?.getAttribute('data-row-id')).toBe('a');
   });
 
   it('gives the focus to a neighbour row when the row being renamed is removed', () => {

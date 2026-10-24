@@ -105,11 +105,13 @@ export class LayerSelectionPlugin implements EditorPlugin {
   /** Dernier élément de la liste qui a eu le focus DOM (pour le rendre après le retrait de sa ligne). */
   private focusedElement: Element | undefined;
   /**
-   * Saisie qui vient de perdre le focus sans destinataire (clic ailleurs : le renommage valide sur `blur`,
-   * avant `focusout`). Posée pendant la pile du `blur`, elle dit à `listHeldFocus` que le focus est parti
-   * de lui-même ; une ligne supprimée pendant la saisie ne la pose pas.
+   * Vrai pendant la tâche d'un appui (souris ou doigt) hors de la liste : le focus part alors de lui-même.
+   * Une saisie (renommage) qui valide sur `blur` et se détache n'a pas à rendre le focus à la ligne. On ne
+   * se fie pas à `blur` : Chromium en envoie un aussi quand l'élément focalisé est retiré, et là la ligne
+   * doit au contraire récupérer le focus.
    */
-  private blurredInput: Element | undefined;
+  private outsidePress = false;
+  private outsidePressTimer: ReturnType<typeof setTimeout> | undefined;
   /** Appui de souris en cours : a-t-il commencé hors de toute ligne ? `undefined` sans appui connu. */
   private pressedOnEmpty: boolean | undefined;
   /** Où l'appui a été relâché : hors de toute ligne ? `undefined` sans relâchement connu. */
@@ -141,9 +143,15 @@ export class LayerSelectionPlugin implements EditorPlugin {
     this.listenPressEnd(element.ownerDocument);
     this.knownRows = this.requireList().rows().map(toRef);
     paintList(element);
-    const onBlur = (event: FocusEvent): void => this.onBlur(event);
-    element.addEventListener('blur', onBlur, true);
-    this.renderCleanups.push(() => element.removeEventListener('blur', onBlur, true));
+    const onPress = (event: Event): void => this.onDocumentPress(event);
+    const doc = element.ownerDocument;
+    doc.addEventListener('pointerdown', onPress, true);
+    doc.addEventListener('mousedown', onPress, true);
+    this.renderCleanups.push(() => {
+      doc.removeEventListener('pointerdown', onPress, true);
+      doc.removeEventListener('mousedown', onPress, true);
+      this.clearOutsidePress();
+    });
     this.listen(element, 'focusin', (event) => this.onFocusIn(event as FocusEvent));
     this.listen(element, 'focusout', (event) => this.onFocusOut(event as FocusEvent));
     this.listen(element, 'mousedown', (event) => this.onMouseDown(event as MouseEvent));
@@ -164,7 +172,6 @@ export class LayerSelectionPlugin implements EditorPlugin {
     this.state = EMPTY_SELECTION;
     this.knownRows = [];
     this.focusedElement = undefined;
-    this.blurredInput = undefined;
     this.list = undefined;
     this.ctx = undefined;
   }
@@ -263,14 +270,20 @@ export class LayerSelectionPlugin implements EditorPlugin {
     return onEmpty;
   }
 
-  /** `blur` (capture : il ne remonte pas) d'une saisie, avant son propre écouteur qui peut valider et la détacher. */
-  private onBlur(event: FocusEvent): void {
+  /** Appui hors de la liste : le marqueur vit jusqu'à la fin de la tâche (le blur qui en résulte arrive dans la même). */
+  private onDocumentPress(event: Event): void {
+    const list = this.list?.element();
     const target = event.target;
-    if (!(target instanceof Element) || event.relatedTarget !== null || !target.matches(TEXT_INPUT_SELECTOR)) return;
-    this.blurredInput = target;
-    queueMicrotask(() => {
-      if (this.blurredInput === target) this.blurredInput = undefined;
-    });
+    if (list === undefined || (target instanceof Node && list.contains(target))) return;
+    this.outsidePress = true;
+    clearTimeout(this.outsidePressTimer);
+    this.outsidePressTimer = setTimeout(() => this.clearOutsidePress(), 0);
+  }
+
+  private clearOutsidePress(): void {
+    this.outsidePress = false;
+    clearTimeout(this.outsidePressTimer);
+    this.outsidePressTimer = undefined;
   }
 
   private onFocusOut(event: FocusEvent): void {
@@ -297,9 +310,9 @@ export class LayerSelectionPlugin implements EditorPlugin {
   private listHeldFocus(): boolean {
     const element = this.focusedElement;
     if (element === undefined) return false;
-    // Saisie qui a perdu le focus (blur) puis s'est détachée en validant : le focus est parti ailleurs de
-    // lui-même, on ne le rend pas à la ligne. Une ligne retirée pendant la saisie n'a pas de blur : elle le rend.
-    if (element === this.blurredInput) return false;
+    // Saisie détachée en validant sur un clic hors de la liste : le focus est parti ailleurs de lui-même.
+    // Suppression de la ligne au clavier (ou annulation) pendant la saisie : pas d'appui, la ligne voisine le reçoit.
+    if (this.outsidePress && element.matches(TEXT_INPUT_SELECTOR)) return false;
     const doc = element.ownerDocument;
     const active = doc.activeElement;
     const inListOrNowhere =
