@@ -229,6 +229,23 @@ describe('inline editing review fixes', () => {
     expect(document.activeElement).not.toBe(row);
   });
 
+  it('keeps the focus on the page when a changed name is committed by clicking on blank space', () => {
+    const { host, editor } = mount(tree);
+    focusableRow(host, 'a');
+    // La ligne est sélectionnée (le double-clic sélectionne) : la sélection a une ligne à refocaliser.
+    editor.getService('layers.selection')?.select(['a']);
+    doubleClick(nameElement(host, 'a'));
+    const input = inputOf(host);
+    input.focus();
+    input.value = 'Renommé';
+
+    // Un vrai blur du navigateur : blur (validation, saisie détachée, document:changed) puis focusout.
+    input.blur();
+
+    expect(nameOf(editor.document, 'a')).toBe('Renommé');
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it('ignores a blur of an input that is no longer connected (no command during document:changed)', () => {
     const { host, editor } = mount(tree);
     doubleClick(nameElement(host, 'a'));
