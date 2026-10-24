@@ -65,6 +65,7 @@ export function createPlaybackFacade(
     sample: (frame?: number): IFrameSample => {
       assertActive('playback.sample');
       return controller.sample(frame);
-    }
+    },
+    now: (): number => controller.clockNow()
   });
 }

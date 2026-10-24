@@ -83,4 +83,11 @@ export interface IEditorPlayback {
    * ou à la position courante sans argument. N'émet aucun événement.
    */
   sample(frame?: number): IFrameSample;
+  /**
+   * Instant de l'horloge de l'éditeur (option `clock` de `createEditor()`),
+   * en millisecondes, monotone. Sert à cadencer un travail sur la même
+   * horloge que la lecture (par exemple `playback.livePreview`) plutôt que
+   * sur l'heure réelle. Reste lisible après la destruction.
+   */
+  now(): number;
 }
