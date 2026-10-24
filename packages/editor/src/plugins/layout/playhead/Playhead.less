@@ -1,0 +1,43 @@
+// packages/editor/src/plugins/layout/playhead/Playhead.less
+// Tête de lecture (layout.playhead) : repère rouge sur la règle, ligne rouge
+// au milieu de l'image dans la zone des images (comme Flash CS4).
+
+@jt-playhead-color: #e00;
+
+.JsTimeLine {
+  .jt-zone--ruler {
+    cursor: pointer;
+    touch-action: none;
+  }
+
+  .jt-playhead__head {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    box-sizing: border-box;
+    background-color: fade(@jt-playhead-color, 35%);
+    border: 1px solid @jt-playhead-color;
+    cursor: ew-resize;
+    z-index: 2;
+
+    &:focus-visible {
+      outline: 2px solid #4a90e2;
+      outline-offset: 1px;
+    }
+  }
+
+  .jt-playhead--dragging {
+    background-color: fade(@jt-playhead-color, 55%);
+  }
+
+  .jt-playhead__line {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 1px;
+    margin-left: -0.5px;
+    background-color: @jt-playhead-color;
+    pointer-events: none;
+    z-index: 2;
+  }
+}

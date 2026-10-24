@@ -13,14 +13,14 @@ import { cleanBody, createContainer } from './layoutFixtures';
 afterEach(cleanBody);
 
 describe('layout epic', () => {
-  it('groups layout.shell and layout.scrollSync', () => {
+  it('groups the shell, scroll sync, ruler and playhead plugins', () => {
     // Act
     const epic = new LayoutPlugin();
 
     // Assert
     expect(epic.id).toBe('layout');
     expect(epic.dependencies).toEqual([]);
-    expect(epic.children.map((child) => child.id)).toEqual(['layout.shell', 'layout.scrollSync']);
+    expect(epic.children.map((child) => child.id)).toEqual(['layout.shell', 'layout.scrollSync', 'layout.ruler', 'layout.playhead']);
   });
 
   it('is part of the default plugin set, initialised before its children', () => {
