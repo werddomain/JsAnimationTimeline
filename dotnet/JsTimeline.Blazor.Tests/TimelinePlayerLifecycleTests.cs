@@ -290,6 +290,35 @@ public sealed class TimelinePlayerLifecycleTests : BunitContext
         Assert.False(await sink.OnPlayerError("render failed"));
     }
 
+    [Fact]
+    public void A_failed_loop_does_not_stop_the_speed_change()
+    {
+        var js = UseFakeJs();
+        js.Player.Handler = (identifier, _) => identifier == "setLoop" ? throw new JSException("loop") : null;
+        var cut = Render<TimelinePlayer>(ps => ps.Add(p => p.Data, Document()).Add(p => p.OnError, (Exception _) => { }));
+
+        cut.Render(ps => ps.Add(p => p.Loop, true).Add(p => p.Speed, 2));
+
+        Assert.Contains("setSpeed", js.Player.Calls);
+    }
+
+    [Fact]
+    public void A_document_that_cannot_be_serialized_at_creation_goes_to_OnError_once()
+    {
+        UseFakeJs();
+        var errors = new List<Exception>();
+        var broken = Document() with
+        {
+            Layers = [new Layer { Id = "l1", Name = "x", Target = new LayerTarget { Selector = "#a", Ref = "b" }, Spans = [] }],
+        };
+
+        var cut = Render<TimelinePlayer>(ps => ps.Add(p => p.Data, broken).Add(p => p.OnError, (Exception e) => errors.Add(e)));
+        cut.Render(ps => ps.Add(p => p.Data, broken).Add(p => p.Loop, true));
+
+        Assert.IsType<System.Text.Json.JsonException>(Assert.Single(errors));
+        Assert.False(cut.Instance.IsReady);
+    }
+
     /// <summary>A parent whose OnError handler re-renders it, like any component method handler.</summary>
     private sealed class PlayerHost : ComponentBase
     {

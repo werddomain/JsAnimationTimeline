@@ -183,8 +183,9 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
         {
             return; // The page or the component is going away: there is nothing left to play on.
         }
-        catch (JSException error)
+        catch (Exception error)
         {
+            // Refused by the player (JSException) or not serializable (JsonException).
             _refusedData = data;
             await ReportAsync(error);
             return;
@@ -253,6 +254,10 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
         var unhandled = new List<Exception>();
         foreach (var error in errors)
         {
+            if (_disposed)
+            {
+                return; // Disposed while a handler ran: the remaining errors no longer matter.
+            }
             if (!OnError.HasDelegate)
             {
                 unhandled.Add(error);
@@ -264,8 +269,13 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
             }
             catch (Exception failure)
             {
-                unhandled.Add(failure);
+                // Keep the original error with the failure of its handler.
+                unhandled.Add(new AggregateException(failure, error));
             }
+        }
+        if (_disposed)
+        {
+            return;
         }
         if (unhandled.Count == 1)
         {
@@ -313,22 +323,27 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
         {
             return;
         }
+        if (loop != _appliedLoop)
+        {
+            await ApplyStepAsync(() => interop.SetLoopAsync(loop), () => _appliedLoop = loop, errors);
+        }
+        if (speed != _appliedSpeed && !_disposed)
+        {
+            await ApplyStepAsync(() => interop.SetSpeedAsync(speed), () => _appliedSpeed = speed, errors);
+        }
+    }
+
+    /// <summary>Runs one call to the player; a failure is collected and does not stop the next call.</summary>
+    private async Task ApplyStepAsync(Func<ValueTask> call, Action applied, List<Exception> errors)
+    {
         try
         {
-            if (loop != _appliedLoop)
-            {
-                await interop.SetLoopAsync(loop);
-                _appliedLoop = loop;
-            }
-            if (speed != _appliedSpeed && !_disposed)
-            {
-                await interop.SetSpeedAsync(speed);
-                _appliedSpeed = speed;
-            }
+            await call();
+            applied();
         }
         catch (Exception error) when (IsTeardown(error))
         {
-            // Disposed or disconnected during a call: the player is gone with it.
+            // Disposed or disconnected during the call: the player is gone with it.
         }
         catch (Exception error)
         {
