@@ -166,23 +166,22 @@ export class EditorStageHost implements IStageRenderer {
       this.syncMissed = true;
       return;
     }
-    // Arrêt de la lecture pendant une retenue : les scènes restent sur l'image d'arrêt.
-    if (stopping && this.holds.size > 0) this.stopPassThrough = true;
+    this.syncMissed = false;
     this.lastSyncPlaying = state.playing;
     this.host.sync(time, state);
+    // Arrêt de la lecture pendant une retenue : les scènes restent sur l'image d'arrêt.
+    this.stopPassThrough = stopping && this.holds.size > 0;
   }
 
   render(time: ITransportTime): void {
     if (this.destroyed || this.host === null) return;
-    if (this.stopPassThrough) {
-      this.stopPassThrough = false;
-      this.host.render(time);
-      return;
-    }
-    if (this.isHeld(this.now().state.playing)) {
+    const passThrough = this.stopPassThrough;
+    this.stopPassThrough = false;
+    if (!passThrough && this.isHeld(this.now().state.playing)) {
       this.renderMissed = true;
       return;
     }
+    this.renderMissed = false;
     this.host.render(time);
   }
 
@@ -272,10 +271,12 @@ export class EditorStageHost implements IStageRenderer {
    */
   private renderNow(): void {
     if (this.destroyed || this.host === null) return;
+    this.stopPassThrough = false;
     if (this.isHeld(this.now().state.playing)) {
       this.renderMissed = true;
       return;
     }
+    this.renderMissed = false;
     this.loading = true;
     try {
       this.host.render(this.now().time);
@@ -291,16 +292,21 @@ export class EditorStageHost implements IStageRenderer {
 
   /**
    * Rattrape ce qui a été retenu, à l'instant courant : `sync` s'il en manque
-   * un, puis `render`. Sans effet si rien n'a été retenu. Un document annoncé
-   * pendant ce rendu est mis en attente comme pendant un chargement.
+   * un, puis `render`. Sans effet si rien n'a été retenu, ni pendant un
+   * chargement ou un rendu en cours (appel depuis une scène ou un
+   * gestionnaire de `stage:report`) : le rattrapage attend alors le prochain
+   * `flush` ou `release`. Un document annoncé pendant ce rendu est mis en
+   * attente comme pendant un chargement, et une liste de cibles manquantes
+   * changée pendant le rendu est annoncée ensuite.
    */
   private catchUp(): void {
-    if (this.destroyed || this.host === null) return;
+    if (this.destroyed || this.host === null || this.loading) return;
     if (!this.syncMissed && !this.renderMissed) return;
     const { time, state } = this.now();
     const needsSync = this.syncMissed;
     this.syncMissed = false;
     this.renderMissed = false;
+    this.stopPassThrough = false;
     this.loading = true;
     try {
       if (needsSync) {
@@ -310,8 +316,9 @@ export class EditorStageHost implements IStageRenderer {
       this.host.render(time);
     } finally {
       this.loading = false;
+      if (this.queued === null) this.announceMissing();
+      this.flushQueued();
     }
-    this.flushQueued();
   }
 
   /** Émet `stage:targetsChanged` si le contenu de `missingTargets` a changé depuis la dernière annonce. */

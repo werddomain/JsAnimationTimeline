@@ -252,3 +252,60 @@ describe('ctx.stage.hold: lifecycle', () => {
     expect(hold.active).toBe(false);
   });
 });
+
+describe('ctx.stage.hold: review follow-ups', () => {
+  it('does not render the stop frame twice when the hold is released after a stop', () => {
+    // Arrange
+    const { editor, stage, clock } = setup();
+    const hold = editor.stage.hold();
+    editor.playback.seek(3);
+    clock.advance(DISPLAY_FRAME_MS);
+    editor.playback.play();
+    clock.advance(DISPLAY_FRAME_MS);
+    editor.playback.pause();
+    clock.advance(DISPLAY_FRAME_MS);
+    const afterStop = stage.log.length;
+
+    // Act
+    hold.release();
+
+    // Assert
+    expect(stage.log.length).toBe(afterStop);
+  });
+
+  it('ignores a flush called during a load (from a stage:report handler) and keeps the render held', () => {
+    // Arrange
+    const { editor, stage } = setup();
+    const hold = editor.stage.hold();
+    editor.on('stage:report', () => hold.flush());
+
+    // Act
+    editor.execute(setTarget('l-tree', { ref: 'tree', stage: 'nope' }, { ref: 'tree', stage: 'fake' }));
+
+    // Assert
+    expect(renders(stage)).toEqual([]);
+    expect(editor.stage.missingTargets).toEqual(['l-tree']);
+    hold.release();
+    expect(renders(stage)).toEqual(['render:1']);
+  });
+
+  it('renders a document loaded while held once the hold is released, even after a stop', () => {
+    // Arrange
+    const { editor, stage, clock } = setup();
+    const hold = editor.stage.hold();
+    editor.execute(deleteLayer('l-hero', editor.document));
+    editor.playback.play();
+    clock.advance(DISPLAY_FRAME_MS);
+    editor.playback.pause();
+    clock.advance(DISPLAY_FRAME_MS);
+    stage.log.length = 0;
+
+    // Act
+    hold.release();
+
+    // Assert
+    expect(renders(stage)).toEqual([]);
+    expect(stage.lastStates.map((state) => state.layerId)).toEqual(['l-tree']);
+  });
+});
+
