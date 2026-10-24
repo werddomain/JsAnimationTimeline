@@ -122,6 +122,26 @@ export type {
   ScrollSyncOptions
 } from './plugins/layout';
 
+// Plugins des calques (epic `layers`) : liste des calques et contrôles de ligne.
+export {
+  LAYERS_LIST_PLUGIN_ID,
+  LAYER_LIST_CLASSES,
+  LAYER_ROW_CLASSES,
+  LayerListPlugin,
+  LayersPlugin,
+  NAME_EDITING_ATTRIBUTE,
+  createSetCollapsedCommand,
+  createToggleCollapsedCommand,
+  updateLayerNode
+} from './plugins/layers';
+export type {
+  ILayerListService,
+  ILayerRow,
+  ILayerRowControl,
+  LayerNodeUpdater,
+  LayerRowsChangedEvent
+} from './plugins/layers';
+
 // Plugin interaction.shortcuts (raccourcis clavier déclarés par les plugins).
 export { SHORTCUTS_PLUGIN_ID, ShortcutError, createShortcutsPlugin } from './plugins/interaction/shortcuts';
 export type {
