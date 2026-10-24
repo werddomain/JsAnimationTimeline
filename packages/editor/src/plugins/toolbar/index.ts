@@ -25,6 +25,7 @@ export type {
 export {
   MAX_FPS,
   MIN_FPS,
+  MAX_TOTAL_FRAMES,
   MIN_TOTAL_FRAMES,
   TIME_SETTINGS_PLUGIN_ID,
   TimeSettingsLabels,

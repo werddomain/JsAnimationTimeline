@@ -68,6 +68,11 @@ describe('collapse commands', () => {
     expect(createSetCollapsedCommand(source, 'f', true).do(source)).toBe(source);
   });
 
+  it('treats a missing collapsed field as expanded (no change, same document)', () => {
+    const source = doc([folder('f', [layer('a')])]);
+    expect(createSetCollapsedCommand(source, 'f', false).do(source)).toBe(source);
+  });
+
   it('toggles from the resolved state (missing = expanded)', () => {
     const source = doc([folder('f', [layer('a')]), folder('g', [], { collapsed: true })]);
     const collapse = createToggleCollapsedCommand(source, 'f');

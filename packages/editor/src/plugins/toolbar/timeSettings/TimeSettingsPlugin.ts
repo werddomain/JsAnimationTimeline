@@ -16,10 +16,12 @@
  */
 
 import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { CANCELLED_REASON } from '../../../core/commands/commandEvents';
 import type { ICommand } from '../../../core/commands/ICommand';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import {
   MAX_FPS,
+  MAX_TOTAL_FRAMES,
   MIN_FPS,
   MIN_TOTAL_FRAMES,
   createSetFpsCommand,
@@ -60,10 +62,17 @@ const FIELDS: readonly IFieldSpec[] = [
     label: 'Durée',
     unit: 'images',
     min: MIN_TOTAL_FRAMES,
+    max: MAX_TOTAL_FRAMES,
     read: (doc) => doc.settings.totalFrames,
     command: createSetTotalFramesCommand
   }
 ];
+
+/** Motif affiché quand un plugin a opposé un veto (`command:before`) à la modification. */
+export const CANCELLED_MESSAGE = 'La modification a été refusée par un autre module de l\'éditeur.';
+
+/** Compteur des identifiants de la zone de message (un par contrôle rendu). */
+let messageCount = 0;
 
 /** Un champ rendu et sa description. */
 interface IField {
@@ -94,7 +103,8 @@ export class TimeSettingsPlugin implements EditorPlugin {
       ctx.events.on('document:loaded', sync),
       ctx.events.on('document:changed', sync),
       ctx.events.on('command:refused', (event) => {
-        if (event.command === this.pending) this.refusal = event.reason;
+        if (event.command !== this.pending) return;
+        this.refusal = event.reason === CANCELLED_REASON ? CANCELLED_MESSAGE : event.reason;
       })
     ];
     this.ctx = ctx;
@@ -125,12 +135,17 @@ export class TimeSettingsPlugin implements EditorPlugin {
 
   private renderControl(element: HTMLElement): () => void {
     element.classList.add(TIME_SETTINGS_CLASS);
-    this.fields = FIELDS.map((spec) => this.renderField(element, spec));
+    messageCount += 1;
+    const messageId = `${TIME_SETTINGS_CLASS}-message-${messageCount}`;
+    this.fields = FIELDS.map((spec) => this.renderField(element, spec, messageId));
+    // Zone toujours présente (vide quand tout va bien) : un lecteur d'écran
+    // annonce le texte qui y apparaît, ce qu'il ne ferait pas pour une zone
+    // affichée au même moment.
     const message = element.ownerDocument.createElement('span');
+    message.id = messageId;
     message.classList.add(`${TIME_SETTINGS_CLASS}__message`);
     message.setAttribute('role', 'status');
     message.setAttribute('aria-live', 'polite');
-    message.hidden = true;
     element.appendChild(message);
     this.message = message;
     this.syncFields();
@@ -140,7 +155,7 @@ export class TimeSettingsPlugin implements EditorPlugin {
     };
   }
 
-  private renderField(host: HTMLElement, spec: IFieldSpec): IField {
+  private renderField(host: HTMLElement, spec: IFieldSpec, messageId: string): IField {
     const doc = host.ownerDocument;
     const label = doc.createElement('label');
     label.classList.add(`${TIME_SETTINGS_CLASS}__field`);
@@ -153,6 +168,7 @@ export class TimeSettingsPlugin implements EditorPlugin {
     input.min = String(spec.min);
     if (spec.max !== undefined) input.max = String(spec.max);
     input.dataset.setting = spec.name;
+    input.setAttribute('aria-describedby', messageId);
     const unit = doc.createElement('span');
     unit.classList.add(`${TIME_SETTINGS_CLASS}__unit`);
     unit.textContent = spec.unit;
@@ -186,7 +202,7 @@ export class TimeSettingsPlugin implements EditorPlugin {
     } finally {
       this.pending = null;
     }
-    this.showMessage(this.refusal);
+    this.showMessage(this.refusal, field);
     this.syncFields();
   }
 
@@ -199,10 +215,14 @@ export class TimeSettingsPlugin implements EditorPlugin {
     });
   }
 
-  private showMessage(text: string | undefined): void {
+  /** Affiche `text` (ou efface le message) ; marque `field` invalide pendant que le motif est affiché. */
+  private showMessage(text: string | undefined, field?: IField): void {
     if (this.message === null) return;
     this.message.textContent = text ?? '';
-    this.message.hidden = text === undefined;
+    this.fields.forEach(({ input }) => {
+      if (text !== undefined && input === field?.input) input.setAttribute('aria-invalid', 'true');
+      else input.removeAttribute('aria-invalid');
+    });
   }
 }
 
