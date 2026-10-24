@@ -25,13 +25,27 @@ import { slicePiece } from './spanPieces';
 import { FRAME_CLIP_FORMAT, FRAME_CLIP_VERSION } from './types';
 import type { IClipRow, IClipRun, IClipSpan, IFrameClip } from './types';
 
-/** Fige `value` et tout ce qu'il contient (objets et tableaux), puis le retourne. */
-function deepFreeze<T>(value: T): T {
-  if (typeof value === 'object' && value !== null && !Object.isFrozen(value)) {
-    Object.freeze(value);
-    Object.values(value).forEach((child) => deepFreeze(child));
+/**
+ * Copie figée en profondeur de `value` (objets simples et tableaux) : le
+ * presse-papiers ne garde aucune référence vers les objets du document.
+ */
+function frozenCopy<T>(value: T): T {
+  if (typeof value !== 'object' || value === null) return value;
+  const copy: unknown = Array.isArray(value)
+    ? value.map((item: unknown) => frozenCopy(item))
+    : Object.fromEntries(Object.entries(value).map(([key, item]) => [key, frozenCopy(item)]));
+  return Object.freeze(copy) as T;
+}
+
+/** Plus petite et plus grande valeur de `values` (boucle : pas de limite de pile sur une grande sélection). */
+function bounds(values: readonly number[]): { readonly min: number; readonly max: number } {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const value of values) {
+    if (value < min) min = value;
+    if (value > max) max = value;
   }
-  return value;
+  return { min, max };
 }
 
 /** Plage en images relatives (la première image copiée devient l'image 1). */
@@ -84,7 +98,7 @@ function sourcesOf(
 }
 
 function rowsOf(sources: readonly IRunSource[], firstFrame: number, registry: PropertyRegistry): IClipRow[] {
-  const firstRow = Math.min(...sources.map((source) => source.rowIndex));
+  const firstRow = bounds(sources.map((source) => source.rowIndex)).min;
   const byRow = new Map<number, IClipRun[]>();
   sources.forEach((source) => {
     const run: IClipRun = {
@@ -92,7 +106,9 @@ function rowsOf(sources: readonly IRunSource[], firstFrame: number, registry: Pr
       length: source.last - source.first + 1,
       spans: extractSpans(source.layer, source.first, source.last, registry)
     };
-    byRow.set(source.rowIndex, [...(byRow.get(source.rowIndex) ?? []), run]);
+    const runs = byRow.get(source.rowIndex);
+    if (runs === undefined) byRow.set(source.rowIndex, [run]);
+    else runs.push(run);
   });
   return [...byRow.entries()]
     .sort(([a], [b]) => a - b)
@@ -112,9 +128,9 @@ export function buildClip(
 ): IFrameClip | undefined {
   const sources = sourcesOf(doc, rows, cells);
   if (sources.length === 0) return undefined;
-  const firstFrame = Math.min(...sources.map((source) => source.first));
-  const lastFrameCopied = Math.max(...sources.map((source) => source.last));
-  return deepFreeze<IFrameClip>({
+  const firstFrame = bounds(sources.map((source) => source.first)).min;
+  const lastFrameCopied = bounds(sources.map((source) => source.last)).max;
+  return frozenCopy<IFrameClip>({
     format: FRAME_CLIP_FORMAT,
     version: FRAME_CLIP_VERSION,
     width: lastFrameCopied - firstFrame + 1,

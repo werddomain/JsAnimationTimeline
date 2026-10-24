@@ -204,4 +204,15 @@ describe('buildClip', () => {
     // Assert
     expect(clip?.rows[0].runs[0].spans[0].tracks).not.toBe(doc.layers[2].type === 'layer' ? doc.layers[2].spans[0].tracks : undefined);
   });
+
+  it('copies the keyframes instead of keeping the document objects', () => {
+    // Act
+    const clip = buildClip(doc, rows, cells('a', 1, 10), registry);
+    const sourceKeyframes = doc.layers[0].type === 'layer' ? doc.layers[0].spans.flatMap((span) => span.tracks?.x ?? []) : [];
+    const copied = clip?.rows[0].runs[0].spans.flatMap((span) => span.tracks?.x ?? []) ?? [];
+
+    // Assert : aucune image clé copiée n'est un objet du document.
+    expect(copied.length).toBeGreaterThan(0);
+    expect(copied.some((keyframe) => sourceKeyframes.includes(keyframe))).toBe(false);
+  });
 });

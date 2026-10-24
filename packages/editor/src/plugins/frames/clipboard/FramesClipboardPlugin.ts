@@ -28,7 +28,16 @@
  * Le contenu vit seulement dans la mémoire du plugin : l'API asynchrone du
  * presse-papiers du système ne se lit pas de façon synchrone dans un
  * raccourci, et n'existe pas dans jsdom. Le contenu est du JSON pur : E1
- * pourra le recopier dans le presse-papiers du système.
+ * pourra le recopier dans le presse-papiers du système. Il ne vient
+ * aujourd'hui que du document (déjà validé) : un contenu lu de l'extérieur
+ * devra d'abord être validé (forme, bornes des images, noms de propriétés
+ * du registre, taille), car le collage lui fait confiance.
+ *
+ * Interpolation accélérée : couper une interpolation (bords d'une copie ou
+ * d'un collage) garde son accélération sur chaque morceau. Les images entre
+ * les bords coupés sont alors relues à leur position accélérée, y compris
+ * sur les morceaux restants autour d'un collage (même limite que F6 ; exact
+ * avec `linear`).
  *
  * Pas de Ctrl+X : couper demande une opération « effacer des images » que le
  * cœur de plages (K1) n'a pas encore.

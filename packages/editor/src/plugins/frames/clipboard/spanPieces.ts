@@ -36,8 +36,10 @@ function withEdgeKeyframes(
   const next: Record<string, PropertyTracks[string]> = { ...tracks };
   names.forEach((name) => {
     const track = next[name] ?? [];
-    if (track.some((keyframe) => keyframe.frame === frame)) return;
-    next[name] = [...track, { frame, value: values[name] }].sort((a, b) => a.frame - b.frame);
+    const value = values[name];
+    // Propriété sans valeur évaluée (inconnue du registre) : pas d'image clé inventée.
+    if (value === undefined || track.some((keyframe) => keyframe.frame === frame)) return;
+    next[name] = [...track, { frame, value }].sort((a, b) => a.frame - b.frame);
   });
   return Object.keys(next).length > 0 ? next : undefined;
 }
