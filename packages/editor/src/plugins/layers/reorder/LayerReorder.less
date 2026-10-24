@@ -8,7 +8,9 @@
     position: relative;
   }
 
-  // Sans cela, le navigateur garde le geste tactile pour le défilement et le glisser ne démarre pas.
+  // Sans cela, le navigateur garde le geste tactile pour le défilement et le glisser au doigt ne démarre
+  // pas. Contrepartie : on ne peut plus faire défiler la liste en balayant sur une ligne (molette, barre
+  // de défilement et clavier restent possibles).
   .jt-layer-row {
     touch-action: none;
   }

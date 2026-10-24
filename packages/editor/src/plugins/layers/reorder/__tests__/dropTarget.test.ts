@@ -144,6 +144,13 @@ describe('keyboardMoveTarget', () => {
     expect(keyboardMoveTarget(data, rows, ['h'], 'up')).toEqual({ index: 1 });
   });
 
+  it('enters an expanded empty folder when moving up onto it, but not a collapsed one', () => {
+    expect(keyboardMoveTarget(data, rows, ['k'], 'up')).toEqual({ parentId: 'h', index: 0 });
+    const collapsed = doc([folder('p', [], { collapsed: true }), layer('x')]);
+
+    expect(keyboardMoveTarget(collapsed, visibleRows(collapsed), ['x'], 'up')).toEqual({ index: 0 });
+  });
+
   it('leaves a folder upward when the previous row is the parent', () => {
     expect(keyboardMoveTarget(data, rows, ['a'], 'up')).toEqual({ index: 0 });
     expect(keyboardMoveTarget(data, rows, ['b'], 'up')).toEqual({ parentId: 'f', index: 1 });
@@ -154,7 +161,9 @@ describe('keyboardMoveTarget', () => {
   });
 
   it('moves down after the next sibling and enters an expanded folder first', () => {
-    expect(keyboardMoveTarget(data, rows, ['c'], 'down')).toEqual({ index: 3 });
+    // h est un dossier déplié vide : on y entre (nouveau dossier = vide).
+    expect(keyboardMoveTarget(data, rows, ['c'], 'down')).toEqual({ parentId: 'h', index: 0 });
+    expect(keyboardMoveTarget(data, rows, ['h'], 'down')).toEqual({ index: 4 });
     expect(keyboardMoveTarget(data, rows, ['a'], 'down')).toEqual({ parentId: 'g', index: 0 });
   });
 

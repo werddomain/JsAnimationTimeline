@@ -8,7 +8,10 @@
  *
  * Réorganisation des calques et des dossiers par glisser-déposer : une
  * ligne glissée monte ou descend, entre dans un dossier ou en sort, en une
- * seule commande annulable `Déplacer les calques`. Les calques verrouillés
+ * seule commande annulable `Déplacer les calques`. Le CSS met `touch-action:
+ * none` sur les lignes pour permettre le glisser au doigt ; en contrepartie, le
+ * défilement tactile par balayage ne marche pas sur la liste (molette, barre
+ * de défilement et clavier restent possibles). Les calques verrouillés
  * peuvent être déplacés : le verrou protège les images, pas leur place dans
  * la liste.
  *
@@ -19,7 +22,8 @@
  * avant (après) elle ; sur le milieu d'un dossier : dedans, en premier
  * enfant ; sous la dernière ligne : à la fin du premier niveau. Échap annule.
  *
- * Clavier : Ctrl+Alt+Haut / Bas déplace la sélection (ou la ligne qui a le
+ * Clavier : Ctrl+Alt+Haut / Bas (ou Cmd+Alt, car Ctrl+Alt est le modificateur
+ * de VoiceOver sous macOS) déplace la sélection (ou la ligne qui a le
  * focus) d'une ligne, en entrant dans un dossier ou en en sortant au bord
  * (voir `keyboardMove`). Le résultat est annoncé dans une zone `aria-live`
  * polie, propre au plugin et retirée à la destruction.
@@ -123,7 +127,7 @@ export class LayerReorderPlugin implements EditorPlugin {
   /** Ctrl+Alt+Haut / Bas : déplace la sélection (ou la ligne focalisée) d'une ligne. */
   private onKeyDown(event: KeyboardEvent): void {
     const direction = KEY_DIRECTIONS[event.key];
-    if (direction === undefined || !event.ctrlKey || !event.altKey || event.shiftKey || event.defaultPrevented) return;
+    if (direction === undefined || !(event.ctrlKey || event.metaKey) || !event.altKey || event.shiftKey || event.defaultPrevented) return;
     const list = this.requireList();
     const selection = this.requireSelection();
     const rowId = list.rowIdAt(event.target);

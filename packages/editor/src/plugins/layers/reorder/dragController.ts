@@ -33,6 +33,8 @@ export const DRAG_THRESHOLD = 4;
 export const CLICK_SUPPRESSION_MS = 50;
 
 const PRIMARY_BUTTON = 0;
+/** Bit de `event.buttons` du bouton principal. */
+const PRIMARY_BUTTONS_MASK = 1;
 /** Éléments sur lesquels un appui ne démarre pas de glisser : contrôles, repli, saisie. */
 const IGNORED_SELECTOR = [
   `.${LAYER_ROW_CLASSES.control}`,
@@ -67,6 +69,8 @@ interface IDragSession {
   stop: () => void;
   /** Retire l'écouteur de Échap (dès l'annulation : Échap redevient libre). */
   stopKey: () => void;
+  /** Retire l'écouteur de `lostpointercapture` (posé au démarrage du glisser). */
+  stopLost: () => void;
 }
 
 /** Contrôleur du glisser-déposer des lignes, attaché à l'élément de la liste. */
@@ -126,11 +130,18 @@ export class DragController {
     doc.addEventListener('pointerup', onEnd);
     doc.addEventListener('pointercancel', onEnd);
     doc.addEventListener('keydown', onKey, true);
+    // Le relâchement peut ne jamais arriver (menu contextuel, fenêtre qui perd le focus) : on abandonne alors.
+    const onAbort = (): void => this.endSession();
+    const win = doc.defaultView;
+    doc.addEventListener('contextmenu', onAbort);
+    win?.addEventListener('blur', onAbort);
     const stopKey = (): void => doc.removeEventListener('keydown', onKey, true);
     const stop = (): void => {
       doc.removeEventListener('pointermove', onMove);
       doc.removeEventListener('pointerup', onEnd);
       doc.removeEventListener('pointercancel', onEnd);
+      doc.removeEventListener('contextmenu', onAbort);
+      win?.removeEventListener('blur', onAbort);
       stopKey();
     };
     this.session = {
@@ -145,13 +156,20 @@ export class DragController {
       dragged: [],
       indicator: undefined,
       stop,
-      stopKey
+      stopKey,
+      stopLost: () => undefined
     };
   };
 
   private onPointerMove(event: PointerEvent): void {
     const session = this.session;
-    if (session === undefined || event.pointerId !== session.pointerId || session.cancelled) return;
+    if (session === undefined || event.pointerId !== session.pointerId) return;
+    // Plus de bouton enfoncé : le relâchement a été perdu, ce survol ne doit pas démarrer ni poursuivre un glisser.
+    if ((event.buttons & PRIMARY_BUTTONS_MASK) === 0) {
+      this.endSession();
+      return;
+    }
+    if (session.cancelled) return;
     if (!session.started) {
       const distance = Math.hypot(event.clientX - session.startX, event.clientY - session.startY);
       if (distance < DRAG_THRESHOLD) return;
@@ -173,7 +191,11 @@ export class DragController {
     this.endSession();
     // Pas de clic après un `pointercancel` ; après un relâchement, le navigateur en envoie un.
     if (event.type === 'pointerup') this.armClickSuppression();
-    if (drop && placement !== undefined) this.deps.move(ids, toDropTarget(placement));
+    if (drop && placement !== undefined && this.deps.move(ids, toDropTarget(placement))) {
+      // Comme au clavier : le focus suit la première ligne déplacée (ses éléments ont été réordonnés).
+      const first = ids[0];
+      if (first !== undefined) this.deps.list.rowElement(first)?.focus({ preventScroll: true });
+    }
   }
 
   private onKeyDown(event: KeyboardEvent): void {
@@ -198,6 +220,9 @@ export class DragController {
     session.indicator = new DropIndicator(list, element);
     session.dragged = this.markDragged(session.ids);
     element.classList.add(REORDER_CLASSES.listDragging);
+    const onLost = (): void => this.endSession();
+    element.addEventListener('lostpointercapture', onLost);
+    session.stopLost = () => element.removeEventListener('lostpointercapture', onLost);
     try {
       element.setPointerCapture?.(session.pointerId);
     } catch {
@@ -245,6 +270,8 @@ export class DragController {
   private teardownVisuals(session: IDragSession): void {
     session.dragged.forEach((element) => element.classList.remove(REORDER_CLASSES.dragging));
     session.dragged = [];
+    // Avant de relâcher la capture : ce relâchement ne doit pas finir la session (annulation par Échap).
+    session.stopLost();
     session.indicator?.destroy();
     session.indicator = undefined;
     session.placement = undefined;

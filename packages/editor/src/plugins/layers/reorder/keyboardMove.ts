@@ -4,6 +4,7 @@
  * destination de la sélection à partir des lignes visibles, sans souris.
  *
  * Une « case » est une ligne visible, avec ces règles :
+ * - dossier déplié vide (Haut : frère précédent ; Bas : ligne suivante) : on y entre ;
  * - Haut : avant la ligne qui précède la première ligne de tête ; si c'est
  *   le dossier parent, on sort au-dessus de lui ; si c'est le dernier
  *   descendant d'un dossier déplié, on y entre en dernier ;
@@ -13,6 +14,7 @@
  * - au bord de la liste, au premier niveau : aucun déplacement.
  */
 
+import { findNodeById, isFolder, resolveCollapsed } from '@werddomain/timeline-runtime';
 import type { ITimelineDocument } from '@werddomain/timeline-runtime';
 import type { IVisibleRow } from '../../../model/rows';
 import { computeDropTarget, toDropTarget } from './dropTarget';
@@ -30,6 +32,14 @@ function placeOrUndefined(placement: ILayerDropTarget | undefined): ILayerDropTa
   return placement === undefined ? undefined : toDropTarget(placement);
 }
 
+/** `{ parentId: row.id, index: 0 }` si `row` est un dossier déplié vide (un dossier neuf l'est : sans cela on ne pourrait jamais y entrer). */
+function emptyFolderTarget(doc: ITimelineDocument, row: IVisibleRow): ILayerDropTarget | undefined {
+  const node = findNodeById(doc.layers, row.id);
+  return node !== undefined && isFolder(node) && !resolveCollapsed(node) && node.children.length === 0
+    ? { parentId: row.id, index: 0 }
+    : undefined;
+}
+
 /** Juste avant (`offset` 0) ou juste après (`offset` 1) le dossier `folderId`. */
 function aroundFolder(doc: ITimelineDocument, folderId: string, offset: 0 | 1): ILayerDropTarget | undefined {
   const location = findNodeLocation(doc.layers, folderId);
@@ -42,7 +52,9 @@ function upTarget(doc: ITimelineDocument, rows: readonly IVisibleRow[], firstId:
   const previous = rows[index - 1];
   if (own === undefined || previous === undefined) return undefined;
   if (previous.id === own.parentId) return aroundFolder(doc, previous.id, 0);
-  if (previous.parentId === own.parentId) return placeOrUndefined(computeDropTarget(doc, previous, 0));
+  if (previous.parentId === own.parentId) {
+    return emptyFolderTarget(doc, previous) ?? placeOrUndefined(computeDropTarget(doc, previous, 0));
+  }
   // Dernier descendant d'un dossier déplié : on y entre, à la fin.
   const location = findNodeLocation(doc.layers, previous.id);
   return location === undefined ? undefined : withParent(location.parentId, location.index + 1);
@@ -58,7 +70,8 @@ function downTarget(doc: ITimelineDocument, rows: readonly IVisibleRow[], lastId
   if (own.parentId !== undefined && following?.parentId !== own.parentId) {
     return aroundFolder(doc, own.parentId, 1);
   }
-  return following === undefined ? undefined : placeOrUndefined(computeDropTarget(doc, following, 1));
+  if (following === undefined) return undefined;
+  return emptyFolderTarget(doc, following) ?? placeOrUndefined(computeDropTarget(doc, following, 1));
 }
 
 /**

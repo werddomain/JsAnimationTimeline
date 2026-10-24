@@ -89,7 +89,9 @@ interface IPointerInit extends MouseEventInit {
 /** Événement pointeur : jsdom n'a pas `PointerEvent`, on ajoute `pointerId` et `isPrimary` à un événement souris. */
 function pointer(type: string, clientY: number, init: IPointerInit = {}): PointerEvent {
   const { pointerId = 1, isPrimary = true, ...mouse } = init;
-  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: 10, clientY, button: 0, ...mouse });
+  // Bouton principal enfoncé (buttons = 1), sauf au relâchement ou à l'annulation.
+  const buttons = type === 'pointerup' || type === 'pointercancel' ? 0 : 1;
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: 10, clientY, button: 0, buttons, ...mouse });
   Object.defineProperties(event, { pointerId: { value: pointerId }, isPrimary: { value: isPrimary } });
   return event as PointerEvent;
 }
@@ -422,6 +424,100 @@ describe('click versus drag', () => {
   });
 });
 
+describe('lost button release', () => {
+  it('cancels the press when a hover move arrives with no button held (pointerup was lost)', () => {
+    const h = setup();
+    press(h, 'c', y(4));
+
+    document.dispatchEvent(pointer('pointermove', y(1, 0.1), { buttons: 0 }));
+    moveTo(y(1, 0.1));
+    release(y(1, 0.1));
+
+    expect(draggingIds(h)).toEqual([]);
+    expect(dropLine()).toBeNull();
+    expect(h.editor.document).toBe(tree);
+  });
+
+  it('ends a started drag when a move arrives with no button held, without moving anything', () => {
+    const h = setup();
+    press(h, 'c', y(4));
+    moveTo(y(1, 0.1));
+
+    document.dispatchEvent(pointer('pointermove', y(0, 0.1), { buttons: 0 }));
+
+    expect(draggingIds(h)).toEqual([]);
+    expect(dropLine()).toBeNull();
+    expect(h.editor.document).toBe(tree);
+  });
+
+  it('ends the press on contextmenu', () => {
+    const h = setup();
+    press(h, 'c', y(4));
+
+    document.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    moveTo(y(1, 0.1));
+    release(y(1, 0.1));
+
+    expect(draggingIds(h)).toEqual([]);
+    expect(h.editor.document).toBe(tree);
+  });
+
+  it('ends a started drag on window blur', () => {
+    const h = setup();
+    press(h, 'c', y(4));
+    moveTo(y(1, 0.1));
+
+    window.dispatchEvent(new Event('blur'));
+    release(y(1, 0.1));
+
+    expect(draggingIds(h)).toEqual([]);
+    expect(dropLine()).toBeNull();
+    expect(h.editor.document).toBe(tree);
+  });
+
+  it('ends a started drag on lostpointercapture, but not a press that never started', () => {
+    const h = setup();
+    const element = h.list.element();
+    press(h, 'a', y(1));
+    element?.dispatchEvent(new Event('lostpointercapture'));
+    moveTo(y(5, 0.9));
+    const started = draggingIds(h).length > 0;
+    release(y(5, 0.9));
+    press(h, 'c', y(4));
+    moveTo(y(1, 0.1));
+
+    element?.dispatchEvent(new Event('lostpointercapture'));
+    release(y(1, 0.1));
+
+    expect(started).toBe(true);
+    expect(draggingIds(h)).toEqual([]);
+    expect(h.editor.document.layers).not.toBe(tree.layers);
+    expect(show(h.editor.document.layers)).toBe('f(g(b)),c,d,a');
+  });
+
+  it('removes the extra listeners after a normal drop', () => {
+    const h = setup();
+    dragRow(h, 'c', y(1, 0.1));
+    const before = show(h.editor.document.layers);
+
+    window.dispatchEvent(new Event('blur'));
+    document.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+
+    expect(show(h.editor.document.layers)).toBe(before);
+  });
+});
+
+describe('after a mouse drop', () => {
+  it('focuses the first moved row, like the keyboard path', () => {
+    const h = setup();
+    h.selection.select(['a', 'c'], 'replace');
+
+    dragRow(h, 'c', y(5, 0.9));
+
+    expect(document.activeElement).toBe(row(h, 'a'));
+  });
+});
+
 describe('click suppression and Escape details', () => {
   it('swallows the click after a drop below the last row, so the empty-area click does not clear the selection', () => {
     const h = setup();
@@ -632,6 +728,17 @@ describe('keyboard', () => {
 
     row(h, 'c').dispatchEvent(key('ArrowDown'));
 
+    expect(show(h.editor.document.layers)).toBe('f(a,g(b)),d,c');
+  });
+
+  it('also accepts Meta+Alt+Up/Down (Ctrl+Alt is the VoiceOver modifier on macOS)', () => {
+    const h = setup();
+    h.selection.select(['c'], 'replace');
+
+    const event = key('ArrowDown', { ctrlKey: false, metaKey: true });
+    row(h, 'c').dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
     expect(show(h.editor.document.layers)).toBe('f(a,g(b)),d,c');
   });
 
