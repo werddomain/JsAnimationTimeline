@@ -59,8 +59,20 @@ import './zoomEvents';
 export const WHEEL_STEP_PX = 50;
 /** Pause après laquelle le mouvement de molette cumulé est oublié, en millisecondes. */
 export const WHEEL_IDLE_MS = 300;
+/** Lignes d'un cran de molette usuel (Firefox : 3 lignes). */
+export const WHEEL_NOTCH_LINES = 3;
 /** `WheelEvent.DOM_DELTA_PIXEL`. */
 const WHEEL_DELTA_PIXEL = 0;
+/** `WheelEvent.DOM_DELTA_LINE`. */
+const WHEEL_DELTA_LINE = 1;
+/** Marge d'arrondi sur un cumul de fractions (8 × 0,375 ligne = 3 lignes). */
+const EPSILON_WHEEL = 1e-9;
+
+/** Mouvement cumulé qui fait un palier, dans l'unité `deltaMode`. */
+function wheelThreshold(deltaMode: number): number {
+  if (deltaMode === WHEEL_DELTA_PIXEL) return WHEEL_STEP_PX;
+  return deltaMode === WHEEL_DELTA_LINE ? WHEEL_NOTCH_LINES : 1;
+}
 /** Événements du pincement de Safari. */
 const GESTURE_EVENTS: readonly string[] = ['gesturestart', 'gesturechange', 'gestureend'];
 
@@ -137,7 +149,8 @@ function assertZoom(value: number, name: string): void {
 /**
  * Options vérifiées : bornes cohérentes ; paliers triés et limités aux
  * bornes (`levels()` ne propose jamais une valeur que `setZoom` bornerait),
- * au moins un.
+ * au moins un (sans paliers donnés et hors des paliers par défaut, les
+ * bornes elles-mêmes ; avec des paliers donnés, une `RangeError`).
  */
 function resolveOptions(options: ZoomOptions): { range: IZoomRange; levels: readonly number[]; initial: number } {
   const min = options.minZoom ?? DEFAULT_MIN_ZOOM;
@@ -149,10 +162,12 @@ function resolveOptions(options: ZoomOptions): { range: IZoomRange; levels: read
   if (min > max) throw new RangeError(`layout.zoom : minZoom (${min}) dépasse maxZoom (${max}).`);
   const given = options.levels ?? DEFAULT_ZOOM_LEVELS;
   given.forEach((level) => assertZoom(level, 'palier'));
-  const levels = given.filter((level) => level >= min && level <= max).sort((a, b) => a - b);
-  if (levels.length === 0) {
+  const inBounds = given.filter((level) => level >= min && level <= max).sort((a, b) => a - b);
+  if (inBounds.length === 0 && options.levels !== undefined) {
     throw new RangeError(`layout.zoom : aucun palier entre minZoom (${min}) et maxZoom (${max}).`);
   }
+  // Bornes seules, sans paliers donnés, hors des paliers par défaut : les bornes servent de paliers.
+  const levels = inBounds.length > 0 ? inBounds : Array.from(new Set([min, max]));
   const range = { min, max };
   return { range, levels: Object.freeze(levels), initial: clampZoom(initial, range) };
 }
@@ -280,13 +295,15 @@ export class ZoomPlugin implements EditorPlugin {
   }
 
   /**
-   * Ctrl / Cmd + molette, ancré sous le pointeur. Le mouvement est cumulé
-   * dans l'unité de l'événement ; un palier part dès que le cumul atteint :
-   * - en lignes ou en pages : 1 ligne ou 1 page (un cran de souris, 3 lignes
-   *   dans Firefox, fait toujours un palier ; des fractions de ligne, roues
-   *   fines ou anciens Firefox, s'additionnent) ;
-   * - en pixels : `WHEEL_STEP_PX` (plusieurs petits mouvements de pincement
-   *   d'un pavé tactile).
+   * Ctrl / Cmd + molette, ancré sous le pointeur : un cran de souris fait un
+   * palier, qu'il arrive en un événement ou découpé en fractions.
+   * - En lignes : un événement d'au moins 1 ligne (le cran de 3 lignes de
+   *   Firefox) fait un palier tout de suite ; des fractions de ligne (roues
+   *   fines, anciens Firefox) s'additionnent jusqu'à `WHEEL_NOTCH_LINES`,
+   *   soit un cran entier.
+   * - En pages : un palier par page, fractions additionnées.
+   * - En pixels : un palier par `WHEEL_STEP_PX` cumulés (pincement d'un pavé
+   *   tactile).
    * Le cumul repart de zéro au changement de sens ou d'unité, après chaque
    * palier et après `WHEEL_IDLE_MS` sans mouvement.
    */
@@ -295,13 +312,17 @@ export class ZoomPlugin implements EditorPlugin {
     event.preventDefault();
     const idle = event.timeStamp - this.lastWheel > WHEEL_IDLE_MS;
     this.lastWheel = event.timeStamp;
+    const direction = event.deltaY < 0 ? 1 : -1;
+    if (event.deltaMode === WHEEL_DELTA_LINE && Math.abs(event.deltaY) >= 1) {
+      this.wheelTotal = 0;
+      this.step(direction, event.clientX);
+      return;
+    }
     const sameRun =
       !idle && event.deltaMode === this.wheelMode && Math.sign(event.deltaY) === Math.sign(this.wheelTotal);
     this.wheelMode = event.deltaMode;
     this.wheelTotal = (sameRun ? this.wheelTotal : 0) + event.deltaY;
-    const threshold = event.deltaMode === WHEEL_DELTA_PIXEL ? WHEEL_STEP_PX : 1;
-    if (Math.abs(this.wheelTotal) < threshold) return;
-    const direction = this.wheelTotal < 0 ? 1 : -1;
+    if (Math.abs(this.wheelTotal) < wheelThreshold(event.deltaMode) - EPSILON_WHEEL) return;
     this.wheelTotal = 0;
     this.step(direction, event.clientX);
   }
