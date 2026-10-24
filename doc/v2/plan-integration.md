@@ -91,14 +91,14 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **L3** | 3 | 8 | Plugin `layout.zoom` (largeur d'image variable, événement `zoom:changed`) | L2 | T4 | `plugins/layout/zoom/` | ☑ |
 | **Y0** | 3 | 2 | **Contrat** : modèle des lignes visibles partagé par la liste des calques et la grille (`visibleRows(doc)` en ordre d'affichage, dossiers repliés exclus, `IVisibleRow`, `ROW_HEIGHT`, `DEFAULT_FRAME_WIDTH`) | F05 | Y1, G1 | `packages/editor/src/model/rows/` | ☑ |
 | **Y1** | 3 | 5 | Plugin `layers.list` : arbre des calques **avec une API d'emplacements de contrôles par ligne** (pour que Y2 à Y4 travaillent en parallèle) | L1, Y0 | Y2, Y3, Y4, Y5 | `plugins/layers/list/` | ☑ |
-| **Y2** | 3 | 6 | Plugins `layers.rename`, `layers.visibility`, `layers.lock` (commandes + contrôles de ligne) | Y1 | E1 | `plugins/layers/rename|visibility|lock/` | ☐ |
+| **Y2** | 3 | 6 | Plugins `layers.rename`, `layers.visibility`, `layers.lock` (commandes + contrôles de ligne) | Y1 | E1 | `plugins/layers/rename|visibility|lock/` | ☑ |
 | **Y3** | 3 | 6 | Plugins `layers.color` + `layers.icon` | Y1 | E1 | `plugins/layers/color|icon/` | ☐ |
 | **Y4** | 3 | 8 | Plugin `layers.target` : choix de la cible proposé par la scène (liste, `pick`), saisie libre d'un sélecteur CSS ou d'une `ref`, commande annulable, alerte de cible manquante | Y1, C7 | E1 | `plugins/layers/target/` | ☐ |
 | **Y5** | 3 | 6 | Plugin `layers.selection` (sélection multiple Ctrl / Maj) | Y1 | Y6, Y7, S1 | `plugins/layers/selection/` | ☑ |
 | **Y6** | 3 | 7 | Plugin `layers.reorder` (glisser-déposer, entrer/sortir d'un dossier) | Y5 | E1 | `plugins/layers/reorder/` | ☐ |
 | **Y7** | 3 | 7 | Plugin `layers.groups` (dossiers + « grouper la sélection ») | Y5 | Y8 | `plugins/layers/groups/` | ☐ |
 | **Y8** | 3 | 8 | Plugin `layers.toolbar` (Nouveau / Grouper / Supprimer) | Y7 | I1 | `plugins/layers/toolbar/` | ☐ |
-| **G1** | 4 | 5 | Plugin `frames.grid` : rendu des plages (statique, vide, interpolation, losanges), écoute `zoom:changed` | L1, Y0 | G2 | `plugins/frames/grid/` | ☐ |
+| **G1** | 4 | 5 | Plugin `frames.grid` : rendu des plages (statique, vide, interpolation, losanges), écoute `zoom:changed` | L1, Y0 | G2 | `plugins/frames/grid/` | ☑ |
 | **G2** | 4 | 6 | Plugin `frames.selection` (images et images clés, Ctrl / Maj, repris de `SelectionManager`) | G1 | K2, K3, W1 | `plugins/frames/selection/` | ☐ |
 | **K1** | 4 | 4 | **Cœur CS4** : opérations pures sur les plages (insérer une image clé avec valeurs interpolées, supprimer/fusionner, insérer/supprimer une image, déplacer) + refus si verrouillé, sous forme de commandes ; le registre de propriétés est passé en paramètre | C3, R2 | K2, K3, W1 | `packages/editor/src/model/spans/` | ☑ |
 | **K2** | 4 | 7 | Plugin `frames.keyframes` (F5 / F6 / F7, glisser pour déplacer) | K1, G2, I2 | T2, I1 | `plugins/frames/keyframes/` | ☐ |

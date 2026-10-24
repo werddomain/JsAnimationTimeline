@@ -42,9 +42,16 @@ export const PLAYBACK_TOGGLE_KEYS = 'Enter';
 /** Vitesses proposées dans la liste. */
 export const PLAYBACK_SPEEDS: readonly number[] = Object.freeze([0.25, 0.5, 1, 1.5, 2]);
 
-/** Libellé français d'une vitesse, arrondie au centième (`1.5` -> `×1,5`, `0.1 + 0.2` -> `×0,3`). */
+/**
+ * Libellé français d'une vitesse (`1.5` -> `×1,5`). Le bruit des flottants
+ * est arrondi au centième (`0.1 + 0.2` -> `×0,3`). Une vitesse qui n'est pas
+ * un centième juste garde quatre chiffres significatifs (`1.001` -> `×1,001`,
+ * `0.001` -> `×0,001`) : son libellé ne se confond jamais avec un autre.
+ */
 export function formatSpeed(speed: number): string {
-  return `×${String(Math.round(speed * 100) / 100).replace('.', ',')}`;
+  const rounded = Math.round(speed * 100) / 100;
+  const shown = Math.abs(rounded - speed) < 1e-9 ? rounded : Number(speed.toPrecision(4));
+  return `×${String(shown).replace('.', ',')}`;
 }
 
 /** Éléments qu'Entrée active déjà : le raccourci leur laisse la touche. */
@@ -118,8 +125,8 @@ export class PlaybackControlsPlugin implements EditorPlugin {
           run: (event) => {
             // `false` : touche laissée au navigateur, qui active le bouton ou le lien.
             if (isEnterActivated(event.target)) return false;
-            // Touche maintenue : une seule bascule, pas une par répétition.
-            if (event.repeat) return true;
+            // Touche maintenue : une seule bascule, et pas de `shortcut:triggered` par répétition.
+            if (event.repeat) return false;
             ctx.playback.toggle();
             return true;
           }

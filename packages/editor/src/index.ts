@@ -169,6 +169,21 @@ export type {
   SelectionMode
 } from './plugins/layers';
 
+// Plugins des images (epic `frames`) : grille des plages et des images clés.
+export { FRAMES_GRID_CLASSES, FRAMES_GRID_PLUGIN_ID, FramesGridPlugin, FramesPlugin } from './plugins/frames';
+export type {
+  FramesGridRenderedEvent,
+  GridMarkKind,
+  GridSegmentKind,
+  IFrameRange,
+  IFramesGridService,
+  IGridCell,
+  IGridMark,
+  IGridSegment,
+  IGridWindow,
+  IRowRange
+} from './plugins/frames';
+
 // Plugin interaction.shortcuts (raccourcis clavier déclarés par les plugins).
 export { SHORTCUTS_PLUGIN_ID, ShortcutError, createShortcutsPlugin } from './plugins/interaction/shortcuts';
 export type {

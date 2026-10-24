@@ -9,7 +9,7 @@
 import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
 import { createSetCollapsedCommand, updateLayerNode } from '../layerTree';
 import { createCommand } from '../../../../core/commands/createCommand';
-import { LAYER_LIST_TEXTS } from '../LayerListPlugin';
+import { LAYER_LIST_TEXTS, LayerListPlugin } from '../LayerListPlugin';
 import { LAYER_ROW_CLASSES, TOGGLE_LABELS } from '../LayerRowView';
 import type { ILayerRow, ILayerRowControl, LayerRowsChangedEvent } from '../types';
 import { doc, domRowIds, folder, layer, mount, unmountAll } from './fixtures';
@@ -254,9 +254,10 @@ describe('layers.list row controls', () => {
   }
 
   function controlIds(row: HTMLElement): string[] {
-    return Array.from(row.querySelectorAll<HTMLElement>(`.${LAYER_ROW_CLASSES.control}`)).map(
-      (cell) => cell.dataset.controlId ?? ''
-    );
+    // Seuls les contrôles de test : les plugins de calques (visibilité, verrou) ajoutent les leurs.
+    return Array.from(row.querySelectorAll<HTMLElement>(`.${LAYER_ROW_CLASSES.control}`))
+      .map((cell) => cell.dataset.controlId ?? '')
+      .filter((id) => id.startsWith('test.'));
   }
 
   it('renders controls on every row, ordered by order, with header cells', () => {
@@ -267,7 +268,7 @@ describe('layers.list row controls', () => {
     list.addRowControl(eye.control);
     expect(controlIds(rowElement(host, 'a'))).toEqual(['test.eye', 'test.lock']);
     expect(eye.renders).toEqual(['f', 'a', 'g', 'b', 'c']);
-    const headerCells = Array.from(host.querySelectorAll<HTMLElement>('.jt-layers-header__control'));
+    const headerCells = Array.from(host.querySelectorAll<HTMLElement>('.jt-layers-header__control[data-control-id^="test."]'));
     expect(headerCells.map((cell) => cell.textContent)).toEqual(['test.eye', 'test.lock']);
   });
 
@@ -297,6 +298,34 @@ describe('layers.list row controls', () => {
       )
     );
     expect(calls).toEqual(['render:a', 'dispose:a', 'render:A']);
+  });
+
+  it('renders again even when the dispose before it throws', () => {
+    const { host, list, editor } = mount(doc([layer('a')]));
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    let thrown = false;
+    list.addRowControl({
+      id: 'test.fragile',
+      order: 0,
+      render: (row, element) => {
+        element.textContent = row.node.name;
+      },
+      dispose: () => {
+        if (!thrown) {
+          thrown = true;
+          throw new Error('dispose en panne');
+        }
+      }
+    });
+    editor.execute(
+      createCommand(
+        'Renommer',
+        (current) => updateLayerNode(current, 'a', (node) => ({ ...node, name: 'A' })),
+        (current) => updateLayerNode(current, 'a', (node) => ({ ...node, name: 'a' }))
+      )
+    );
+    expect(rowElement(host, 'a').querySelector('[data-control-id="test.fragile"]')?.textContent).toBe('A');
+    errorSpy.mockRestore();
   });
 
   it('calls update when present, otherwise re-renders the cell', () => {
@@ -463,24 +492,26 @@ describe('layers.list robustness', () => {
 });
 
 describe('layers.list cleanup', () => {
-  it('removes its DOM and service on destroy, disposing the row controls', () => {
-    let captured: IEditorContext | undefined;
-    const probe: EditorPlugin = {
-      id: 'test.probe',
-      dependencies: ['layers.list'],
-      init: (ctx: IEditorContext) => {
-        captured = ctx;
-      },
-      destroy: () => undefined
-    };
-    const { host, editor, list } = mount(tree, [probe]);
+  it('removes its DOM on destroy, disposing the row controls', () => {
+    const { host, editor, list } = mount(tree);
     const disposed: string[] = [];
     list.addRowControl({ id: 'test.leaky', order: 0, render: () => undefined, dispose: (row) => void disposed.push(row.id) });
     editor.destroy();
     expect(host.querySelector('.jt-layer-row')).toBeNull();
     expect(host.querySelector('.jt-layers-header')).toBeNull();
     expect(disposed).toEqual(['f', 'a', 'g', 'b', 'c']);
-    expect(captured?.services.get('layers.list')).toBeUndefined();
+  });
+
+  it('withdraws its service and event listeners in its own destroy', () => {
+    const removed: string[] = [];
+    const fakeContext = {
+      services: { provide: () => () => void removed.push('service') },
+      events: { on: (name: string) => () => void removed.push(name) }
+    } as unknown as IEditorContext;
+    const plugin = new LayerListPlugin();
+    plugin.init(fakeContext);
+    plugin.destroy();
+    expect(removed).toEqual(['service', 'document:loaded', 'document:changed']);
   });
 
   it('still accepts collapse commands created outside the list', () => {
