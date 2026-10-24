@@ -14,6 +14,8 @@
  * - Un document annoncé pendant un chargement (une scène ou un gestionnaire de
  *   `stage:report` qui exécute une commande) est chargé juste après celui en
  *   cours ; seul le dernier compte. `refreshTargets` lève pendant un chargement.
+ * - `IStageLayerState.editorVisible` suit l'œil du calque et de ses dossiers
+ *   parents dans le document courant.
  * - Chaque avertissement nouveau est émis par `stage:report` ; ceux du
  *   document initial, relevés avant l'abonnement des plugins, sont émis de
  *   nouveau juste avant `editor:ready` (dans son premier gestionnaire).
@@ -34,6 +36,7 @@ import type {
   PropertyRegistry
 } from '@werddomain/timeline-runtime';
 import type { EventBus } from '../events/EventBus';
+import { isLayerEditorVisible } from '../playback/FrameSampler';
 import type { IStageRenderer } from '../playback/PlaybackController';
 import type { Store } from '../store/Store';
 // Import pour effet : garde l'augmentation de TimelineEventMap visible ici.
@@ -81,6 +84,7 @@ export class EditorStageHost implements IStageRenderer {
       registry: options.registry,
       onError: options.onError,
       onReport: (report) => bus.emit('stage:report', report),
+      isEditorVisible: (layerId) => isLayerEditorVisible(store.document, layerId),
       now: options.now
     });
     this.unsubscribes = [

@@ -47,6 +47,19 @@ function collectEntries(doc: ITimelineDocument): readonly ILayerEntry[] {
   return Object.freeze(entries);
 }
 
+/** Œil résolu (dossiers parents compris) de chaque calque d'un document, mis en cache par document. */
+const visibilityCache = new WeakMap<ITimelineDocument, ReadonlyMap<string, boolean>>();
+
+/** Œil du calque `layerId` dans l'éditeur : faux si lui ou un dossier parent est masqué (vrai s'il est inconnu). */
+export function isLayerEditorVisible(doc: ITimelineDocument, layerId: string): boolean {
+  let visibility = visibilityCache.get(doc);
+  if (visibility === undefined) {
+    visibility = new Map(collectEntries(doc).map(({ layer, editorVisible }) => [layer.id, editorVisible]));
+    visibilityCache.set(doc, visibility);
+  }
+  return visibility.get(layerId) !== false;
+}
+
 function createSample(time: ITransportTime, evaluate: () => ILayerSample[]): IFrameSample {
   let layers: readonly ILayerSample[] | undefined;
   let byId: ReadonlyMap<string, ILayerSample> | undefined;
