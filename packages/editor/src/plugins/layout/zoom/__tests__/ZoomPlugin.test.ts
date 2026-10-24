@@ -213,6 +213,16 @@ describe('layout.zoom options and lifecycle', () => {
     expect(() => new ZoomPlugin({ minZoom: 2, maxZoom: 1 })).toThrow(RangeError);
     expect(() => new ZoomPlugin({ levels: [1, -1] })).toThrow(RangeError);
     expect(() => new ZoomPlugin({ initialZoom: Number.POSITIVE_INFINITY })).toThrow(RangeError);
+    expect(() => new ZoomPlugin({ levels: [] })).toThrow(RangeError);
+    expect(() => new ZoomPlugin({ levels: [5, 6], maxZoom: 3 })).toThrow(RangeError);
+  });
+
+  it('keeps only the levels within the bounds', () => {
+    // Act
+    const { api } = setup({ zoom: { maxZoom: 3, minZoom: 0.5 } });
+
+    // Assert
+    expect(api.levels()).toEqual([0.5, 0.75, 1, 1.5, 2, 3]);
   });
 
   it('sorts the levels and clamps the initial zoom', () => {
@@ -341,6 +351,56 @@ describe('layout.zoom gestures and re-entrancy', () => {
 
     // Assert
     expect([atLastLevel, beyond, api.zoom()]).toEqual([4, 6, 4]);
+  });
+
+  it('stops zoomOut at the first level, and zoomIn from below it goes to the first level', () => {
+    // Arrange
+    const { api } = setup();
+
+    // Act
+    api.setZoom(0.25);
+    api.zoomOut();
+    const atFirstLevel = api.zoom();
+    api.setZoom(0.1);
+    api.zoomIn();
+
+    // Assert
+    expect([atFirstLevel, api.zoom()]).toEqual([0.25, 0.25]);
+  });
+
+  it('applies the same first and last level limits to the wheel', () => {
+    // Arrange
+    const { zone, api } = setup();
+    const lines = { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_LINE };
+
+    // Act
+    api.setZoom(0.25);
+    zone('frames').dispatchEvent(ctrlWheel(3, 150, lines));
+    const afterOut = api.zoom();
+    api.setZoom(0.1);
+    zone('frames').dispatchEvent(ctrlWheel(-3, 150, lines));
+    const afterIn = api.zoom();
+    api.setZoom(4);
+    zone('frames').dispatchEvent(ctrlWheel(-3, 150, lines));
+
+    // Assert
+    expect([afterOut, afterIn, api.zoom()]).toEqual([0.25, 0.25, 4]);
+  });
+
+  it('adds up fractions of a line before stepping one level, and restarts on a change of unit', () => {
+    // Arrange
+    const { zone, api } = setup();
+    const lines = { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_LINE };
+
+    // Act
+    [-0.4, -0.4].forEach((deltaY) => zone('frames').dispatchEvent(ctrlWheel(deltaY, 150, lines)));
+    const beforeOneLine = api.zoom();
+    zone('frames').dispatchEvent(ctrlWheel(-40, 150));
+    const afterUnitChange = api.zoom();
+    [-0.5, -0.5].forEach((deltaY) => zone('frames').dispatchEvent(ctrlWheel(deltaY, 150, lines)));
+
+    // Assert
+    expect([beforeOneLine, afterUnitChange, api.zoom()]).toEqual([1, 1, 1.5]);
   });
 
   it('ignores a zoom asked from a zoom:changed listener', () => {
