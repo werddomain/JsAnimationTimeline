@@ -4,7 +4,7 @@
  * Epic : toolbar
  * Dépend de : toolbar, toolbar.main, frames.keyframes, frames.selection, tweens.motion, interaction.shortcuts
  * Écoute : frames:selectionChanged, layers:selectionChanged, document:changed, document:loaded, tweens:motionAvailabilityChanged,
- *   playhead:changed
+ *   playhead:changed, playback:pause, playback:complete
  * Émet : toolbar:editKeyframe
  *
  * Les quatre boutons d'images clés de la barre d'outils (groupe `keyframes`),
@@ -23,16 +23,21 @@
  * clavier, ne fait rien. L'état se met à jour sur les changements de
  * sélection, de document et de disponibilité des interpolations, pas sur les
  * mouvements du pointeur, mais sur la tête de lecture (`playhead:changed`),
- * dont dépendent le repli sur les calques sélectionnés et `inTween`.
+ * dont dépendent le repli sur les calques sélectionnés et `inTween`. La tête
+ * ne compte que sans image sélectionnée et hors lecture : sinon son
+ * mouvement est ignoré (la fin de la lecture, `playback:pause` ou
+ * `playback:complete`, rafraîchit). Les attributs ne sont réécrits que s'ils
+ * changent.
  * `layers.selection` est lu s'il est présent. La raison d'un bouton
  * indisponible est aussi donnée aux lecteurs d'écran (`aria-description`).
  *
  * « Modifier » vise une image clé (sélectionnée, sinon celle de la tête de
  * lecture sur un calque sélectionné). Avec un calque seul sélectionné (sans
  * image) et la tête de lecture dans une interpolation, « Supprimer » passe
- * par `deleteKeyframe()` (`canRemove` ne lit que les images sélectionnées) :
- * il peut ne rien changer, comme Maj+F6. Comportement accepté, sans
- * pré-contrôle du modèle.
+ * par `deleteKeyframe()` (`canRemove` ne lit que les images sélectionnées),
+ * actif seulement si la tête de lecture est sur une image clé. « Supprimer »
+ * est désactivé (« Sélectionnez une image clé. ») quand aucune cible ne porte
+ * d'image clé. Pas de pré-contrôle du modèle au-delà.
  */
 
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
@@ -100,7 +105,9 @@ export class KeyframeActionsPlugin implements EditorPlugin {
       cleanups.push(ctx.events.on('document:changed', refresh));
       cleanups.push(ctx.events.on('document:loaded', refresh));
       cleanups.push(ctx.events.on('tweens:motionAvailabilityChanged', refresh));
-      cleanups.push(ctx.events.on('playhead:changed', refresh));
+      cleanups.push(ctx.events.on('playback:pause', refresh));
+      cleanups.push(ctx.events.on('playback:complete', refresh));
+      cleanups.push(ctx.events.on('playhead:changed', () => this.onPlayhead()));
       this.ctx = ctx;
       cleanups.push(
         ctx.services.require('toolbar.main').addControl({
@@ -187,6 +194,14 @@ export class KeyframeActionsPlugin implements EditorPlugin {
     };
   }
 
+  /** La tête de lecture ne compte que sans image sélectionnée et hors lecture. */
+  private onPlayhead(): void {
+    const ctx = this.ctx;
+    if (ctx === null || ctx.playback.playing) return;
+    if (ctx.services.require('frames.selection').cells().length > 0) return;
+    this.refresh();
+  }
+
   /** Recalcule l'état (une seule fois) et le recopie dans les boutons. */
   private refresh(): void {
     const ctx = this.ctx;
@@ -199,16 +214,16 @@ export class KeyframeActionsPlugin implements EditorPlugin {
       if (button === undefined) return;
       const { enabled, reason } = state[spec.action];
       const label = spec.action === 'delete' ? state.delete.label : spec.label;
-      button.setAttribute('aria-label', label);
+      setAttr(button, 'aria-label', label);
       if (enabled) {
-        button.removeAttribute('aria-disabled');
-        button.removeAttribute('aria-description');
-        button.title = this.hintedLabel(spec, label, state, (keys) => shortcuts.format(keys));
+        unsetAttr(button, 'aria-disabled');
+        unsetAttr(button, 'aria-description');
+        setTitle(button, this.hintedLabel(spec, label, state, (keys) => shortcuts.format(keys)));
       } else {
-        button.setAttribute('aria-disabled', 'true');
-        button.title = reason ?? label;
-        if (reason === undefined) button.removeAttribute('aria-description');
-        else button.setAttribute('aria-description', reason);
+        setAttr(button, 'aria-disabled', 'true');
+        setTitle(button, reason === undefined ? label : `${label} : ${reason}`);
+        if (reason === undefined) unsetAttr(button, 'aria-description');
+        else setAttr(button, 'aria-description', reason);
       }
     });
   }
@@ -248,6 +263,19 @@ export class KeyframeActionsPlugin implements EditorPlugin {
         return;
     }
   }
+}
+
+/** Écrit un attribut seulement s'il change. */
+function setAttr(button: HTMLButtonElement, name: string, value: string): void {
+  if (button.getAttribute(name) !== value) button.setAttribute(name, value);
+}
+
+function unsetAttr(button: HTMLButtonElement, name: string): void {
+  if (button.hasAttribute(name)) button.removeAttribute(name);
+}
+
+function setTitle(button: HTMLButtonElement, title: string): void {
+  if (button.title !== title) button.title = title;
 }
 
 /** Vrai si l'image `frame` du calque porte une image clé (contenu ou propriété). */
