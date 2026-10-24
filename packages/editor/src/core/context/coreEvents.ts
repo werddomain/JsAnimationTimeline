@@ -18,7 +18,13 @@ const CORE_EVENTS: Readonly<Record<CoreEventName, true>> = Object.freeze({
   'document:changed': true,
   'command:before': true,
   'command:refused': true,
-  'history:changed': true
+  'history:changed': true,
+  'playhead:changed': true,
+  'frame:render': true,
+  'playback:play': true,
+  'playback:pause': true,
+  'playback:loop': true,
+  'playback:complete': true
 });
 
 /** Noms des événements émis par le noyau seul. */
