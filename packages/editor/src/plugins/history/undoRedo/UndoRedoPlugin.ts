@@ -16,6 +16,10 @@
  * inactifs : la `CommandStack` les refuse tant que le glisser n'est pas fini.
  * Dans un champ de saisie, Ctrl+Z garde son sens habituel (raccourcis sans
  * `allowInEditable`).
+ *
+ * Quand un clic désactive le bouton qui a le focus (dernier Annuler, dernier
+ * Rétablir), le focus passe à l'autre bouton : il reste dans l'éditeur, et
+ * Ctrl+Y ou Ctrl+Z marchent tout de suite après.
  */
 
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
@@ -51,6 +55,16 @@ export class UndoRedoPlugin implements EditorPlugin {
     const canRedo = (): boolean => commands.canRedo && !commands.isGrouping;
     const undo = (): boolean => canUndo() && commands.undo();
     const redo = (): boolean => canRedo() && commands.redo();
+    const button = (id: string): HTMLButtonElement | null =>
+      ctx.container.querySelector<HTMLButtonElement>(`[data-toolbar-item="${id}"]`);
+    /** Après un clic sur `from` : s'il est désactivé, donne le focus à `to` (s'il est actif). */
+    const keepFocus = (from: string, to: string): void => {
+      const source = button(from);
+      const target = button(to);
+      if (source === null || target === null || !source.disabled || target.disabled) return;
+      const active = source.ownerDocument.activeElement;
+      if (active === source || active === null || active === source.ownerDocument.body) target.focus();
+    };
     const cleanups: Array<() => void> = [];
     try {
       // Chaque retrait est gardé dès son ajout : un échec plus loin défait les précédents.
@@ -68,7 +82,10 @@ export class UndoRedoPlugin implements EditorPlugin {
           group: 'history',
           order: ToolbarGroupOrders.history + 1,
           shortcut: UndoRedoKeys.UNDO,
-          onClick: () => void undo(),
+          onClick: () => {
+            undo();
+            keepFocus(UndoRedoIds.UNDO, UndoRedoIds.REDO);
+          },
           enabled: canUndo
         })
       );
@@ -80,7 +97,10 @@ export class UndoRedoPlugin implements EditorPlugin {
           group: 'history',
           order: ToolbarGroupOrders.history + 2,
           shortcut: UndoRedoKeys.REDO[0],
-          onClick: () => void redo(),
+          onClick: () => {
+            redo();
+            keepFocus(UndoRedoIds.REDO, UndoRedoIds.UNDO);
+          },
           enabled: canRedo
         })
       );

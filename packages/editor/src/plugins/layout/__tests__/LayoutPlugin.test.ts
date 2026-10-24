@@ -20,7 +20,7 @@ describe('layout epic', () => {
     // Assert
     expect(epic.id).toBe('layout');
     expect(epic.dependencies).toEqual([]);
-    expect(epic.children.map((child) => child.id)).toEqual(['layout.shell', 'layout.scrollSync', 'layout.ruler', 'layout.playhead']);
+    expect(epic.children.map((child) => child.id)).toEqual(['layout.shell', 'layout.scrollSync', 'layout.ruler', 'layout.playhead', 'layout.zoom']);
   });
 
   it('is part of the default plugin set, initialised before its children', () => {
