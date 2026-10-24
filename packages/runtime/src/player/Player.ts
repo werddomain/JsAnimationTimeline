@@ -1,23 +1,25 @@
 // packages/runtime/src/player/Player.ts
 /**
- * Lecteur sans interface : une `Animation` Web Animations par cible, toutes
- * calées sur un `Transport` sans DOM (temps, boucle, vitesse, fin, événements
- * `tick` et `frame`). À chaque saut de temps ou changement d'état du transport
- * (`onSync`), les animations sont réalignées : `currentTime`, `playbackRate`,
- * lecture ou pause.
+ * Lecteur sans interface : un `Transport` sans DOM tient le temps (boucle,
+ * vitesse, fin, événements `tick` et `frame`) et un `StageHost` mène les
+ * scènes. À chaque saut de temps ou changement d'état du transport
+ * (`onSync`), les scènes reçoivent `sync` ; à chaque `tick`, celles qui
+ * implémentent `render` reçoivent les valeurs de leurs calques. Sans option
+ * `stage`, la scène est `createHtmlStage({ root, mode: 'waapi' })`.
  */
 
 import type { ITimelineDocument } from '../model/document';
 import { validateDocument } from '../model/validate';
-import { collectLayers } from '../evaluate/evaluateDocument';
 import { defaultPropertyRegistry } from '../properties/PropertyRegistry';
-import type { PropertyRegistry } from '../properties/PropertyRegistry';
+import { createHtmlStage } from '../stage/html/createHtmlStage';
+import { buildStageRegistry } from '../stage/registry';
+import type { IStageReport } from '../stage/reports';
+import { StageHost } from '../stage/StageHost';
+import type { IStage } from '../stage/types';
 import { Transport } from '../transport/Transport';
-import { assertValidSpeed, timelineDuration } from '../transport/time';
+import { assertValidSpeed } from '../transport/time';
 import type { ITransportTime } from '../transport/types';
 import { createBrowserClock } from './clock';
-import { buildLayerKeyframes } from './keyframes';
-import { resolveTarget } from './targets';
 import type { IPlayer, IPlayerOptions, PlayerEventName, PlayerListener } from './types';
 
 function assertValidDocument(doc: ITimelineDocument): void {
@@ -28,12 +30,6 @@ function assertValidDocument(doc: ITimelineDocument): void {
   }
 }
 
-/** Animations built for a document, and the layers whose target is missing. */
-interface IAnimationSet {
-  readonly animations: Animation[];
-  readonly missing: string[];
-}
-
 /** Rethrows outside the player's call stack, so playback keeps going. */
 function reportAsync(error: unknown): void {
   setTimeout(() => {
@@ -41,35 +37,58 @@ function reportAsync(error: unknown): void {
   }, 0);
 }
 
+/** Stages of the options: the given ones, or the default HTML stage on `root`. */
+function resolveStages(options: IPlayerOptions): readonly IStage[] {
+  if (options.stage !== undefined) {
+    if (options.root !== undefined) {
+      throw new Error('Pass either root or stage to createPlayer, not both.');
+    }
+    const stages = Array.isArray(options.stage) ? options.stage : [options.stage as IStage];
+    if (stages.length === 0) {
+      throw new Error('The stage option needs at least one stage.');
+    }
+    return stages;
+  }
+  return [createHtmlStage({ root: options.root ?? document, mode: 'waapi' })];
+}
+
 /** See `IPlayer`. Created by `createPlayer`. */
 export class Player implements IPlayer {
   private doc: ITimelineDocument;
-  private readonly root: ParentNode;
-  private readonly registry: PropertyRegistry;
   private readonly transport: Transport;
-  private animations: Animation[] = [];
-  private missing: string[] = [];
+  private readonly host: StageHost;
   private destroyed = false;
 
   constructor(doc: ITimelineDocument, options: IPlayerOptions = {}) {
     assertValidSpeed(options.speed ?? 1);
     assertValidDocument(doc);
-    this.root = options.root ?? document;
-    this.registry = options.registry ?? defaultPropertyRegistry;
+    const stages = resolveStages(options);
+    const onListenerError = options.onListenerError ?? reportAsync;
+    this.host = new StageHost({
+      stages,
+      registry: buildStageRegistry(options.registry ?? defaultPropertyRegistry, stages),
+      onError: onListenerError,
+      now: () => ({ time: this.transport.time, state: { playing: this.transport.playing, speed: this.transport.speed } })
+    });
     this.transport = new Transport({
       fps: doc.settings.fps,
       totalFrames: doc.settings.totalFrames,
       clock: options.clock ?? createBrowserClock(),
       loop: options.loop,
       speed: options.speed,
-      onSync: () => this.syncAnimations(),
-      onListenerError: options.onListenerError ?? reportAsync
+      onSync: (time, state) => this.host.sync(time, state),
+      onListenerError
     });
+    this.transport.on('tick', (time) => this.host.render(time));
     this.doc = doc;
-    const built = this.buildAnimations(doc);
-    this.animations = built.animations;
-    this.missing = built.missing;
-    this.syncAnimations();
+    try {
+      this.host.load(doc);
+    } catch (error) {
+      this.transport.destroy();
+      this.host.destroy();
+      throw error;
+    }
+    this.applyCurrentFrame();
     if (options.autoplay === true) {
       this.play();
     }
@@ -100,7 +119,11 @@ export class Player implements IPlayer {
   }
 
   get missingTargets(): readonly string[] {
-    return this.missing;
+    return this.host.missingTargets;
+  }
+
+  get warnings(): readonly IStageReport[] {
+    return this.host.warnings;
   }
 
   get loop(): boolean {
@@ -139,12 +162,18 @@ export class Player implements IPlayer {
   update(doc: ITimelineDocument): void {
     this.assertAlive();
     assertValidDocument(doc);
-    const built = this.buildAnimations(doc);
-    this.cancelAnimations();
+    this.host.load(doc);
+    if (this.destroyed) {
+      // onListenerError destroyed the player while the stages loaded the document.
+      return;
+    }
     this.doc = doc;
-    this.animations = built.animations;
-    this.missing = built.missing;
     this.transport.setTimeline(doc.settings);
+  }
+
+  refreshTargets(layerId?: string): void {
+    this.assertAlive();
+    this.host.refresh(layerId);
   }
 
   on<K extends PlayerEventName>(event: K, listener: PlayerListener<K>): () => void {
@@ -161,7 +190,7 @@ export class Player implements IPlayer {
       return;
     }
     this.transport.destroy();
-    this.cancelAnimations();
+    this.host.destroy();
     this.destroyed = true;
   }
 
@@ -171,60 +200,11 @@ export class Player implements IPlayer {
     }
   }
 
-  /**
-   * Creates the animations of `doc` (paused at 0). All or nothing: when a
-   * target fails, the animations already created are cancelled.
-   */
-  private buildAnimations(doc: ITimelineDocument): IAnimationSet {
-    const animations: Animation[] = [];
-    const missing: string[] = [];
-    const duration = timelineDuration(doc.settings);
-    try {
-      for (const layer of collectLayers(doc)) {
-        const keyframes = buildLayerKeyframes(layer, doc.settings, this.registry);
-        if (keyframes === null) {
-          continue;
-        }
-        const target = resolveTarget(layer, this.root);
-        if (target === null) {
-          missing.push(layer.id);
-          continue;
-        }
-        if (typeof target.animate !== 'function') {
-          throw new Error('The Web Animations API (Element.animate) is not available.');
-        }
-        const animation = target.animate(keyframes, { duration, fill: 'both', easing: 'linear' });
-        animation.pause();
-        animations.push(animation);
-      }
-    } catch (error) {
-      animations.forEach((animation) => animation.cancel());
-      throw error;
-    }
-    return { animations, missing };
-  }
-
-  /** Aligns every animation on the transport's time, rate and play state. */
-  private syncAnimations(): void {
-    const time = this.transport.timeMs;
-    const speed = this.transport.speed;
-    const running = this.transport.playing && time < this.transport.duration;
-    this.animations.forEach((animation) => {
-      animation.playbackRate = speed;
-      if (running) {
-        animation.currentTime = time;
-        animation.play();
-      } else {
-        // Pause first: setting currentTime then completes the pause at exactly this time.
-        animation.pause();
-        animation.currentTime = time;
-      }
-    });
-  }
-
-  private cancelAnimations(): void {
-    this.animations.forEach((animation) => animation.cancel());
-    this.animations = [];
+  /** `sync` then `render` of the current time (the transport only emits them on changes). */
+  private applyCurrentFrame(): void {
+    const time = this.transport.time;
+    this.host.sync(time, { playing: this.transport.playing, speed: this.transport.speed });
+    this.host.render(time);
   }
 }
 

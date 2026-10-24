@@ -109,16 +109,26 @@ export type {
   PlayheadChangedEvent
 } from './core/playback';
 
-// Plugins de mise en page (epic `layout`) : coquille, emplacements et défilement.
-export { LAYOUT_SLOTS, LAYOUT_ZONES, LayoutPlugin, LayoutShellPlugin, ScrollSyncPlugin } from './plugins/layout';
+// Plugins de mise en page (epic `layout`) : coquille, emplacements, défilement, règle et tête de lecture.
+export {
+  LAYOUT_SLOTS,
+  LAYOUT_ZONES,
+  LayoutPlugin,
+  LayoutShellPlugin,
+  PlayheadPlugin,
+  RulerPlugin,
+  ScrollSyncPlugin
+} from './plugins/layout';
 export type {
   IFrameScheduler,
   ILayoutShellApi,
   IScrollPosition,
   IScrollState,
+  IRulerApi,
   IScrollSyncApi,
   LayoutOptions,
   LayoutZone,
+  RulerOptions,
   ScrollSyncOptions
 } from './plugins/layout';
 
@@ -171,6 +181,20 @@ export {
   ToolbarPlugin,
   createToolbarMainPlugin
 } from './plugins/toolbar';
+
+// Plugin toolbar.timeSettings : cadence et durée, en commandes annulables.
+export {
+  MAX_FPS,
+  MIN_FPS,
+  MAX_TOTAL_FRAMES,
+  MIN_TOTAL_FRAMES,
+  TIME_SETTINGS_PLUGIN_ID,
+  TimeSettingsLabels,
+  TimeSettingsPlugin,
+  createSetFpsCommand,
+  createSetTotalFramesCommand,
+  createTimeSettingsPlugin
+} from './plugins/toolbar';
 export type {
   IToolbarButtonDefinition,
   IToolbarControlDefinition,
@@ -195,3 +219,23 @@ export type {
   PersistenceImportedEvent,
   PersistenceJsonPlugin
 } from './plugins/persistence/json';
+
+// Epic history : annuler / rétablir (boutons et raccourcis).
+export {
+  HistoryPlugin,
+  UNDO_REDO_PLUGIN_ID,
+  UndoRedoIds,
+  UndoRedoKeys,
+  UndoRedoPlugin,
+  createUndoRedoPlugin
+} from './plugins/history';
+
+// Epic playback : lire, pause, boucle et vitesse dans la barre d'outils.
+export {
+  PLAYBACK_CONTROLS_PLUGIN_ID,
+  PLAYBACK_SPEEDS,
+  PLAYBACK_TOGGLE_KEYS,
+  PlaybackControlsPlugin,
+  PlaybackPlugin,
+  createPlaybackControlsPlugin
+} from './plugins/playback';

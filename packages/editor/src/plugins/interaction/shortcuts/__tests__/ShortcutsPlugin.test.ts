@@ -6,6 +6,7 @@
  */
 
 import { createEditor } from '../../../../core/editor/createEditor';
+import { defaultPlugins } from '../../../../core/editor/defaultPlugins';
 import type { IEditor } from '../../../../core/editor/types';
 import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
 import { SHORTCUTS_PLUGIN_ID, ShortcutsPlugin, createShortcutsPlugin } from '../ShortcutsPlugin';
@@ -42,7 +43,8 @@ function setup(options?: IShortcutsOptions): IHarness {
   document.body.appendChild(host);
   const triggered: ShortcutTriggeredEvent[] = [];
   const editor = createEditor(host, {
-    defaultPlugins: options === undefined ? true : [createShortcutsPlugin(options)],
+    // Raccourcis seuls : le jeu par défaut déclare déjà ses propres raccourcis.
+    defaultPlugins: [createShortcutsPlugin(options)],
     plugins: [recorder(triggered)]
   });
   editors.push(editor);
@@ -63,6 +65,7 @@ describe('interaction.shortcuts plugin', () => {
     const { editor, shortcuts } = setup();
 
     // Assert
+    expect(defaultPlugins().map((plugin) => plugin.id)).toContain(SHORTCUTS_PLUGIN_ID);
     expect(SHORTCUTS_PLUGIN_ID).toBe('interaction.shortcuts');
     expect(editor.getService(SHORTCUTS_PLUGIN_ID)).toBe(shortcuts);
     expect(Object.isFrozen(shortcuts)).toBe(true);

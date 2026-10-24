@@ -17,6 +17,11 @@ export interface ILayerRow extends IVisibleRow {
    * contrôles qui modifient les images s'en servent pour se désactiver.
    */
   readonly lockedByAncestor: boolean;
+  /**
+   * Vrai si la ligne est masquée, elle ou un dossier parent (œil fermé) :
+   * la ligne est grisée ; l'œil d'un enfant reste celui de son propre champ.
+   */
+  readonly hiddenByAncestor: boolean;
 }
 
 /**
@@ -53,7 +58,8 @@ export interface ILayerRowControl {
  * disposition des lignes change (ids, ordre, profondeur, parent), après la
  * mise à jour du DOM. Un changement qui garde la disposition (nom, couleur,
  * verrou...) ne le déclenche pas : pour le contenu des nœuds, écouter
- * `document:changed` et relire `rows()` du service. Les lignes sont celles
+ * `document:changed` et `document:loaded` (un chargement n'émet que ce
+ * dernier), puis relire `rows()` du service. Les lignes sont celles
  * du document au moment de l'envoi : ne pas les garder en cache.
  */
 export interface LayerRowsChangedEvent {
@@ -87,9 +93,16 @@ export interface ILayerListService {
    * @returns La fonction qui retire le contrôle de toutes les lignes.
    */
   addRowControl(control: ILayerRowControl): () => void;
-  /** Replie ou déplie le dossier `folderId` (commande annulable) ; `true` si le document a changé. */
+  /**
+   * Replie ou déplie le dossier `folderId` (commande annulable) ; `true` si
+   * le document a changé, `false` si le dossier était déjà dans cet état.
+   * Lève une erreur si `folderId` n'est pas un dossier du document.
+   */
   setCollapsed(folderId: string, collapsed: boolean): boolean;
-  /** Inverse l'état replié du dossier `folderId` (commande annulable) ; `true` si le document a changé. */
+  /**
+   * Inverse l'état replié du dossier `folderId` (commande annulable).
+   * Lève une erreur si `folderId` n'est pas un dossier du document.
+   */
   toggleCollapsed(folderId: string): boolean;
 }
 

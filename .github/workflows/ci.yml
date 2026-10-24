@@ -32,6 +32,13 @@ jobs:
       - run: npm run build
       - run: npm run build:demo
 
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build and test the .NET library
+        run: dotnet test dotnet/JsTimeline.sln
+
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 

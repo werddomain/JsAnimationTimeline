@@ -57,7 +57,10 @@ export const LayerListCommandLabels = Object.freeze({
 /** Dossier avec `collapsed` donné ; le champ est retiré quand il vaut sa valeur par défaut d'origine. */
 function withCollapsed(folder: IFolder, collapsed: boolean | undefined): IFolder {
   if (folder.collapsed === collapsed) return folder;
-  if (collapsed !== undefined) return { ...folder, collapsed };
+  if (collapsed !== undefined) {
+    // Même état affiché (champ absent = déplié) : aucun changement, donc aucune entrée d'historique.
+    return resolveCollapsed(folder) === collapsed ? folder : { ...folder, collapsed };
+  }
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- retire le champ pour rendre le dossier d'origine
   const { collapsed: _removed, ...rest } = folder;
   return rest;
