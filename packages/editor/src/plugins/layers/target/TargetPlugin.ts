@@ -47,7 +47,7 @@ import { createSetTargetCommand } from './targetCommands';
 import { createTargetControl } from './targetControl';
 import type { ITargetControl } from './targetControl';
 import { TargetPopupLabels, openTargetPopup } from './TargetPopup';
-import type { ITargetApplyResult, ITargetPopup } from './TargetPopup';
+import type { ITargetApplyResult, ITargetPopup, ITargetPopupDraft } from './TargetPopup';
 import { toSavableTarget } from './targetValidation';
 import './Target.less';
 
@@ -167,8 +167,10 @@ export class TargetPlugin implements EditorPlugin {
       if (open === null) return;
       const layer = layerOf(open.layerId);
       if (layer === undefined) this.closePopup(false, true);
-      else if (!this.applying && (layer.name !== open.name || !sameTarget(layer.target, open.target))) {
-        this.openPopup(ctx, open.layerId, open.button, applyFromPopup);
+      else if (!this.applying && !open.view.picking && (layer.name !== open.name || !sameTarget(layer.target, open.target))) {
+        // Reconstruite avec la saisie en cours ; le focus n'y revient que s'il y était. Pendant un choix sur
+        // la scène, la fenêtre attend (le choix relit le document à l'application).
+        this.openPopup(ctx, open.layerId, open.button, applyFromPopup, open.view.draft());
       }
     };
     this.cleanups = [
@@ -215,7 +217,8 @@ export class TargetPlugin implements EditorPlugin {
     ctx: IEditorContext,
     layerId: string,
     button: HTMLButtonElement,
-    apply: (id: string, raw: unknown) => ITargetApplyResult
+    apply: (id: string, raw: unknown) => ITargetApplyResult,
+    draft?: ITargetPopupDraft
   ): boolean {
     this.closePopup(false);
     const layer = findNodeById(ctx.document.layers, layerId);
@@ -227,6 +230,7 @@ export class TargetPlugin implements EditorPlugin {
       layerName: layer.name,
       current: layer.target,
       apply: (target) => apply(layerId, target),
+      draft,
       onClose: () => {
         button.setAttribute('aria-expanded', 'false');
         if (this.popup?.view === view) this.popup = null;
