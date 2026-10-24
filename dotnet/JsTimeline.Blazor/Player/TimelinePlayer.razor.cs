@@ -79,18 +79,25 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
     public EventCallback OnReady { get; set; }
 
     /// <summary>
-    /// An error of the JavaScript player:
+    /// An error of the JavaScript player. It can be set, changed or removed at any time. It receives:
     /// <list type="bullet">
-    /// <item>a <see cref="JSException"/> when it refuses a document (invalid document, or the stage
-    /// refuses it); the refused instance is not sent again, a new instance is;</item>
-    /// <item>a <see cref="TimelineStageException"/> when the stage throws while playing (playback goes on);</item>
+    /// <item>a <see cref="JSException"/> when the player refuses a document (invalid document, or the
+    /// stage refuses it); the refused instance is not sent again, a new instance is;</item>
+    /// <item>a <see cref="JSException"/> when the player refuses <see cref="Loop"/> or <see cref="Speed"/>;</item>
     /// <item>a <see cref="System.Text.Json.JsonException"/> when a document cannot be written as JSON
-    /// (for example a <see cref="LayerTarget"/> with two forms).</item>
+    /// (for example a <see cref="LayerTarget"/> with two forms);</item>
+    /// <item>a <see cref="TimelineStageException"/> when the stage throws while playing (playback goes on).</item>
     /// </list>
-    /// A selector that matches nothing is not an error: see <see cref="TimelinePlayerState.MissingTargets"/>.
-    /// Without a handler, a refused document is thrown to the renderer and a stage error goes to the
-    /// browser console. The refused instance is recognised by reference: a parent that builds a new
-    /// document on every render sends it again after each OnError re-render.
+    /// <see cref="Loop"/> and <see cref="Speed"/> still apply when the document is refused. A selector that
+    /// matches nothing is not an error: see <see cref="TimelinePlayerState.MissingTargets"/>.
+    /// Without a handler, a stage error goes to the browser console and the other errors are thrown to
+    /// the renderer: the error itself when there is one, otherwise an <see cref="InvalidOperationException"/>
+    /// whose inner <see cref="AggregateException"/> holds them all. When the handler itself throws, an
+    /// <see cref="InvalidOperationException"/> is thrown (dispatched for a stage error) whose inner
+    /// <see cref="AggregateException"/> holds the handler's failure then the original error; with several
+    /// errors, each such pair stays grouped inside the aggregate of all errors. Errors left when the
+    /// component is disposed are dropped. The refused instance is recognised by reference: a parent that
+    /// builds a new document on every render sends it again after each OnError re-render.
     /// </summary>
     [Parameter]
     public EventCallback<Exception> OnError { get; set; }
@@ -306,10 +313,16 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
         {
             ExceptionDispatchInfo.Capture(single).Throw();
         }
-        var inner = unhandled is [AggregateException aggregate] ? aggregate : new AggregateException(unhandled);
+        if (unhandled is [AggregateException pair])
+        {
+            // The only entry is a handler failure with its original error (see OfferToOnErrorAsync).
+            throw new InvalidOperationException(
+                $"{nameof(TimelinePlayer)}: {nameof(OnError)} threw while handling an error, see the inner exceptions.",
+                pair);
+        }
         throw new InvalidOperationException(
-            $"{nameof(TimelinePlayer)}: {inner.InnerExceptions.Count} unhandled errors, see the inner exceptions.",
-            inner);
+            $"{nameof(TimelinePlayer)}: {unhandled.Count} unhandled errors, see the inner exceptions.",
+            new AggregateException(unhandled));
     }
 
     private async Task ApplyDataAsync(List<Exception> errors)

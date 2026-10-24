@@ -116,11 +116,12 @@ public sealed class TimelinePlayerErrorTests : BunitContext
             throw new InvalidOperationException("handler failed");
         }));
         var sink = Assert.IsType<DotNetObjectReference<TimelinePlayerEventSink>>(createArguments![3]).Value;
+        var unhandled = Renderer.UnhandledException;
 
+        // Completes once the handler and the check that follows it have run on the dispatcher.
         await sink.OnPlayerError("render failed");
 
-        var first = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(300));
-        Assert.NotSame(Renderer.UnhandledException, first);
+        Assert.False(unhandled.IsCompleted);
     }
 
     [Fact]
@@ -145,18 +146,17 @@ public sealed class TimelinePlayerErrorTests : BunitContext
     public async Task Errors_left_after_disposal_are_not_thrown_without_OnError()
     {
         var js = UseFakeJs();
-        var release = new TaskCompletionSource();
-        js.Player.Handler = (identifier, _) => identifier == "update"
-            ? release.Task.ContinueWith(_ => throw new JSException("refused"), TaskScheduler.Default)
-            : null;
+        var update = new TaskCompletionSource();
+        js.Player.Handler = (identifier, _) => identifier == "update" ? update.Task : null;
         var cut = Render<TimelinePlayer>(ps => ps.Add(p => p.Data, Document()));
+        var unhandled = Renderer.UnhandledException;
 
         cut.Render(ps => ps.Add(p => p.Data, Document(48)));
         await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
-        release.SetResult();
+        // Fails the update on the dispatcher: the application and its report finish inside this call.
+        await cut.InvokeAsync(() => update.SetException(new JSException("refused")));
 
-        var first = await Task.WhenAny(Renderer.UnhandledException, Task.Delay(300));
-        Assert.NotSame(Renderer.UnhandledException, first);
+        Assert.False(unhandled.IsCompleted);
     }
 
     [Fact]
@@ -183,8 +183,13 @@ public sealed class TimelinePlayerErrorTests : BunitContext
         cut.Render(ps => ps.Add(p => p.Data, Document(72)));
         await cut.InvokeAsync(release.SetResult);
 
-        var thrown = await Renderer.UnhandledException.WaitAsync(TimeSpan.FromSeconds(5));
+        var unhandled = Renderer.UnhandledException;
+        var thrown = await unhandled.WaitAsync(TimeSpan.FromSeconds(5));
+        await cut.InvokeAsync(() => { });
+
         Assert.Equal("refused", thrown.Message);
         Assert.Equal(2, updates);
+        // No second throw: the renderer still holds the same completed task.
+        Assert.Same(unhandled, Renderer.UnhandledException);
     }
 }
