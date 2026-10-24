@@ -165,6 +165,19 @@ export {
   ToolbarPlugin,
   createToolbarMainPlugin
 } from './plugins/toolbar';
+
+// Plugin toolbar.timeSettings : cadence et durée, en commandes annulables.
+export {
+  MAX_FPS,
+  MIN_FPS,
+  MIN_TOTAL_FRAMES,
+  TIME_SETTINGS_PLUGIN_ID,
+  TimeSettingsLabels,
+  TimeSettingsPlugin,
+  createSetFpsCommand,
+  createSetTotalFramesCommand,
+  createTimeSettingsPlugin
+} from './plugins/toolbar';
 export type {
   IToolbarButtonDefinition,
   IToolbarControlDefinition,
