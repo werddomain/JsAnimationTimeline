@@ -344,3 +344,138 @@ describe('layout.playhead lifecycle', () => {
     expect(act).toThrow('layout.playhead : render appelé avant init.');
   });
 });
+
+describe('layout.playhead scrubbing', () => {
+  it('announces the start and end of a drag, and tells whether one is running', () => {
+    // Arrange
+    const { editor, zone } = setup();
+    const events: string[] = [];
+    editor.on('playhead:scrubStart', (event) => events.push(`start:${event.frame}`));
+    editor.on('playhead:scrubEnd', (event) => events.push(`end:${event.frame}`));
+    const api = editor.getService('layout.playhead');
+
+    // Act
+    zone('ruler').dispatchEvent(pointer('pointerdown', 100 + 15 * 2));
+    const during = api?.isScrubbing();
+    document.dispatchEvent(pointer('pointermove', 100 + 15 * 6));
+    document.dispatchEvent(pointer('pointerup', 0));
+
+    // Assert
+    expect(during).toBe(true);
+    expect(api?.isScrubbing()).toBe(false);
+    expect(events).toEqual(['start:3', 'end:7']);
+  });
+
+  it('captures the pointer and ends the drag when the capture is lost', () => {
+    // Arrange
+    const { editor, zone, tick } = setup();
+    const ruler = zone('ruler');
+    const captured = new Set<number>();
+    ruler.setPointerCapture = (id: number) => void captured.add(id);
+    ruler.hasPointerCapture = (id: number) => captured.has(id);
+    ruler.releasePointerCapture = (id: number) => void captured.delete(id);
+    const down = pointer('pointerdown', 100);
+    Object.defineProperty(down, 'pointerId', { value: 7 });
+    const lost = new Event('lostpointercapture');
+    Object.defineProperty(lost, 'pointerId', { value: 7 });
+
+    // Act
+    ruler.dispatchEvent(down);
+    const whileDragging = captured.has(7);
+    ruler.dispatchEvent(lost);
+    const move = pointer('pointermove', 100 + 15 * 9);
+    Object.defineProperty(move, 'pointerId', { value: 7 });
+    document.dispatchEvent(move);
+    tick();
+
+    // Assert
+    expect(whileDragging).toBe(true);
+    expect(editor.getService('layout.playhead')?.isScrubbing()).toBe(false);
+    expect(editor.playback.frame).toBe(1);
+  });
+
+  it('does not announce the end of a drag cut by destroy', () => {
+    // Arrange
+    const { editor, zone } = setup();
+    const ends: number[] = [];
+    editor.on('playhead:scrubEnd', (event) => ends.push(event.frame));
+    zone('ruler').dispatchEvent(pointer('pointerdown', 100));
+
+    // Act
+    editor.destroy();
+
+    // Assert
+    expect(ends).toEqual([]);
+  });
+});
+
+describe('layout.playhead zoom and end of playback', () => {
+  it('re-places itself at the new frame width after zoom:changed', () => {
+    // Arrange
+    const { editor, head, line, tick } = setup();
+    editor.playback.seek(5);
+    tick();
+
+    // Act
+    editor.getService('layout.zoom')?.setZoom(2);
+
+    // Assert
+    expect(head.style.left).toBe('120px');
+    expect(head.style.width).toBe('30px');
+    expect(line.style.left).toBe('135px');
+  });
+
+  it('updates the slider value when a playback without loop completes', () => {
+    // Arrange
+    const { editor, head, tick } = setup(12);
+    editor.playback.play();
+    tick();
+
+    // Act
+    tick(5000);
+
+    // Assert
+    expect(editor.playback.playing).toBe(false);
+    expect(head.getAttribute('aria-valuenow')).toBe('12');
+  });
+
+  it('shows the head and resyncs the ruler when it gets the keyboard focus', () => {
+    // Arrange
+    const { editor, zone, head, tick } = setup();
+    makeScrollable(zone('frames'), { scrollWidth: 1500, scrollHeight: 200, clientWidth: 150, clientHeight: 200 });
+    makeScrollable(zone('ruler'), { scrollWidth: 1500, scrollHeight: 24, clientWidth: 150, clientHeight: 24 });
+    editor.playback.seek(60);
+    tick();
+    editor.getService('layout.scrollSync')?.scrollTo({ left: 0 });
+    zone('ruler').scrollLeft = 400;
+
+    // Act
+    head.dispatchEvent(new FocusEvent('focus'));
+
+    // Assert
+    const expected = (60 - 1 - FOLLOW_MARGIN_FRAMES) * 15;
+    expect(zone('frames').scrollLeft).toBe(expected);
+    expect(zone('ruler').scrollLeft).toBe(expected);
+  });
+});
+
+describe('layout.playhead click with the head out of view', () => {
+  it('seeks to the clicked frame without first scrolling back to the old head', () => {
+    // Arrange
+    const { editor, zone, tick } = setup();
+    makeScrollable(zone('frames'), { scrollWidth: 1500, scrollHeight: 200, clientWidth: 150, clientHeight: 200 });
+    const order: string[] = [];
+    editor.on('playhead:scrubStart', (event) => order.push(`start:${event.frame}`));
+    editor.on('playhead:changed', (event) => order.push(`changed:${event.frame}`));
+    editor.getService('layout.scrollSync')?.scrollTo({ left: 600 });
+
+    // Act : image 1 hors de vue ; clic à 3 images du bord, soit l'image 44.
+    zone('ruler').dispatchEvent(pointer('pointerdown', 100 + 15 * 3 + 2));
+    tick();
+
+    // Assert
+    expect(zone('frames').scrollLeft).toBe(600);
+    expect(editor.playback.frame).toBe(44);
+    expect(order).toEqual(['start:44', 'changed:44']);
+  });
+});

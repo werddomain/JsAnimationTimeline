@@ -86,18 +86,18 @@ describe('layout.ruler service', () => {
     expect(api?.frameLeft(3)).toBe(30);
   });
 
-  it('finds the frame under a window x, scrolling included, clamped to the timeline', () => {
+  it('finds the frame under a window x, frames scrolling included, clamped to the timeline', () => {
     // Arrange
     const { editor, zone } = mountLayout([], { data: timelineDocument(100) });
     const ruler = zone('ruler');
     placeAt(ruler, 100);
-    makeScrollable(ruler, { scrollWidth: 1500, scrollHeight: 24, clientWidth: 300, clientHeight: 24 });
+    makeScrollable(zone('frames'), { scrollWidth: 1500, scrollHeight: 300, clientWidth: 300, clientHeight: 300 });
     const api = editor.getService('layout.ruler');
 
     // Act
     const atStart = api?.frameAtClientX(107);
     const second = api?.frameAtClientX(115);
-    ruler.scrollLeft = 30;
+    editor.getService('layout.scrollSync')?.scrollTo({ left: 30 });
     const scrolled = api?.frameAtClientX(115);
     const before = api?.frameAtClientX(0);
     const after = api?.frameAtClientX(5000);
@@ -151,5 +151,44 @@ describe('layout.ruler lifecycle', () => {
 
     // Assert
     expect(api?.frameAtClientX(500)).toBe(1);
+  });
+});
+
+describe('layout.ruler frame width', () => {
+  it('redraws at a new width and publishes it on the shell only', () => {
+    // Arrange
+    const { editor, zone } = mountLayout([], { data: timelineDocument(12) });
+    const api = editor.getService('layout.ruler');
+    const ruler = zone('ruler').querySelector<HTMLElement>(`.${RULER_CLASS}`);
+
+    // Act
+    api?.setFrameWidth(30);
+
+    // Assert
+    expect(api?.frameWidth()).toBe(30);
+    expect(api?.frameLeft(3)).toBe(60);
+    expect(ruler?.style.width).toBe('360px');
+    expect(ruler?.style.getPropertyValue(FRAME_WIDTH_VAR)).toBe('');
+    expect(editor.getService('layout.shell')?.element()?.style.getPropertyValue(FRAME_WIDTH_VAR)).toBe('30px');
+    expect(labels(zone('ruler'))).toEqual([
+      { text: '1', left: '0px' },
+      { text: '5', left: '120px' },
+      { text: '10', left: '270px' }
+    ]);
+  });
+
+  it('refuses an invalid width and ignores an unchanged one', () => {
+    // Arrange
+    const { editor, zone } = mountLayout([], { data: timelineDocument(12) });
+    const api = editor.getService('layout.ruler');
+    const first = zone('ruler').querySelector(`.${RULER_LABEL_CLASS}`);
+
+    // Act
+    const act = (): void => api?.setFrameWidth(-3);
+    api?.setFrameWidth(15);
+
+    // Assert
+    expect(act).toThrow(RangeError);
+    expect(zone('ruler').querySelector(`.${RULER_LABEL_CLASS}`)).toBe(first);
   });
 });
