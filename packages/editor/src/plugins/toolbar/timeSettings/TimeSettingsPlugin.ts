@@ -192,7 +192,7 @@ export class TimeSettingsPlugin implements EditorPlugin {
     const raw = field.input.value.trim();
     const value = raw === '' ? Number.NaN : Number(raw);
     if (value === field.spec.read(ctx.document)) {
-      this.showMessage(undefined);
+      this.clearMark(field);
       return;
     }
     const command = field.spec.command(value);
@@ -217,6 +217,15 @@ export class TimeSettingsPlugin implements EditorPlugin {
       input.max = String(spec.max(ctx.document));
       if (field !== keep) input.value = String(spec.read(ctx.document));
     });
+  }
+
+  /**
+   * Retire la marque d'erreur de `field` seul ; efface le message si plus
+   * aucun champ ne garde une valeur refusée.
+   */
+  private clearMark(field: IField): void {
+    field.input.removeAttribute('aria-invalid');
+    if (this.fields.every(({ input }) => !input.hasAttribute('aria-invalid'))) this.showMessage(undefined);
   }
 
   /** Affiche `text` (ou efface le message) ; marque `field` invalide pendant que le motif est affiché. */

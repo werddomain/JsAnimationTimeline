@@ -134,7 +134,7 @@ export function createSetFpsCommand(fps: number): ICommand {
 
 /**
  * Commande « Modifier la durée » : `settings.totalFrames` = `totalFrames`
- * (entier de 1 à `MAX_TOTAL_FRAMES`, pas plus court que la fin de la
+ * (entier de 1 à `maxTotalFrames(doc)`, pas plus court que la fin de la
  * dernière plage).
  */
 export function createSetTotalFramesCommand(totalFrames: number): ICommand {

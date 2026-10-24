@@ -289,3 +289,32 @@ describe('toolbar.timeSettings accessibility and vetoes', () => {
   });
 });
 
+describe('toolbar.timeSettings marks per field', () => {
+  it('keeps the other field marked when one field is set back to the document value', () => {
+    // Arrange
+    const { fps, totalFrames, message } = mount();
+    enter(fps, '500');
+
+    // Act
+    enter(totalFrames, '60.0');
+
+    // Assert
+    expect(fps.value).toBe('500');
+    expect(fps.getAttribute('aria-invalid')).toBe('true');
+    expect(message().textContent).not.toBe('');
+  });
+
+  it('clears the message once the refused field is set back to the document value', () => {
+    // Arrange
+    const { fps, message } = mount();
+    enter(fps, '500');
+
+    // Act
+    enter(fps, '24');
+
+    // Assert
+    expect(fps.hasAttribute('aria-invalid')).toBe(false);
+    expect(message().textContent).toBe('');
+  });
+});
+

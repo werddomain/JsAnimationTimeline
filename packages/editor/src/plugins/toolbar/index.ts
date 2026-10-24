@@ -34,3 +34,9 @@ export {
   createSetTotalFramesCommand,
   createTimeSettingsPlugin
 } from './timeSettings';
+export {
+  FIT_OPTION_VALUE,
+  ZOOM_CONTROL_PLUGIN_ID,
+  ZoomControlPlugin,
+  createZoomControlPlugin
+} from './zoomControl';

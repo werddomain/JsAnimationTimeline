@@ -23,9 +23,9 @@
   ],
   "scripts": {
     "build": "vite build --configLoader runner && tsc -p tsconfig.build.json",
-    "dev": "vite --configLoader runner --port 9000 --strictPort",
+    "dev": "vite --configLoader runner",
     "build:demo": "vite build --configLoader runner --config vite.demo.config.ts",
-    "preview:demo": "vite preview --configLoader runner --config vite.demo.config.ts --port 9000",
+    "preview:demo": "vite preview --configLoader runner --config vite.demo.config.ts",
     "test": "jest",
     "test:coverage": "jest --coverage",
     "typecheck": "tsc --noEmit",
