@@ -11,6 +11,7 @@ import { updateLayerNode } from '../../list/layerTree';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';
 import type { IListHarness } from '../../list/__tests__/fixtures';
 import { createEditor } from '../../../../core/editor/createEditor';
+import { createShortcutsPlugin } from '../../../interaction/shortcuts';
 import { LayoutPlugin } from '../../../layout/LayoutPlugin';
 import { LayersPlugin } from '../../LayersPlugin';
 import { LayerSelectionPlugin } from '../LayerSelectionPlugin';
@@ -954,7 +955,7 @@ describe('render', () => {
     const plugin = layers.children.find((child) => child instanceof LayerSelectionPlugin);
     const host = document.createElement('div');
     document.body.appendChild(host);
-    const editor = createEditor(host, { data: tree, defaultPlugins: [new LayoutPlugin(), layers], plugins: [recorder(events)] });
+    const editor = createEditor(host, { data: tree, defaultPlugins: [new LayoutPlugin(), createShortcutsPlugin(), layers], plugins: [recorder(events)] });
     (plugin as LayerSelectionPlugin).render();
     const list = editor.getService('layers.list');
     click(list?.rowElement('a') as Element);
