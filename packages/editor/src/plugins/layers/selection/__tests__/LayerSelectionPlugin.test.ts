@@ -10,6 +10,10 @@ import type { IEditor } from '../../../../core/editor/types';
 import { updateLayerNode } from '../../list/layerTree';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';
 import type { IListHarness } from '../../list/__tests__/fixtures';
+import { createEditor } from '../../../../core/editor/createEditor';
+import { LayoutPlugin } from '../../../layout/LayoutPlugin';
+import { LayersPlugin } from '../../LayersPlugin';
+import { LayerSelectionPlugin } from '../LayerSelectionPlugin';
 import { SELECTED_ROW_CLASS } from '../selectionView';
 import type { ILayerSelectionService, SelectionChangedEvent } from '../types';
 
@@ -269,6 +273,23 @@ describe('mouse', () => {
     const toggle = row(h, 'f').querySelector('[data-action="toggle"]') as Element;
     click(toggle);
     expect(h.selection.selected()).toEqual(['c']);
+    expect(document.activeElement).toBe(row(h, 'f'));
+  });
+
+  it('puts the DOM focus on the row after a click on a row control, not on an input', () => {
+    const h = setup();
+    h.list.addRowControl({
+      id: 'test.eye',
+      order: 1,
+      render: (_row, element) => element.appendChild(document.createElement('button'))
+    });
+    click(row(h, 'a').querySelector('.jt-layer-row__control button') as Element);
+    expect(document.activeElement).toBe(row(h, 'a'));
+    const input = document.createElement('input');
+    h.list.nameElement('b')?.appendChild(input);
+    input.focus();
+    click(input);
+    expect(document.activeElement).toBe(input);
   });
 
   it('ignores clicks on row controls and in inputs', () => {
@@ -344,6 +365,14 @@ describe('keyboard', () => {
     expect(h.selection.anchor()).toBe('a');
     press(row(h, 'b'), 'ArrowUp', { shift: true });
     expect(h.selection.selected()).toEqual(['a', 'g']);
+  });
+
+  it('emits selection:changed for a focus-only change', () => {
+    const h = setup();
+    click(row(h, 'a'));
+    h.events.length = 0;
+    press(row(h, 'a'), 'ArrowDown', { ctrl: true });
+    expect(h.events).toEqual([{ ids: ['a'], previous: ['a'], anchor: 'a', focused: 'g' }]);
   });
 
   it('moves the focus only with Ctrl+Down, then toggles with Space', () => {
@@ -469,20 +498,68 @@ describe('pruning', () => {
     const h = setup();
     h.selection.select(['b']);
     h.events.length = 0;
-    h.editor.load(doc([folder('f', [layer('a')]), layer('c')]));
+    h.editor.execute(
+      createCommand(
+        'Supprimer',
+        (current) => ({ ...current, layers: [folder('f', [layer('a')]), layer('c')] }),
+        () => tree
+      )
+    );
     expect(h.selection.selected()).toEqual([]);
     expect(h.selection.focused()).toBe('c');
     expect(h.events).toHaveLength(1);
     expect(h.events[0]).toMatchObject({ ids: [], previous: ['b'] });
   });
 
-  it('keeps a selected row that survives a reload and emits nothing', () => {
+  it('clears selection, anchor and focus on document:loaded even when ids are reused', () => {
     const h = setup();
     h.selection.select(['c']);
     h.events.length = 0;
     h.editor.load(doc([layer('x'), layer('c')]));
-    expect(h.selection.selected()).toEqual(['c']);
+    expect(h.selection.selected()).toEqual([]);
+    expect(h.selection.anchor()).toBeUndefined();
+    expect(h.selection.focused()).toBeUndefined();
+    expect(h.events).toEqual([{ ids: [], previous: ['c'] }]);
+    expect(row(h, 'x').tabIndex).toBe(0);
+    expect(row(h, 'c').getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('emits nothing on document:loaded when there is nothing to clear', () => {
+    const h = setup();
+    h.editor.load(doc([layer('x')]));
     expect(h.events).toEqual([]);
+  });
+
+  it('moves the DOM focus to the model focus when the focused row disappears', () => {
+    const h = setup();
+    click(row(h, 'b'));
+    expect(document.activeElement).toBe(row(h, 'b'));
+    collapse(h.editor, 'f', true);
+    expect(document.activeElement).toBe(row(h, 'f'));
+    expect(h.selection.focused()).toBe('f');
+  });
+
+  it('moves the DOM focus to the neighbour when the focused row is deleted', () => {
+    const h = setup();
+    click(row(h, 'a'));
+    h.editor.execute(
+      createCommand(
+        'Supprimer',
+        (current) => ({ ...current, layers: [folder('f', [folder('g', [layer('b')])]), layer('c')] }),
+        () => tree
+      )
+    );
+    expect(document.activeElement).toBe(row(h, h.selection.focused() as string));
+  });
+
+  it('does not steal the focus when the list did not hold it', () => {
+    const h = setup();
+    h.selection.select(['b']);
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+    collapse(h.editor, 'f', true);
+    expect(document.activeElement).toBe(outside);
   });
 
   it('does not emit for document changes that keep the selection valid', () => {
@@ -503,7 +580,13 @@ describe('pruning', () => {
     const h = setup(doc([layer('a'), layer('b'), layer('c')]));
     h.selection.select(['a', 'c']);
     h.events.length = 0;
-    h.editor.load(doc([layer('c'), layer('b'), layer('a')]));
+    h.editor.execute(
+      createCommand(
+        'Réordonner',
+        (current) => ({ ...current, layers: [layer('c'), layer('b'), layer('a')] }),
+        (current) => ({ ...current, layers: [layer('a'), layer('b'), layer('c')] })
+      )
+    );
     expect(h.selection.selected()).toEqual(['c', 'a']);
     expect(h.events).toEqual([]);
   });
@@ -520,8 +603,38 @@ describe('pruning', () => {
   it('drops a deleted child and keeps the rest', () => {
     const h = setup();
     h.selection.select(['a', 'c']);
-    h.editor.load(doc([folder('f', [folder('g', [layer('b')])]), layer('c')]));
+    h.editor.execute(
+      createCommand(
+        'Supprimer',
+        (current) => ({ ...current, layers: [folder('f', [folder('g', [layer('b')])]), layer('c')] }),
+        () => tree
+      )
+    );
     expect(h.selection.selected()).toEqual(['c']);
+  });
+});
+
+describe('render', () => {
+  it('does not duplicate listeners when render is called twice', () => {
+    const events: SelectionChangedEvent[] = [];
+    const layers = new LayersPlugin();
+    const plugin = layers.children.find((child) => child instanceof LayerSelectionPlugin);
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const editor = createEditor(host, { data: tree, defaultPlugins: [new LayoutPlugin(), layers], plugins: [recorder(events)] });
+    (plugin as LayerSelectionPlugin).render();
+    const list = editor.getService('layers.list');
+    click(list?.rowElement('a') as Element);
+    editor.destroy();
+    expect(events).toHaveLength(1);
+  });
+
+  it('seeds the known rows so the first prune finds the right neighbour', () => {
+    const h = setup();
+    expect(h.selection.focused()).toBeUndefined();
+    h.selection.select(['b']);
+    h.editor.load(doc([layer('c')]));
+    expect(h.selection.selected()).toEqual([]);
   });
 });
 

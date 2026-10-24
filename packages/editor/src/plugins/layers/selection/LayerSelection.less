@@ -6,6 +6,13 @@
 .JsTimeLine {
   .jt-layer-row {
     outline: none;
+    user-select: none;
+
+    // Le texte reste sélectionnable dans le champ de renommage.
+    [data-editing],
+    input {
+      user-select: text;
+    }
   }
 
   .jt-layer-row--selected,
