@@ -18,9 +18,11 @@
  * exécute un seul lot : une entrée d'historique, tout ou rien (un refus
  * annule le tout et émet `command:refused`).
  *
- * Les raccourcis retournent toujours « traité », même sans cible : dans
- * l'éditeur, F5 ne recharge donc pas la page. Ils sont désactivés pendant un
- * glisser et un regroupement de l'historique.
+ * Les raccourcis retournent toujours « traité », même sans cible ou pendant
+ * un glisser ou un regroupement de l'historique (l'action est alors
+ * ignorée) : quand le focus est dans l'éditeur, hors champ de saisie, F5 ne
+ * recharge donc pas la page. Dans un champ de saisie, les touches restent au
+ * navigateur (`interaction.shortcuts` n'y déclenche pas les raccourcis).
  *
  * Le plugin ne dessine que le fantôme du glisser, dans un calque posé sur la
  * grille (`frames.grid` → `element()`).
@@ -88,7 +90,7 @@ export class FramesKeyframesPlugin implements EditorPlugin {
             id: `${FRAMES_KEYFRAMES_PLUGIN_ID}.${shortcut.action}`,
             keys: shortcut.keys,
             label: shortcut.label,
-            // Toujours « traité » : F5 ne recharge jamais la page dans l'éditeur,
+            // Toujours « traité » : hors champ de saisie, F5 ne recharge pas la page,
             // même pendant un glisser ou un regroupement, où l'action est ignorée.
             run: () => {
               if (!(this.drag?.active ?? false) && !ctx.commands.isGrouping) service[shortcut.action]();

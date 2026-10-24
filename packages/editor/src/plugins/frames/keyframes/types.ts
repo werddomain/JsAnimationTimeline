@@ -24,7 +24,12 @@ export interface IFramesKeyframesService {
   removeFrame(): boolean;
   /**
    * Déplace les images clés sélectionnées de `offset` images (négatif : vers
-   * la gauche) et déplace la sélection avec elles.
+   * la gauche) et déplace la sélection avec elles. `offset` est d'abord
+   * borné pour que les images clés restent dans la timeline (1 à
+   * `totalFrames`) ; s'il vaut alors 0 (déjà au bord), rien ne se passe et
+   * `false` est retourné sans événement. Un refus (verrou, bornes de K1,
+   * image clé de propriété écrasée) émet `command:refused` et retourne
+   * `false`.
    */
   move(offset: number): boolean;
 }

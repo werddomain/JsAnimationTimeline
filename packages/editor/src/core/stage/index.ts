@@ -13,4 +13,4 @@ export { StageReportFeed, reportKey } from './reportFeed';
 export type { IStageChoice } from './resolveStages';
 export { createStageFacade } from './stageFacade';
 export type { StageReportEvent, StageTargetsChangedEvent } from './stageEvents';
-export type { EditorStageOption, IEditorStage, StageErrorHandler } from './types';
+export type { EditorStageOption, IEditorStage, IStageHold, StageErrorHandler } from './types';

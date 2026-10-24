@@ -406,4 +406,38 @@ describe('frames.keyframes drag start conditions', () => {
     expect(event.defaultPrevented).toBe(true);
     expect(h.editor.toJSON()).toEqual(data());
   });
+
+  it('announces a drop refused because it would replace a property keyframe', () => {
+    // Arrange
+    const h = setupKeyframes(tweenDoc());
+    h.selection.select({ rowId: 't', frame: 5 });
+    pressCell(h.grid, 0, 5);
+    moveTo('pointermove', 0, 8);
+
+    // Act
+    moveTo('pointerup', 0, 8);
+
+    // Assert
+    expect(h.refused).toHaveLength(1);
+    expect(h.editor.toJSON()).toEqual(tweenDoc());
+  });
+
+  it('keeps a multiple selection after a drag that comes back to its start frame', () => {
+    // Arrange
+    const h = setupKeyframes(data());
+    h.selection.set([
+      { rowId: 'p', frame: 4 },
+      { rowId: 'q', frame: 4 }
+    ]);
+    pressCell(h.grid, 0, 4);
+    moveTo('pointermove', 0, 6);
+
+    // Act
+    moveTo('pointermove', 0, 4);
+    moveTo('pointerup', 0, 4);
+
+    // Assert : le relâchement sur l'image de départ n'est plus un clic qui réduit la sélection.
+    expect(cellsOf(h)).toEqual(['p:4', 'q:4']);
+    expect(h.editor.toJSON()).toEqual(data());
+  });
 });
