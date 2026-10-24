@@ -1,0 +1,89 @@
+// Cible du calque (layers.target) : bouton de ligne (alerte de cible
+// manquante) et fenêtre de choix, posée sous le bouton dans l'éditeur.
+
+.JsTimeLine {
+  .jt-layer-target {
+    min-width: 1.5em;
+    padding: 0 2px;
+    border: 0;
+    background: transparent;
+    color: #555;
+    cursor: pointer;
+  }
+
+  .jt-layer-target--missing {
+    color: #b45309;
+    font-weight: bold;
+  }
+
+  .jt-target-popup {
+    position: fixed;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 220px;
+    max-width: 320px;
+    max-height: 70vh;
+    overflow-y: auto;
+    padding: 8px;
+    border: 1px solid #999;
+    border-radius: 4px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    font-size: 12px;
+  }
+
+  .jt-target-popup__list {
+    max-height: 160px;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+  }
+
+  .jt-target-popup__option {
+    width: 100%;
+    padding: 2px 4px;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+
+    &[aria-pressed='true'] {
+      background: #dbeafe;
+      font-weight: bold;
+    }
+
+    &:hover,
+    &:focus-visible {
+      background: #eff6ff;
+    }
+  }
+
+  .jt-target-popup__form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .jt-target-popup__text {
+    flex: 1 1 120px;
+  }
+
+  .jt-target-popup__status {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  // Masquée visuellement (pas display: none) : la zone role=status reste lue au premier message.
+  .jt-target-popup__status:empty {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}

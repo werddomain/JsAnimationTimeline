@@ -49,6 +49,16 @@ export {
 } from './lock';
 export type { ILayerLockService } from './lock';
 export {
+  LAYERS_TARGET_PLUGIN_ID,
+  TARGET_CONTROL_ORDER,
+  TARGET_LABEL,
+  TargetAlertLabels,
+  TargetPlugin,
+  computeTargetAlert,
+  createSetTargetCommand
+} from './target';
+export type { ILayerTargetService, ITargetAlert } from './target';
+export {
   LAYERS_SELECTION_PLUGIN_ID,
   LayerSelectionPlugin,
   SELECTED_ROW_CLASS
