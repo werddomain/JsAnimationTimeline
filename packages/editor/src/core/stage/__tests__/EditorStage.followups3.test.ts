@@ -18,7 +18,7 @@ import type { EventName } from '../../events/EventBus';
 import type { TimelineEventMap } from '../../events/TimelineEventMap';
 import { Store } from '../../store/Store';
 import { EditorStageHost } from '../EditorStageHost';
-import { DISPLAY_FRAME_MS, createFakeStage, createStageEditor, setTarget } from './fixtures';
+import { DISPLAY_FRAME_MS, createFakeStage, createStageEditor, deleteLayer, setTarget } from './fixtures';
 
 afterEach(cleanBody);
 
@@ -252,5 +252,58 @@ describe('stage:report with the stage hold (#76)', () => {
 
     // Assert
     expect(reports).toEqual([]);
+  });
+});
+
+describe('load-time warnings under a hold (#78 follow-up)', () => {
+  it('announces again an unknown-stage warning that went away and came back while held', () => {
+    // Arrange
+    const { editor, clock } = createStageEditor();
+    editor.execute(setTarget('l-tree', { ref: 'tree', stage: 'nope' }, { ref: 'tree', stage: 'fake' }));
+    clock.advance(DISPLAY_FRAME_MS);
+    const reports: IStageReport[] = [];
+    editor.on('stage:report', (report) => reports.push(report));
+    const hold = editor.stage.hold();
+
+    // Act : supprimer le calque, annuler (il revient), relâcher.
+    editor.execute(deleteLayer('l-tree', editor.document));
+    editor.undo();
+    hold.release();
+
+    // Assert
+    expect(reports.map((report) => [report.code, report.layerId])).toEqual([[StageReportCodes.UNKNOWN_STAGE, 'l-tree']]);
+  });
+});
+
+describe('hold catch-up counts as a full pass', () => {
+  it('stops carrying a render-time report once the catch-up sync and render ran without it', () => {
+    // Arrange
+    const stage = createFakeStage();
+    let reporting = true;
+    let stageContext: IStageContext | null = null;
+    stage.attach = (ctx) => {
+      stageContext = ctx;
+    };
+    const render = stage.render?.bind(stage);
+    stage.render = (time, states) => {
+      render?.(time, states);
+      if (reporting) stageContext?.report({ code: StageReportCodes.DUPLICATE_TARGET, layerId: 'l-hero', message: 'double' });
+    };
+    const { editor, clock } = createStageEditor({}, stage);
+    const reports: IStageReport[] = [];
+    editor.on('stage:report', (report) => reports.push(report));
+    clock.advance(DISPLAY_FRAME_MS);
+    const hold = editor.stage.hold();
+
+    // Act : D1 sous retenue (une image retenue), rattrapage sans l'avertissement, puis D2 où il revient.
+    reporting = false;
+    editor.execute(touch);
+    clock.advance(DISPLAY_FRAME_MS);
+    hold.release();
+    reporting = true;
+    editor.execute(touch);
+
+    // Assert : annoncé au premier rendu, puis de nouveau après le passage complet du rattrapage.
+    expect(reports.map((report) => report.code)).toEqual([StageReportCodes.DUPLICATE_TARGET, StageReportCodes.DUPLICATE_TARGET]);
   });
 });
