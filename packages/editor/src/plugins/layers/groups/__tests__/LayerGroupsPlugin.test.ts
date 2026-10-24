@@ -225,6 +225,15 @@ describe('focus and events', () => {
     expect(document.activeElement).toBe(h.list.rowElement('g'));
   });
 
+  it('does not reselect the children on a later layers:rowsChanged (one-shot listener is gone)', () => {
+    const h = setup();
+    h.selection.select(['f']);
+    h.groups.ungroup('f');
+    h.selection.select(['c']);
+    h.list.setCollapsed('g', true);
+    expect(h.selection.selected()).toEqual(['c']);
+  });
+
   it('emits a single layers:selectionChanged when ungrouping an expanded folder', () => {
     const events: LayerSelectionChangedEvent[] = [];
     const h = setup(tree, [recorder(events)]);

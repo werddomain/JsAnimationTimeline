@@ -167,6 +167,8 @@ export class LayerToolbarPlugin implements EditorPlugin {
     const next = rowAfterDelete(before, after);
     this.requireSelection().select(next === undefined ? [] : [next]);
     if (hadFocus && next !== undefined) this.focusRow(next);
+    // Plus aucune ligne : le focus irait au `body`, on le donne au premier bouton de la barre.
+    else if (hadFocus) this.view?.focusFirst();
     return true;
   }
 

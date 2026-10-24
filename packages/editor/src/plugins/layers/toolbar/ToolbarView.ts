@@ -94,6 +94,11 @@ export class ToolbarView {
     });
   }
 
+  /** Donne le focus au premier bouton (« Nouveau calque », toujours disponible). */
+  focusFirst(): void {
+    this.buttons.get('newLayer')?.focus();
+  }
+
   /** Retire la barre du DOM. */
   dispose(): void {
     this.element.removeEventListener('keydown', this.onKeyDown);

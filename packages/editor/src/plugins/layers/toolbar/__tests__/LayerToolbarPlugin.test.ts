@@ -275,6 +275,22 @@ describe('keyboard focus', () => {
     expect(document.activeElement).toBe(h.list.rowElement('layer-1'));
   });
 
+  it('moves focus to the first toolbar button when Delete removes every row', () => {
+    const h = setup(doc([layer('only')]));
+    h.selection.select(['only']);
+    press(focusRow(h, 'only'), 'Delete');
+    expect(h.editor.document.layers).toHaveLength(0);
+    expect(document.activeElement).toBe(button(h, 'Nouveau calque'));
+  });
+
+  it('keeps focus on a toolbar button after clicking it', () => {
+    const h = setup();
+    const create = button(h, 'Nouveau dossier');
+    create.focus();
+    create.click();
+    expect(document.activeElement).toBe(create);
+  });
+
   it('does not steal focus when the list had none', () => {
     const h = setup();
     h.selection.select(['c']);
