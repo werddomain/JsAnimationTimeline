@@ -4,7 +4,7 @@
  * précisé (ou vaut `true`).
  *
  * Les tâches du plan y ajoutent leurs plugins au fur et à mesure (L1
- * `layout.*` : fait ; Y1 `layers.list` : fait ; Y* `layers.*`, G* `frames.*`, T* `toolbar.*`, P* `playback.*`,
+ * `layout.*` : fait ; Y1 `layers.list` : fait ; Y5 `layers.selection` : fait ; Y* `layers.*`, G* `frames.*`, T* `toolbar.*`, P* `playback.*`,
  * C5 `history.undoRedo`...). Déjà présents : I2 `interaction.shortcuts`,
  * T1 `toolbar` (`toolbar.main`) et S2 `persistence.json`. Les plugins optionnels
  * (par exemple `properties.panel`) n'y figurent pas : l'application les

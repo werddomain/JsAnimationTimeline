@@ -1,0 +1,26 @@
+// Sélection des calques (layers.selection). Réglages par variables CSS :
+//   --jt-layer-row-selected        fond d'une ligne sélectionnée
+//   --jt-layer-row-selected-text   texte d'une ligne sélectionnée
+//   --jt-layer-row-focus           contour de la ligne qui a le focus clavier
+
+.JsTimeLine {
+  .jt-layer-row {
+    outline: none;
+  }
+
+  .jt-layer-row--selected,
+  .jt-layer-row--selected:hover {
+    background-color: var(--jt-layer-row-selected, #3d7be0);
+    color: var(--jt-layer-row-selected-text, #fff);
+  }
+
+  .jt-layer-row--selected .jt-layer-row__toggle {
+    color: inherit;
+  }
+
+  // Contour du focus clavier, à l'intérieur de la ligne pour ne pas être rogné.
+  .jt-layer-row:focus-visible {
+    outline: 2px solid var(--jt-layer-row-focus, #1b4fa8);
+    outline-offset: -2px;
+  }
+}
