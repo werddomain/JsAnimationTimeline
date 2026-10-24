@@ -217,6 +217,18 @@ describe('layout.zoom options and lifecycle', () => {
     expect(() => new ZoomPlugin({ levels: [5, 6], maxZoom: 3 })).toThrow(RangeError);
   });
 
+  it('uses the bounds as levels when only bounds outside the default levels are given', () => {
+    // Act
+    const above = setup({ zoom: { minZoom: 5 } });
+    const below = setup({ zoom: { maxZoom: 0.2 } });
+
+    // Assert
+    expect(above.api.levels()).toEqual([5, 8]);
+    expect(above.api.zoom()).toBe(5);
+    expect(below.api.levels()).toEqual([0.1, 0.2]);
+    expect(below.api.zoom()).toBe(0.2);
+  });
+
   it('keeps only the levels within the bounds', () => {
     // Act
     const { api } = setup({ zoom: { maxZoom: 3, minZoom: 0.5 } });
@@ -387,20 +399,38 @@ describe('layout.zoom gestures and re-entrancy', () => {
     expect([afterOut, afterIn, api.zoom()]).toEqual([0.25, 0.25, 4]);
   });
 
-  it('adds up fractions of a line before stepping one level, and restarts on a change of unit', () => {
+  it('steps one level per notch split into fractions of a line (8 × 0.375 = 3 lines)', () => {
+    // Arrange
+    const { zone, api } = setup();
+    const lines = { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_LINE };
+    const notch = (): number[] =>
+      Array.from({ length: 8 }, () => {
+        zone('frames').dispatchEvent(ctrlWheel(-0.375, 150, lines));
+        return api.zoom();
+      });
+
+    // Act
+    const first = notch();
+    const second = notch();
+
+    // Assert : un seul palier par cran, à la fin de chacun.
+    expect(first).toEqual([1, 1, 1, 1, 1, 1, 1, 1.5]);
+    expect(second).toEqual([1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 2]);
+  });
+
+  it('restarts the fractions on a change of unit', () => {
     // Arrange
     const { zone, api } = setup();
     const lines = { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_LINE };
 
     // Act
-    [-0.4, -0.4].forEach((deltaY) => zone('frames').dispatchEvent(ctrlWheel(deltaY, 150, lines)));
-    const beforeOneLine = api.zoom();
+    [-0.75, -0.75, -0.75].forEach((deltaY) => zone('frames').dispatchEvent(ctrlWheel(deltaY, 150, lines)));
     zone('frames').dispatchEvent(ctrlWheel(-40, 150));
     const afterUnitChange = api.zoom();
-    [-0.5, -0.5].forEach((deltaY) => zone('frames').dispatchEvent(ctrlWheel(deltaY, 150, lines)));
+    [-0.75, -0.75, -0.75, -0.75].forEach((deltaY) => zone('frames').dispatchEvent(ctrlWheel(deltaY, 150, lines)));
 
     // Assert
-    expect([beforeOneLine, afterUnitChange, api.zoom()]).toEqual([1, 1, 1.5]);
+    expect([afterUnitChange, api.zoom()]).toEqual([1, 1.5]);
   });
 
   it('ignores a zoom asked from a zoom:changed listener', () => {
