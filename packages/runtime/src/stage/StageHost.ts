@@ -27,45 +27,13 @@ import type { ITransportSyncState, ITransportTime } from '../transport/types';
 import { evaluateStageLayers, prepareStageLayer } from './frameStates';
 import { isStageDocumentError, StageReportCodes } from './reports';
 import type { IStageReport } from './reports';
+import type { IBinding, IHostState, IStageHostClock, IStageHostOptions } from './stageHostTypes';
 import { assertValidStages, routeTarget, sameTarget } from './routing';
 import { StageReporter } from './StageReporter';
-import type { IStageReporterState, StageErrorHandler } from './StageReporter';
+import type { IStageReporterState } from './StageReporter';
 import type { IStage, IStageContext, IStageLayer } from './types';
 
-/** Current position and play state, read when targets are refreshed. */
-export interface IStageHostClock {
-  readonly time: ITransportTime;
-  readonly state: ITransportSyncState;
-}
-
-/** Options of `StageHost`. */
-export interface IStageHostOptions {
-  readonly stages: readonly IStage[];
-  /** Registry handed to the stages and used to evaluate (already holds the stages' properties). */
-  readonly registry: PropertyRegistry;
-  /** Receives the errors thrown by the stages (first per stage and per layer). */
-  readonly onError: StageErrorHandler;
-  /** Called for every new report. */
-  readonly onReport?: (report: IStageReport) => void;
-  /** Current time and play state, to re-apply a stage after a refresh. */
-  readonly now: () => IStageHostClock;
-}
-
-/** A routed layer and its cached resolution (`object` null: resolution failed). */
-interface IBinding {
-  readonly layerId: string;
-  readonly target: LayerTarget;
-  readonly stage: IStage;
-  readonly object: unknown;
-  readonly resolved: boolean;
-}
-
-/** What `load` changes, saved to roll back a refused document. */
-interface IHostState {
-  readonly doc: ITimelineDocument | null;
-  readonly bindings: ReadonlyMap<string, IBinding>;
-  readonly prepared: ReadonlyMap<string, ILayer>;
-}
+export type { IStageHostClock, IStageHostOptions } from './stageHostTypes';
 
 /** See the module comment. */
 export class StageHost {
@@ -108,18 +76,25 @@ export class StageHost {
   /**
    * Binds the layers of `doc` (see the module comment). Throws the
    * `StageDocumentError` of a stage after restoring the previous document.
+   * Target changes signalled meanwhile are retried afterwards, on whichever
+   * document is then current. Refused while a load runs (e.g. from a stage).
    */
   load(doc: ITimelineDocument): void {
-    this.assertAlive();
+    this.assertNotLoading();
     this.loading = true;
+    let failure: { readonly error: unknown } | null = null;
     try {
       this.loadDocument(doc);
-    } finally {
-      this.loading = false;
+    } catch (error) {
+      failure = { error };
     }
+    this.loading = false;
     const pending = Array.from(this.pendingRetries);
     this.pendingRetries.clear();
     pending.forEach((stage) => this.onTargetsChanged(stage));
+    if (failure !== null) {
+      throw failure.error;
+    }
   }
 
   /** `sync` of every stage implementing it. */
@@ -134,7 +109,7 @@ export class StageHost {
 
   /** Retries the failed resolutions (of `layerId` only when given); re-applies the stages that gained objects. */
   refresh(layerId?: string): void {
-    this.assertAlive();
+    this.assertNotLoading();
     this.retry((binding) => layerId === undefined || binding.layerId === layerId);
   }
 
@@ -178,6 +153,13 @@ export class StageHost {
       if (this.destroyed) {
         return;
       }
+    }
+  }
+
+  private assertNotLoading(): void {
+    this.assertAlive();
+    if (this.loading) {
+      throw new Error('A document is being loaded; load and refresh cannot be called meanwhile (e.g. from a stage).');
     }
   }
 

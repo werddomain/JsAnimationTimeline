@@ -224,3 +224,71 @@ describe('HTML stage detach', () => {
     expect(report).not.toHaveBeenCalled();
   });
 });
+
+describe('second review', () => {
+  it('rebuilds the waapi animations of a document changed in place and given again', () => {
+    const doc = { version: '2.0.0', settings: { fps: 10, totalFrames: 10 }, layers: [boxLayer('a', { x: [{ frame: 1, value: 0 }, { frame: 10, value: 90 }] })] };
+    const p = createPlayer(doc, { clock });
+    players.push(p);
+    (doc.settings as { fps: number }).fps = 20;
+    const track = doc.layers[0].spans[0].tracks?.x as Array<{ frame: number; value: number }>;
+    track[1] = { frame: 10, value: 45 };
+    p.update(doc);
+    expect(fake.animations).toHaveLength(2);
+    expect(fake.animations[0].playState).toBe('idle');
+    expect(fake.animations[1].options.duration).toBe(500);
+    expect(fake.animations[1].keyframes[fake.animations[1].keyframes.length - 1]).toMatchObject({ transform: expect.stringContaining('translateX(45px)') });
+  });
+
+  it('keeps the waapi animations only for the document given back after a refusal', () => {
+    const p = createPlayer(docOf([boxLayer('a', MOVE)]), { clock });
+    players.push(p);
+    const broken = document.createElement('div');
+    Object.defineProperty(broken, 'animate', { value: undefined });
+    const bad: ILayer = { ...boxLayer('b', MOVE), target: { element: broken } };
+    expect(() => p.update(docOf([boxLayer('a', MOVE), bad]))).toThrow('Element.animate');
+    expect(fake.animations.map((a) => a.playState)).toEqual(['paused', 'idle']);
+  });
+
+  it('processes target changes signalled during a refused load against the restored document', () => {
+    const a = createFakeStage('a', { unscoped: true, subscribe: true });
+    const state = { refuse: false };
+    const stage: IStage<IFakeObject> = {
+      ...a.stage,
+      update(doc, layers) {
+        a.stage.update?.(doc, layers);
+        if (state.refuse) {
+          a.objects.set('late', { name: 'Late' });
+          a.notify();
+          throw new StageDocumentError('refused');
+        }
+      }
+    };
+    const host = createHost([stage]);
+    host.load(docOf([refLayer('l1', 'late')]));
+    state.refuse = true;
+    expect(() => host.load(docOf([refLayer('l2', 'other')]))).toThrow('refused');
+    state.refuse = false;
+    expect(host.missingTargets).toEqual([]);
+    expect(a.calls.slice(-4)).toEqual(['resolve late', 'update l1', 'sync paused', 'render 1']);
+    a.notify();
+    expect(a.calls.slice(-1)).toEqual(['render 1']);
+  });
+
+  it('refuses a nested load or refresh with a clear error', () => {
+    const errors: unknown[] = [];
+    const a = createFakeStage('a');
+    let host: StageHost | null = null;
+    const stage: IStage<IFakeObject> = {
+      ...a.stage,
+      update: () => {
+        host?.refresh();
+        host?.load(docOf([]));
+      }
+    };
+    host = createHost([stage], errors);
+    host.load(docOf([]));
+    expect(errors).toEqual([new Error('A document is being loaded; load and refresh cannot be called meanwhile (e.g. from a stage).')]);
+    expect(() => host?.load(docOf([]))).not.toThrow();
+  });
+});

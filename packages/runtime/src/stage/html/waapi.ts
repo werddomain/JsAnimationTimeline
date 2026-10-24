@@ -22,16 +22,21 @@ export class WaapiAnimations {
   private animations: Animation[] = [];
   private duration = 0;
   private source: { readonly doc: ITimelineDocument; readonly layers: readonly IStageLayer<Element>[] } | null = null;
+  /** The last `rebuild` refused its document: the next one may be the previous document given back. */
+  private refused = false;
 
   /**
    * Replaces the animations by those of `doc`. All or nothing: when a target
    * fails, the new animations are cancelled and the old ones kept; a target
-   * without `Element.animate` throws a `StageDocumentError`. Nothing is
-   * rebuilt for the same document, layers and elements (e.g. the document
-   * given back after a refused one): the next `sync` realigns them.
+   * without `Element.animate` throws a `StageDocumentError`. Only right
+   * after a refused document, the previous document given back (same
+   * document, layers and elements) keeps its animations; the next `sync`
+   * realigns them. Every other call rebuilds (a document may change in place).
    */
   rebuild(doc: ITimelineDocument, layers: readonly IStageLayer<Element>[], registry: PropertyRegistry): void {
-    if (this.isSameSource(doc, layers)) {
+    const afterRefusal = this.refused;
+    this.refused = false;
+    if (afterRefusal && this.isSameSource(doc, layers)) {
       return;
     }
     const duration = timelineDuration(doc.settings);
@@ -51,6 +56,7 @@ export class WaapiAnimations {
       }
     } catch (error) {
       created.forEach((animation) => animation.cancel());
+      this.refused = true;
       throw error;
     }
     this.cancel();
