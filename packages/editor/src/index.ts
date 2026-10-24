@@ -115,6 +115,7 @@ export type {
   EditorStageOption,
   IEditorHtmlStageOptions,
   IEditorStage,
+  IStageHold,
   StageErrorHandler,
   StageReportEvent,
   StageTargetsChangedEvent
