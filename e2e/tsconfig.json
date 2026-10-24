@@ -4,7 +4,12 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    // Typecheck before any build: the packages are read from their sources.
+    "paths": {
+      "@werddomain/timeline-runtime": ["../packages/runtime/src/index.ts"],
+      "@werddomain/timeline-export-css": ["../packages/export-css/src/index.ts"]
+    }
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "playwright-report", "test-results"]
