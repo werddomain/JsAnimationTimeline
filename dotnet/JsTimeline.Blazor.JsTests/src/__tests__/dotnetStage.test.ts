@@ -6,9 +6,9 @@
  */
 
 import { createManualClock, createPlayer } from '@werddomain/timeline-runtime';
-import type { IPlayer, ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { IPlayer, IStage, ITimelineDocument } from '@werddomain/timeline-runtime';
 import { createDotNetStage } from '../../../JsTimeline.Blazor/wwwroot/stage/dotnetStage.js';
-import { FakeDotNetReference, flush, heroDocument, heroStage } from './fakeDotNet';
+import { FakeDotNetReference, flush, heroDescription, heroDocument, heroStage } from './fakeDotNet';
 import type { FrameMode } from './fakeDotNet';
 
 function playerWith(receiver: FakeDotNetReference, mode?: FrameMode, onListenerError?: (error: unknown) => void): IPlayer {
@@ -184,6 +184,113 @@ describe('errors, released layers and detach', () => {
     // Assert
     expect(receiver.calls.length).toBe(sent);
     expect(errors).toEqual([]);
+  });
+});
+
+describe('review cases: no lost released ids, no stuck pump', () => {
+  it('carries released ids over when a waiting frame is replaced', async () => {
+    // Arrange: a call is in flight.
+    const receiver = new FakeDotNetReference();
+    const player = playerWith(receiver, 'everyTick');
+    const empty: ITimelineDocument = { ...heroDocument(), layers: [] };
+
+    // Act: the layer goes away, then a newer frame replaces the waiting one.
+    player.update(empty);
+    player.seek(4);
+    await receiver.resolveAll();
+
+    // Assert
+    const released = receiver.frames.flatMap((frame) => frame.released);
+    expect(released).toEqual(['l-hero']);
+  });
+
+  it('sends released ids again after a failed call', async () => {
+    // Arrange
+    const receiver = new FakeDotNetReference();
+    const player = playerWith(receiver, 'everyTick', () => undefined);
+    await receiver.resolveAll();
+    player.update({ ...heroDocument(), layers: [] });
+    await flush();
+
+    // Act
+    await receiver.rejectNext(new Error('RenderAsync threw'));
+    player.seek(3);
+    await flush();
+
+    // Assert
+    expect(receiver.frames[receiver.frames.length - 1].released).toEqual(['l-hero']);
+  });
+
+  it('keeps sending when the receiver throws instead of rejecting', async () => {
+    // Arrange
+    const errors: unknown[] = [];
+    let calls = 0;
+    const receiver = {
+      invokeMethodAsync(): Promise<void> {
+        calls++;
+        if (calls === 1) throw new Error('no tracked object');
+        return Promise.resolve();
+      }
+    };
+    const stage = createDotNetStage({ ...heroDescription('everyTick') }, receiver) as IStage;
+    const player = createPlayer(heroDocument(), { stage, clock: createManualClock(), onListenerError: (e) => errors.push(e) });
+    await flush();
+
+    // Act
+    player.seek(5);
+    await flush();
+
+    // Assert
+    expect(errors).toEqual([new Error('no tracked object')]);
+    expect(calls).toBe(2);
+  });
+
+  it('integerFrames sends again after a seek to the same frame', async () => {
+    // Arrange
+    const receiver = new FakeDotNetReference();
+    const player = playerWith(receiver);
+    player.seek(5);
+    await receiver.resolveAll();
+    const before = receiver.calls.length;
+
+    // Act
+    player.seek(5);
+    await receiver.resolveAll();
+
+    // Assert
+    expect(receiver.calls.length - before).toBe(1);
+  });
+
+  it('stop() ends the frames before the .NET receiver goes away', async () => {
+    // Arrange
+    const receiver = new FakeDotNetReference();
+    const stage = heroStage(receiver, 'everyTick') as IStage & { stop(): void };
+    const player = createPlayer(heroDocument(), { stage, clock: createManualClock() });
+    await receiver.resolveAll();
+    const before = receiver.calls.length;
+
+    // Act
+    stage.stop();
+    player.seek(7);
+    await flush();
+
+    // Assert
+    expect(receiver.calls.length).toBe(before);
+  });
+
+  it('leaves out values that JSON cannot carry', async () => {
+    // Arrange
+    const receiver = new FakeDotNetReference();
+    const stage = heroStage(receiver, 'everyTick');
+    const states = [{ layerId: 'l', target: { ref: 'hero' }, object: 'hero', values: { x: Number.NaN, y: 2 }, active: true, editorVisible: true }];
+
+    // Act
+    stage.render?.({ timeMs: 0, frame: 1, integerFrame: 1 }, states);
+    await flush();
+
+    // Assert
+    expect(receiver.frames[0].layers[0].values).toEqual(expect.not.objectContaining({ x: expect.anything() }));
+    expect(receiver.frames[0].layers[0].values.y).toBe(2);
   });
 });
 

@@ -36,10 +36,11 @@ internal sealed partial record DotNetStageDescription(
         var properties = stage.Properties ?? throw new ArgumentException($"Stage \"{stage.Id}\": Properties is null.", nameof(stage));
         CheckTargets(stage.Id, targets);
         CheckProperties(stage.Id, properties);
+        // Copies: the stage's lists are read once and cannot change the description afterwards.
         return new DotNetStageDescription(
             stage.Id,
             ModeName(mode),
-            targets.ToList(),
+            targets.Select(t => t with { Properties = t.Properties?.ToList() }).ToList(),
             properties.Select(Describe).ToList());
     }
 
@@ -76,9 +77,31 @@ internal sealed partial record DotNetStageDescription(
             {
                 throw new ArgumentException($"Stage \"{stageId}\": two targets have the ref \"{target.Ref}\".");
             }
-            if (string.IsNullOrEmpty(target.Label))
+            if (string.IsNullOrWhiteSpace(target.Label))
             {
                 throw new ArgumentException($"Stage \"{stageId}\": target \"{target.Ref}\" needs a label.");
+            }
+            CheckTargetProperties(stageId, target);
+        }
+    }
+
+    /// <summary>
+    /// The properties shown for one object: valid names, no duplicates. They may name built-in
+    /// properties (x, rotation...) as well as the stage's own.
+    /// </summary>
+    private static void CheckTargetProperties(string stageId, TimelineStageTarget target)
+    {
+        if (target.Properties is null)
+        {
+            return;
+        }
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var name in target.Properties)
+        {
+            if (!IsValidPropertyName(name) || !names.Add(name))
+            {
+                throw new ArgumentException(
+                    $"Stage \"{stageId}\": target \"{target.Ref}\" lists \"{name}\", an invalid or repeated property name.");
             }
         }
     }
@@ -97,14 +120,20 @@ internal sealed partial record DotNetStageDescription(
             {
                 throw new ArgumentException($"Stage \"{stageId}\": two properties are named \"{property.Name}\".");
             }
-            var numbers = new[] { property.DefaultValue, property.Min ?? 0, property.Max ?? 0 };
-            if (numbers.Any(n => !double.IsFinite(n)))
+            if (!double.IsFinite(property.DefaultValue)
+                || property.Min is { } min && !double.IsFinite(min)
+                || property.Max is { } max && !double.IsFinite(max))
             {
                 throw new ArgumentException($"Stage \"{stageId}\": property \"{property.Name}\" needs finite numbers.");
             }
             if (property.Min > property.Max)
             {
                 throw new ArgumentException($"Stage \"{stageId}\": property \"{property.Name}\" has Min greater than Max.");
+            }
+            if (property.DefaultValue < property.Min || property.DefaultValue > property.Max)
+            {
+                throw new ArgumentException(
+                    $"Stage \"{stageId}\": the default value of \"{property.Name}\" is outside [Min, Max].");
             }
         }
     }
@@ -113,6 +142,7 @@ internal sealed partial record DotNetStageDescription(
     internal static bool IsValidPropertyName(string? name) =>
         name is not null && PropertyName().IsMatch(name) && name is not "constructor" and not "prototype";
 
-    [GeneratedRegex("^[a-zA-Z][a-zA-Z0-9]*$")]
+    // \z, not $: in .NET, $ also matches before a final line break.
+    [GeneratedRegex(@"^[a-zA-Z][a-zA-Z0-9]*\z")]
     private static partial Regex PropertyName();
 }

@@ -80,6 +80,11 @@ public sealed class TimelineStageTests
         { "infinite default", new RecordingStage { Properties = [new("v", double.PositiveInfinity)] } },
         { "NaN bound", new RecordingStage { Properties = [new("v", Min: double.NaN)] } },
         { "min above max", new RecordingStage { Properties = [new("v", Min: 2, Max: 1)] } },
+        { "name with final line break", new RecordingStage { Properties = [new("abc\n")] } },
+        { "default outside bounds", new RecordingStage { Properties = [new("v", 5, Min: 0, Max: 1)] } },
+        { "blank label", new RecordingStage { Targets = [new("a", "  ")] } },
+        { "bad target property", new RecordingStage { Targets = [new("a", "A", Properties: ["x", "2d"])] } },
+        { "repeated target property", new RecordingStage { Targets = [new("a", "A", Properties: ["x", "x"])] } },
     };
 
     [Theory]
@@ -125,6 +130,58 @@ public sealed class TimelineStageTests
 
         Assert.Single(stage.Frames);
         Assert.True(token.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task Bridge_treats_a_cancelled_render_after_dispose_as_the_end_not_an_error()
+    {
+        var bridge = new DotNetStageBridge(new RecordingStage
+        {
+            Render = () => throw new OperationCanceledException(),
+        });
+        var started = new TimelineStageFrame(0, 1, 1, [], []);
+        var stage = new RecordingStage();
+        var gate = new TaskCompletionSource();
+        stage.Render = async () =>
+        {
+            await gate.Task;
+            stage.LastToken.ThrowIfCancellationRequested();
+        };
+        var cancelling = new DotNetStageBridge(stage);
+
+        var rendering = cancelling.RenderAsync(started);
+        cancelling.Dispose();
+        gate.SetResult();
+        await rendering;
+
+        Assert.True(stage.LastToken.IsCancellationRequested);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => bridge.RenderAsync(started));
+    }
+
+    [Fact]
+    public void Description_copies_the_lists_of_the_stage()
+    {
+        var shown = new List<string> { "x" };
+        var stage = new RecordingStage { Targets = [new("hero", "Héros", Properties: shown)] };
+
+        var description = DotNetStageDescription.From(stage, FrameCallbackMode.IntegerFrames);
+        shown.Add("y");
+
+        Assert.Equal(["x"], description.Targets[0].Properties);
+    }
+
+    [Fact]
+    public async Task Handle_stops_the_script_before_releasing_the_receiver()
+    {
+        var js = new FakeJsRuntime();
+        var jsStage = new FakeJsObject();
+        js.Module.Handler = (identifier, _) => identifier == "createDotNetStage" ? jsStage : null;
+        var handle = await DotNetStageHandle.CreateAsync(js, new RecordingStage(), FrameCallbackMode.IntegerFrames);
+
+        await handle.DisposeAsync();
+
+        Assert.Equal(["stop"], jsStage.Calls);
+        Assert.True(jsStage.Disposed);
     }
 
     [Fact]

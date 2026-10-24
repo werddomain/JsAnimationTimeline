@@ -31,6 +31,7 @@ export default tseslint.config(
   {
     // Modules JavaScript livrés par la bibliothèque Blazor (pas de TypeScript dans dotnet/).
     files: ['dotnet/**/*.js'],
+    ignores: ['dotnet/**/jest.config.js'],
     extends: [js.configs.recommended],
     languageOptions: { sourceType: 'module', globals: { ...globals.browser } }
   },

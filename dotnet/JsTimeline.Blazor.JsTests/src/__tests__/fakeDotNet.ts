@@ -74,20 +74,22 @@ export async function flush(): Promise<void> {
 
 export type FrameMode = 'off' | 'integerFrames' | 'everyTick';
 
-/** The bridge stage for one `hero` target, with a linear `volume` and a floored `frameIndex`. */
+/** Description of a stage with one `hero` target, a linear `volume` and a floored `frameIndex`. */
+export function heroDescription(mode: FrameMode = 'integerFrames') {
+  return {
+    id: 'dotnet',
+    mode,
+    targets: [{ ref: 'hero', label: 'Héros', icon: null, group: null, properties: null }],
+    properties: [
+      { name: 'volume', defaultValue: 1, interpolation: 'linear', label: 'Volume', group: null, unit: '', min: 0, max: 1 },
+      { name: 'frameIndex', defaultValue: 0, interpolation: 'floor', label: null, group: null, unit: '', min: null, max: null }
+    ]
+  };
+}
+
+/** The bridge stage built from `heroDescription`. */
 export function heroStage(receiver: FakeDotNetReference, mode: FrameMode = 'integerFrames'): IStage {
-  return createDotNetStage(
-    {
-      id: 'dotnet',
-      mode,
-      targets: [{ ref: 'hero', label: 'Héros', icon: null, group: null, properties: null }],
-      properties: [
-        { name: 'volume', defaultValue: 1, interpolation: 'linear', label: 'Volume', group: null, unit: '', min: 0, max: 1 },
-        { name: 'frameIndex', defaultValue: 0, interpolation: 'floor', label: null, group: null, unit: '', min: null, max: null }
-      ]
-    },
-    receiver
-  ) as IStage;
+  return createDotNetStage(heroDescription(mode), receiver) as IStage;
 }
 
 /** A 10-frame document at 10 fps: `hero` moves x from 0 to 90 and frameIndex from 0 to 9. */

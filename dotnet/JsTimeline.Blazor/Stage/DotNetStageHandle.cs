@@ -6,7 +6,9 @@ namespace JsTimeline.Blazor.Stage;
 /// <summary>
 /// A C# stage plugged into the browser: <see cref="JsStage"/> is the runtime <c>IStage</c> built by
 /// dotnetStage.js, ready for <c>createEditor({ stage })</c> or <c>createPlayer({ stage })</c>.
-/// Disposing it releases the JavaScript objects and stops the frames.
+/// Disposing it stops the frames first (the script sends nothing more), then cancels a running
+/// render and releases the JavaScript objects. A render already running may still finish after
+/// <see cref="DisposeAsync"/> returns; it receives a cancelled token.
 /// </summary>
 internal sealed class DotNetStageHandle : IAsyncDisposable
 {
@@ -15,7 +17,7 @@ internal sealed class DotNetStageHandle : IAsyncDisposable
 
     private readonly IJSObjectReference _module;
     private readonly DotNetObjectReference<DotNetStageBridge> _receiver;
-    private bool _disposed;
+    private int _disposed;
 
     private DotNetStageHandle(IJSObjectReference module, IJSObjectReference jsStage, DotNetObjectReference<DotNetStageBridge> receiver)
     {
@@ -47,11 +49,17 @@ internal sealed class DotNetStageHandle : IAsyncDisposable
         }
         catch
         {
-            receiver.Value.Dispose();
-            receiver.Dispose();
-            if (module is not null)
+            try
             {
-                await QuietlyAsync(module.DisposeAsync);
+                receiver.Value.Dispose();
+                receiver.Dispose();
+            }
+            finally
+            {
+                if (module is not null)
+                {
+                    await QuietlyAsync(module.DisposeAsync);
+                }
             }
             throw;
         }
@@ -60,15 +68,22 @@ internal sealed class DotNetStageHandle : IAsyncDisposable
     /// <summary>Stops the frames, then releases the JavaScript objects (the editor or player detaches the stage itself).</summary>
     public async ValueTask DisposeAsync()
     {
-        if (_disposed)
+        if (Interlocked.Exchange(ref _disposed, 1) == 1)
         {
             return;
         }
-        _disposed = true;
-        _receiver.Value.Dispose();
-        _receiver.Dispose();
-        await QuietlyAsync(JsStage.DisposeAsync);
-        await QuietlyAsync(_module.DisposeAsync);
+        // Stop the script first, so no frame reaches a released receiver.
+        await QuietlyAsync(() => JsStage.InvokeVoidAsync("stop"));
+        try
+        {
+            _receiver.Value.Dispose();
+            _receiver.Dispose();
+        }
+        finally
+        {
+            await QuietlyAsync(JsStage.DisposeAsync);
+            await QuietlyAsync(_module.DisposeAsync);
+        }
     }
 
     private static async Task QuietlyAsync(Func<ValueTask> step)
