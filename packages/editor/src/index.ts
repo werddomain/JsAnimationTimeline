@@ -156,6 +156,20 @@ export type {
   ToolbarOptions
 } from './plugins/toolbar';
 
+// Plugin persistence.json (import / export JSON, fichiers v1 migrés).
+export { PERSISTENCE_JSON_PLUGIN_ID, PersistenceError, createPersistenceJsonPlugin } from './plugins/persistence/json';
+export type {
+  IImportResult,
+  IPersistenceJsonOptions,
+  IPersistenceJsonService,
+  IReadResult,
+  IWriteOptions,
+  PersistenceErrorCode,
+  PersistenceExportedEvent,
+  PersistenceImportedEvent,
+  PersistenceJsonPlugin
+} from './plugins/persistence/json';
+
 // Epic history : annuler / rétablir (boutons et raccourcis).
 export {
   HistoryPlugin,
