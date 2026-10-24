@@ -97,7 +97,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **Y5** | 3 | 6 | Plugin `layers.selection` (sélection multiple Ctrl / Maj) | Y1 | Y6, Y7, S1 | `plugins/layers/selection/` | ☑ |
 | **Y6** | 3 | 7 | Plugin `layers.reorder` (glisser-déposer, entrer/sortir d'un dossier) | Y5 | E1 | `plugins/layers/reorder/` | ☑ |
 | **Y7** | 3 | 7 | Plugin `layers.groups` (dossiers + « grouper la sélection ») | Y5 | Y8 | `plugins/layers/groups/` | ☑ |
-| **Y8** | 3 | 8 | Plugin `layers.toolbar` (Nouveau / Grouper / Supprimer) | Y7 | I1 | `plugins/layers/toolbar/` | ☐ |
+| **Y8** | 3 | 8 | Plugin `layers.toolbar` (Nouveau / Grouper / Supprimer) | Y7 | I1 | `plugins/layers/toolbar/` | ☑ |
 | **G1** | 4 | 5 | Plugin `frames.grid` : rendu des plages (statique, vide, interpolation, losanges), écoute `zoom:changed` | L1, Y0 | G2 | `plugins/frames/grid/` | ☑ |
 | **G2** | 4 | 6 | Plugin `frames.selection` (images et images clés, Ctrl / Maj, repris de `SelectionManager`) | G1 | K2, K3, W1 | `plugins/frames/selection/` | ☑ |
 | **K1** | 4 | 4 | **Cœur CS4** : opérations pures sur les plages (insérer une image clé avec valeurs interpolées, supprimer/fusionner, insérer/supprimer une image, déplacer) + refus si verrouillé, sous forme de commandes ; le registre de propriétés est passé en paramètre | C3, R2 | K2, K3, W1 | `packages/editor/src/model/spans/` | ☑ |
