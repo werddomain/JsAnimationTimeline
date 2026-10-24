@@ -103,3 +103,15 @@ export type {
   LayoutZone,
   ScrollSyncOptions
 } from './plugins/layout';
+
+// Plugin interaction.shortcuts (raccourcis clavier déclarés par les plugins).
+export { SHORTCUTS_PLUGIN_ID, ShortcutError, createShortcutsPlugin } from './plugins/interaction/shortcuts';
+export type {
+  IShortcutDefinition,
+  IShortcutInfo,
+  IShortcutsOptions,
+  IShortcutsService,
+  ShortcutErrorCode,
+  ShortcutTriggeredEvent,
+  ShortcutsPlugin
+} from './plugins/interaction/shortcuts';

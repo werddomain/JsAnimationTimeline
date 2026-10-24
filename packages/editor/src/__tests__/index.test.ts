@@ -55,10 +55,13 @@ const V2_NAMES = [
   'PluginError',
   'ROOT_SLOT',
   'ScrollSyncPlugin',
+  'SHORTCUTS_PLUGIN_ID',
+  'ShortcutError',
   'StoreError',
   'createCommand',
   'createEditor',
   'createEmptyDocument',
+  'createShortcutsPlugin',
   'defaultPlugins'
 ];
 

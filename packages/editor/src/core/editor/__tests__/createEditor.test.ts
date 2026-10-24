@@ -213,15 +213,15 @@ describe('createEditor root element and context', () => {
 });
 
 describe('createEditor plugin sets', () => {
-  it('returns new instances of the default set on each call (layout epic first)', () => {
+  it('returns new instances of the default set on each call', () => {
     // Act
     const first = defaultPlugins();
     const second = defaultPlugins();
 
     // Assert
-    expect(first.map((plugin) => plugin.id)).toEqual(['layout']);
+    expect(first.map((plugin) => plugin.id)).toEqual(['layout', 'interaction.shortcuts']);
     expect(second).not.toBe(first);
-    expect(second[0]).not.toBe(first[0]);
+    first.forEach((plugin, index) => expect(second[index]).not.toBe(plugin));
   });
 
   it('uses the default set, then options.plugins, when defaultPlugins is omitted or true', () => {
