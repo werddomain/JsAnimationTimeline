@@ -66,7 +66,8 @@ export type CoreEventName =
   | 'playback:pause'
   | 'playback:loop'
   | 'playback:complete'
-  | 'stage:report';
+  | 'stage:report'
+  | 'stage:targetsChanged';
 
 /** Événement qu'un plugin peut émettre : tout événement de l'éditeur sauf ceux du noyau. */
 export type PluginEventName = Exclude<EditorEventName, CoreEventName>;
