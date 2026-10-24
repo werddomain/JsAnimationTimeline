@@ -68,7 +68,7 @@ public sealed class TimelinePlayerTests : BunitContext
         var arguments = CreateInvocation().Arguments;
         Assert.IsType<ElementReference>(arguments[0]);
         Assert.Equal(TimelineJson.Serialize(document), arguments[1]);
-        Assert.Equal(new TimelinePlayerJsOptions(Autoplay: true, Loop: true, Speed: 2, NotifyFrames: false, NotifyErrors: false), arguments[2]);
+        Assert.Equal(new TimelinePlayerJsOptions(Autoplay: true, Loop: true, Speed: 2, NotifyFrames: false), arguments[2]);
         Assert.True(cut.Instance.IsReady);
     }
 
@@ -82,12 +82,13 @@ public sealed class TimelinePlayerTests : BunitContext
     }
 
     [Fact]
-    public void Stage_errors_are_sent_only_when_OnError_has_a_handler()
+    public async Task A_stage_error_without_OnError_is_left_to_the_script()
     {
-        Render<TimelinePlayer>(ps => ps.Add(p => p.Data, Document()).Add(p => p.OnError, (Exception _) => { }));
+        Render<TimelinePlayer>(ps => ps.Add(p => p.Data, Document()));
 
-        var options = Assert.IsType<TimelinePlayerJsOptions>(CreateInvocation().Arguments[2]);
-        Assert.True(options.NotifyErrors);
+        var handled = await Sink().OnPlayerError("render failed");
+
+        Assert.False(handled);
     }
 
     [Fact]
@@ -96,8 +97,9 @@ public sealed class TimelinePlayerTests : BunitContext
         Exception? reported = null;
         var cut = Render<TimelinePlayer>(ps => ps.Add(p => p.Data, Document()).Add(p => p.OnError, (Exception e) => reported = e));
 
-        await Sink().OnPlayerError("render failed");
+        var handled = await Sink().OnPlayerError("render failed");
 
+        Assert.True(handled);
         var error = Assert.IsType<TimelineStageException>(reported);
         Assert.Equal("render failed", error.Message);
         Assert.True(cut.Instance.IsReady);

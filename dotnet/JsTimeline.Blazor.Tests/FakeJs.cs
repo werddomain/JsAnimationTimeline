@@ -61,12 +61,22 @@ internal sealed class FakeJsObject : IJSObjectReference
         Calls.Add(identifier);
         try
         {
-            return new ValueTask<TValue>((TValue)Handler(identifier, args)!);
+            // A handler may answer with a pending Task to hold the call open.
+            var result = Handler(identifier, args);
+            return result is Task pending
+                ? new ValueTask<TValue>(AwaitAsync<TValue>(pending))
+                : new ValueTask<TValue>((TValue)result!);
         }
         catch (Exception error)
         {
             return ValueTask.FromException<TValue>(error);
         }
+    }
+
+    private static async Task<TValue> AwaitAsync<TValue>(Task pending)
+    {
+        await pending;
+        return default!;
     }
 
     public ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args) =>
