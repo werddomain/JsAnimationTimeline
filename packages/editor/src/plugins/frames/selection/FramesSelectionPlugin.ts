@@ -111,7 +111,8 @@ export class FramesSelectionPlugin implements EditorPlugin {
         selectRange: (to, additive = false) =>
           this.apply((rows, total) => selectRectangle(this.state, to, additive, rows, total)),
         set: (cells) => this.apply((rows, total) => selectCells(cells, rows, total)),
-        clear: () => this.commit(EMPTY_FRAME_SELECTION)
+        clear: () => this.commit(EMPTY_FRAME_SELECTION),
+        cancelPendingClick: () => this.cancelRelease()
       }),
       ctx.events.on('document:loaded', reset),
       ctx.events.on('document:changed', prune),
