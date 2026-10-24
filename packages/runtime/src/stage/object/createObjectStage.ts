@@ -6,8 +6,9 @@
  * liste des cibles, de la remise à zéro et d'un seul `endFrame` par image.
  * Un calque inactif reçoit `reset` puis `apply` ; sans `reset`, `apply` reçoit
  * les valeurs par défaut du registre.
- * `remove()` d'un objet déjà lié ne joue qu'au document suivant ou à
- * `refreshTargets` : le calque garde l'objet résolu jusque-là.
+ * `add()` et `remove()` signalent la cible touchée (`{ ref, stage }`) : l'hôte
+ * relâche l'ancien objet et résout de nouveau les calques liés à ce `ref`,
+ * qu'ils soient écrits avec ou sans `stage`.
  */
 
 import { isRefTarget } from '../../model/guards';
@@ -42,7 +43,11 @@ interface IBoundLayer {
 export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectStage<T> {
   const stageId = options.id;
   const entries = new Map<string, IObjectStageEntry<T>>();
-  const subscribers = new Set<() => void>();
+  const subscribers = new Set<(affected?: readonly LayerTarget[]) => void>();
+  const notify = (id: string): void => {
+    const affected: readonly LayerTarget[] = [{ ref: id, stage: stageId }];
+    Array.from(subscribers).forEach((listener) => listener(affected));
+  };
   /** Layer id → target of the layers bound by the last `update` (needed by `release`). */
   const bound = new Map<string, IBoundLayer>();
   let registry: PropertyRegistry = defaultPropertyRegistry;
@@ -142,12 +147,12 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
     },
     add(entry) {
       addEntry(entry);
-      Array.from(subscribers).forEach((listener) => listener());
+      notify(entry.id);
     },
     remove(id) {
       const removed = entries.delete(id);
       if (removed) {
-        Array.from(subscribers).forEach((listener) => listener());
+        notify(id);
       }
       return removed;
     }

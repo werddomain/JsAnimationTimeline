@@ -232,17 +232,17 @@ describe('createObjectStage inactive layers and release', () => {
     expect(applied).toEqual([{ name: 'hero', values: { x: 0, y: 0, frameIndex: 0 }, active: false }]);
   });
 
-  it('releases with the bound target and the properties remembered at update, even after remove', () => {
+  it('releases on remove, with the bound target and the properties remembered at update', () => {
     const targets: LayerTarget[] = [];
     const { host, stage, applied } = setUp({ apply: (sprite, values, state) => {
       targets.push(state.target);
       applied.push({ name: sprite.name, values, active: state.active });
     } });
     host.load(docOf([refLayer('l1', 'hero')]));
-    stage.remove('hero');
     applied.length = 0;
     targets.length = 0;
-    host.load(docOf([]));
+    // remove() notifies the host, which releases the layer right away.
+    stage.remove('hero');
     expect(targets).toEqual([{ ref: 'hero' }]);
     expect(applied[0].values).toEqual({ x: 0, y: 0, frameIndex: 0 });
   });
@@ -299,6 +299,23 @@ describe('createObjectStage targets', () => {
     unsubscribe();
     stage.add({ id: 'again', label: 'Again', object: { name: 'again', log: [] } });
     expect(onChange).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['{ ref }', undefined],
+    ['{ ref, stage }', 'canvas']
+  ])('replaces a bound object written as %s with the object added under the same ref', (_label, stageId) => {
+    const { stage, host, hero, applied } = setUp();
+    host.load(docOf([refLayer('l1', 'hero', stageId)]));
+    const newHero: ISprite = { name: 'newHero', log: [] };
+    stage.remove('hero');
+    expect(host.missingTargets).toEqual(['l1']);
+    stage.add({ id: 'hero', label: 'Héros', object: newHero });
+    expect(host.missingTargets).toEqual([]);
+    applied.length = 0;
+    host.render(timeAt(5));
+    expect(applied.map((entry) => entry.name)).toEqual(['newHero']);
+    expect(hero.log).toContain('apply');
   });
 
   it('retries a failed resolution when an object is added', () => {

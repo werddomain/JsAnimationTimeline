@@ -7,7 +7,7 @@
 import { createPropertyRegistry, defaultPropertyRegistry } from '../../properties/PropertyRegistry';
 import { buildStageRegistry } from '../registry';
 import { StageReportCodes } from '../reports';
-import { assertValidStages, refStage, sameTarget } from '../routing';
+import { assertValidStages, isAffectedTarget, refStage, sameTarget } from '../routing';
 import type { IStage } from '../types';
 import { createFakeStage, createHost, docOf, refLayer } from './fakeStage';
 
@@ -21,6 +21,19 @@ describe('refStage', () => {
     expect(scoped({ selector: '#a' })).toBe(false);
     expect(unscoped({ ref: 'a' })).toBe(true);
     expect(unscoped({ ref: 'a', stage: 'audio' })).toBe(false);
+  });
+});
+
+describe('isAffectedTarget', () => {
+  it('matches refs by ref only, whatever the stage spelling', () => {
+    expect(isAffectedTarget({ ref: 'hero', stage: 'canvas' }, { ref: 'hero' })).toBe(true);
+    expect(isAffectedTarget({ ref: 'hero' }, { ref: 'hero', stage: 'canvas' })).toBe(true);
+    expect(isAffectedTarget({ ref: 'hero', stage: 'canvas' }, { ref: 'villain', stage: 'canvas' })).toBe(false);
+  });
+
+  it('falls back to sameTarget for other targets', () => {
+    expect(isAffectedTarget({ selector: '#a' }, { selector: '#a' })).toBe(true);
+    expect(isAffectedTarget({ selector: '#a' }, { ref: 'a' })).toBe(false);
   });
 });
 
