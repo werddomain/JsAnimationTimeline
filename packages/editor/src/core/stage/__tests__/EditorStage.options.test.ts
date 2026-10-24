@@ -121,8 +121,9 @@ describe('stage option', () => {
 
     // Assert
     expect(editor.stage.stages).toEqual([]);
-    expect(editor.stage.missingTargets).toEqual(['l-hero', 'l-tree']);
-    expect(editor.stage.warnings.map((report) => report.code)).toEqual([StageReportCodes.UNKNOWN_STAGE, StageReportCodes.UNKNOWN_STAGE]);
+    // Timeline seule : rien n'est routé, donc ni cible manquante ni avertissement.
+    expect(editor.stage.missingTargets).toEqual([]);
+    expect(editor.stage.warnings).toEqual([]);
     expect(frames).toEqual([30]);
   });
 

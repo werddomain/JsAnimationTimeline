@@ -1,11 +1,9 @@
 // packages/editor/src/core/stage/resolveStages.ts
 /**
  * Scènes de l'éditeur à partir des options : celles du développeur, aucune
- * (`stage: false`), ou la scène HTML par défaut, créée une fois l'élément de
- * l'éditeur connu (pour l'exclure).
+ * (`stage: false`), ou la scène HTML par défaut (`createEditorHtmlStage`).
  */
 
-import { createHtmlStage } from '@werddomain/timeline-runtime';
 import type { IStage } from '@werddomain/timeline-runtime';
 import type { EditorStageOption } from './types';
 
@@ -32,13 +30,4 @@ export function resolveUserStages(options: IStageChoice): readonly IStage[] | nu
     throw new Error('createEditor : « stage » demande au moins une scène (ou false pour la timeline seule).');
   }
   return stages;
-}
-
-/**
- * Scène HTML par défaut : mode `frame` (styles en ligne, pas d'animation à
- * reconstruire pendant un glisser) sur `root`, sans jamais toucher ni
- * proposer l'élément de l'éditeur.
- */
-export function createDefaultHtmlStage(root: ParentNode, editorElement: Element): IStage {
-  return createHtmlStage({ root, mode: 'frame', exclude: editorElement });
 }
