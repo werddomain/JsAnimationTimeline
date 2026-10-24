@@ -15,6 +15,7 @@ import { LayersPlugin } from '../../../layers/LayersPlugin';
 import { LayoutPlugin } from '../../../layout/LayoutPlugin';
 import { cleanBody, createContainer, createManualScheduler, makeScrollable } from '../../../layout/__tests__/layoutFixtures';
 import type { IManualScheduler } from '../../../layout/__tests__/layoutFixtures';
+import { createShortcutsPlugin } from '../../../interaction/shortcuts';
 import { FramesPlugin } from '../../FramesPlugin';
 import type { FramesGridRenderedEvent, IFramesGridService } from '../types';
 
@@ -77,7 +78,8 @@ function setup(data: ITimelineDocument, options: ISetupOptions = {}): IHarness {
     defaultPlugins: [
       new LayoutPlugin({ scrollSync: { scheduler }, ruler: { frameWidth: options.frameWidth } }),
       ...(options.withLayers === true ? [new LayersPlugin()] : []),
-      new FramesPlugin()
+      new FramesPlugin(),
+      createShortcutsPlugin()
     ],
     plugins: [spy]
   });

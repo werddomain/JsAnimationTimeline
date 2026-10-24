@@ -197,9 +197,12 @@ export type {
 export {
   FRAMES_GRID_CLASSES,
   FRAMES_GRID_PLUGIN_ID,
+  FRAMES_KEYFRAMES_CLASSES,
+  FRAMES_KEYFRAMES_PLUGIN_ID,
   FRAMES_SELECTION_CLASSES,
   FRAMES_SELECTION_PLUGIN_ID,
   FramesGridPlugin,
+  FramesKeyframesPlugin,
   FramesPlugin,
   FramesSelectionPlugin
 } from './plugins/frames';
@@ -214,6 +217,7 @@ export type {
   GridSegmentKind,
   IFrameRange,
   IFramesGridService,
+  IFramesKeyframesService,
   IGridCell,
   IGridMark,
   IGridSegment,
