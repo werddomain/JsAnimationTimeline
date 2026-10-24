@@ -30,7 +30,7 @@
  * Service `layers.groups` : voir `ILayerGroupsService`.
  */
 
-import { isFolder } from '@werddomain/timeline-runtime';
+import { isFolder, resolveCollapsed } from '@werddomain/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import type { ICommand } from '../../../core/commands/ICommand';
 import type { ILayerListService } from '../list';
@@ -76,12 +76,15 @@ export class LayerGroupsPlugin implements EditorPlugin {
     if (shortcuts === undefined) return;
     const { group, ungroup } = LAYER_GROUPS_SHORTCUTS;
     const base = (info: { shortcutId: string; keys: string; label: string }) => ({ id: info.shortcutId, keys: info.keys, label: info.label });
+    // Chaque désinscription est retenue juste après son `register` : si le second échoue, le premier est tout de même retiré à la destruction.
     this.cleanups.push(
       shortcuts.register({
         ...base(group),
         enabled: () => this.listHasFocus() && this.canGroup(),
         run: () => this.groupSelection() !== undefined
-      }),
+      })
+    );
+    this.cleanups.push(
       shortcuts.register({
         ...base(ungroup),
         enabled: () => this.listHasFocus() && this.selectedFolderId() !== undefined,
@@ -125,8 +128,11 @@ export class LayerGroupsPlugin implements EditorPlugin {
 
   /** Exécute la commande puis sélectionne le dossier créé ; `undefined` si elle a été refusée. */
   private runAndSelect(created: IFolderCommand): string | undefined {
+    const hadFocus = this.listHasFocus();
     if (!this.requireContext().commands.execute(created.command)) return undefined;
     this.requireSelection().select([created.folderId]);
+    // La liste réinsère les lignes déplacées : le focus DOM suit la ligne que le modèle focalise.
+    if (hadFocus) this.focusRow(created.folderId);
     return created.folderId;
   }
 
@@ -135,10 +141,23 @@ export class LayerGroupsPlugin implements EditorPlugin {
     const folder = findFolder(ctx.document, folderId);
     if (folder === undefined) return false;
     const command: ICommand = ungroupCommand(ctx.document, folderId);
+    const hadFocus = this.listHasFocus();
+    const childIds = folder.children.map((child) => child.id);
+    // Dossier déplié : les enfants sont déjà des lignes visibles, on les sélectionne avant la commande
+    // pour que l'élagage qui suit ne change rien (un seul `selection:changed`). Replié : après la commande.
+    const early = childIds.length > 0 && !resolveCollapsed(folder);
+    if (early) this.requireSelection().select(childIds);
     if (!ctx.commands.execute(command)) return false;
     // Dossier vide : rien à sélectionner, l'élagage de `layers.selection` retire le dossier disparu.
-    if (folder.children.length > 0) this.requireSelection().select(folder.children.map((child) => child.id));
+    if (childIds.length > 0 && !early) this.requireSelection().select(childIds);
+    const last = childIds[childIds.length - 1];
+    if (hadFocus && last !== undefined) this.focusRow(last);
     return true;
+  }
+
+  /** Donne le focus DOM à la ligne `id`, si elle est affichée. */
+  private focusRow(id: string): void {
+    this.requireList().rowElement(id)?.focus({ preventScroll: true });
   }
 
   private canGroup(): boolean {
