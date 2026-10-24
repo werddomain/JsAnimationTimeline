@@ -299,7 +299,7 @@ describe('playback.controls review follow-ups', () => {
 
     // Assert
     expect(editor.playback.playing).toBe(true);
-    expect(repeated.defaultPrevented).toBe(true);
+    expect(repeated.defaultPrevented).toBe(false);
   });
 
   it('recognises a button from another document (iframe stage) by its node type', () => {
@@ -327,3 +327,30 @@ describe('playback.controls review follow-ups', () => {
     expect(labels).toEqual(['×0,25', '×0,3', '×0,5', '×1', '×1,5', '×2']);
   });
 });
+
+describe('formatSpeed', () => {
+  it('never gives a custom speed the label of another one', () => {
+    // Assert
+    expect(formatSpeed(1.001)).toBe('×1,001');
+    expect(formatSpeed(0.001)).toBe('×0,001');
+    expect(formatSpeed(0.004)).toBe('×0,004');
+    expect(formatSpeed(1 / 3)).toBe('×0,3333');
+    expect(formatSpeed(0.1 + 0.2)).toBe('×0,3');
+  });
+
+  it('emits no shortcut:triggered for Enter repeats', () => {
+    // Arrange
+    const { editor } = mount();
+    const triggered: string[] = [];
+    editor.on('shortcut:triggered', (event) => triggered.push(event.id));
+
+    // Act
+    press(editor.container, { key: 'Enter' });
+    press(editor.container, { key: 'Enter', repeat: true });
+    press(editor.container, { key: 'Enter', repeat: true });
+
+    // Assert
+    expect(triggered).toEqual(['playback.controls.toggle']);
+  });
+});
+
