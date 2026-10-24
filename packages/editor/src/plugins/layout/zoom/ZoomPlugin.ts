@@ -169,7 +169,7 @@ function withCutBounds(
  * Options vérifiées : bornes cohérentes ; paliers triés et limités aux
  * bornes (`levels()` ne propose jamais une valeur que `setZoom` bornerait).
  * - Sans paliers donnés : une borne n'est ajoutée aux paliers par défaut que
- *   du côté où elle les coupe (`{ maxZoom: 2 }` ajoute 2, pas 0,1) ; s'il
+ *   du côté où elle les coupe (`{ maxZoom: 2.5 }` donne [0,25 … 2, 2,5], sans 0,1) ; s'il
  *   reste moins de deux paliers, l'autre borne s'ajoute aussi, pour que la
  *   molette puisse encore bouger (`{ minZoom: 4 }` donne [4, 8]).
  * - Avec des paliers donnés : ceux hors des bornes sont écartés, sans borne
