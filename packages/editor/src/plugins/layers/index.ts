@@ -66,7 +66,8 @@ export {
 export type {
   ILayerSelectionService,
   LayerSelectionChangedEvent,
-  SelectionMode
+  SelectionMode,
+  SelectOptions
 } from './selection';
 export {
   LAYERS_REORDER_PLUGIN_ID,
