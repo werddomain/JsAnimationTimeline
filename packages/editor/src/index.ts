@@ -278,3 +278,11 @@ export {
   PlaybackPlugin,
   createPlaybackControlsPlugin
 } from './plugins/playback';
+
+// Plugin toolbar.zoomControl : liste et curseur du zoom de la règle.
+export {
+  FIT_OPTION_VALUE,
+  ZOOM_CONTROL_PLUGIN_ID,
+  ZoomControlPlugin,
+  createZoomControlPlugin
+} from './plugins/toolbar';
