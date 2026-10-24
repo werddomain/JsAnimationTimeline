@@ -250,6 +250,39 @@ describe('layout.zoom options and lifecycle', () => {
     expect(api.levels()).toEqual([0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4]);
   });
 
+  it('adds only maxZoom when only the high default levels are cut', () => {
+    // Arrange
+    const { zone, api } = setup({ zoom: { maxZoom: 2 } });
+    const lines = { ctrlKey: true, deltaMode: WheelEvent.DOM_DELTA_LINE };
+    api.setZoom(0.25);
+
+    // Act : la molette ne descend pas sous 25 %.
+    zone('frames').dispatchEvent(ctrlWheel(3, 150, lines));
+
+    // Assert
+    expect(api.levels()).toEqual([0.25, 0.5, 0.75, 1, 1.5, 2]);
+    expect(api.zoom()).toBe(0.25);
+  });
+
+  it('adds only minZoom when only the low default levels are cut', () => {
+    // Act
+    const { api } = setup({ zoom: { minZoom: 0.5 } });
+    api.setZoom(4);
+    api.zoomIn();
+
+    // Assert : le zoom avant ne monte pas au-delà de 400 %.
+    expect(api.levels()).toEqual([0.5, 0.75, 1, 1.5, 2, 3, 4]);
+    expect(api.zoom()).toBe(4);
+  });
+
+  it('drops given levels outside the bounds without adding any bound', () => {
+    // Act
+    const { api } = setup({ zoom: { levels: [1, 2, 9], maxZoom: 3 } });
+
+    // Assert
+    expect(api.levels()).toEqual([1, 2]);
+  });
+
   it('accepts equal bounds as a single level', () => {
     // Act
     const { api } = setup({ zoom: { minZoom: 2, maxZoom: 2 } });
