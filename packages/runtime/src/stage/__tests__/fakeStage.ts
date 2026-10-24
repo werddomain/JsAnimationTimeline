@@ -43,9 +43,9 @@ export interface IFakeStage {
   readonly syncs: Array<{ time: ITransportTime; state: ITransportSyncState }>;
   readonly updates: Array<readonly IStageLayer<IFakeObject>[]>;
   ctx: IStageContext | null;
-  /** Calls the `targets.subscribe` listeners. */
-  notify(): void;
-  readonly subscribers: Set<() => void>;
+  /** Calls the `targets.subscribe` listeners, with `affected` when given. */
+  notify(affected?: readonly LayerTarget[]): void;
+  readonly subscribers: Set<(affected?: readonly LayerTarget[]) => void>;
 }
 
 function refOf(target: LayerTarget): string {
@@ -62,7 +62,7 @@ export function createFakeStage(id: string, options: IFakeStageOptions = {}): IF
     updates: [],
     ctx: null,
     subscribers: new Set(),
-    notify: () => Array.from(fake.subscribers).forEach((listener) => listener()),
+    notify: (affected) => Array.from(fake.subscribers).forEach((listener) => listener(affected)),
     stage: undefined as unknown as IStage<IFakeObject>
   };
   const stage: IStage<IFakeObject> = {
@@ -102,7 +102,7 @@ export function createFakeStage(id: string, options: IFakeStageOptions = {}): IF
   }
   const targets: IStageTargets = {
     list: () => [],
-    subscribe: (listener: () => void) => {
+    subscribe: (listener: (affected?: readonly LayerTarget[]) => void) => {
       fake.subscribers.add(listener);
       fake.calls.push('subscribe');
       return () => {
