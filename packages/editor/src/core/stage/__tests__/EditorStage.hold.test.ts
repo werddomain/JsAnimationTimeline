@@ -8,6 +8,7 @@
  * passe outre les retenues, et l'arrêt de la lecture rend l'image d'arrêt.
  */
 
+import type { EditorPlugin } from '../../context/IEditorContext';
 import { cleanBody } from '../../editor/__tests__/fixtures';
 import type { IFakeStage } from './fixtures';
 import type { IStageReport } from '@werddomain/timeline-runtime';
@@ -336,3 +337,31 @@ describe('ctx.playback.now: the editor clock', () => {
     expect(() => playback.now()).not.toThrow();
   });
 });
+
+describe('ctx.stage.hold: plugin teardown', () => {
+  it('does not render when a plugin releases its hold in its own destroy', () => {
+    // Arrange
+    let release: (() => void) | undefined;
+    const holder: EditorPlugin = {
+      id: 'test.holder',
+      dependencies: [],
+      init: (ctx) => {
+        const hold = ctx.stage.hold();
+        release = (): void => hold.release();
+      },
+      destroy: () => release?.()
+    };
+    const { editor, stage, clock } = createStageEditor({ plugins: [holder] });
+    clock.advance(DISPLAY_FRAME_MS);
+    editor.playback.seek(4);
+    clock.advance(DISPLAY_FRAME_MS);
+    stage.log.length = 0;
+
+    // Act
+    editor.destroy();
+
+    // Assert
+    expect(renders(stage)).toEqual([]);
+  });
+});
+

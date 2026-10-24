@@ -116,6 +116,8 @@ export class EditorStageHost implements IStageRenderer {
   private renderMissed = false;
   /** État de lecture du dernier `sync` transmis aux scènes. */
   private lastSyncPlaying = false;
+  /** Retenues abandonnées (`editor:destroying`) : plus aucune retenue ni rattrapage. */
+  private dropped = false;
   /** L'arrêt de la lecture passe outre la retenue : le rendu qui suit aussi. */
   private stopPassThrough = false;
 
@@ -139,7 +141,9 @@ export class EditorStageHost implements IStageRenderer {
     this.unsubscribes = [
       bus.on('document:changed', ({ document }) => this.load(document)),
       bus.on('document:loaded', ({ document }) => this.load(document)),
-      bus.once('editor:ready', () => this.feed.start(this.warnings))
+      bus.once('editor:ready', () => this.feed.start(this.warnings)),
+      // Dès l'annonce de la destruction (avant celle des plugins) : retenues abandonnées, sans rendu.
+      bus.on('editor:destroying', () => this.dropHolds())
     ];
     try {
       this.loadNow(store.document);
@@ -187,10 +191,10 @@ export class EditorStageHost implements IStageRenderer {
 
   /** Nouvelle retenue du rendu (voir `IEditorStage.hold`) ; inerte sans scène ou après la destruction. */
   hold(): IStageHold {
-    if (this.destroyed || this.host === null) return INERT_HOLD;
+    if (this.destroyed || this.dropped || this.host === null) return INERT_HOLD;
     const token = {};
     this.holds.add(token);
-    const isActive = (): boolean => !this.destroyed && this.holds.has(token);
+    const isActive = (): boolean => !this.destroyed && !this.dropped && this.holds.has(token);
     return Object.freeze({
       get active(): boolean {
         return isActive();
@@ -222,7 +226,7 @@ export class EditorStageHost implements IStageRenderer {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
-    this.holds.clear();
+    this.dropHolds();
     try {
       this.unsubscribes.forEach((unsubscribe) => this.guard(unsubscribe, undefined));
     } finally {
@@ -283,6 +287,14 @@ export class EditorStageHost implements IStageRenderer {
     } finally {
       this.loading = false;
     }
+  }
+
+  /** Abandonne toutes les retenues sans rattrapage (destruction de l'éditeur). */
+  private dropHolds(): void {
+    this.dropped = true;
+    this.holds.clear();
+    this.syncMissed = false;
+    this.renderMissed = false;
   }
 
   /** Vrai si une retenue s'applique (au moins une retenue, hors lecture). */
