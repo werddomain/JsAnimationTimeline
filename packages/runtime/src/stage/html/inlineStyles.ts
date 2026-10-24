@@ -6,9 +6,11 @@
  * sont sauvegardées, à leur première écriture qui change quelque chose
  * (valeur et priorité), puis remises telles quelles (`removeProperty` quand
  * il n'y en avait pas) : un style que la page pose ailleurs sur l'élément
- * n'est jamais effacé. Pour un raccourci (`border-radius`, `margin`), ce sont
- * les déclarations qu'il change qui sont sauvegardées (comparées avant et
- * après l'écriture) : les sous-propriétés posées en partie par la page, ou
+ * n'est jamais effacé. Pour un raccourci (`border-radius`, `margin`), toutes ses
+ * sous-propriétés sont sauvegardées (trouvées une fois par une écriture
+ * d'essai sur un élément jetable du même type, gardées par document), qu'il
+ * les change ou non à cette première écriture : les images suivantes les
+ * réécrivent sans les sauvegarder. Celles posées en partie par la page, ou
  * avec des `!important` mêlés, reviennent telles quelles. Le
  * compte est tenu **par élément** : deux calques sur le même élément ne
  * s'effacent pas, et le style n'est rendu que quand le dernier le libère.
@@ -60,17 +62,61 @@ const UNSET: ISavedProperty = { value: '', priority: '' };
 
 /** Per document: `style.item()` lists the longhands of a shorthand (browsers do, jsdom does not). */
 const expandsShorthands = new WeakMap<Document, boolean>();
+/** Per document and property name: the longhands a shorthand sets (found with a probe write). */
+const longhandsByName = new WeakMap<Document, Map<string, readonly string[]>>();
+
+/**
+ * Inline style of a throw-away element of the same kind as `element` (same
+ * namespace and local name: `createElement('div')` has no `style` in an
+ * XMLDocument). `undefined` when the probe has no inline style.
+ */
+function scratchStyle(element: Element): CSSStyleDeclaration | undefined {
+  const doc = element.ownerDocument;
+  const probe =
+    element.namespaceURI && element.localName && typeof doc.createElementNS === 'function'
+      ? doc.createElementNS(element.namespaceURI, element.localName)
+      : doc.createElement('div');
+  return hasInlineStyle(probe) ? probe.style : undefined;
+}
 
 function listsLonghands(element: Element): boolean {
   const doc = element.ownerDocument;
   let expands = expandsShorthands.get(doc);
   if (expands === undefined) {
-    const scratch = doc.createElement('div').style;
+    const scratch = scratchStyle(element);
+    if (scratch === undefined) {
+      return false;
+    }
     scratch.setProperty('margin', '0px');
     expands = scratch.length > 1;
     expandsShorthands.set(doc, expands);
   }
   return expands;
+}
+
+/** Longhands that writing `name: value` sets ([] for a plain property or an engine that lists shorthands as such). */
+function longhandsOf(element: Element, name: string, value: string): readonly string[] {
+  if (!listsLonghands(element)) {
+    return [];
+  }
+  const doc = element.ownerDocument;
+  const cache = longhandsByName.get(doc) ?? new Map<string, readonly string[]>();
+  longhandsByName.set(doc, cache);
+  const known = cache.get(name);
+  if (known !== undefined) {
+    return known;
+  }
+  const scratch = scratchStyle(element);
+  if (scratch === undefined) {
+    return [];
+  }
+  scratch.setProperty(name, value);
+  if (scratch.length === 0) {
+    return []; // value refused: not cached, a later value may work
+  }
+  const names = Array.from(snapshot(scratch).keys()).filter((key) => key !== name);
+  cache.set(name, names);
+  return names;
 }
 
 function serialize(declarations: ReadonlyMap<string, ISavedProperty>): string {
@@ -121,16 +167,8 @@ function restoreEntry(element: Element, entry: IHeldStyle): void {
   }
 }
 
-/**
- * Saves the original value of every property that `name: value` changes on
- * `style`, comparing the declarations before and after: a shorthand changes
- * its longhands (browsers list the longhands, jsdom the shorthand), and a
- * partly set or mixed `!important` shorthand reads as ''.
- */
-function writeSaving(entry: IHeldStyle, style: CSSStyleDeclaration, name: string, value: string): void {
-  const before = snapshot(style);
-  style.setProperty(name, value);
-  const after = snapshot(style);
+/** Names whose declaration differs between two snapshots. */
+function changedNames(before: ReadonlyMap<string, ISavedProperty>, after: ReadonlyMap<string, ISavedProperty>): Set<string> {
   const changed = new Set<string>();
   before.forEach((declaration, key) => {
     if (!sameDeclaration(declaration, after.get(key))) {
@@ -142,19 +180,37 @@ function writeSaving(entry: IHeldStyle, style: CSSStyleDeclaration, name: string
       changed.add(key);
     }
   });
+  return changed;
+}
+
+/**
+ * Saves the original value of `name` and of every longhand it sets (all of
+ * them, changed by this first write or not: later frames overwrite them
+ * without saving), plus anything the before/after comparison shows as
+ * changed (jsdom lists the shorthand itself, and a partly set or mixed
+ * `!important` shorthand reads as '').
+ */
+function writeSaving(entry: IHeldStyle, element: StyledElement, name: string, value: string): void {
+  const style = element.style;
+  const longhands = longhandsOf(element, name, value);
+  const before = snapshot(style);
+  style.setProperty(name, value);
+  const changed = changedNames(before, snapshot(style));
   if (changed.size === 0) {
-    // Same value as the page's, or a value the browser refused: saved on the first write that changes something.
+    // A value the browser refused: saved on the first write that changes something.
     return;
   }
-  changed.add(name);
-  const names: string[] = [];
-  changed.forEach((key) => {
+  const keys = new Set<string>([name, ...longhands, ...changed]);
+  keys.forEach((key) => {
     if (!entry.saved.has(key)) {
       entry.saved.set(key, before.get(key) ?? UNSET);
-      names.push(key);
     }
   });
-  entry.written.set(name, names);
+  entry.written.set(name, Array.from(keys));
+}
+
+function isUnchanged(style: CSSStyleDeclaration, name: string, value: string): boolean {
+  return style.getPropertyValue(name) === value && style.getPropertyPriority(name) === '';
 }
 
 /** Per-element save of the written inline properties, with a reference counter. */
@@ -199,12 +255,15 @@ export class InlineStyleKeeper {
     if (entry === undefined || !hasInlineStyle(element)) {
       return;
     }
+    if (!entry.written.has(name) && isUnchanged(element.style, name, value)) {
+      return; // same as the page's: nothing to save, no snapshot taken
+    }
     if (entry.written.has(name)) {
       // Already saved: only the value changes (a shorthand changes the same longhands for same-shape values, e.g. one value to one value).
       element.style.setProperty(name, value);
       return;
     }
-    writeSaving(entry, element.style, name, value);
+    writeSaving(entry, element, name, value);
   }
 
   /** Puts back the original value of `name` on `element` (and of what it changed), when the stage wrote it. */
@@ -216,7 +275,9 @@ export class InlineStyleKeeper {
     }
     entry.written.delete(name);
     restoreProperties(element, names, entry.saved);
-    names.forEach((key) => entry.saved.delete(key));
+    // A name another written property still sets keeps its saved original (else its next write would leak).
+    const stillSet = new Set(Array.from(entry.written.values()).flat());
+    names.filter((key) => !stillSet.has(key)).forEach((key) => entry.saved.delete(key));
   }
 
   /**

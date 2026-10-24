@@ -91,3 +91,18 @@ describe('InlineStyleKeeper and shorthands', () => {
     expect(target.style.cssText).toBe('color: red;');
   });
 });
+
+describe('InlineStyleKeeper in an XML document (standalone SVG)', () => {
+  it('releases and restores without throwing', () => {
+    const xml = new DOMParser().parseFromString(
+      '<svg xmlns="http://www.w3.org/2000/svg"><rect style="opacity: 0.3"/></svg>',
+      'image/svg+xml'
+    );
+    const rect = xml.querySelector('rect') as Element;
+    const keeper = held(rect);
+    keeper.write(rect, 'opacity', '0.8');
+    expect(() => keeper.restoreOriginals()).not.toThrow();
+    expect(() => keeper.release(rect)).not.toThrow();
+    expect((rect as unknown as ElementCSSInlineStyle).style?.getPropertyValue('opacity') ?? '0.3').toBe('0.3');
+  });
+});

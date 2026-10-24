@@ -23,6 +23,15 @@ interface IDeclaration {
   priority: string;
 }
 
+/** CSS 1-4 value expansion (top right bottom left); a single-target property keeps its value. */
+function expandBoxValue(parts: readonly string[], count: number): readonly string[] {
+  if (count !== 4) {
+    return Array(count).fill(parts[0]);
+  }
+  const [a, b = a, c = a, d = b] = parts;
+  return parts.length === 3 ? [a, b, c, b] : [a, b, c, d];
+}
+
 /** Ordered inline declarations; a shorthand is stored as its longhands, like Chromium. */
 class FakeStyle {
   private declarations = new Map<string, IDeclaration>();
@@ -68,10 +77,9 @@ class FakeStyle {
     }
     const longhands = SHORTHANDS[name];
     const targets = longhands ?? [name];
-    const parts = value.split(/\s+/);
+    const parts = expandBoxValue(value.split(/\s+/), targets.length);
     targets.forEach((key, index) => {
-      const part = parts.length === targets.length ? parts[index] : parts[0];
-      this.declarations.set(key, { value: part, priority });
+      this.declarations.set(key, { value: parts[index], priority });
     });
   }
 
@@ -103,16 +111,22 @@ class FakeStyle {
 }
 
 interface IFakeDocument {
-  createElement(tag: string): { style: FakeStyle };
+  createElement(tag: string): { style?: FakeStyle };
+  createElementNS(namespace: string, name: string): { style?: FakeStyle };
 }
 
 function fakeElement(css: string): { target: Element; style: FakeStyle } {
   const style = new FakeStyle();
   style.cssText = css;
-  const ownerDocument: IFakeDocument = { createElement: () => ({ style: new FakeStyle() }) };
+  const ownerDocument: IFakeDocument = {
+    createElement: () => ({ style: new FakeStyle() }),
+    createElementNS: () => ({ style: new FakeStyle() }),
+  };
   const target = {
     style,
     ownerDocument,
+    namespaceURI: 'http://www.w3.org/1999/xhtml',
+    localName: 'div',
     hasAttribute: () => true,
     getAttribute: () => style.cssText,
     removeAttribute: () => undefined,
@@ -174,5 +188,88 @@ describe('InlineStyleKeeper restore in a browser (longhands listed)', () => {
     expect(style.getPropertyValue('margin-bottom')).toBe('');
     expect(style.getPropertyValue('color')).toBe('red');
     expect(style.length).toBe(3);
+  });
+
+  it('keeps a page longhand that the first write leaves unchanged (border-radius from 4px)', () => {
+    const { target, style } = fakeElement('border-top-left-radius: 4px');
+    const keeper = held(target);
+    keeper.write(target, 'border-radius', '4px');
+    keeper.write(target, 'border-radius', '18px');
+    expect(style.getPropertyValue('border-top-left-radius')).toBe('18px');
+    keeper.release(target);
+    expect(style.getPropertyValue('border-top-left-radius')).toBe('4px');
+    expect(style.length).toBe(1);
+  });
+
+  it('keeps the page longhand on restoreOriginals after an unchanged first write', () => {
+    const { target, style } = fakeElement('border-top-left-radius: 4px');
+    const keeper = held(target);
+    keeper.write(target, 'border-radius', '4px');
+    keeper.write(target, 'border-radius', '18px');
+    keeper.restoreOriginals();
+    expect(style.cssText).toBe('border-top-left-radius: 4px;');
+    keeper.write(target, 'border-radius', '4px');
+    keeper.write(target, 'border-radius', '20px');
+    keeper.restoreOriginals();
+    expect(style.cssText).toBe('border-top-left-radius: 4px;');
+  });
+
+  it('keeps page margin 0px 10px when the animation starts at 0', () => {
+    const { target, style } = fakeElement('margin: 0px 10px');
+    const keeper = held(target);
+    keeper.write(target, 'margin', '0px');
+    keeper.write(target, 'margin', '5px');
+    keeper.restoreOriginals();
+    expect(style.getPropertyValue('margin-top')).toBe('0px');
+    expect(style.getPropertyValue('margin-right')).toBe('10px');
+    expect(style.getPropertyValue('margin-bottom')).toBe('0px');
+    expect(style.getPropertyValue('margin-left')).toBe('10px');
+    keeper.write(target, 'margin', '7px');
+    keeper.release(target);
+    expect(style.getPropertyValue('margin')).toBe('0px 10px 0px 10px');
+  });
+
+  it('never leaves a margin-top transient when the stage stops writing margin-top', () => {
+    const { target, style } = fakeElement('margin-top: 1px !important; margin-left: 2px; color: red');
+    const keeper = held(target);
+    keeper.write(target, 'margin-top', '9px');
+    keeper.write(target, 'margin', '5px');
+    keeper.restore(target, 'margin-top');
+    keeper.write(target, 'margin', '6px');
+    expect(style.getPropertyValue('margin-top')).toBe('6px');
+    keeper.release(target);
+    expect(style.getPropertyValue('margin-top')).toBe('1px');
+    expect(style.getPropertyPriority('margin-top')).toBe('important');
+    expect(style.getPropertyValue('margin-left')).toBe('2px');
+    expect(style.getPropertyValue('margin-right')).toBe('');
+    expect(style.getPropertyValue('margin-bottom')).toBe('');
+    expect(style.length).toBe(3);
+  });
+
+  it('does not take snapshots again for a write equal to the page value', () => {
+    const { target, style } = fakeElement('border-top-left-radius: 4px; color: red');
+    const keeper = held(target);
+    const itemSpy = jest.spyOn(style, 'item');
+    keeper.write(target, 'color', 'red');
+    keeper.write(target, 'color', 'red');
+    expect(itemSpy).not.toHaveBeenCalled();
+    keeper.write(target, 'color', 'blue');
+    keeper.release(target);
+    expect(style.getPropertyValue('color')).toBe('red');
+  });
+
+  it('restores through cssText when the probe element has no style (XML document)', () => {
+    const { target, style } = fakeElement('color: red; opacity: 0.3');
+    const doc = (target.ownerDocument as unknown) as IFakeDocument;
+    doc.createElement = () => ({});
+    doc.createElementNS = () => ({});
+    const keeper = held(target);
+    keeper.write(target, 'opacity', '0.8');
+    keeper.write(target, 'color', 'blue');
+    expect(() => keeper.restoreOriginals()).not.toThrow();
+    expect(style.getPropertyValue('color')).toBe('red');
+    expect(style.getPropertyValue('opacity')).toBe('0.3');
+    expect(style.length).toBe(2);
+    expect(() => keeper.release(target)).not.toThrow();
   });
 });
