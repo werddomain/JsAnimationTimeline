@@ -34,7 +34,7 @@ import type { EditorVisibility } from './frameStates';
 import { isStageDocumentError } from './reports';
 import type { IStageReport } from './reports';
 import type { IBinding, IHostState, IStageHostClock, IStageHostOptions } from './stageHostTypes';
-import { assertValidStages, routeTarget, sameTarget, toTargetList } from './routing';
+import { assertValidStages, isAffectedTarget, routeTarget, sameTarget, toTargetList } from './routing';
 import { StageReporter } from './StageReporter';
 import type { IStageReporterState } from './StageReporter';
 import type { IStage, IStageContext, IStageLayer } from './types';
@@ -378,7 +378,7 @@ export class StageHost {
    * object; otherwise the new binding, the old object being released.
    */
   private reresolve(binding: IBinding, affected: readonly LayerTarget[]): IBinding {
-    if (!affected.some((target) => sameTarget(target, binding.target))) {
+    if (!affected.some((target) => isAffectedTarget(target, binding.target))) {
       return binding;
     }
     const next = this.resolve(binding.layerId, binding.target, binding.stage);

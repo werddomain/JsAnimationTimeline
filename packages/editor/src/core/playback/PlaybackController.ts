@@ -16,9 +16,12 @@
  *   a pu avancer depuis le dernier `tick`, et `play` en fin de timeline
  *   repart de l'image 1.
  *
- * Un rendu émet, dans l'ordre : `playhead:changed` (si l'image entière a
- * changé depuis le rendu précédent), puis `frame:render` avec l'échantillon.
- * Le premier rendu est demandé à la création.
+ * Un rendu fait, dans l'ordre : `playhead:changed` (si l'image entière a
+ * changé depuis le rendu précédent), `sync` des scènes (si le temps a sauté,
+ * si l'état de lecture ou le document a changé depuis le rendu précédent), `render` des
+ * scènes, puis `frame:render` avec l'échantillon. Le premier rendu est
+ * demandé à la création. Comme le rendu, `sync` est donc regroupé une fois
+ * par image d'affichage pendant un glisser.
  *
  * Fps ou durée changés par le document : l'image entière courante est
  * gardée (bornée à la nouvelle durée), pas le temps en millisecondes ; en
@@ -30,7 +33,9 @@
 import { createTransport } from '@werddomain/timeline-runtime';
 import type {
   IPlayerClock,
+  IStageHostClock,
   ITimelineDocument,
+  ITransportSyncState,
   ITransportTime,
   PropertyRegistry,
   Transport
@@ -48,6 +53,12 @@ const NO_PAYLOAD: PlaybackStateEvent = Object.freeze({});
 /** Mêmes règles que le transport : fps fini > 0, durée entière ≥ 1. */
 function isValidTimeline(fps: number, totalFrames: number): boolean {
   return Number.isFinite(fps) && fps > 0 && Number.isInteger(totalFrames) && totalFrames >= 1;
+}
+
+/** Scènes rendues par la lecture (voir `EditorStageHost`). */
+export interface IStageRenderer {
+  sync(time: ITransportTime, state: ITransportSyncState): void;
+  render(time: ITransportTime): void;
 }
 
 /** Pièces dont la lecture a besoin. */
@@ -72,6 +83,9 @@ export class PlaybackController {
   private moving = false;
   private lastPlayhead: number;
   private destroyed = false;
+  private stage: IStageRenderer | null = null;
+  /** Le temps a sauté ou l'état de lecture a changé depuis le dernier `sync` des scènes. */
+  private syncPending = true;
 
   constructor(options: IPlaybackControllerOptions) {
     this.bus = options.bus;
@@ -79,7 +93,14 @@ export class PlaybackController {
     this.clock = options.clock;
     this.sampler = new FrameSampler(options.registry);
     const { fps, totalFrames } = this.store.document.settings;
-    this.transport = createTransport({ clock: this.clock, fps, totalFrames });
+    this.transport = createTransport({
+      clock: this.clock,
+      fps,
+      totalFrames,
+      onSync: () => {
+        this.syncPending = true;
+      }
+    });
     this.lastPlayhead = this.transport.frame;
     this.listen();
     this.schedule();
@@ -141,6 +162,18 @@ export class PlaybackController {
     this.schedule();
   }
 
+  /** Position et état de lecture courants (pour les scènes). */
+  get now(): IStageHostClock {
+    return { time: this.transport.time, state: this.syncState() };
+  }
+
+  /** Branche les scènes : `sync` puis `render` à chaque rendu, à partir du prochain. */
+  attachStage(stage: IStageRenderer): void {
+    this.stage = stage;
+    this.syncPending = true;
+    this.schedule();
+  }
+
   /** Échantillon synchrone à `frame`, ou à la position courante. */
   sample(frame?: number): IFrameSample {
     const doc = this.store.document;
@@ -178,6 +211,8 @@ export class PlaybackController {
   };
 
   private onDocument(doc: ITimelineDocument): void {
+    // Contrat `IStage.sync` : aussi appelé à chaque changement de document.
+    this.syncPending = true;
     const { fps, totalFrames } = doc.settings;
     const changed = fps !== this.transport.fps || totalFrames !== this.transport.totalFrames;
     if (changed && isValidTimeline(fps, totalFrames)) {
@@ -225,7 +260,23 @@ export class PlaybackController {
       // Un gestionnaire a pu détruire l'éditeur.
       if (this.destroyed) return;
     }
+    this.renderStage(time);
+    if (this.destroyed) return;
     const sample = this.sampler.sample(this.store.document, time);
     this.bus.emit('frame:render', { sample });
+  }
+
+  private renderStage(time: ITransportTime): void {
+    const stage = this.stage;
+    if (stage === null) return;
+    if (this.syncPending) {
+      this.syncPending = false;
+      stage.sync(time, this.syncState());
+    }
+    stage.render(time);
+  }
+
+  private syncState(): ITransportSyncState {
+    return { playing: this.transport.playing, speed: this.transport.speed };
   }
 }
