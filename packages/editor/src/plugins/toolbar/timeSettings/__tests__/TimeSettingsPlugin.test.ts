@@ -112,7 +112,7 @@ describe('toolbar.timeSettings fields', () => {
 });
 
 describe('toolbar.timeSettings refusals', () => {
-  it('shows why an fps is refused and restores the field', () => {
+  it('shows why an fps is refused and keeps the value, marked invalid, for correction', () => {
     // Arrange
     const { editor, fps, message } = mount();
 
@@ -121,7 +121,8 @@ describe('toolbar.timeSettings refusals', () => {
 
     // Assert
     expect(editor.document.settings.fps).toBe(24);
-    expect(fps.value).toBe('24');
+    expect(fps.value).toBe('500');
+    expect(fps.getAttribute('aria-invalid')).toBe('true');
     expect(message().textContent).not.toBe('');
     expect(message().getAttribute('role')).toBe('status');
     expect(message().textContent).toBe('La cadence doit être un nombre entier de 1 à 240 images par seconde.');
@@ -135,7 +136,7 @@ describe('toolbar.timeSettings refusals', () => {
     enter(totalFrames, '');
 
     // Assert
-    expect(totalFrames.value).toBe('60');
+    expect(totalFrames.value).toBe('');
     expect(message().textContent).toBe('La durée doit être un nombre entier de 1 à 100 000 images.');
   });
 
@@ -149,7 +150,7 @@ describe('toolbar.timeSettings refusals', () => {
 
     // Assert
     expect(editor.document.settings.totalFrames).toBe(60);
-    expect(totalFrames.value).toBe('60');
+    expect(totalFrames.value).toBe('30');
     expect(message().textContent).toBe(
       "La durée ne peut pas être inférieure à 40 images : une plage du calque « Héros » se termine à l'image 40."
     );
@@ -218,6 +219,21 @@ describe('toolbar.timeSettings message', () => {
     // Assert
     expect(message().textContent).toBe('');
     expect(fps.value).toBe('24');
+    expect(fps.hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it('lets a loaded document longer than the maximum be shortened, and sets the field maximum', () => {
+    // Arrange
+    const data = createDoc([layer('l1', [{ id: 's1', start: 1, end: 150_000, kind: 'blank' }], { name: 'Long' })], 200_000);
+    const { editor, totalFrames, message } = mount(data);
+
+    // Act + Assert
+    expect(totalFrames.max).toBe('200000');
+    enter(totalFrames, '180000');
+    expect(editor.document.settings.totalFrames).toBe(180_000);
+    expect(totalFrames.max).toBe('180000');
+    enter(totalFrames, '190000');
+    expect(message().textContent).toBe('La durée doit être un nombre entier de 1 à 180 000 images.');
   });
 });
 
