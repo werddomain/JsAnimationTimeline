@@ -99,6 +99,8 @@ export function formatCustomZoom(zoom: number, levels: readonly number[]): strin
   for (let decimals = 0; decimals < MAX_DECIMALS; decimals += 1) {
     const shown = Number((zoom * 100).toFixed(decimals));
     const label = percent(zoom, decimals);
+    // Les libellés des paliers sont en pour cent entiers : ils ne peuvent
+    // coïncider qu'à 0 décimale ; la valeur, elle, est comparée à chaque fois.
     const readsLikeLevel =
       levelLabels.includes(label) || levels.some((level) => Math.abs(level * 100 - shown) < EPSILON);
     if (!readsLikeLevel) return label;

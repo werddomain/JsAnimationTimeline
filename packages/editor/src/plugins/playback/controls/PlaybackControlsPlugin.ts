@@ -67,17 +67,27 @@ function labelValue(label: string): number {
   return Number(label.replace('×', '').replace(',', '.'));
 }
 
-/** Libellé court d'un préréglage : 4 chiffres significatifs au plus, sans zéros de fin. */
+/**
+ * Chiffres significatifs minimaux pour `speed` : 4, ou plus pour garder toute
+ * la partie entière (`12345` -> 5 chiffres, jamais `12350`).
+ */
+function minDigits(speed: number): number {
+  const integerDigits = Math.floor(Math.log10(Math.abs(speed))) + 1;
+  return Math.min(MAX_SPEED_DIGITS, Math.max(MIN_SPEED_DIGITS, integerDigits));
+}
+
+/** Libellé court d'un préréglage : `minDigits` chiffres significatifs au plus, sans zéros de fin. */
 function presetLabel(speed: number): string {
-  return `×${new Intl.NumberFormat('fr-FR', { maximumSignificantDigits: MIN_SPEED_DIGITS, useGrouping: false }).format(speed)}`;
+  return `×${new Intl.NumberFormat('fr-FR', { maximumSignificantDigits: minDigits(speed), useGrouping: false }).format(speed)}`;
 }
 
 /**
  * Libellé français d'une vitesse (`1.5` -> `×1,5`, `1 / 3` -> `×0,3333`).
  *
  * Sans autre option, c'est le libellé court (4 chiffres significatifs au
- * plus, sans zéros de fin). À côté d'autres options (`taken`, leurs libellés,
- * et `otherSpeeds`, leurs vitesses, lues dans les libellés par défaut), il prend le moins de chiffres possible,
+ * plus, sans zéros de fin). À côté d'autres options (`taken`, leurs
+ * libellés ; `otherSpeeds`, leurs vitesses, lues par défaut dans `taken`),
+ * il prend le moins de chiffres possible,
  * à partir de 4, pour un libellé qui n'est pris par aucune option et qui ne
  * se lit pas comme la vitesse d'une autre option. Par exemple, `1.0005` à
  * côté de `×1` donne `×1,001`, puis `1.001` à côté de `×1` et `×1,001` donne
@@ -93,7 +103,7 @@ export function formatSpeed(
   const free = (label: string): boolean =>
     !taken.includes(label) && !others.some((other) => Math.abs(labelValue(label) - other) < SPEED_EPSILON);
   if (free(short)) return short;
-  for (let digits = MIN_SPEED_DIGITS; digits <= MAX_SPEED_DIGITS; digits += 1) {
+  for (let digits = minDigits(speed); digits <= MAX_SPEED_DIGITS; digits += 1) {
     const label = `×${speedNumber(speed, digits)}`;
     if (free(label)) return label;
   }

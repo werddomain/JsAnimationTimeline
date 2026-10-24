@@ -434,7 +434,12 @@ describe('playback.controls custom speed labels (round 4)', () => {
 
   it('never pads a label into the value of another option', () => {
     // Assert
-    expect(formatSpeed(1.00004, ['×1'], [1])).not.toBe('×1,000');
+    expect(formatSpeed(1.00004, ['×1'], [1])).toBe('×1,00004');
+    expect(formatSpeed(1.00004, ['×1'])).toBe('×1,00004');
+    expect(formatSpeed(1.00000001, ['×1'])).toBe('×1,00000001');
+    expect(formatSpeed(1.9999999, ['×2'])).toBe('×1,9999999');
+    expect(formatSpeed(12345)).toBe('×12345');
+    expect(formatSpeed(99999)).toBe('×99999');
     expect(formatSpeed(1.001, ['×1', '×1,001'], [1, 1.0005])).toBe('×1,0010');
   });
 });
