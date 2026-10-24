@@ -1,12 +1,16 @@
 // e2e/playwright.config.ts
 import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
+import { editorPort } from '../tools/devPorts';
 import { RUNTIME_DEMO_URL } from './runtime/demoUrl';
 
 const isCI = Boolean(process.env.CI);
-const PORT = 9000;
-const BASE_URL = `http://localhost:${PORT}`;
+// Ports from E2E_EDITOR_PORT / E2E_RUNTIME_PORT (9000 / 9001 by default), see tools/devPorts.ts.
+const BASE_URL = `http://localhost:${editorPort()}`;
 const REPO_ROOT = path.resolve(__dirname, '..');
+// A server already on a port is reused only on request (E2E_REUSE_SERVER=1, never in CI):
+// otherwise another worktree's demo server would be tested silently.
+const reuseExistingServer = !isCI && process.env.E2E_REUSE_SERVER === '1';
 
 export default defineConfig({
   // Layout: e2e/<area>/*.spec.ts (demo, runtime, editor, export-css, ...).
@@ -27,14 +31,14 @@ export default defineConfig({
       command: 'npm run preview:demo --workspace packages/editor',
       cwd: REPO_ROOT,
       url: BASE_URL,
-      reuseExistingServer: !isCI,
+      reuseExistingServer,
       timeout: 60_000,
     },
     {
       command: 'npm run preview:demo --workspace demo/runtime',
       cwd: REPO_ROOT,
       url: RUNTIME_DEMO_URL,
-      reuseExistingServer: !isCI,
+      reuseExistingServer,
       timeout: 60_000,
     },
   ],
