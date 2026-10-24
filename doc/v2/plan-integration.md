@@ -102,7 +102,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **G2** | 4 | 6 | Plugin `frames.selection` (images et images clés, Ctrl / Maj, repris de `SelectionManager`) | G1 | K2, K3, W1 | `plugins/frames/selection/` | ☑ |
 | **K1** | 4 | 4 | **Cœur CS4** : opérations pures sur les plages (insérer une image clé avec valeurs interpolées, supprimer/fusionner, insérer/supprimer une image, déplacer) + refus si verrouillé, sous forme de commandes ; le registre de propriétés est passé en paramètre | C3, R2 | K2, K3, W1 | `packages/editor/src/model/spans/` | ☑ |
 | **K2** | 4 | 7 | Plugin `frames.keyframes` (F5 / F6 / F7, glisser pour déplacer) | K1, G2, I2 | T2, I1 | `plugins/frames/keyframes/` | ☐ |
-| **K3** | 4 | 7 | Plugin `frames.clipboard` (Ctrl+C / Ctrl+V) | K1, G2, I2 | E1 | `plugins/frames/clipboard/` | ☐ |
+| **K3** | 4 | 7 | Plugin `frames.clipboard` (Ctrl+C / Ctrl+V) | K1, G2, I2 | E1 | `plugins/frames/clipboard/` | ☑ |
 | **W1** | 4 | 7 | Plugin `tweens.motion` : créer un motion tween depuis 1 ou 2 images clés, le supprimer | K1, G2, C6 | W2, W3, T2, I1 | `plugins/tweens/motion/` | ☐ |
 | **W2** | 4 | 8 | Plugin `tweens.propertyKeyframes` + API `editor.setProperty()` (crée les losanges ; nom vérifié dans le registre et dans les propriétés de l'objet) | W1, C7 | S1 | `plugins/tweens/propertyKeyframes/` | ☐ |
 | **W3** | 4 | 8 | Plugin `tweens.easing` (préréglages, remplace `TweenPropertiesDialog`) | W1 | E1 | `plugins/tweens/easing/` | ☐ |

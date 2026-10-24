@@ -31,3 +31,12 @@ export type {
   ISelectedKeyframe,
   SelectedKeyframeKind
 } from './selection';
+export { FRAMES_CLIPBOARD_PLUGIN_ID, FramesClipboardPlugin } from './clipboard';
+export type {
+  FramesClipboardChangedEvent,
+  IClipRow,
+  IClipRun,
+  IClipSpan,
+  IFrameClip,
+  IFramesClipboardService
+} from './clipboard';

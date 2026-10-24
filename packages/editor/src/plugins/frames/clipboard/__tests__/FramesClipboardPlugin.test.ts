@@ -1,0 +1,434 @@
+// packages/editor/src/plugins/frames/clipboard/__tests__/FramesClipboardPlugin.test.ts
+/**
+ * Tests de `frames.clipboard` : Ctrl+C / Ctrl+V par le clavier, cibles de
+ * collage de secours, lignes abandonnées, dossiers sautés, touche laissée au
+ * navigateur quand elle est inutile, événement, sélection après collage,
+ * annulation, refus et place dans le jeu de plugins par défaut.
+ */
+
+import type { ILayer, ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
+import { createEditor } from '../../../../core/editor/createEditor';
+import { defaultPlugins } from '../../../../core/editor/defaultPlugins';
+import type { IEditor } from '../../../../core/editor/types';
+import { LayersPlugin } from '../../../layers/LayersPlugin';
+import { LayoutPlugin } from '../../../layout/LayoutPlugin';
+import { cleanBody, createContainer, createManualScheduler } from '../../../layout/__tests__/layoutFixtures';
+import { createShortcutsPlugin } from '../../../interaction/shortcuts';
+import { FramesPlugin } from '../../FramesPlugin';
+import { FramesClipboardPlugin } from '../FramesClipboardPlugin';
+import type { FramesClipboardChangedEvent, IFramesClipboardService } from '../types';
+
+afterEach(cleanBody);
+
+function layer(id: string, extra: Partial<ILayer> = {}): ILayer {
+  return { id, type: 'layer', name: id, spans: [], ...extra };
+}
+
+function doc(layers: readonly LayerNode[], totalFrames = 20): ITimelineDocument {
+  return { version: '2.0.0', settings: { fps: 24, totalFrames }, layers };
+}
+
+/** Calque de trois plages : fixe 1-3 (x=1), vide 4-6, fixe 7-20 (x=7). */
+const source = (id: string, extra: Partial<ILayer> = {}): ILayer =>
+  layer(id, {
+    spans: [
+      { id: `${id}1`, start: 1, end: 3, kind: 'static', tracks: { x: [{ frame: 1, value: 1 }] } },
+      { id: `${id}2`, start: 4, end: 6, kind: 'blank' },
+      { id: `${id}3`, start: 7, end: 20, kind: 'static', tracks: { x: [{ frame: 7, value: 7 }] } }
+    ],
+    ...extra
+  });
+
+const sample = doc([source('a'), { id: 'f', type: 'folder', name: 'f', children: [] }, source('b'), layer('c')]);
+
+interface IHarness {
+  readonly editor: IEditor;
+  readonly clipboard: IFramesClipboardService;
+  readonly events: FramesClipboardChangedEvent[];
+  readonly select: (cells: ReadonlyArray<readonly [string, number]>) => void;
+  readonly spans: (id: string) => string[];
+}
+
+function setup(data: ITimelineDocument = sample, extra: readonly EditorPlugin[] = []): IHarness {
+  const scheduler = createManualScheduler();
+  const editor = createEditor(createContainer(), {
+    data,
+    defaultPlugins: [
+      new LayoutPlugin({ scrollSync: { scheduler } }),
+      new LayersPlugin(),
+      new FramesPlugin(),
+      createShortcutsPlugin()
+    ],
+    plugins: extra
+  });
+  const clipboard = editor.getService('frames.clipboard');
+  const selection = editor.getService('frames.selection');
+  if (clipboard === undefined || selection === undefined) throw new Error('montage incomplet');
+  const events: FramesClipboardChangedEvent[] = [];
+  editor.on('frames:clipboardChanged', (event) => events.push(event));
+  return {
+    editor,
+    clipboard,
+    events,
+    select: (cells) => selection.set(cells.map(([rowId, frame]) => ({ rowId, frame }))),
+    spans: (id) => {
+      const node = editor.document.layers.flatMap((n) => (n.type === 'folder' ? n.children : [n])).find((n) => n.id === id);
+      return node?.type === 'layer' ? node.spans.map((span) => `${span.kind} ${span.start}-${span.end}`) : [];
+    }
+  };
+}
+
+function press(editor: IEditor, key: string, init: KeyboardEventInit = {}): KeyboardEvent {
+  const event = new KeyboardEvent('keydown', { key, ctrlKey: true, bubbles: true, cancelable: true, ...init });
+  editor.container.dispatchEvent(event);
+  return event;
+}
+
+const range = (rowId: string, first: number, last: number): Array<readonly [string, number]> =>
+  Array.from({ length: last - first + 1 }, (_, index) => [rowId, first + index] as const);
+
+describe('frames.clipboard keyboard', () => {
+  it('copies with Ctrl+C and pastes with Ctrl+V at the anchor', () => {
+    // Arrange
+    const { editor, select, spans } = setup();
+    select(range('a', 1, 3));
+    const copy = press(editor, 'c');
+    select([['c', 10]]);
+
+    // Act
+    const paste = press(editor, 'v');
+
+    // Assert
+    expect(copy.defaultPrevented).toBe(true);
+    expect(paste.defaultPrevented).toBe(true);
+    expect(spans('c')).toEqual(['blank 1-9', 'static 10-12']);
+  });
+
+  it('works with Cmd on the Mac', () => {
+    // Arrange
+    const { editor, select, clipboard } = setup();
+    select([['a', 2]]);
+
+    // Act
+    press(editor, 'c', { ctrlKey: false, metaKey: true });
+
+    // Assert
+    expect(clipboard.hasContent()).toBe(true);
+  });
+
+  it('leaves Ctrl+C to the browser when nothing is selected', () => {
+    // Arrange
+    const { editor, clipboard } = setup();
+
+    // Act
+    const event = press(editor, 'c');
+
+    // Assert
+    expect(event.defaultPrevented).toBe(false);
+    expect(clipboard.hasContent()).toBe(false);
+  });
+
+  it('leaves Ctrl+V to the browser when the clipboard is empty', () => {
+    // Arrange
+    const { editor, select } = setup();
+    select([['a', 2]]);
+
+    // Act
+    const event = press(editor, 'v');
+
+    // Assert
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('leaves the keys to a text field in the editor', () => {
+    // Arrange
+    const { editor, select, clipboard } = setup();
+    select([['a', 2]]);
+    const input = document.createElement('input');
+    editor.container.appendChild(input);
+
+    // Act
+    const event = new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true });
+    input.dispatchEvent(event);
+
+    // Assert
+    expect(event.defaultPrevented).toBe(false);
+    expect(clipboard.hasContent()).toBe(false);
+  });
+
+  it('registers Mod+C and Mod+V next to the other default plugins without a conflict', () => {
+    // Act
+    const editor = createEditor(createContainer(), { data: sample, defaultPlugins: defaultPlugins() });
+
+    // Assert
+    const shortcuts = editor.getService('interaction.shortcuts');
+    expect(shortcuts?.lookup('Mod+C')?.id).toBe('frames.clipboard.copy');
+    expect(shortcuts?.lookup('Mod+V')?.id).toBe('frames.clipboard.paste');
+    expect(shortcuts?.lookup('Mod+V')?.label).toBe('Coller les images');
+  });
+});
+
+describe('frames.clipboard paste', () => {
+  it('pastes a rectangle over several layers, skipping the folder between them', () => {
+    // Arrange
+    const { clipboard, select, spans } = setup();
+    select([...range('a', 2, 4), ...range('b', 2, 4)]);
+    clipboard.copy();
+
+    // Act
+    const pasted = clipboard.paste({ rowId: 'b', frame: 10 });
+
+    // Assert
+    expect(pasted).toBe(true);
+    expect(spans('b')).toEqual(['static 1-3', 'blank 4-6', 'static 7-9', 'static 10-11', 'blank 12-12', 'static 13-20']);
+    expect(spans('c')).toEqual(['blank 1-9', 'static 10-11', 'blank 12-12']);
+  });
+
+  it('drops the rows that fall past the last layer', () => {
+    // Arrange
+    const { clipboard, select, spans } = setup();
+    select([...range('a', 1, 2), ...range('b', 1, 2)]);
+    clipboard.copy();
+
+    // Act
+    const pasted = clipboard.paste({ rowId: 'c', frame: 15 });
+
+    // Assert
+    expect(pasted).toBe(true);
+    expect(spans('b')).toEqual(['static 1-3', 'blank 4-6', 'static 7-20']);
+    expect(spans('c')).toEqual(['blank 1-14', 'static 15-16']);
+  });
+
+  it('refuses a target that is not a layer row', () => {
+    // Arrange
+    const { clipboard, select } = setup();
+    select([['a', 1]]);
+    clipboard.copy();
+
+    // Act
+    const pasted = clipboard.paste({ rowId: 'f', frame: 2 });
+
+    // Assert
+    expect(pasted).toBe(false);
+  });
+
+  it('selects the pasted cells afterwards', () => {
+    // Arrange
+    const { clipboard, select, editor } = setup();
+    select(range('a', 1, 2));
+    clipboard.copy();
+    select([['c', 5]]);
+
+    // Act
+    clipboard.paste();
+
+    // Assert
+    expect(editor.getService('frames.selection')?.cells()).toEqual([
+      { rowId: 'c', frame: 5 },
+      { rowId: 'c', frame: 6 }
+    ]);
+  });
+
+  it('pastes at the anchor of a selection of several cells', () => {
+    // Arrange
+    const { clipboard, select, editor, spans } = setup();
+    select([['a', 1]]);
+    clipboard.copy();
+    select([['c', 8], ['c', 9]]);
+    const selection = editor.getService('frames.selection');
+    expect(selection?.anchor()).toEqual({ rowId: 'c', frame: 9 });
+
+    // Act
+    clipboard.paste();
+
+    // Assert
+    expect(spans('c')).toEqual(['blank 1-8', 'static 9-9']);
+  });
+
+  it('falls back to the playhead on the first selected layer', () => {
+    // Arrange
+    const { clipboard, select, editor, spans } = setup();
+    select([['a', 1]]);
+    clipboard.copy();
+    editor.getService('frames.selection')?.clear();
+    editor.getService('layers.selection')?.select(['c']);
+    editor.playback.seek(4);
+
+    // Act
+    const pasted = clipboard.paste();
+
+    // Assert
+    expect(pasted).toBe(true);
+    expect(spans('c')).toEqual(['blank 1-3', 'static 4-4']);
+  });
+
+  it('returns false without any target', () => {
+    // Arrange
+    const { clipboard, select, editor } = setup();
+    select([['a', 1]]);
+    clipboard.copy();
+    editor.getService('frames.selection')?.clear();
+
+    // Act
+    const pasted = clipboard.paste();
+
+    // Assert
+    expect(pasted).toBe(false);
+    expect(editor.canUndo).toBe(false);
+  });
+
+  it('is one undo step and one redo step', () => {
+    // Arrange
+    const { clipboard, select, editor, spans } = setup();
+    select([...range('a', 1, 2), ...range('b', 1, 2)]);
+    clipboard.copy();
+    const original = editor.document;
+
+    // Act
+    clipboard.paste({ rowId: 'b', frame: 19 });
+    const afterPaste = editor.document;
+    editor.undo();
+    const afterUndo = editor.document;
+    editor.redo();
+
+    // Assert
+    expect(afterPaste).not.toBe(original);
+    expect(afterUndo).toEqual(original);
+    expect(editor.document).toEqual(afterPaste);
+    expect(spans('b')).toEqual(['static 1-3', 'blank 4-6', 'static 7-18', 'static 19-20']);
+  });
+
+  it('refuses the whole paste when one target row is locked', () => {
+    // Arrange
+    const locked = doc([source('a'), source('b', { locked: true })]);
+    const { clipboard, select, editor } = setup(locked);
+    select([...range('a', 1, 2), ...range('b', 1, 2)]);
+    clipboard.copy();
+    const refused: string[] = [];
+    editor.on('command:refused', (event) => refused.push(event.reason));
+    const before = editor.document;
+
+    // Act
+    const pasted = clipboard.paste({ rowId: 'a', frame: 10 });
+
+    // Assert
+    expect(pasted).toBe(false);
+    expect(editor.document).toBe(before);
+    expect(refused).toHaveLength(1);
+    expect(refused[0]).toContain('verrouillé');
+  });
+});
+
+describe('frames.clipboard service and event', () => {
+  it('emits frames:clipboardChanged on copy and on clear', () => {
+    // Arrange
+    const { clipboard, select, events } = setup();
+    select([...range('a', 1, 3), ...range('b', 1, 3)]);
+
+    // Act
+    clipboard.copy();
+    clipboard.clear();
+
+    // Assert
+    expect(events).toEqual([
+      { hasContent: true, rows: 2, width: 3 },
+      { hasContent: false, rows: 0, width: 0 }
+    ]);
+  });
+
+  it('does not emit when clearing an empty clipboard', () => {
+    // Arrange
+    const { clipboard, events } = setup();
+
+    // Act
+    clipboard.clear();
+
+    // Assert
+    expect(events).toEqual([]);
+  });
+
+  it('keeps the previous content when there is nothing selected to copy', () => {
+    // Arrange
+    const { clipboard, select, editor } = setup();
+    select([['a', 1]]);
+    clipboard.copy();
+    const content = clipboard.content();
+    editor.getService('frames.selection')?.clear();
+
+    // Act
+    const copied = clipboard.copy();
+
+    // Assert
+    expect(copied).toBe(false);
+    expect(clipboard.content()).toBe(content);
+  });
+
+  it('exposes a frozen JSON clip', () => {
+    // Arrange
+    const { clipboard, select } = setup();
+    select(range('a', 2, 4));
+
+    // Act
+    clipboard.copy();
+
+    // Assert
+    const clip = clipboard.content();
+    expect(Object.isFrozen(clip)).toBe(true);
+    expect(JSON.parse(JSON.stringify(clip))).toEqual(clip);
+    expect(clip).toMatchObject({ format: 'jstimeline/frames', version: 1, width: 3 });
+  });
+
+  it('declares its dependencies and no optional one', () => {
+    // Act
+    const plugin = new FramesClipboardPlugin();
+
+    // Assert
+    expect(plugin.id).toBe('frames.clipboard');
+    expect(plugin.dependencies).toEqual(['frames.grid', 'frames.selection', 'interaction.shortcuts']);
+  });
+});
+
+describe('frames.clipboard lifecycle', () => {
+  it('forgets the content and removes its shortcuts and service on destroy', () => {
+    // Arrange
+    const { editor, select, clipboard } = setup();
+    select([['a', 1]]);
+    clipboard.copy();
+    const shortcuts = editor.getService('interaction.shortcuts');
+
+    // Act
+    editor.destroy();
+
+    // Assert
+    expect(shortcuts?.lookup('Mod+C')).toBeUndefined();
+    expect(shortcuts?.lookup('Mod+V')).toBeUndefined();
+    expect(clipboard.hasContent()).toBe(false);
+  });
+
+  it('undoes what it registered when a shortcut registration throws', () => {
+    // Arrange
+    const unregisterCopy = jest.fn();
+    const unregisterService = jest.fn();
+    const register = jest
+      .fn()
+      .mockReturnValueOnce(unregisterCopy)
+      .mockImplementation(() => {
+        throw new Error('conflit');
+      });
+    const services = {
+      require: (id: string): unknown => (id === 'interaction.shortcuts' ? { register } : {}),
+      provide: () => unregisterService,
+      get: () => undefined
+    };
+    const plugin = new FramesClipboardPlugin();
+
+    // Act
+    const init = (): void => plugin.init({ services } as unknown as IEditorContext);
+
+    // Assert
+    expect(init).toThrow('conflit');
+    expect(unregisterCopy).toHaveBeenCalledTimes(1);
+    expect(unregisterService).toHaveBeenCalledTimes(1);
+  });
+});
