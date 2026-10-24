@@ -8,6 +8,7 @@
  * - une erreur levée par `onError` lui-même est relancée en asynchrone.
  */
 
+import type { IEvaluateIssue } from '../evaluate/unknownProperties';
 import { StageReportCodes } from './reports';
 import type { IStageReport } from './reports';
 
@@ -91,6 +92,20 @@ export class StageReporter {
       this.onReport?.(frozen);
     } catch (handlerError) {
       rethrowAsync(handlerError);
+    }
+  }
+
+  /** A track of a layer of `stageId` names a property unknown to the registry. */
+  unknownProperty(stageId: string, issue: IEvaluateIssue): void {
+    this.add({ code: StageReportCodes.UNKNOWN_PROPERTY, stageId, layerId: issue.layerId, property: issue.property, message: issue.message });
+  }
+
+  /** A layer naming the unknown stage `stageId`, or (without it) accepted by no stage. */
+  unrouted(layerId: string, stageId: string | undefined): void {
+    if (stageId !== undefined) {
+      this.add({ code: StageReportCodes.UNKNOWN_STAGE, stageId, layerId, message: `Layer "${layerId}" names the unknown stage "${stageId}".` });
+    } else {
+      this.add({ code: StageReportCodes.UNROUTED, layerId, message: `No stage accepts the target of layer "${layerId}".` });
     }
   }
 

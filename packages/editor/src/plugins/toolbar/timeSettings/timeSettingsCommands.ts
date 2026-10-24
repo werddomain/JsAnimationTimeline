@@ -3,10 +3,11 @@
  * Commandes annulables de la cadence (`settings.fps`) et de la durée
  * (`settings.totalFrames`) du document, et leurs contrôles :
  * - la cadence est un entier de `MIN_FPS` à `MAX_FPS` ;
- * - la durée est un entier de `MIN_TOTAL_FRAMES` à `MAX_TOTAL_FRAMES`
- *   images, et jamais plus courte que la dernière image utilisée par une
- *   plage : raccourcir la timeline sous la fin d'une plage est refusé avec
- *   un message clair.
+ * - la durée est un entier de `MIN_TOTAL_FRAMES` à `maxTotalFrames(doc)`
+ *   images (`MAX_TOTAL_FRAMES`, ou la durée du document si un document
+ *   chargé la dépasse déjà), et jamais plus courte que la dernière image
+ *   utilisée par une plage : raccourcir la timeline sous la fin d'une plage
+ *   est refusé avec un message clair.
  *
  * Un refus lève une `CommandRefusedError` dans `do` (donc `command:refused`) :
  * l'API respecte les mêmes règles que les champs de la barre d'outils.
@@ -51,6 +52,17 @@ export interface ILastUsedFrame {
   readonly layerName: string;
 }
 
+/**
+ * Durée maximale acceptée pour `doc` : `MAX_TOTAL_FRAMES`, ou la durée
+ * actuelle du document si elle est plus grande. Le schéma du document n'a
+ * pas de maximum : un document chargé peut dépasser `MAX_TOTAL_FRAMES`, et
+ * on peut alors le raccourcir sans être obligé de passer sous ce maximum
+ * (ce qui serait impossible si une plage finit au-delà).
+ */
+export function maxTotalFrames(doc: ITimelineDocument): number {
+  return Math.max(MAX_TOTAL_FRAMES, doc.settings.totalFrames);
+}
+
 /** Message d'une cadence invalide, ou `undefined` si `fps` est accepté. */
 export function fpsError(fps: number): string | undefined {
   if (Number.isInteger(fps) && fps >= MIN_FPS && fps <= MAX_FPS) return undefined;
@@ -59,12 +71,13 @@ export function fpsError(fps: number): string | undefined {
 
 /**
  * Message d'une durée refusée pour `doc`, ou `undefined` si `totalFrames`
- * est accepté : entier d'au moins une image, pas plus court que la fin de
- * la dernière plage.
+ * est accepté : entier de 1 à `maxTotalFrames(doc)`, pas plus court que la
+ * fin de la dernière plage.
  */
 export function totalFramesError(doc: ITimelineDocument, totalFrames: number): string | undefined {
-  if (!Number.isInteger(totalFrames) || totalFrames < MIN_TOTAL_FRAMES || totalFrames > MAX_TOTAL_FRAMES) {
-    return `La durée doit être un nombre entier de ${MIN_TOTAL_FRAMES} à ${formatCount(MAX_TOTAL_FRAMES)} images.`;
+  const max = maxTotalFrames(doc);
+  if (!Number.isInteger(totalFrames) || totalFrames < MIN_TOTAL_FRAMES || totalFrames > max) {
+    return `La durée doit être un nombre entier de ${MIN_TOTAL_FRAMES} à ${formatCount(max)} images.`;
   }
   const last = lastUsedFrame(doc);
   if (last === undefined || totalFrames >= last.frame) return undefined;

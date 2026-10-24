@@ -10,8 +10,9 @@
  * par seconde) et la durée (en images). Une valeur validée (Entrée ou perte
  * du focus) passe par une commande annulable (`timeSettingsCommands.ts`).
  * Une valeur refusée (hors limites, ou durée plus courte que la fin d'une
- * plage) est remplacée par celle du document et le motif s'affiche à côté
- * des champs. Échap rétablit la valeur du document. Les champs suivent le
+ * plage) reste dans son champ, marquée invalide (`aria-invalid`), et le
+ * motif s'affiche à côté des champs : on peut la corriger. Échap, ou tout
+ * changement du document, rétablit la valeur du document. Les champs suivent le
  * document (annuler, rétablir, chargement).
  */
 
@@ -21,11 +22,11 @@ import type { ICommand } from '../../../core/commands/ICommand';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import {
   MAX_FPS,
-  MAX_TOTAL_FRAMES,
   MIN_FPS,
   MIN_TOTAL_FRAMES,
   createSetFpsCommand,
-  createSetTotalFramesCommand
+  createSetTotalFramesCommand,
+  maxTotalFrames
 } from './timeSettingsCommands';
 import { ToolbarGroupOrders } from '../main/ToolbarItems';
 import './TimeSettings.less';
@@ -42,7 +43,8 @@ interface IFieldSpec {
   readonly label: string;
   readonly unit: string;
   readonly min: number;
-  readonly max?: number;
+  /** Maximum du champ pour le document (relu à chaque synchronisation). */
+  readonly max: (doc: ITimelineDocument) => number;
   readonly read: (doc: ITimelineDocument) => number;
   readonly command: (value: number) => ICommand;
 }
@@ -53,7 +55,7 @@ const FIELDS: readonly IFieldSpec[] = [
     label: 'Cadence',
     unit: 'img/s',
     min: MIN_FPS,
-    max: MAX_FPS,
+    max: () => MAX_FPS,
     read: (doc) => doc.settings.fps,
     command: createSetFpsCommand
   },
@@ -62,7 +64,7 @@ const FIELDS: readonly IFieldSpec[] = [
     label: 'Durée',
     unit: 'images',
     min: MIN_TOTAL_FRAMES,
-    max: MAX_TOTAL_FRAMES,
+    max: maxTotalFrames,
     read: (doc) => doc.settings.totalFrames,
     command: createSetTotalFramesCommand
   }
@@ -166,7 +168,6 @@ export class TimeSettingsPlugin implements EditorPlugin {
     input.name = spec.name;
     input.step = '1';
     input.min = String(spec.min);
-    if (spec.max !== undefined) input.max = String(spec.max);
     input.dataset.setting = spec.name;
     input.setAttribute('aria-describedby', messageId);
     const unit = doc.createElement('span');
@@ -203,15 +204,18 @@ export class TimeSettingsPlugin implements EditorPlugin {
       this.pending = null;
     }
     this.showMessage(this.refusal, field);
-    this.syncFields();
+    // Une valeur refusée reste dans son champ pour être corrigée.
+    this.syncFields(this.refusal === undefined ? undefined : field);
   }
 
-  /** Recopie les valeurs du document dans les champs. */
-  private syncFields(): void {
+  /** Recopie les valeurs et les maximums du document dans les champs (sauf `keep`). */
+  private syncFields(keep?: IField): void {
     const ctx = this.ctx;
     if (ctx === null) return;
-    this.fields.forEach(({ spec, input }) => {
-      input.value = String(spec.read(ctx.document));
+    this.fields.forEach((field) => {
+      const { spec, input } = field;
+      input.max = String(spec.max(ctx.document));
+      if (field !== keep) input.value = String(spec.read(ctx.document));
     });
   }
 

@@ -19,6 +19,32 @@ export type { ILayerColorService } from './color';
 export { LAYERS_ICON_PLUGIN_ID, LayerIconPlugin, createSetIconCommand, validateLayerIcon } from './icon';
 export type { ILayerIconService } from './icon';
 export {
+  LAYERS_RENAME_PLUGIN_ID,
+  RENAME_LABEL,
+  RenamePlugin,
+  createRenameCommand,
+  normalizeLayerName
+} from './rename';
+export type { ILayerRenameService } from './rename';
+export {
+  LAYERS_VISIBILITY_PLUGIN_ID,
+  VISIBILITY_CONTROL_ORDER,
+  VisibilityLabels,
+  VisibilityPlugin,
+  createSetAllVisibleCommand,
+  createSetVisibleCommand
+} from './visibility';
+export type { ILayerVisibilityService } from './visibility';
+export {
+  LAYERS_LOCK_PLUGIN_ID,
+  LOCK_CONTROL_ORDER,
+  LockLabels,
+  LockPlugin,
+  createSetAllLockedCommand,
+  createSetLockedCommand
+} from './lock';
+export type { ILayerLockService } from './lock';
+export {
   LAYERS_SELECTION_PLUGIN_ID,
   LayerSelectionPlugin,
   SELECTED_ROW_CLASS

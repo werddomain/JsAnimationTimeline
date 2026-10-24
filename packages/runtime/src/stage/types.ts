@@ -74,9 +74,13 @@ export interface IStageTargets {
   pick?(signal?: IStageAbortSignal): Promise<LayerTarget | null>;
   /**
    * Calls `onChange` when the targets change (model loaded, entity created):
-   * failed resolutions are then retried. Returns the unsubscribe function.
+   * failed resolutions are then retried. When `affected` lists targets whose
+   * object may have changed (e.g. a ref bound to another element or unbound),
+   * the layers already resolved on those targets are resolved again too: a
+   * different object releases the old one, `null` puts the layer in
+   * `missingTargets`. Returns the unsubscribe function.
    */
-  subscribe?(onChange: () => void): () => void;
+  subscribe?(onChange: (affected?: readonly LayerTarget[]) => void): () => void;
 }
 
 /** Play state handed to `IStage.sync`. */

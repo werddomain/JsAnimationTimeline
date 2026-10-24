@@ -1,0 +1,14 @@
+// Cadenas (layers.lock) : un verrou hérité d'un dossier parent s'affiche
+// atténué sur une ligne dont le propre verrou est ouvert ; le bouton ne
+// change que le verrou du nœud lui-même.
+
+.JsTimeLine {
+  .jt-layer-flag--lock {
+    color: #555;
+  }
+
+  .jt-layer-flag--lock.jt-layer-flag--inherited {
+    opacity: 0.55;
+    filter: grayscale(1);
+  }
+}

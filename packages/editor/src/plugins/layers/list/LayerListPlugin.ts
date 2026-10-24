@@ -164,7 +164,7 @@ export class LayerListPlugin implements EditorPlugin {
    * Recalcule les lignes et met le DOM à jour. Annonce `layers:rowsChanged`
    * au premier rendu, puis chaque fois que la disposition des lignes change
    * (ids, ordre, profondeur, parent) ; un simple changement de nom ou de
-   * couleur passe par `document:changed`.
+   * couleur passe par `document:changed` (ou `document:loaded`).
    */
   private refresh(): void {
     const rows = this.rows();
