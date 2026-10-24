@@ -142,6 +142,41 @@ describe('stage:report only announces new warnings', () => {
   });
 });
 
+describe('stage:targetsChanged', () => {
+  it('announces missing targets when they change, not on unrelated commands', () => {
+    // Arrange
+    const stage = createFakeStage({ missing: ['tree'] });
+    const { editor } = createStageEditor({}, stage);
+    const announced: (readonly string[])[] = [];
+    editor.on('stage:targetsChanged', ({ missingTargets }) => announced.push(missingTargets));
+
+    // Act
+    editor.execute(touch);
+    stage.objects.set('tree', { name: 'tree' });
+    editor.refreshTargets();
+    editor.execute(setTarget('l-hero', { ref: 'hero', stage: 'nope' }, { ref: 'hero', stage: 'fake' }));
+
+    // Assert
+    expect(announced).toEqual([[], ['l-hero']]);
+  });
+
+  it('announces after a stage signals new targets through subscribe', async () => {
+    // Arrange
+    const stage = createFakeStage({ missing: ['tree'] });
+    const { editor } = createStageEditor({}, stage);
+    const announced: (readonly string[])[] = [];
+    editor.on('stage:targetsChanged', ({ missingTargets }) => announced.push(missingTargets));
+
+    // Act
+    stage.objects.set('tree', { name: 'tree' });
+    stage.notifyTargets();
+    await Promise.resolve();
+
+    // Assert
+    expect(announced).toEqual([[]]);
+  });
+});
+
 describe('stage loads: ordering and visibility', () => {
   it('loads a queued document even when onStageError throws', () => {
     // Arrange

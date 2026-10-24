@@ -24,6 +24,10 @@
  *   moment-là (voir `StageReportFeed`). Un avertissement relevé pendant le
  *   chargement d'un document ensuite refusé a déjà été émis ; il ne figure plus
  *   dans `warnings`.
+ * - `stage:targetsChanged` est émis quand la liste `missingTargets` change
+ *   (contenu comparé) : après un document, `refreshTargets`, ou un changement
+ *   signalé par `targets.subscribe` (vérifié en microtâche, une fois que le
+ *   `StageHost` a réessayé).
  * - Sans scène (`stage: false`), rien n'est routé : aucune cible manquante,
  *   aucun avertissement.
  * - `destroy` relâche chaque calque puis détache chaque scène ; les objets
@@ -82,6 +86,9 @@ export class EditorStageHost implements IStageRenderer {
   private readonly onError: StageErrorHandler;
   private readonly now: () => IStageHostClock;
   private readonly feed: StageReportFeed;
+  private readonly bus: EventBus;
+  /** `missingTargets` à la dernière annonce (`stage:targetsChanged`). */
+  private announcedMissing: readonly string[] = NO_LAYERS;
   private readonly unsubscribes: (() => void)[];
   /** Dernier document accepté par les scènes (œil des calques). */
   private accepted: ITimelineDocument;
@@ -93,6 +100,7 @@ export class EditorStageHost implements IStageRenderer {
   /** Charge le document courant du Store ; lève l'erreur d'une scène qui le refuse (après avoir tout relâché). */
   constructor(options: IEditorStageHostOptions) {
     const { bus, store } = options;
+    this.bus = bus;
     this.stages = Object.freeze(options.stages.slice());
     this.onError = options.onError;
     this.now = options.now;
@@ -109,7 +117,8 @@ export class EditorStageHost implements IStageRenderer {
     this.unsubscribes = [
       bus.on('document:changed', ({ document }) => this.load(document)),
       bus.on('document:loaded', ({ document }) => this.load(document)),
-      bus.once('editor:ready', () => this.feed.start(this.warnings))
+      bus.once('editor:ready', () => this.feed.start(this.warnings)),
+      ...this.watchTargets()
     ];
     try {
       this.loadNow(store.document);
@@ -117,6 +126,7 @@ export class EditorStageHost implements IStageRenderer {
       this.destroy();
       throw error;
     }
+    this.announcedMissing = this.missingTargets;
     this.flushQueued();
   }
 
@@ -138,6 +148,7 @@ export class EditorStageHost implements IStageRenderer {
 
   refreshTargets(layerId?: string): void {
     this.host?.refresh(layerId);
+    this.announceMissing();
   }
 
   listTargets(): readonly ITargetInfo[] {
@@ -166,6 +177,7 @@ export class EditorStageHost implements IStageRenderer {
       this.loadNow(doc);
       // Un document en attente sera chargé, puis rendu, juste après.
       if (this.queued === null) this.renderNow();
+      this.announceMissing();
     } catch (error) {
       this.onError(error);
     } finally {
@@ -204,6 +216,30 @@ export class EditorStageHost implements IStageRenderer {
   private renderNow(): void {
     if (this.destroyed || this.host === null) return;
     this.host.render(this.now().time);
+  }
+
+  /** Émet `stage:targetsChanged` si le contenu de `missingTargets` a changé depuis la dernière annonce. */
+  private announceMissing(): void {
+    if (this.destroyed) return;
+    const current = this.missingTargets;
+    const previous = this.announcedMissing;
+    if (current.length === previous.length && current.every((id, index) => id === previous[index])) return;
+    this.announcedMissing = current;
+    this.bus.emit('stage:targetsChanged', { missingTargets: current });
+  }
+
+  /** S'abonne à `targets.subscribe` de chaque scène : annonce après la nouvelle tentative du `StageHost`. */
+  private watchTargets(): (() => void)[] {
+    if (this.host === null) return [];
+    return this.stages.flatMap((stage) => {
+      const subscribe = stage.targets?.subscribe;
+      if (typeof subscribe !== 'function') return [];
+      const unsubscribe = this.guard(
+        () => subscribe.call(stage.targets, () => queueMicrotask(() => this.announceMissing())),
+        undefined
+      );
+      return typeof unsubscribe === 'function' ? [unsubscribe] : [];
+    });
   }
 
   private flushQueued(): void {

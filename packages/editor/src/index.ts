@@ -116,7 +116,8 @@ export type {
   IEditorHtmlStageOptions,
   IEditorStage,
   StageErrorHandler,
-  StageReportEvent
+  StageReportEvent,
+  StageTargetsChangedEvent
 } from './core/stage';
 
 // Plugins de mise en page (epic `layout`) : coquille, emplacements, défilement, règle et tête de lecture.
