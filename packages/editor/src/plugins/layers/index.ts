@@ -2,6 +2,8 @@
 /** Epic `layers` : les calques de la timeline et leurs plugins. */
 
 export { LayersPlugin } from './LayersPlugin';
+export { LAYERS_GROUPS_PLUGIN_ID, LayerGroupsPlugin } from './groups';
+export type { ILayerGroupsService } from './groups';
 export {
   LAYERS_LIST_PLUGIN_ID,
   LAYER_LIST_CLASSES,
