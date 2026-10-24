@@ -224,6 +224,7 @@ describe('createEditor plugin sets', () => {
     expect(first.map((plugin) => plugin.id)).toEqual([
       'layout',
       'layers',
+      'frames',
       'interaction.shortcuts',
       'toolbar',
       'playback',
