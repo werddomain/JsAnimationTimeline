@@ -332,7 +332,7 @@ describe('C7 follow-ups, integrator review', () => {
     expect(seen).toEqual(['a:l-hero', 'b:l-hero', 'a:', 'b:']);
   });
 
-  it('runs host destroy (release, detach) even when an unsubscribe throws', () => {
+  it('still releases and detaches when a stage unsubscribe throws during destroy', () => {
     // Arrange
     const stage = createFakeStage();
     const targets = stage.targets as { subscribe: (onChange: () => void) => () => void };

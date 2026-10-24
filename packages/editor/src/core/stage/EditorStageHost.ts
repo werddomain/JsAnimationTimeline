@@ -225,7 +225,8 @@ export class EditorStageHost implements IStageRenderer {
 
   /** Émet `stage:targetsChanged` si le contenu de `missingTargets` a changé depuis la dernière annonce. */
   private announceMissing(): void {
-    if (this.destroyed) return;
+    // Pendant un chargement (nouvelles tentatives en fin de `load`), l'annonce part après, depuis `load` ou le constructeur.
+    if (this.destroyed || this.loading) return;
     if (this.announcing) {
       this.announceAgain = true;
       return;

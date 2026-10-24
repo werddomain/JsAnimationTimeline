@@ -45,6 +45,29 @@ describe('StageHost onTargetsChanged', () => {
   });
 });
 
+describe('StageHost onTargetsChanged during a load', () => {
+  it('is called when a stage signals new targets while a document loads', () => {
+    // Arrange
+    const fake = createFakeStage('canvas', { subscribe: true });
+    let calls = 0;
+    const host = hostWith([fake.stage], () => (calls += 1));
+    host.load(docOf([refLayer('a', 'a', 'canvas')]));
+    const update = fake.stage.update?.bind(fake.stage);
+    fake.stage.update = (doc, layers) => {
+      update?.(doc, layers);
+      fake.objects.set('a', { name: 'a' });
+      fake.notify();
+    };
+
+    // Act
+    host.load(docOf([refLayer('a', 'a', 'canvas'), refLayer('b', 'b', 'canvas')]));
+
+    // Assert
+    expect(calls).toBe(1);
+    expect(host.missingTargets).toEqual(['b']);
+  });
+});
+
 describe('StageHost document', () => {
   it('is null before the first load, then the document the stages show, also during a rollback', () => {
     // Arrange

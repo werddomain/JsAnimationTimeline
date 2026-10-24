@@ -75,12 +75,12 @@ export class StageHost {
     this.notifyTargetsChanged = options.onTargetsChanged;
   }
 
-  /** Ids of the layers without a resolved object (no target, unknown stage, unrouted, resolve failed), in document order. */
   /** Document the stages currently show (the previous one while a refused document is rolled back), or `null` before the first load. */
   get document(): ITimelineDocument | null {
     return this.doc;
   }
 
+  /** Ids of the layers without a resolved object (no target, unknown stage, unrouted, resolve failed), in document order. */
   get missingTargets(): readonly string[] {
     return this.missing;
   }
