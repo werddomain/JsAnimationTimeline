@@ -66,6 +66,21 @@ function uniqueRefTargets(targets: readonly LayerTarget[]): LayerTarget[] {
   });
 }
 
+/** Runs every task even if some throw, then rethrows the first error. */
+function runAll(tasks: ReadonlyArray<() => void>): void {
+  const errors: unknown[] = [];
+  tasks.forEach((task) => {
+    try {
+      task();
+    } catch (error) {
+      errors.push(error);
+    }
+  });
+  if (errors.length > 0) {
+    throw errors[0];
+  }
+}
+
 /** Creates a stage animating the `objects` with `apply`; see `IObjectStageOptions`. */
 export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectStage<T> {
   const stageId = options.id;
@@ -166,15 +181,17 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
     update(_doc, layers: readonly IStageLayer<T>[]) {
       const previous = new Map(bound);
       bound.clear();
+      const restores: Array<() => void> = [];
       layers.forEach((layer) => {
         const names = Array.from(new Set([...declaredNames(layer.object, layer.target), ...collectLayerProperties(layer.layer)]));
         bound.set(layer.layerId, { target: layer.target, object: layer.object, names });
         const before = previous.get(layer.layerId);
         const dropped = before === undefined || before.object !== layer.object ? [] : before.names.filter((name) => !names.includes(name));
         if (dropped.length > 0) {
-          restoreDefaults(layer.layerId, layer.target, layer.object, dropped);
+          restores.push(() => restoreDefaults(layer.layerId, layer.target, layer.object, dropped));
         }
       });
+      runAll(restores);
     },
     render(time, states) {
       const prepared = states.map(prepare);

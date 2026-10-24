@@ -308,6 +308,44 @@ describe('createObjectStage inactive layers and release', () => {
     expect(resets).toEqual(['villain']);
   });
 
+  it('binds every layer and runs every restore even when one apply throws during update', () => {
+    let failOn: string | null = null;
+    const { host, applied, errors } = setUp({
+      apply: (sprite, values, state) => {
+        if (state.active === false && sprite.name === failOn) {
+          throw new Error('boom');
+        }
+        applied.push({ name: sprite.name, values, active: state.active });
+      }
+    });
+    const xTrack = { x: [{ frame: 1, value: 5 }] };
+    const frameTrack = { frameIndex: [{ frame: 1, value: 3 }] };
+    host.load(docOf([refLayer('l1', 'hero', 'canvas', xTrack), refLayer('l2', 'villain', 'canvas', xTrack)]));
+    failOn = 'hero';
+    errors.length = 0;
+    applied.length = 0;
+    host.load(docOf([refLayer('l1', 'hero', 'canvas', frameTrack), refLayer('l2', 'villain', 'canvas', frameTrack)]));
+    expect(errors).toHaveLength(1);
+    // The villain restore ran although the hero one threw.
+    expect(applied.some((entry) => entry.name === 'villain' && entry.values.x === 0 && !entry.active)).toBe(true);
+    failOn = null;
+    applied.length = 0;
+    host.load(docOf([]));
+    // Both layers were bound: both are released with defaults.
+    expect(applied.map((entry) => entry.name).sort()).toEqual(['hero', 'villain']);
+  });
+
+  it('does not reset on update a layer whose object changed (the host released the old one)', () => {
+    const { stage, hero, villain, applied } = setUp();
+    const doc = docOf([]);
+    const layer = (): ILayer => refLayer('l1', 'hero', 'canvas', { x: [{ frame: 1, value: 5 }] });
+    const other = refLayer('l1', 'hero', 'canvas', { frameIndex: [{ frame: 1, value: 3 }] });
+    stage.update?.(doc, [{ layerId: 'l1', layer: layer(), target: { ref: 'hero', stage: 'canvas' }, object: hero }]);
+    applied.length = 0;
+    stage.update?.(doc, [{ layerId: 'l1', layer: other, target: { ref: 'hero', stage: 'canvas' }, object: villain }]);
+    expect(applied).toEqual([]);
+  });
+
   it('does not apply on release for a layer it never saw', () => {
     const { stage, hero, applied } = setUp();
     stage.release?.('unknown', hero);
@@ -396,6 +434,24 @@ describe('createObjectStage targets', () => {
     const newHero: ISprite = { name: 'newHero', log: [] };
     stage.add({ id: 'hero', label: 'Héros', object: newHero });
     expect(host.missingTargets).toEqual([]);
+  });
+
+  it('releases every layer bound to the removed object, each with its own defaults', () => {
+    const targets: LayerTarget[] = [];
+    const { stage, host } = setUp({
+      resolve: (target, objects) => objects.get('ref' in target && target.ref === 'alias' ? 'hero' : 'hero') ?? null,
+      apply: (_sprite, _values, state) => {
+        targets.push(state.target);
+      }
+    });
+    host.load(docOf([refLayer('l1', 'hero', 'canvas'), refLayer('l2', 'alias', 'canvas')]));
+    targets.length = 0;
+    stage.remove('hero');
+    expect(targets).toEqual([
+      { ref: 'hero', stage: 'canvas' },
+      { ref: 'alias', stage: 'canvas' }
+    ]);
+    expect(host.missingTargets).toEqual(['l1', 'l2']);
   });
 
   it('with a custom resolve, notifies each affected target once', () => {
