@@ -46,7 +46,9 @@ const V2_NAMES = [
   'CompositeCommand',
   'DEFAULT_FPS',
   'DEFAULT_HISTORY_LIMIT',
+  'DEFAULT_SCENE_NAME',
   'DEFAULT_TOTAL_FRAMES',
+  'DEFAULT_TOOLBAR_GROUP',
   'EDITOR_ROOT_CLASS',
   'LAYOUT_SLOTS',
   'LAYOUT_ZONES',
@@ -60,12 +62,18 @@ const V2_NAMES = [
   'SHORTCUTS_PLUGIN_ID',
   'ShortcutError',
   'StoreError',
+  'TOOLBAR_MAIN_PLUGIN_ID',
+  'ToolbarError',
+  'ToolbarGroupOrders',
+  'ToolbarMainPlugin',
+  'ToolbarPlugin',
   'UNKNOWN_PROPERTY',
   'createCommand',
   'createEditor',
   'createEmptyDocument',
   'createPersistenceJsonPlugin',
   'createShortcutsPlugin',
+  'createToolbarMainPlugin',
   'defaultPlugins'
 ];
 

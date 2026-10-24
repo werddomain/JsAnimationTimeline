@@ -134,6 +134,28 @@ export type {
   ShortcutsPlugin
 } from './plugins/interaction/shortcuts';
 
+// Epic toolbar : barre d'outils principale (zone « Scène 1 », boutons et contrôles des plugins).
+export {
+  DEFAULT_SCENE_NAME,
+  DEFAULT_TOOLBAR_GROUP,
+  TOOLBAR_MAIN_PLUGIN_ID,
+  ToolbarError,
+  ToolbarGroupOrders,
+  ToolbarMainPlugin,
+  ToolbarPlugin,
+  createToolbarMainPlugin
+} from './plugins/toolbar';
+export type {
+  IToolbarButtonDefinition,
+  IToolbarControlDefinition,
+  IToolbarItemDefinition,
+  IToolbarItemInfo,
+  IToolbarMainOptions,
+  IToolbarMainService,
+  ToolbarErrorCode,
+  ToolbarOptions
+} from './plugins/toolbar';
+
 // Plugin persistence.json (import / export JSON, fichiers v1 migrés).
 export { PERSISTENCE_JSON_PLUGIN_ID, PersistenceError, createPersistenceJsonPlugin } from './plugins/persistence/json';
 export type {
