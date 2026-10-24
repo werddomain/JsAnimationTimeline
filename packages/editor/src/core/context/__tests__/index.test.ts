@@ -61,7 +61,13 @@ describe('context and editor modules public API', () => {
       'document:loaded',
       'editor:destroying',
       'editor:ready',
-      'history:changed'
+      'frame:render',
+      'history:changed',
+      'playback:complete',
+      'playback:loop',
+      'playback:pause',
+      'playback:play',
+      'playhead:changed'
     ]);
     expect(Object.isFrozen(context.CORE_EVENT_NAMES)).toBe(true);
     expect(context.isCoreEventName('document:changed')).toBe(true);

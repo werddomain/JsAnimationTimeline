@@ -6,6 +6,7 @@
  * service et nettoyage.
  */
 
+import { createManualClock } from '@werddomain/timeline-runtime';
 import { createEditor } from '../../../../core/editor/createEditor';
 import type { IScrollState } from '../scrollGeometry';
 import { ScrollSyncPlugin } from '../ScrollSyncPlugin';
@@ -283,7 +284,8 @@ describe('layout.scrollSync lifecycle', () => {
   it('uses the window requestAnimationFrame when no scheduler is given', () => {
     // Arrange
     const raf = jest.spyOn(window, 'requestAnimationFrame');
-    const editor = createEditor(createContainer());
+    // Horloge manuelle : seul le plugin passe par requestAnimationFrame.
+    const editor = createEditor(createContainer(), { clock: createManualClock() });
 
     // Act
     editor.getService('layout.scrollSync')?.refresh();
