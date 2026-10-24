@@ -40,3 +40,11 @@ export {
   ZoomControlPlugin,
   createZoomControlPlugin
 } from './zoomControl';
+export {
+  KEYFRAME_ACTIONS_CLASS,
+  KEYFRAME_ACTIONS_LABEL,
+  KEYFRAME_ACTIONS_PLUGIN_ID,
+  KeyframeActionsPlugin,
+  createKeyframeActionsPlugin
+} from './keyframeActions';
+export type { ToolbarEditKeyframeEvent } from './keyframeActions';
