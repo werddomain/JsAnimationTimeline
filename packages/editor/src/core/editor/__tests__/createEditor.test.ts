@@ -221,7 +221,7 @@ describe('createEditor plugin sets', () => {
     const second = defaultPlugins();
 
     // Assert
-    expect(first.map((plugin) => plugin.id)).toEqual(['layout', 'interaction.shortcuts']);
+    expect(first.map((plugin) => plugin.id)).toEqual(['layout', 'interaction.shortcuts', 'toolbar', 'persistence.json']);
     expect(second).not.toBe(first);
     first.forEach((plugin, index) => expect(second[index]).not.toBe(plugin));
   });
