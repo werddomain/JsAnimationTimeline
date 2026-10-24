@@ -63,6 +63,17 @@ describe('createManualClock', () => {
     expect(callback).toHaveBeenCalledTimes(1);
   });
 
+  it('skips a callback cancelled by an earlier callback of the same advance', () => {
+    const clock = createManualClock();
+    const second = jest.fn();
+    let secondHandle = 0;
+    clock.requestFrame(() => clock.cancelFrame(secondHandle));
+    secondHandle = clock.requestFrame(second);
+    clock.advance(1);
+    expect(second).not.toHaveBeenCalled();
+    expect(clock.pendingFrames).toBe(0);
+  });
+
   it('runs every callback and rethrows the first error', () => {
     const clock = createManualClock();
     const after = jest.fn();
