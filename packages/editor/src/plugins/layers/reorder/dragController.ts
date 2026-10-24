@@ -10,9 +10,18 @@
  *
  * Pendant le glisser : classes sur la liste et sur les lignes déplacées,
  * repère de dépôt (`DropIndicator`), capture du pointeur. Le dépôt appelle
- * `deps.move` ; Échap, `pointercancel`, un changement des lignes ou la
- * destruction annulent sans toucher au document. Tout (écouteurs, classes,
- * repère, capture) est retiré à la fin de la session.
+ * `deps.move` ; tout le reste annule sans toucher au document. Un glisser se
+ * termine par :
+ * - le dépôt (`pointerup`) ;
+ * - Échap, un changement des lignes, un menu contextuel, la perte du focus de la
+ *   fenêtre ou la perte de la capture du pointeur : la session est annulée mais
+ *   reste en attente du relâchement (le bouton peut être encore enfoncé), qui
+ *   supprime alors le clic ; un nouvel appui, ou un déplacement souris sans bouton,
+ *   la clôt aussi ;
+ * - `pointercancel` (aucun clic ne suit) ;
+ * - un déplacement de la souris sans bouton enfoncé (le relâchement s'est perdu) ;
+ * - la destruction.
+ * Tout (écouteurs, classes, repère, capture) est retiré à la fin de la session.
  */
 
 import type { ITimelineDocument } from '@werddomain/timeline-runtime';
@@ -35,7 +44,6 @@ export const CLICK_SUPPRESSION_MS = 50;
 const PRIMARY_BUTTON = 0;
 /** Bit de `event.buttons` du bouton principal. */
 const PRIMARY_BUTTONS_MASK = 1;
-/** Éléments sur lesquels un appui ne démarre pas de glisser : contrôles, repli, saisie. */
 /** Champs de saisie, y compris le nom en cours de renommage. */
 const TEXT_INPUT_SELECTOR = [
   `[${NAME_EDITING_ATTRIBUTE}]`,
@@ -44,6 +52,7 @@ const TEXT_INPUT_SELECTOR = [
   'select',
   '[contenteditable]:not([contenteditable="false"])'
 ].join(',');
+/** Éléments sur lesquels un appui ne démarre pas de glisser : contrôles, repli, saisie. */
 const IGNORED_SELECTOR = `.${LAYER_ROW_CLASSES.control},[data-action="toggle"],${TEXT_INPUT_SELECTOR}`;
 
 /** Ce dont le contrôleur a besoin : services des deux plugins parents, document courant, déplacement. */
@@ -117,7 +126,10 @@ export class DragController {
   private readonly onPointerDown = (event: PointerEvent): void => {
     const element = this.listElement;
     const target = event.target;
-    if (element === undefined || this.session !== undefined || !(target instanceof Element)) return;
+    if (element === undefined || !(target instanceof Element)) return;
+    // Session annulée qui attendait un relâchement jamais reçu : ce nouvel appui la clôt.
+    if (this.session?.cancelled === true) this.endSession();
+    if (this.session !== undefined) return;
     if (event.button !== PRIMARY_BUTTON || event.isPrimary === false) return;
     if (target.closest(IGNORED_SELECTOR) !== null) return;
     const rowId = this.deps.list.rowIdAt(target);
@@ -131,7 +143,7 @@ export class DragController {
     doc.addEventListener('pointercancel', onEnd);
     doc.addEventListener('keydown', onKey, true);
     // Le relâchement peut ne jamais arriver (menu contextuel, fenêtre qui perd le focus) : on abandonne alors.
-    const onAbort = (): void => this.abort();
+    const onAbort = (): void => this.abortHeld();
     const win = doc.defaultView;
     doc.addEventListener('contextmenu', onAbort);
     win?.addEventListener('blur', onAbort);
@@ -167,7 +179,7 @@ export class DragController {
     // Plus de bouton enfoncé : le relâchement a été perdu, ce survol ne doit pas démarrer ni poursuivre un glisser.
     // (Un stylet ou un doigt peut annoncer 0 en contact : seule la souris est contrôlée.)
     if (event.pointerType === 'mouse' && (event.buttons & PRIMARY_BUTTONS_MASK) === 0) {
-      this.abort();
+      this.abortReleased();
       return;
     }
     if (session.cancelled) return;
@@ -225,7 +237,7 @@ export class DragController {
     element.classList.add(REORDER_CLASSES.listDragging);
     // Le doigt reçoit une capture implicite sur la ligne : seul le relâchement de NOTRE capture (cible = liste) compte.
     const onLost = (lost: Event): void => {
-      if (lost.target === element && (lost as PointerEvent).pointerId === session.pointerId) this.abort();
+      if (lost.target === element && (lost as PointerEvent).pointerId === session.pointerId) this.abortHeld();
     };
     element.addEventListener('lostpointercapture', onLost);
     session.stopLost = () => element.removeEventListener('lostpointercapture', onLost);
@@ -292,11 +304,24 @@ export class DragController {
   }
 
   /**
-   * Abandon sans dépôt (menu contextuel, perte du focus, bouton relâché ailleurs,
-   * capture perdue). Si le glisser avait démarré, le clic du relâchement tardif
-   * est supprimé comme après un dépôt : il ne doit ni resélectionner ni vider la sélection.
+   * Abandon sans dépôt alors que le bouton peut rester enfoncé (menu contextuel,
+   * perte du focus, capture perdue). Un glisser démarré est annulé mais la session
+   * reste, en attente du relâchement : `onPointerEnd` arme alors la suppression du
+   * clic, quel que soit le délai. Avant le seuil, rien à supprimer : la session finit.
    */
-  private abort(): void {
+  private abortHeld(): void {
+    const session = this.session;
+    if (session === undefined) return;
+    if (!session.started) this.endSession();
+    else if (!session.cancelled) this.cancel();
+  }
+
+  /**
+   * Abandon parce qu'un déplacement souris arrive sans bouton enfoncé : le
+   * relâchement a eu lieu hors de nos yeux. La session finit ; si le glisser
+   * avait démarré, le clic éventuel du relâchement est supprimé.
+   */
+  private abortReleased(): void {
     const started = this.session?.started === true;
     this.endSession();
     if (started) this.armClickSuppression();

@@ -532,24 +532,57 @@ describe('lost button release', () => {
     expect(dragging).toEqual(['c']);
   });
 
-  const aborts: Array<[string, (h: IHarness) => void]> = [
-    ['buttons = 0', () => document.dispatchEvent(pointer('pointermove', y(0), { buttons: 0 }))],
+  // Routes où le bouton peut rester enfoncé : le clic est supprimé au relâchement tardif.
+  const heldAborts: Array<[string, (h: IHarness) => void]> = [
     ['contextmenu', () => document.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }))],
     ['blur', () => window.dispatchEvent(new Event('blur'))],
     ['lostpointercapture', (h) => lostCapture(h.list.element())]
   ];
 
-  it.each(aborts)('swallows the release click after a started drag aborted by %s', (_name, abort) => {
+  it.each(heldAborts)('swallows the click of a late release after a started drag aborted by %s', (_name, abort) => {
+    jest.useFakeTimers();
     const h = setup();
     h.selection.select(['c', 'd'], 'replace');
     press(h, 'c', y(4));
     moveTo(y(1, 0.1));
 
     abort(h);
+    jest.advanceTimersByTime(5000);
+    release(y(1, 0.1));
+    const swallowed = click(row(h, 'c'), { ctrlKey: true });
+
+    expect(draggingIds(h)).toEqual([]);
+    expect(dropLine()).toBeNull();
+    expect(swallowed.defaultPrevented).toBe(true);
+    expect(h.selection.selected()).toEqual(['c', 'd']);
+    expect(h.editor.document).toBe(tree);
+  });
+
+  it('swallows the click after a started drag whose button release was seen as buttons = 0', () => {
+    const h = setup();
+    h.selection.select(['c', 'd'], 'replace');
+    press(h, 'c', y(4));
+    moveTo(y(1, 0.1));
+
+    document.dispatchEvent(pointer('pointermove', y(0), { buttons: 0 }));
     const swallowed = click(row(h, 'c'), { ctrlKey: true });
 
     expect(swallowed.defaultPrevented).toBe(true);
     expect(h.selection.selected()).toEqual(['c', 'd']);
+  });
+
+  it.each(heldAborts)('ignores moves of an aborted drag (%s) and lets the next press start normally', (_name, abort) => {
+    const h = setup();
+    press(h, 'c', y(4));
+    moveTo(y(1, 0.1));
+    abort(h);
+
+    moveTo(y(0, 0.1));
+    const lingering = draggingIds(h);
+    dragRow(h, 'd', y(0, 0.05));
+
+    expect(lingering).toEqual([]);
+    expect(show(h.editor.document.layers)).toBe('d,f(a,g(b)),c');
   });
 
   it('does not swallow a click after a press aborted before the threshold', () => {
