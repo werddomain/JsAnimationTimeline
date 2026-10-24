@@ -6,6 +6,7 @@
  */
 
 import { createEditor } from '../../../../core/editor/createEditor';
+import { defaultPlugins } from '../../../../core/editor/defaultPlugins';
 import type { IEditor } from '../../../../core/editor/types';
 import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
 import { SHORTCUTS_PLUGIN_ID, ShortcutsPlugin, createShortcutsPlugin } from '../ShortcutsPlugin';
@@ -64,6 +65,7 @@ describe('interaction.shortcuts plugin', () => {
     const { editor, shortcuts } = setup();
 
     // Assert
+    expect(defaultPlugins().map((plugin) => plugin.id)).toContain(SHORTCUTS_PLUGIN_ID);
     expect(SHORTCUTS_PLUGIN_ID).toBe('interaction.shortcuts');
     expect(editor.getService(SHORTCUTS_PLUGIN_ID)).toBe(shortcuts);
     expect(Object.isFrozen(shortcuts)).toBe(true);
