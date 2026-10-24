@@ -10,3 +10,6 @@ export type { IFrameScheduler, IScrollPosition, IScrollState, IScrollSyncApi, Sc
 export { RulerPlugin } from './ruler';
 export type { IRulerApi, RulerOptions } from './ruler';
 export { PlayheadPlugin } from './playhead';
+export type { IPlayheadApi, PlayheadScrubEvent } from './playhead';
+export { DEFAULT_MAX_ZOOM, DEFAULT_MIN_ZOOM, DEFAULT_ZOOM_LEVELS, ZoomPlugin } from './zoom';
+export type { IZoomApi, IZoomRange, ZoomAnchor, ZoomChangedEvent, ZoomOptions } from './zoom';

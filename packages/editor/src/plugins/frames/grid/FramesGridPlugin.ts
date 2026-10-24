@@ -264,6 +264,9 @@ export class FramesGridPlugin implements EditorPlugin {
       const span = doc.createElement('div');
       span.className = `${FRAMES_GRID_CLASSES.span} ${FRAMES_GRID_CLASSES.span}--${segment.kind}`;
       place(span, segment.start, segment.end);
+      // Fonds (traits, teinte des colonnes multiples de 5) ancrés sur l'image 1, et
+      // non sur le bord gauche du morceau : ils restent alignés sur la règle.
+      span.style.backgroundPositionX = `${-ruler.frameLeft(segment.start)}px`;
       if (segment.spanId !== undefined) span.dataset.spanId = segment.spanId;
       // Bornes de la plage entière (et non du morceau coupé à la fenêtre).
       if (segment.spanStart !== undefined) span.dataset.start = String(segment.spanStart);

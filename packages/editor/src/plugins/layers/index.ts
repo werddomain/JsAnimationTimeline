@@ -14,3 +14,13 @@ export {
 } from './list';
 export type { LayerNodeUpdater } from './list';
 export type { ILayerListService, ILayerRow, ILayerRowControl, LayerRowsChangedEvent } from './list';
+export {
+  LAYERS_SELECTION_PLUGIN_ID,
+  LayerSelectionPlugin,
+  SELECTED_ROW_CLASS
+} from './selection';
+export type {
+  ILayerSelectionService,
+  SelectionChangedEvent,
+  SelectionMode
+} from './selection';

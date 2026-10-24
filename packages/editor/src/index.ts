@@ -117,28 +117,39 @@ export {
   LayoutShellPlugin,
   PlayheadPlugin,
   RulerPlugin,
-  ScrollSyncPlugin
+  ScrollSyncPlugin,
+  ZoomPlugin
 } from './plugins/layout';
 export type {
   IFrameScheduler,
   ILayoutShellApi,
+  IPlayheadApi,
   IScrollPosition,
   IScrollState,
   IRulerApi,
   IScrollSyncApi,
+  IZoomApi,
+  IZoomRange,
   LayoutOptions,
   LayoutZone,
+  PlayheadScrubEvent,
   RulerOptions,
-  ScrollSyncOptions
+  ScrollSyncOptions,
+  ZoomAnchor,
+  ZoomChangedEvent,
+  ZoomOptions
 } from './plugins/layout';
 
-// Plugins des calques (epic `layers`) : liste des calques et contrôles de ligne.
+// Plugins des calques (epic `layers`) : liste des calques, contrôles de ligne et sélection.
 export {
   LAYERS_LIST_PLUGIN_ID,
   LAYER_LIST_CLASSES,
+  LAYERS_SELECTION_PLUGIN_ID,
   LAYER_ROW_CLASSES,
   LayerListPlugin,
+  LayerSelectionPlugin,
   LayersPlugin,
+  SELECTED_ROW_CLASS,
   NAME_EDITING_ATTRIBUTE,
   createSetCollapsedCommand,
   createToggleCollapsedCommand,
@@ -148,19 +159,27 @@ export type {
   ILayerListService,
   ILayerRow,
   ILayerRowControl,
+  ILayerSelectionService,
   LayerNodeUpdater,
-  LayerRowsChangedEvent
+  LayerRowsChangedEvent,
+  SelectionChangedEvent,
+  SelectionMode
 } from './plugins/layers';
 
 // Plugins des images (epic `frames`) : grille des plages et des images clés.
 export { FRAMES_GRID_CLASSES, FRAMES_GRID_PLUGIN_ID, FramesGridPlugin, FramesPlugin } from './plugins/frames';
 export type {
   FramesGridRenderedEvent,
+  GridMarkKind,
+  GridSegmentKind,
+  IFrameRange,
   IFramesGridService,
   IGridCell,
-  IGridWindow
+  IGridMark,
+  IGridSegment,
+  IGridWindow,
+  IRowRange
 } from './plugins/frames';
-export type { ZoomChangedEvent } from './plugins/layout/zoom/zoomEvents';
 
 // Plugin interaction.shortcuts (raccourcis clavier déclarés par les plugins).
 export { SHORTCUTS_PLUGIN_ID, ShortcutError, createShortcutsPlugin } from './plugins/interaction/shortcuts';

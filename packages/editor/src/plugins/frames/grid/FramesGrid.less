@@ -36,10 +36,13 @@
     // Trait à droite de chaque image ; le fond de la plage passe dessous.
     background-image: linear-gradient(to left, @jt-grid-line 1px, transparent 1px);
     background-size: var(--jt-grid-frame-width, 15px) 100%;
-    background-position: left top;
+    // Le plugin pose background-position-x pour ancrer les fonds sur l'image 1 ;
+    // border-box : la bordure gauche d'une plage ne décale pas ses traits.
+    background-position-y: top;
+    background-origin: border-box;
   }
 
-  // Images après la dernière plage : une teinte toutes les 5 images, comme Flash.
+  // Images après la dernière plage et dossiers : teinte des images multiples de 5, comme Flash.
   .jt-grid__span--empty,
   .jt-grid__span--folder {
     background-image:

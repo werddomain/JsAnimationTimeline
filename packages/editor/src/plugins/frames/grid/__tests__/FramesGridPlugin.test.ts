@@ -151,6 +151,17 @@ describe('frames.grid rendering', () => {
     ]);
   });
 
+  it('anchors the span backgrounds on frame 1, whatever the segment start', () => {
+    // Act : statique 1..12 -> la fin vide commence à l'image 13 (13 n'est pas 1 modulo 5).
+    const data = doc([layer('a', { spans: [{ id: 's', start: 1, end: 12, kind: 'static' }] })], 30);
+    const { frames } = setup(data);
+    const empty = rowElement(frames, 'a').querySelector<HTMLElement>('.jt-grid__span--empty');
+
+    // Assert : décalage de -(13 - 1) * 15 px, la teinte tombe sur les images 15, 20...
+    expect(empty?.style.left).toBe('180px');
+    expect(empty?.style.backgroundPositionX).toBe('-180px');
+  });
+
   it('sizes the grid to the whole timeline and publishes the frame width', () => {
     // Act
     const { grid, frames } = setup(doc([layer('a'), layer('b')], 100));
@@ -301,6 +312,22 @@ describe('frames.grid visible window', () => {
     expect(rendered.length).toBe(before + 1);
   });
 
+  it('keeps the folder background anchored on frame 1 after a scroll', () => {
+    // Arrange
+    const data = doc([{ id: 'f', type: 'folder', name: 'f', children: [] }], 10000);
+    const { frames, scheduler, editor } = setup(data);
+    makeScrollable(frames, { scrollWidth: 150000, scrollHeight: 300, clientWidth: 300, clientHeight: 300 });
+    scheduler.flush();
+
+    // Act : première image visible 1003, la fenêtre commence 20 images plus tôt (983).
+    editor.getService('layout.scrollSync')?.scrollTo({ left: 1002 * 15 + 7 });
+    const folderSpan = rowElement(frames, 'f').querySelector<HTMLElement>('.jt-grid__span--folder');
+
+    // Assert
+    expect(folderSpan?.style.left).toBe(`${982 * 15}px`);
+    expect(folderSpan?.style.backgroundPositionX).toBe(`${-982 * 15}px`);
+  });
+
   it('draws only the visible rows of a long layer list', () => {
     // Arrange
     const layers = Array.from({ length: 200 }, (_, index) => layer(`l${index}`));
@@ -338,7 +365,7 @@ describe('frames.grid zoom', () => {
     scheduler.flush();
 
     // Act
-    ctx().events.emit('zoom:changed', { frameWidth: 30 });
+    ctx().events.emit('zoom:changed', { zoom: 2, frameWidth: 30, previousZoom: 1, previousFrameWidth: 15 });
 
     // Assert
     expect(scheduler.pendingCount()).toBe(1);
