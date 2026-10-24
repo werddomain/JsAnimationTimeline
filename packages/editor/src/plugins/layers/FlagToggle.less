@@ -1,0 +1,28 @@
+// Boutons à bascule des lignes de calques (œil, cadenas) et de leur en-tête.
+// Réglages par variables CSS :
+//   --jt-layer-flag-off   opacité d'un bouton non enfoncé (défaut 0.35)
+
+.JsTimeLine {
+  .jt-layer-flag {
+    padding: 0;
+    width: 20px;
+    height: 18px;
+    border: 0;
+    background: none;
+    font-size: 12px;
+    line-height: 18px;
+    cursor: pointer;
+
+    &[aria-pressed='false'] {
+      opacity: var(--jt-layer-flag-off, 0.35);
+    }
+
+    &:focus-visible {
+      outline: 1px solid #3b82f6;
+    }
+  }
+
+  .jt-layer-flag--header {
+    font-weight: 400;
+  }
+}
