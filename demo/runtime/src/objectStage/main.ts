@@ -81,9 +81,14 @@ function bindControls(player: IPlayer, track: AudioTrack, clock: IManualClock | 
     document.body.dataset.playing = String(player.playing);
     showSound(player, track);
   };
-  track.onVolume = (volume) => {
-    volumeOutput.value = formatVolume(volume);
+  const showVolume = (volume: number): void => {
+    const text = formatVolume(volume);
+    if (volumeOutput.value !== text) {
+      volumeOutput.value = text;
+    }
   };
+  track.onVolume = showVolume;
+  showVolume(track.volume);
 
   player.on('frame', ({ frame }) => showFrame(frame));
   (['play', 'pause', 'complete', 'loop'] as const).forEach((event) => player.on(event, showState));

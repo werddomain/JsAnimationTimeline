@@ -258,6 +258,8 @@ describe('createObjectStage inactive layers and release', () => {
   });
 
   it('gives an inactive layer the defaults of its animated but undeclared properties', () => {
+    // The evaluated values carry x=30 on the inactive layer: the default must still win,
+    // and it can only come from the tracks' names kept at update (villain declares nothing).
     const { host, applied } = setUp();
     const layer: ILayer = {
       id: 'l1',
@@ -274,6 +276,88 @@ describe('createObjectStage inactive layers and release', () => {
     host.render(timeAt(7));
     expect(applied[0].active).toBe(false);
     expect(applied[0].values).toEqual({ frameIndex: 0, x: 0 });
+  });
+
+  it('applies the defaults of the properties a new document no longer animates (no reset)', () => {
+    const { host, applied } = setUp();
+    host.load(docOf([refLayer('l1', 'villain', 'canvas', { x: [{ frame: 1, value: 5 }, { frame: 10, value: 50 }] })]));
+    host.render(timeAt(6));
+    applied.length = 0;
+    host.load(docOf([refLayer('l1', 'villain', 'canvas', { frameIndex: [{ frame: 1, value: 3 }] })]));
+    expect(applied.some((entry) => entry.values.x === 0)).toBe(true);
+    applied.length = 0;
+    host.load(docOf([]));
+    expect(applied).toEqual([{ name: 'villain', values: { frameIndex: 0 }, active: false }]);
+  });
+
+  it('hands apply every declared default, not only the dropped ones, when update restores a dropped property', () => {
+    const seen: Array<Record<string, number>> = [];
+    const { host } = setUp({
+      apply: (_sprite, values, state) => {
+        if (!state.active) {
+          // Like `sprite.frame = values.frameIndex`: a declared property must never be missing.
+          if (typeof values.frameIndex !== 'number') {
+            throw new Error('declared property missing');
+          }
+          seen.push({ ...values });
+        }
+      }
+    });
+    host.load(docOf([refLayer('l1', 'villain', 'canvas', { x: [{ frame: 1, value: 5 }] })]));
+    seen.length = 0;
+    host.load(docOf([refLayer('l1', 'villain', 'canvas', {})]));
+    expect(seen).toEqual([{ frameIndex: 0, x: 0 }]);
+  });
+
+  it('calls reset for the properties a new document no longer animates', () => {
+    const resets: string[] = [];
+    const { host } = setUp({ reset: (sprite) => resets.push(sprite.name) });
+    host.load(docOf([refLayer('l1', 'villain', 'canvas', { x: [{ frame: 1, value: 5 }] })]));
+    resets.length = 0;
+    host.load(docOf([refLayer('l1', 'villain', 'canvas', { frameIndex: [{ frame: 1, value: 3 }] })]));
+    expect(resets).toEqual(['villain']);
+  });
+
+  it('binds every layer and runs every restore even when one apply throws during update', () => {
+    let failOn: string | null = null;
+    const { host, applied, errors } = setUp({
+      objects: [
+        { id: 'a', label: 'A', object: { name: 'a', log: [] } },
+        { id: 'b', label: 'B', object: { name: 'b', log: [] } }
+      ],
+      apply: (sprite, values, state) => {
+        if (state.active === false && sprite.name === failOn) {
+          throw new Error('boom');
+        }
+        applied.push({ name: sprite.name, values, active: state.active });
+      }
+    });
+    const xTrack = { x: [{ frame: 1, value: 5 }] };
+    const frameTrack = { frameIndex: [{ frame: 1, value: 3 }] };
+    host.load(docOf([refLayer('l1', 'a', 'canvas', xTrack), refLayer('l2', 'b', 'canvas', xTrack)]));
+    failOn = 'a';
+    errors.length = 0;
+    applied.length = 0;
+    host.load(docOf([refLayer('l1', 'a', 'canvas', frameTrack), refLayer('l2', 'b', 'canvas', frameTrack)]));
+    expect(errors).toHaveLength(1);
+    // The b restore ran although the a one threw.
+    expect(applied.some((entry) => entry.name === 'b' && entry.values.x === 0 && !entry.active)).toBe(true);
+    failOn = null;
+    applied.length = 0;
+    host.load(docOf([]));
+    // Both layers were bound: both are released with defaults.
+    expect(applied.map((entry) => entry.name).sort()).toEqual(['a', 'b']);
+  });
+
+  it('does not reset on update a layer whose object changed (the host released the old one)', () => {
+    const { stage, hero, villain, applied } = setUp();
+    const doc = docOf([]);
+    const layer = (): ILayer => refLayer('l1', 'hero', 'canvas', { x: [{ frame: 1, value: 5 }] });
+    const other = refLayer('l1', 'hero', 'canvas', { frameIndex: [{ frame: 1, value: 3 }] });
+    stage.update?.(doc, [{ layerId: 'l1', layer: layer(), target: { ref: 'hero', stage: 'canvas' }, object: hero }]);
+    applied.length = 0;
+    stage.update?.(doc, [{ layerId: 'l1', layer: other, target: { ref: 'hero', stage: 'canvas' }, object: villain }]);
+    expect(applied).toEqual([]);
   });
 
   it('does not apply on release for a layer it never saw', () => {
@@ -366,6 +450,24 @@ describe('createObjectStage targets', () => {
     expect(host.missingTargets).toEqual([]);
   });
 
+  it('releases every layer bound to the removed object, each with its own defaults', () => {
+    const targets: LayerTarget[] = [];
+    const { stage, host } = setUp({
+      resolve: (target, objects) => objects.get('ref' in target && target.ref === 'alias' ? 'hero' : 'hero') ?? null,
+      apply: (_sprite, _values, state) => {
+        targets.push(state.target);
+      }
+    });
+    host.load(docOf([refLayer('l1', 'hero', 'canvas'), refLayer('l2', 'alias', 'canvas')]));
+    targets.length = 0;
+    stage.remove('hero');
+    expect(targets).toEqual([
+      { ref: 'hero', stage: 'canvas' },
+      { ref: 'alias', stage: 'canvas' }
+    ]);
+    expect(host.missingTargets).toEqual(['l1', 'l2']);
+  });
+
   it('with a custom resolve, notifies each affected target once', () => {
     const { stage, host } = setUp({
       resolve: (_target, objects) => objects.get('hero') ?? null
@@ -380,6 +482,27 @@ describe('createObjectStage targets', () => {
       { ref: 'hero', stage: 'canvas' },
       { ref: 'alias', stage: 'canvas' }
     ]);
+  });
+
+  it('with a custom resolve building objects on demand, an unrelated add or remove does not replace them', () => {
+    const made: ISprite[] = [];
+    const { stage, host } = setUp({
+      resolve: (target) => {
+        if (!('ref' in target) || target.ref !== 'dyn') {
+          return null;
+        }
+        const sprite: ISprite = { name: `dyn${made.length}`, log: [] };
+        made.push(sprite);
+        return sprite;
+      }
+    });
+    host.load(docOf([refLayer('l1', 'dyn', 'canvas')]));
+    expect(made).toHaveLength(1);
+    stage.add({ id: 'boss', label: 'Boss', object: { name: 'boss', log: [] } });
+    stage.remove('boss');
+    expect(made).toHaveLength(1);
+    expect(made[0].log).toEqual([]); // never released (a release would apply the defaults)
+    expect(host.missingTargets).toEqual([]);
   });
 
   it('retries a failed resolution when an object is added', () => {

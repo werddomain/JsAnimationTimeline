@@ -231,6 +231,40 @@ export type {
   IRowRange
 } from './plugins/frames';
 
+// Epic tweens : interpolations de mouvement (tweens.motion), opérations pures, commandes et erreurs.
+export {
+  MOTION_TWEEN_PLUGIN_ID,
+  MotionTweenCodes,
+  MotionTweenCommandLabels,
+  MotionTweenError,
+  MotionTweenMessages,
+  MotionTweenPlugin,
+  TweensPlugin,
+  createMotionTween,
+  createMotionTweenBetween,
+  createMotionTweenCommands,
+  createMotionTweenFromSpan,
+  removeMotionTween,
+  removeMotionTweens,
+  resolveCreateTarget,
+  resolveRemoveTargets
+} from './plugins/tweens';
+export type {
+  IMotionTarget,
+  IMotionTweenAvailability,
+  IMotionTweenCommands,
+  IMotionTweenService,
+  IRemoveTarget,
+  MotionAvailabilityChangedEvent,
+  MotionTweenCode,
+  MotionTweenCommandKind,
+  MotionTweenEvent,
+  MotionTweenRefusal,
+  IResolutionRefusal,
+  IResolved,
+  Resolution
+} from './plugins/tweens';
+
 // Plugin interaction.shortcuts (raccourcis clavier déclarés par les plugins).
 export { SHORTCUTS_PLUGIN_ID, ShortcutError, createShortcutsPlugin } from './plugins/interaction/shortcuts';
 export type {
