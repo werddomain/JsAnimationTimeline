@@ -22,8 +22,19 @@ export function createContainer(): HTMLElement {
   return container;
 }
 
-/** Retire tous les conteneurs hôtes (à appeler dans `afterEach`). */
+/** Éditeurs montés par `mountLayout`, détruits par `cleanBody`. */
+const mountedEditors: IEditor[] = [];
+
+/** Détruit les éditeurs montés (ceux d'un test qui s'arrête en plein glisser laissent sinon leurs écouteurs). */
+export function destroyMountedEditors(): void {
+  mountedEditors.splice(0).forEach((editor) => {
+    if (!editor.isDestroyed) editor.destroy();
+  });
+}
+
+/** Détruit les éditeurs montés puis retire tous les conteneurs hôtes (à appeler dans `afterEach`). */
 export function cleanBody(): void {
+  destroyMountedEditors();
   document.body.innerHTML = '';
 }
 
@@ -126,6 +137,7 @@ export function mountLayout(plugins: readonly EditorPlugin[] = [], options: IMou
     defaultPlugins: [new LayoutPlugin({ scrollSync: { scheduler }, ruler: { frameWidth: options.frameWidth }, zoom: options.zoom })],
     plugins
   });
+  mountedEditors.push(editor);
   const zone = (name: LayoutZone): HTMLElement => {
     const element = editor.container.querySelector<HTMLElement>(`[data-zone="${name}"]`);
     if (element === null) throw new Error(`Zone « ${name} » introuvable.`);
