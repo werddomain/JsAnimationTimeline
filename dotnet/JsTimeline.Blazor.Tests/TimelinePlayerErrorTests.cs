@@ -32,6 +32,7 @@ public sealed class TimelinePlayerErrorTests : BunitContext
     private static void AssertKeepsBoth(Exception thrown, string failure, string original)
     {
         var wrapper = Assert.IsType<InvalidOperationException>(thrown);
+        Assert.Contains("threw while handling", wrapper.Message, StringComparison.Ordinal);
         var inner = Assert.IsType<AggregateException>(wrapper.InnerException);
         Assert.Equal([failure, original], inner.InnerExceptions.Select(e => e.Message));
     }
@@ -182,15 +183,17 @@ public sealed class TimelinePlayerErrorTests : BunitContext
         // the first of them: the later ones return at once and throw nothing.
         cut.Render(ps => ps.Add(p => p.Data, Document(60)));
         cut.Render(ps => ps.Add(p => p.Data, Document(72)));
+        // Captured before the application runs: the whole chain completes inline in the next call.
+        var unhandled = Renderer.UnhandledException;
         await cut.InvokeAsync(release.SetResult);
 
-        var unhandled = Renderer.UnhandledException;
         var thrown = await unhandled.WaitAsync(TimeSpan.FromSeconds(5));
         await cut.InvokeAsync(() => { });
 
         Assert.Equal("refused", thrown.Message);
         Assert.Equal(2, updates);
-        // No second throw: the renderer still holds the same completed task.
+        // No second throw: bUnit gives a new task after each caught exception, so the renderer
+        // still holds the task completed by the first and only one.
         Assert.Same(unhandled, Renderer.UnhandledException);
     }
 }
