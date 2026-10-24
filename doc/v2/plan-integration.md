@@ -89,7 +89,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **L1** | 3 | 4 | Plugin `layout.shell` (4 zones + emplacements) + `layout.scrollSync` (repris de `legacy`) | C4 | L2, Y1, G1, T1 | `plugins/layout/shell/`, `layout/scrollSync/` | ☑ |
 | **L2** | 3 | 7 | Plugins `layout.ruler` + `layout.playhead` (repris de `TimeRuler`) ; la tête de lecture passe par `ctx.playback` | L1, C6 | L3, P2 | `plugins/layout/ruler/`, `layout/playhead/` | ☐ |
 | **L3** | 3 | 8 | Plugin `layout.zoom` (largeur d'image variable, événement `zoom:changed`) | L2 | T4 | `plugins/layout/zoom/` | ☐ |
-| **Y0** | 3 | 2 | **Contrat** : modèle des lignes visibles partagé par la liste des calques et la grille (`visibleRows(doc)` en ordre d'affichage, dossiers repliés exclus, `IVisibleRow`, `ROW_HEIGHT`, `DEFAULT_FRAME_WIDTH`) | F05 | Y1, G1 | `packages/editor/src/model/rows/` | ☐ |
+| **Y0** | 3 | 2 | **Contrat** : modèle des lignes visibles partagé par la liste des calques et la grille (`visibleRows(doc)` en ordre d'affichage, dossiers repliés exclus, `IVisibleRow`, `ROW_HEIGHT`, `DEFAULT_FRAME_WIDTH`) | F05 | Y1, G1 | `packages/editor/src/model/rows/` | ☑ |
 | **Y1** | 3 | 5 | Plugin `layers.list` : arbre des calques **avec une API d'emplacements de contrôles par ligne** (pour que Y2 à Y4 travaillent en parallèle) | L1, Y0 | Y2, Y3, Y4, Y5 | `plugins/layers/list/` | ☐ |
 | **Y2** | 3 | 6 | Plugins `layers.rename`, `layers.visibility`, `layers.lock` (commandes + contrôles de ligne) | Y1 | E1 | `plugins/layers/rename|visibility|lock/` | ☐ |
 | **Y3** | 3 | 6 | Plugins `layers.color` + `layers.icon` | Y1 | E1 | `plugins/layers/color|icon/` | ☐ |
