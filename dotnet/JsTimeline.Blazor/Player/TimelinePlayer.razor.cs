@@ -23,6 +23,7 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
     private bool _creating;
     private bool _disposed;
     private Task _applying = Task.CompletedTask;
+    private bool _applyPending;
 
     [Inject]
     private IJSRuntime JS { get; set; } = default!;
@@ -86,7 +87,8 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
     /// </list>
     /// A selector that matches nothing is not an error: see <see cref="TimelinePlayerState.MissingTargets"/>.
     /// Without a handler, a refused document is thrown to the renderer and a stage error goes to the
-    /// browser console. Set it on the first render, like <see cref="OnFrame"/>.
+    /// browser console. The refused instance is recognised by reference: a parent that builds a new
+    /// document on every render sends it again after each OnError re-render.
     /// </summary>
     [Parameter]
     public EventCallback<Exception> OnError { get; set; }
@@ -169,7 +171,7 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
     {
         var (data, loop, speed) = (Data, Loop, Speed);
         _events ??= DotNetObjectReference.Create(new TimelinePlayerEventSink(HandlePlayerEventAsync, HandlePlayerErrorAsync));
-        var options = new TimelinePlayerJsOptions(Autoplay, loop, speed, OnFrame.HasDelegate, OnError.HasDelegate);
+        var options = new TimelinePlayerJsOptions(Autoplay, loop, speed, OnFrame.HasDelegate);
         TimelinePlayerInterop interop;
         try
         {
@@ -199,7 +201,10 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
 
     /// <summary>
     /// Sends the changed parameters, one application at a time: OnReady and OnError re-render the
-    /// parent, which sets the parameters again while an application may still be running.
+    /// parent, which sets the parameters again while an application may still be running. At most one
+    /// application waits behind the running one; it reads the parameters when it starts, so the latest
+    /// values win. Errors are reported after the application, outside the chain: a slow OnError
+    /// handler never holds back the next parameters.
     /// </summary>
     private Task ApplyParametersAsync()
     {
@@ -207,11 +212,17 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
         {
             return Task.CompletedTask;
         }
-        _applying = ApplyAfterAsync(_applying);
-        return _applying;
+        if (_applyPending)
+        {
+            return _applying;
+        }
+        _applyPending = true;
+        var application = ApplyAfterAsync(_applying);
+        _applying = application;
+        return ReportAfterAsync(application);
     }
 
-    private async Task ApplyAfterAsync(Task previous)
+    private async Task<IReadOnlyList<JSException>> ApplyAfterAsync(Task previous)
     {
         try
         {
@@ -219,13 +230,25 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
         }
         catch (Exception)
         {
-            // Already reported to the caller that started it.
+            // A previous application never faults (its errors are returned), but stay safe.
         }
-        await ApplyDataAsync();
-        await ApplyPlaybackAsync();
+        _applyPending = false;
+        var errors = new List<JSException>();
+        // Loop and Speed are applied even when the document is refused.
+        await ApplyDataAsync(errors);
+        await ApplyPlaybackAsync(errors);
+        return errors;
     }
 
-    private async Task ApplyDataAsync()
+    private async Task ReportAfterAsync(Task<IReadOnlyList<JSException>> application)
+    {
+        foreach (var error in await application)
+        {
+            await ReportAsync(error);
+        }
+    }
+
+    private async Task ApplyDataAsync(List<JSException> errors)
     {
         var (interop, data) = (_interop, Data);
         if (interop is null || ReferenceEquals(data, _appliedData) || ReferenceEquals(data, _refusedData))
@@ -243,14 +266,14 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
         }
         catch (JSException error)
         {
-            // The player keeps the previous document. Remember the refused one so a re-render of the
-            // parent (OnError re-renders it) does not send it again in a loop.
+            // The player keeps the previous document. Remember the refused instance so a re-render of
+            // the parent (OnError re-renders it) does not send it again in a loop.
             _refusedData = data;
-            await ReportAsync(error);
+            errors.Add(error);
         }
     }
 
-    private async Task ApplyPlaybackAsync()
+    private async Task ApplyPlaybackAsync(List<JSException> errors)
     {
         var (interop, loop, speed) = (_interop, Loop, Speed);
         if (interop is null)
@@ -276,26 +299,36 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
         }
         catch (JSException error)
         {
-            await ReportAsync(error);
+            errors.Add(error);
         }
     }
 
-    private Task HandlePlayerErrorAsync(string message) => InvokeAsync(async () =>
+    /// <summary>
+    /// A stage error while playing. Returns false when nobody handles it (no <see cref="OnError"/>
+    /// handler now, even if there was one at creation): the script then logs it to the console.
+    /// </summary>
+    private async Task<bool> HandlePlayerErrorAsync(string message)
     {
-        if (_disposed)
+        var handled = false;
+        await InvokeAsync(async () =>
         {
-            return;
-        }
-        try
-        {
-            await OnError.InvokeAsync(new TimelineStageException(message));
-        }
-        catch (Exception error)
-        {
-            // A failing OnError handler is a component error, not something to lose in JavaScript.
-            await DispatchExceptionAsync(error);
-        }
-    });
+            if (_disposed || !OnError.HasDelegate)
+            {
+                return;
+            }
+            handled = true;
+            try
+            {
+                await OnError.InvokeAsync(new TimelineStageException(message));
+            }
+            catch (Exception error)
+            {
+                // A failing OnError handler is a component error, not something to lose in JavaScript.
+                await DispatchExceptionAsync(error);
+            }
+        });
+        return handled;
+    }
 
     private Task HandlePlayerEventAsync(string name, int frame) => InvokeAsync(async () =>
     {

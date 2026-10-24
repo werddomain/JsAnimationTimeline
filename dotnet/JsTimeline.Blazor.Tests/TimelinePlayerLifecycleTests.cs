@@ -167,6 +167,60 @@ public sealed class TimelinePlayerLifecycleTests : BunitContext
         Assert.Single(js.Player.Calls, c => c == "update");
     }
 
+    [Fact]
+    public async Task Documents_set_during_an_update_end_with_one_update_of_the_latest()
+    {
+        var js = UseFakeJs();
+        var release = new TaskCompletionSource();
+        var sent = new List<string>();
+        js.Player.Handler = (identifier, args) =>
+        {
+            if (identifier != "update")
+            {
+                return null;
+            }
+            sent.Add((string)args![0]!);
+            return release.Task;
+        };
+        var cut = Render<TimelinePlayer>(ps => ps.Add(p => p.Data, Document()));
+        var last = Document(72);
+
+        cut.Render(ps => ps.Add(p => p.Data, Document(48)));
+        cut.Render(ps => ps.Add(p => p.Data, Document(60)));
+        cut.Render(ps => ps.Add(p => p.Data, last));
+        await cut.InvokeAsync(release.SetResult);
+
+        cut.WaitForAssertion(() => Assert.Equal(2, sent.Count));
+        Assert.Equal(TimelineJson.Serialize(last), sent[1]);
+    }
+
+    [Fact]
+    public void A_slow_OnError_handler_does_not_hold_back_the_next_parameters()
+    {
+        var js = UseFakeJs();
+        js.Player.Handler = (identifier, _) => identifier == "update" ? throw new JSException("bad") : null;
+        var handler = new TaskCompletionSource();
+        var cut = Render<TimelinePlayer>(ps => ps.Add(p => p.Data, Document()).Add(p => p.OnError, (Exception _) => handler.Task));
+
+        cut.Render(ps => ps.Add(p => p.Data, Document(48)));
+        cut.Render(ps => ps.Add(p => p.Loop, true));
+
+        Assert.Contains("setLoop", js.Player.Calls);
+        handler.SetResult();
+    }
+
+    [Fact]
+    public void Loop_is_applied_even_when_a_refused_document_is_thrown_without_OnError()
+    {
+        var js = UseFakeJs();
+        js.Player.Handler = (identifier, _) => identifier == "update" ? throw new JSException("bad") : null;
+        var cut = Render<TimelinePlayer>(ps => ps.Add(p => p.Data, Document()));
+
+        Assert.ThrowsAny<Exception>(() => cut.Render(ps => ps.Add(p => p.Data, Document(48)).Add(p => p.Loop, true)));
+
+        Assert.Contains("setLoop", js.Player.Calls);
+    }
+
     /// <summary>A parent whose OnError handler re-renders it, like any component method handler.</summary>
     private sealed class PlayerHost : ComponentBase
     {

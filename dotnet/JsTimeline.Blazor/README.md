@@ -59,6 +59,10 @@ Limites :
     document refusé n'est pas renvoyé ; un nouveau document l'est ;
   - une `TimelineStageException` quand la scène échoue pendant la lecture, qui continue.
   Sans gestionnaire, un document refusé est levé et une erreur de scène va dans la console du navigateur.
+  `Loop` et `Speed` s'appliquent même quand le document est refusé.
+- Le document refusé est reconnu par sa référence. Un parent qui crée un nouveau `TimelineDocument` à chaque
+  rendu, avec un `OnError` qui le fait se redessiner, renvoie le document à chaque fois : garder le document
+  dans un champ et n'en créer un nouveau que quand il change.
 - Seule la scène HTML est prise en charge pour l'instant.
 
 ## Construire le package
