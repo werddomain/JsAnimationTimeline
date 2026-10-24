@@ -1,0 +1,17 @@
+// Actions des images clés (toolbar.keyframeActions) : un bouton indisponible garde le focus.
+
+.JsTimeLine {
+  .jt-keyframeActions {
+    gap: 2px;
+  }
+
+  .jt-keyframeActions .jt-toolbar__button[aria-disabled='true'] {
+    color: #9a9a9a;
+    cursor: default;
+
+    &:hover {
+      border-color: transparent;
+      background-color: transparent;
+    }
+  }
+}

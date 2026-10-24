@@ -275,6 +275,7 @@ public sealed class TimelineStageTests
         var finished = await Task.WhenAny(disposing, Task.Delay(DotNetStageHandle.DisposeTimeout * 3));
 
         Assert.Same(disposing, finished);
+        Assert.Contains("stop", jsStage.Calls);
         Assert.True(jsStage.Disposed);
         Assert.True(js.Module.Disposed);
     }
