@@ -13,6 +13,14 @@
  * dans une commande). Pas de bouton ici : la barre d'outils (Y8) appelle le
  * service `layers.groups` et écoute `selection:changed` pour `canGroup()`.
  *
+ * Verrous : créer, grouper et dissocier ne sont pas bloqués par un verrou (le
+ * verrou protège les images clés, comme pour le glisser-déposer de Y6 qui
+ * déplace aussi les lignes verrouillées).
+ *
+ * Annulation : la sélection n'est pas restaurée (état d'interface) ; après un
+ * « annuler », `layers.selection` élague les ids qui ont disparu (dossier
+ * créé, par exemple) et la sélection peut devenir vide.
+ *
  * Clavier, par `interaction.shortcuts`, seulement quand le focus est dans la
  * liste des calques : Ctrl+G groupe la sélection ; Ctrl+Maj+G dissocie le
  * premier dossier sélectionné. Sans effet possible, la touche reste au
@@ -118,7 +126,8 @@ export class LayerGroupsPlugin implements EditorPlugin {
     if (folder === undefined) return false;
     const command: ICommand = ungroupCommand(ctx.document, folderId);
     if (!ctx.commands.execute(command)) return false;
-    this.requireSelection().select(folder.children.map((child) => child.id));
+    // Dossier vide : rien à sélectionner, l'élagage de `layers.selection` retire le dossier disparu.
+    if (folder.children.length > 0) this.requireSelection().select(folder.children.map((child) => child.id));
     return true;
   }
 

@@ -70,3 +70,12 @@ describe('ungroupCommand', () => {
     expect(() => ungroupCommand(source, 'nope')).toThrow(/introuvable/);
   });
 });
+
+describe('undo restores the tree seen by do', () => {
+  it('uses the document received at execution, not the one at creation', () => {
+    const { command } = createFolderCommand(source, undefined);
+    const other = doc([layer('z')]);
+    const after = command.do(other);
+    expect(command.undo(after).layers).toBe(other.layers);
+  });
+});

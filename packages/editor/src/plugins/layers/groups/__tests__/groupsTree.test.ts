@@ -137,3 +137,24 @@ describe('ungroupNode', () => {
     expect(ungroupNode(tree, 'nope')).toBe(tree);
   });
 });
+
+describe('reference identity', () => {
+  const tree = [folder('f', [layer('a'), layer('b')]), folder('h', [layer('c')]), layer('d')];
+
+  it('removeNodes returns the same array when nothing is removed', () => {
+    expect(removeNodes(tree, new Set(['nope']))).toBe(tree);
+  });
+
+  it('keeps untouched siblings and branches by reference', () => {
+    const removed = removeNodes(tree, new Set(['a']));
+    expect(removed[1]).toBe(tree[1]);
+    expect(removed[2]).toBe(tree[2]);
+    const inserted = insertNode(tree, 'f', 0, empty);
+    expect(inserted[1]).toBe(tree[1]);
+    expect(inserted[2]).toBe(tree[2]);
+  });
+
+  it('insertNode into an unknown parent returns the same array', () => {
+    expect(insertNode(tree, 'nope', 0, empty)).toBe(tree);
+  });
+});

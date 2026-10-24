@@ -70,12 +70,16 @@ function withChildren(
   change: (children: readonly LayerNode[]) => readonly LayerNode[]
 ): readonly LayerNode[] {
   if (parentId === undefined) return change(nodes);
-  return nodes.map((node) => {
+  let changed = false;
+  const next = nodes.map((node) => {
     if (!isFolder(node)) return node;
-    if (node.id === parentId) return { ...node, children: change(node.children) };
-    const children = withChildren(node.children, parentId, change);
-    return children === node.children ? node : { ...node, children };
+    const children =
+      node.id === parentId ? change(node.children) : withChildren(node.children, parentId, change);
+    if (children === node.children) return node;
+    changed = true;
+    return { ...node, children };
   });
+  return changed ? next : nodes;
 }
 
 /** Arbre où `node` est inséré au rang `index` des enfants de `parentId` (la racine si `undefined`). */
@@ -94,9 +98,22 @@ export function insertNode(
 
 /** Arbre sans les nœuds dont l'id est dans `ids` (à toute profondeur). */
 export function removeNodes(nodes: readonly LayerNode[], ids: ReadonlySet<string>): readonly LayerNode[] {
-  return nodes
-    .filter((node) => !ids.has(node.id))
-    .map((node) => (isFolder(node) ? { ...node, children: removeNodes(node.children, ids) } : node));
+  let changed = false;
+  const next: LayerNode[] = [];
+  nodes.forEach((node) => {
+    if (ids.has(node.id)) {
+      changed = true;
+      return;
+    }
+    const children = isFolder(node) ? removeNodes(node.children, ids) : undefined;
+    if (isFolder(node) && children !== node.children) {
+      changed = true;
+      next.push({ ...node, children: children ?? node.children });
+    } else {
+      next.push(node);
+    }
+  });
+  return changed ? next : nodes;
 }
 
 /**

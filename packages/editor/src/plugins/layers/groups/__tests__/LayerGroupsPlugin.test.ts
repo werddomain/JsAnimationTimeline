@@ -6,6 +6,7 @@
 
 import { isFolder } from '@werddomain/timeline-runtime';
 import type { LayerNode } from '@werddomain/timeline-runtime';
+import { createEditor } from '../../../../core/editor/createEditor';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';
 import type { IListHarness } from '../../list/__tests__/fixtures';
 import type { ILayerSelectionService } from '../../selection';
@@ -104,6 +105,7 @@ describe('groupSelection', () => {
     expect(h.list.row('a')).toBeDefined();
     h.editor.undo();
     expect(h.editor.document.layers).toBe(tree.layers);
+    expect(h.selection.selected()).toEqual([]);
     h.editor.redo();
     expect(shapeOf(h)).toBe('f(folder-1(a,c),g(b))');
   });
@@ -124,6 +126,16 @@ describe('ungroup', () => {
     expect(h.selection.selected()).toEqual(['a', 'g']);
     h.editor.undo();
     expect(h.editor.document.layers).toBe(tree.layers);
+    h.editor.redo();
+    expect(shapeOf(h)).toBe('a,g(b),c');
+  });
+
+  it('leaves the selection to pruning for an empty folder', () => {
+    const h = setup(doc([folder('e', []), layer('c')]));
+    h.selection.select(['c']);
+    expect(h.groups.ungroup('e')).toBe(true);
+    expect(shapeOf(h)).toBe('c');
+    expect(h.selection.selected()).toEqual(['c']);
   });
 
   it('returns false for a layer or an unknown id', () => {
@@ -131,6 +143,45 @@ describe('ungroup', () => {
     expect(h.groups.ungroup('c')).toBe(false);
     expect(h.groups.ungroup('nope')).toBe(false);
     expect(h.editor.document).toBe(tree);
+  });
+});
+
+describe('locks, undo and redo', () => {
+  it('groups a locked layer and ungroups a locked folder', () => {
+    const h = setup(doc([layer('a', { locked: true }), folder('f', [layer('b')], { locked: true })]));
+    h.selection.select(['a']);
+    expect(h.groups.groupSelection()).toBe('folder-1');
+    expect(shapeOf(h)).toBe('folder-1(a),f(b)');
+    expect(h.groups.ungroup('f')).toBe(true);
+    expect(shapeOf(h)).toBe('folder-1(a),b');
+  });
+
+  it('prunes the selection after undo without crashing', () => {
+    const h = setup();
+    const id = h.groups.createFolder();
+    expect(h.selection.selected()).toEqual([id]);
+    expect(h.editor.undo()).toBe(true);
+    expect(h.selection.selected()).toEqual([]);
+  });
+
+  it('cannot redo after an unrelated change', () => {
+    const h = setup();
+    h.groups.createFolder();
+    h.editor.undo();
+    h.list.setCollapsed('f', true);
+    expect(h.editor.redo()).toBe(false);
+    expect(shapeOf(h)).toBe('f(a,g(b)),c');
+  });
+});
+
+describe('default plugin set', () => {
+  it('provides layers.groups after interaction.shortcuts', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const editor = createEditor(host, { data: tree });
+    expect(editor.getService('layers.groups')).toBeDefined();
+    expect(editor.getService('interaction.shortcuts')?.lookup('Mod+G')?.id).toBe('layers.groups.group');
+    editor.destroy();
   });
 });
 
