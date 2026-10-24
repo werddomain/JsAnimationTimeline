@@ -759,6 +759,42 @@ describe('pruning', () => {
     expect(h.events).toEqual([{ ids: [], previous: ['a', 'c'], focused: 'x' }]);
   });
 
+  it('keeps restoring the focus when the focused row is removed after a Chromium-style focusout', () => {
+    const h = setup();
+    click(row(h, 'b'));
+    // Chromium : focusout (relatedTarget null) part avant le détachement de la ligne retirée.
+    row(h, 'b').dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }));
+    h.editor.execute(
+      createCommand(
+        'Supprimer',
+        (current) => ({ ...current, layers: [folder('f', [layer('a'), folder('g', [])]), layer('c')] }),
+        () => tree
+      )
+    );
+    const focused = h.selection.focused() as string;
+    expect(focused).toBe('c');
+    expect(document.activeElement).toBe(row(h, focused));
+  });
+
+  it('focuses the first row on load after a Chromium-style focusout on the removed focused row', () => {
+    const h = setup();
+    click(row(h, 'b'));
+    row(h, 'b').dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }));
+    h.editor.load(doc([layer('x'), layer('y')]));
+    expect(document.activeElement).toBe(row(h, 'x'));
+  });
+
+  it('does not steal the focus on load when focusedElement is stale and focus is elsewhere', () => {
+    const h = setup();
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+    // focusin signalé sur une ligne alors que le focus réel est ailleurs : seul le garde le détecte.
+    row(h, 'b').dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    h.editor.load(doc([layer('x')]));
+    expect(document.activeElement).toBe(outside);
+  });
+
   it('does not steal the focus on load when it moved elsewhere', () => {
     const h = setup();
     click(row(h, 'b'));
@@ -769,10 +805,11 @@ describe('pruning', () => {
     expect(document.activeElement).toBe(outside);
   });
 
-  it('does not steal the focus on load after it left to nothing', () => {
+  it('does not steal the focus on load after it left to nothing', async () => {
     const h = setup();
     click(row(h, 'b'));
     row(h, 'b').blur();
+    await Promise.resolve();
     h.editor.load(doc([layer('x')]));
     expect(document.activeElement).toBe(document.body);
   });

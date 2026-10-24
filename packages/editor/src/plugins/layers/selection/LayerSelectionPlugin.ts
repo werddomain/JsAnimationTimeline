@@ -257,9 +257,18 @@ export class LayerSelectionPlugin implements EditorPlugin {
     const next = event.relatedTarget;
     const target = event.target;
     const toOutside = next instanceof Node && this.list?.element()?.contains(next) !== true;
-    // Focus perdu sans destinataire alors que l'élément est encore là : ce n'est pas un retrait de ligne.
-    const toNothing = next === null && target instanceof Element && target.isConnected;
-    if (toOutside || toNothing) this.focusedElement = undefined;
+    if (toOutside) {
+      this.focusedElement = undefined;
+      return;
+    }
+    if (next !== null || !(target instanceof Element)) return;
+    // Focus perdu sans destinataire. Chromium envoie aussi cet événement, avant de détacher
+    // l'élément, quand on retire la ligne qui a le focus : on décide après coup. Si la ligne
+    // est toujours là une fois la pile finie, c'était un vrai départ ; sinon `reconcile` ou
+    // `onLoaded` s'en sert pour rendre le focus.
+    queueMicrotask(() => {
+      if (target.isConnected && this.focusedElement === target) this.focusedElement = undefined;
+    });
   }
 
   /** Vrai si le focus DOM était dans la liste, ou sur un élément de la liste retiré depuis. */
