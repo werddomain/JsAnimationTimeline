@@ -106,6 +106,7 @@ const V2_NAMES = [
   'UNKNOWN_PROPERTY',
   'createCommand',
   'createEditor',
+  'createEditorHtmlStage',
   'createEmptyDocument',
   'createSetFpsCommand',
   'createSetTotalFramesCommand',

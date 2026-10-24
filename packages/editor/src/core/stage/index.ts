@@ -6,7 +6,10 @@
 
 export { EditorStageHost } from './EditorStageHost';
 export type { IEditorStageHostOptions } from './EditorStageHost';
-export { createDefaultHtmlStage, resolveUserStages } from './resolveStages';
+export { createEditorHtmlStage } from './editorHtmlStage';
+export type { IEditorHtmlStageOptions } from './editorHtmlStage';
+export { resolveUserStages } from './resolveStages';
+export { StageReportFeed, reportKey } from './reportFeed';
 export type { IStageChoice } from './resolveStages';
 export { createStageFacade } from './stageFacade';
 export type { StageReportEvent } from './stageEvents';

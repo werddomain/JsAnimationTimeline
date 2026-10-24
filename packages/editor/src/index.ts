@@ -110,7 +110,14 @@ export type {
 } from './core/playback';
 
 // Scènes : option `stage`, façade `IEditorStage` (`ctx.stage`, `editor.stage`) et `stage:report`.
-export type { EditorStageOption, IEditorStage, StageErrorHandler, StageReportEvent } from './core/stage';
+export { createEditorHtmlStage } from './core/stage';
+export type {
+  EditorStageOption,
+  IEditorHtmlStageOptions,
+  IEditorStage,
+  StageErrorHandler,
+  StageReportEvent
+} from './core/stage';
 
 // Plugins de mise en page (epic `layout`) : coquille, emplacements, défilement, règle et tête de lecture.
 export {

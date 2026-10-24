@@ -18,7 +18,9 @@ import type { IStage, IStageReport, ITargetInfo, LayerTarget } from '@werddomain
  * - `false` : timeline seule (mode tiré : `editor.sample()`, `onFrame()`) ;
  * - une scène, ou un tableau de scènes combinées (routage par `accepts` et par
  *   `target.stage`, ids uniques). La scène HTML n'y est pas ajoutée d'office :
- *   la mettre dans le tableau (`createHtmlStage(...)`) pour la garder.
+ *   la mettre dans le tableau avec `createEditorHtmlStage(conteneur)` (mode
+ *   `frame`, conteneur et éditeur exclus) ; un `createHtmlStage()` du runtime
+ *   n'exclut pas l'éditeur et anime en mode `waapi` par défaut.
  */
 export type EditorStageOption = IStage | readonly IStage[] | false;
 
