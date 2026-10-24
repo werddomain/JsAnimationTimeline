@@ -54,13 +54,21 @@ Limites :
   Un sélecteur qui ne trouve rien n'est pas une erreur : le calque apparaît dans `MissingTargets`.
 - Événements : `OnPlay`, `OnPause`, `OnComplete`, `OnLoop` et `OnFrame`. `OnFrame` doit être donné dès le
   premier rendu, car chaque image fait alors un appel vers .NET.
-- `OnError` (à donner dès le premier rendu) reçoit :
+- `OnError` peut être donné, changé ou retiré à tout moment. Il reçoit :
   - une `JSException` quand le lecteur refuse un document. Le lecteur garde le document précédent, et ce
     document refusé n'est pas renvoyé ; un nouveau document l'est ;
+  - une `JsonException` quand un document ne peut pas être écrit en JSON (par exemple une `LayerTarget`
+    avec deux formes) ;
+  - une `JSException` quand le lecteur refuse `Loop` ou `Speed` ;
   - une `TimelineStageException` quand la scène échoue pendant la lecture, qui continue.
-  Sans gestionnaire (ou s'il est retiré plus tard), un document refusé est levé et une erreur de scène est
-  écrite dans la console du navigateur avec `console.error`.
-  `Loop` et `Speed` s'appliquent même quand le document est refusé.
+- `Loop` et `Speed` s'appliquent même quand le document est refusé.
+- Sans gestionnaire, une erreur de scène est écrite dans la console du navigateur avec `console.error`, et les
+  autres erreurs sont levées vers le moteur de rendu de Blazor : l'erreur seule s'il n'y en a qu'une, sinon une
+  `InvalidOperationException` dont l'`AggregateException` intérieure les contient toutes.
+- Si le gestionnaire `OnError` lève lui-même une exception, l'erreur d'origine n'est pas perdue : une
+  `InvalidOperationException` est levée, avec une `AggregateException` intérieure qui contient l'échec du
+  gestionnaire puis l'erreur d'origine.
+- Les erreurs qui restent quand le composant est fermé ne sont plus signalées.
 - Le document refusé est reconnu par sa référence. Un parent qui crée un nouveau `TimelineDocument` à chaque
   rendu, avec un `OnError` qui le fait se redessiner, renvoie le document à chaque fois : garder le document
   dans un champ et n'en créer un nouveau que quand il change.
