@@ -9,6 +9,7 @@ import { findNodeById, isLayer } from '@werddomain/timeline-runtime';
 import type { ISpan, ITimelineDocument } from '@werddomain/timeline-runtime';
 import type { IFrameCell } from '../selection/frameSelection';
 import type { ISelectedKeyframe } from '../selection/types';
+import { retimeKeyframes } from '../../../model/spans/tracks';
 import { lockedLayerIds } from './keyframeTargets';
 
 /** Un déplacement d'image clé : `moveKeyframe(rowId, from, to)`. */
@@ -116,18 +117,44 @@ export function overwritesKeyframe(doc: ITimelineDocument, moves: readonly IPlan
   });
 }
 
+/** Image d'arrivée d'une image clé de propriété recalée avec sa plage (même calcul que K1). */
+function retimedFrame(before: ITimelineDocument, after: ITimelineDocument, keyframe: ISelectedKeyframe): number {
+  const spanOf = (doc: ITimelineDocument): ISpan | undefined => {
+    const node = findNodeById(doc.layers, keyframe.rowId);
+    return node !== undefined && isLayer(node) ? node.spans.find((span) => span.id === keyframe.spanId) : undefined;
+  };
+  const from = spanOf(before);
+  const to = spanOf(after);
+  if (from === undefined || to === undefined) return keyframe.frame;
+  const probe = retimeKeyframes({ probe: [{ frame: keyframe.frame, value: 0 }] }, from, to);
+  return probe?.probe?.[0]?.frame ?? keyframe.frame;
+}
+
 /**
- * Nouvelle sélection après un déplacement : les cellules des lignes de
- * `movedRows` sont décalées de `offset` images, les autres (lignes
- * verrouillées, non déplacées) restent en place. Sans `movedRows`, toutes
- * les cellules sont décalées.
+ * Nouvelle sélection d'après la place réelle des images après le
+ * déplacement : une image clé déplacée va à sa destination, une image clé
+ * de propriété recalée par K1 (plage redimensionnée) va où K1 l'a mise, les
+ * autres images des lignes déplacées sont décalées de `offset`, et les
+ * lignes non déplacées (verrouillées) ne bougent pas.
  */
-export function shiftCells(
+export function landedCells(
+  before: ITimelineDocument,
+  after: ITimelineDocument,
+  keyframes: readonly ISelectedKeyframe[],
   cells: readonly IFrameCell[],
-  offset: number,
-  movedRows?: ReadonlySet<string>
+  moves: readonly IPlannedMove[],
+  offset: number
 ): IFrameCell[] {
-  return cells.map((cell) =>
-    movedRows === undefined || movedRows.has(cell.rowId) ? { rowId: cell.rowId, frame: cell.frame + offset } : cell
-  );
+  const movedRows = new Set(moves.map((move) => move.rowId));
+  const destination = new Map<string, number>(moves.map((move) => [`${move.rowId}:${move.from}`, move.to] as const));
+  const keyframeAt = new Map<string, ISelectedKeyframe>(keyframes.map((keyframe) => [`${keyframe.rowId}:${keyframe.frame}`, keyframe] as const));
+  return cells.map((cell) => {
+    if (!movedRows.has(cell.rowId)) return cell;
+    const key = `${cell.rowId}:${cell.frame}`;
+    const to = destination.get(key);
+    if (to !== undefined) return { rowId: cell.rowId, frame: to };
+    const keyframe = keyframeAt.get(key);
+    if (keyframe?.kind === 'propertyKeyframe') return { rowId: cell.rowId, frame: retimedFrame(before, after, keyframe) };
+    return { rowId: cell.rowId, frame: cell.frame + offset };
+  });
 }
