@@ -9,7 +9,7 @@
  */
 
 import { buildStageRegistry, createHtmlStage, createManualClock, createPlayer, defaultPropertyRegistry } from '@werddomain/timeline-runtime';
-import type { IManualClock, IPlayerOptions } from '@werddomain/timeline-runtime';
+import type { IManualClock, IPlayer, IPlayerOptions } from '@werddomain/timeline-runtime';
 import { AudioTrack, createAudioStage } from './audioStage';
 import { createCanvasStage, createSprite } from './canvasStage';
 import { AUDIO_STAGE_ID, CANVAS_STAGE_ID, OBJECT_STAGE_DOCUMENT } from './document';
@@ -30,9 +30,8 @@ function formatVolume(volume: number): string {
   return volume.toFixed(2).replace('.', ',');
 }
 
-function setUp(): void {
-  const manual = new URLSearchParams(window.location.search).get('clock') === 'manual';
-  const clock: IManualClock | null = manual ? createManualClock() : null;
+/** Creates the stages and the player, and publishes the test hook. */
+function createDemo(manual: boolean, clock: IManualClock | null): { player: IPlayer; track: AudioTrack } {
   const canvas = byId<HTMLCanvasElement>('sprite-canvas');
   const context = canvas.getContext('2d');
   if (context === null) {
@@ -50,40 +49,37 @@ function setUp(): void {
   const player = createPlayer(OBJECT_STAGE_DOCUMENT, clock === null ? options : { ...options, clock });
   const registry = buildStageRegistry(defaultPropertyRegistry, [canvasStage, audioStage]);
   window.__objectStageDemo = createDemoHook(player, clock, OBJECT_STAGE_DOCUMENT, received, registry, hero, track);
+  return { player, track };
+}
 
+/** Wires the transport controls and the displays that follow the player. */
+function bindControls(player: IPlayer, track: AudioTrack, clock: IManualClock | null): void {
   const playButton = byId<HTMLButtonElement>('play');
   const pauseButton = byId<HTMLButtonElement>('pause');
   const stepButton = byId<HTMLButtonElement>('step');
-  const soundButton = byId<HTMLButtonElement>('sound');
   const loopInput = byId<HTMLInputElement>('loop');
   const volumeOutput = byId<HTMLOutputElement>('volume');
   const seekInput = byId<HTMLInputElement>('seek');
   const frameOutput = byId<HTMLOutputElement>('frame');
-  const soundState = byId<HTMLElement>('sound-state');
 
   seekInput.max = String(player.totalFrames);
-  byId('clock-mode').textContent = manual
-    ? 'Horloge manuelle : le temps n’avance que par « Avancer d’une image ».'
-    : 'Horloge du navigateur : appuyez sur « Lecture ».';
-  stepButton.hidden = !manual;
+  byId('clock-mode').textContent =
+    clock !== null
+      ? 'Horloge manuelle : le temps n’avance que par « Avancer d’une image ».'
+      : 'Horloge du navigateur : appuyez sur « Lecture ».';
+  stepButton.hidden = clock === null;
+  // The browser may restore the form state: the checkbox, not the player default, is the truth.
+  player.loop = loopInput.checked;
 
   const showFrame = (frame: number): void => {
     frameOutput.value = `Image ${frame} / ${player.totalFrames}`;
     seekInput.value = String(frame);
   };
-  const showSound = (): void => {
-    if (!track.started) {
-      return;
-    }
-    soundState.textContent = player.playing
-      ? 'Son activé : le volume suit la piste « Musique ».'
-      : 'Son activé : appuyez sur Lecture pour l’entendre';
-  };
   const showState = (): void => {
     playButton.disabled = player.playing;
     pauseButton.disabled = !player.playing;
     document.body.dataset.playing = String(player.playing);
-    showSound();
+    showSound(player, track);
   };
   track.onVolume = (volume) => {
     volumeOutput.value = formatVolume(volume);
@@ -103,10 +99,29 @@ function setUp(): void {
     player.loop = loopInput.checked;
   });
   seekInput.addEventListener('input', () => player.seek(Number(seekInput.value)));
+
+  showFrame(player.frame);
+  showState();
+}
+
+/** Shows whether the sound is on, once the audio track has started. */
+function showSound(player: IPlayer, track: AudioTrack): void {
+  if (!track.started) {
+    return;
+  }
+  byId<HTMLElement>('sound-state').textContent = player.playing
+    ? 'Son activé : le volume suit la piste « Musique ».'
+    : 'Son activé : appuyez sur Lecture pour l’entendre';
+}
+
+/** Wires the « Activer le son » button. */
+function bindAudio(player: IPlayer, track: AudioTrack): void {
+  const soundButton = byId<HTMLButtonElement>('sound');
+  const soundState = byId<HTMLElement>('sound-state');
   soundButton.addEventListener('click', () => {
     track.start().then(
       () => {
-        showSound();
+        showSound(player, track);
         soundButton.disabled = true;
       },
       () => {
@@ -114,7 +129,10 @@ function setUp(): void {
       }
     );
   });
+}
 
+/** Ties the tone and the player to the page lifecycle. */
+function bindLifecycle(player: IPlayer, track: AudioTrack): void {
   // The tone must not outlive the rendering: a hidden page stops drawing frames.
   document.addEventListener('visibilitychange', () => track.setVisible(!document.hidden));
   window.addEventListener('pagehide', (event) => {
@@ -131,9 +149,15 @@ function setUp(): void {
       track.setVisible(!document.hidden);
     }
   });
+}
 
-  showFrame(player.frame);
-  showState();
+function setUp(): void {
+  const manual = new URLSearchParams(window.location.search).get('clock') === 'manual';
+  const clock: IManualClock | null = manual ? createManualClock() : null;
+  const { player, track } = createDemo(manual, clock);
+  bindControls(player, track, clock);
+  bindAudio(player, track);
+  bindLifecycle(player, track);
 }
 
 setUp();

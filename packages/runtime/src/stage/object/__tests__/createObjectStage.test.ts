@@ -366,6 +366,22 @@ describe('createObjectStage targets', () => {
     expect(host.missingTargets).toEqual([]);
   });
 
+  it('with a custom resolve, notifies each affected target once', () => {
+    const { stage, host } = setUp({
+      resolve: (_target, objects) => objects.get('hero') ?? null
+    });
+    host.load(docOf([refLayer('l1', 'alias', 'canvas'), refLayer('l2', 'alias', 'canvas'), refLayer('l3', 'hero', 'canvas')]));
+    const onChange = jest.fn();
+    stage.targets?.subscribe?.(onChange);
+    stage.remove('hero');
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const affected = onChange.mock.calls[0][0] as readonly LayerTarget[];
+    expect(affected).toEqual([
+      { ref: 'hero', stage: 'canvas' },
+      { ref: 'alias', stage: 'canvas' }
+    ]);
+  });
+
   it('retries a failed resolution when an object is added', () => {
     const { stage, host } = setUp();
     host.load(docOf([refLayer('l1', 'boss')]));

@@ -50,6 +50,22 @@ function trackNames(layer: ILayer): string[] {
   return Array.from(new Set(layer.spans.flatMap((span) => Object.keys(span.tracks ?? {}))));
 }
 
+/** `targets` without duplicates: a `{ ref, stage }` target is kept once; other targets are kept as is. */
+function uniqueRefTargets(targets: readonly LayerTarget[]): LayerTarget[] {
+  const seen = new Set<string>();
+  return targets.filter((target) => {
+    if (!isRefTarget(target)) {
+      return true;
+    }
+    const key = JSON.stringify([target.ref, target.stage ?? null]);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
 /** Creates a stage animating the `objects` with `apply`; see `IObjectStageOptions`. */
 export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectStage<T> {
   const stageId = options.id;
@@ -59,7 +75,7 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
     const own: LayerTarget = { ref: id, stage: stageId };
     // A custom `resolve` may map other refs to this object: notify every bound target too.
     const affected: readonly LayerTarget[] =
-      options.resolve === undefined ? [own] : [own, ...Array.from(bound.values(), (layer) => layer.target)];
+      options.resolve === undefined ? [own] : uniqueRefTargets([own, ...Array.from(bound.values(), (layer) => layer.target)]);
     Array.from(subscribers).forEach((listener) => listener(affected));
   };
   /** Layer id → target of the layers bound by the last `update` (needed by `release`). */
