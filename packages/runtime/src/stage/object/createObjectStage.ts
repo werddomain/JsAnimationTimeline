@@ -183,12 +183,13 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
       bound.clear();
       const restores: Array<() => void> = [];
       layers.forEach((layer) => {
-        const names = Array.from(new Set([...declaredNames(layer.object, layer.target), ...collectLayerProperties(layer.layer)]));
+        const declared = declaredNames(layer.object, layer.target);
+        const names = Array.from(new Set([...declared, ...collectLayerProperties(layer.layer)]));
         bound.set(layer.layerId, { target: layer.target, object: layer.object, names });
         const before = previous.get(layer.layerId);
         const dropped = before === undefined || before.object !== layer.object ? [] : before.names.filter((name) => !names.includes(name));
         if (dropped.length > 0) {
-          restores.push(() => restoreDefaults(layer.layerId, layer.target, layer.object, dropped));
+          restores.push(() => restoreDefaults(layer.layerId, layer.target, layer.object, [...declared, ...dropped]));
         }
       });
       runAll(restores);

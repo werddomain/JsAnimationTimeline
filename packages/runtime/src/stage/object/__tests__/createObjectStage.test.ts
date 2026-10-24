@@ -258,6 +258,8 @@ describe('createObjectStage inactive layers and release', () => {
   });
 
   it('gives an inactive layer the defaults of its animated but undeclared properties', () => {
+    // The evaluated values carry x=30 on the inactive layer: the default must still win,
+    // and it can only come from the tracks' names kept at update (villain declares nothing).
     const { host, applied } = setUp();
     const layer: ILayer = {
       id: 'l1',
@@ -276,17 +278,6 @@ describe('createObjectStage inactive layers and release', () => {
     expect(applied[0].values).toEqual({ frameIndex: 0, x: 0 });
   });
 
-  it('takes the defaults of an inactive layer from the names remembered at update, not from the evaluated values', () => {
-    // The evaluated values carry x=30 on the inactive layer: the default must still win,
-    // and it can only come from the tracks' names kept at update (villain declares nothing).
-    const { host, applied } = setUp();
-    const layer: ILayer = { ...blankAfter(), target: { ref: 'villain', stage: 'canvas' } };
-    host.load(docOf([layer]));
-    applied.length = 0;
-    host.render(timeAt(7));
-    expect(applied[0].values).toEqual({ frameIndex: 0, x: 0 });
-  });
-
   it('applies the defaults of the properties a new document no longer animates (no reset)', () => {
     const { host, applied } = setUp();
     host.load(docOf([refLayer('l1', 'villain', 'canvas', { x: [{ frame: 1, value: 5 }, { frame: 10, value: 50 }] })]));
@@ -297,6 +288,25 @@ describe('createObjectStage inactive layers and release', () => {
     applied.length = 0;
     host.load(docOf([]));
     expect(applied).toEqual([{ name: 'villain', values: { frameIndex: 0 }, active: false }]);
+  });
+
+  it('hands apply every declared default, not only the dropped ones, when update restores a dropped property', () => {
+    const seen: Array<Record<string, number>> = [];
+    const { host } = setUp({
+      apply: (_sprite, values, state) => {
+        if (!state.active) {
+          // Like `sprite.frame = values.frameIndex`: a declared property must never be missing.
+          if (typeof values.frameIndex !== 'number') {
+            throw new Error('declared property missing');
+          }
+          seen.push({ ...values });
+        }
+      }
+    });
+    host.load(docOf([refLayer('l1', 'villain', 'canvas', { x: [{ frame: 1, value: 5 }] })]));
+    seen.length = 0;
+    host.load(docOf([refLayer('l1', 'villain', 'canvas', {})]));
+    expect(seen).toEqual([{ frameIndex: 0, x: 0 }]);
   });
 
   it('calls reset for the properties a new document no longer animates', () => {
