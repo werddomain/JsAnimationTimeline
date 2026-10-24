@@ -16,9 +16,10 @@
  * appels non typés (JavaScript, transtypage).
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
 import type { CommandStack } from '../commands/CommandStack';
 import type { EventBus } from '../events/EventBus';
+import type { IEditorPlayback } from '../playback/types';
 import type { SlotRegistry } from '../plugin/SlotRegistry';
 import type { Store } from '../store/Store';
 import { assertPluginEvent } from './coreEvents';
@@ -35,7 +36,10 @@ export interface IEditorContextSources {
   readonly slots: SlotRegistry;
   readonly services: IEditorServices;
   readonly container: HTMLElement;
-  readonly root: ParentNode;
+  /** Façade de la lecture, déjà gardée par `assertActive` (`createPlaybackFacade`). */
+  readonly playback: IEditorPlayback;
+  /** Registre figé de l'éditeur. */
+  readonly registry: PropertyRegistry;
   readonly assertActive: AssertActive;
 }
 
@@ -130,7 +134,8 @@ export function createEditorContext(sources: IEditorContextSources): IEditorCont
     commands,
     slots: sources.slots,
     container: sources.container,
-    root: sources.root,
+    playback: sources.playback,
+    registry: sources.registry,
     services
   });
 }
