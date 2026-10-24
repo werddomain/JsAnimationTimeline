@@ -127,10 +127,12 @@ export class DragController {
     const element = this.listElement;
     const target = event.target;
     if (element === undefined || !(target instanceof Element)) return;
-    // Session annulée qui attendait un relâchement jamais reçu : ce nouvel appui la clôt.
+    // Autre bouton ou autre doigt : sans effet, même sur une session annulée qui attend encore le
+    // relâchement du bouton principal (c'est lui qui supprimera le clic).
+    if (event.button !== PRIMARY_BUTTON || event.isPrimary === false) return;
+    // Session annulée dont le relâchement ne s'est jamais vu : ce nouvel appui principal la clôt.
     if (this.session?.cancelled === true) this.endSession();
     if (this.session !== undefined) return;
-    if (event.button !== PRIMARY_BUTTON || event.isPrimary === false) return;
     if (target.closest(IGNORED_SELECTOR) !== null) return;
     const rowId = this.deps.list.rowIdAt(target);
     if (rowId === undefined) return;
@@ -322,9 +324,10 @@ export class DragController {
    * avait démarré, le clic éventuel du relâchement est supprimé.
    */
   private abortReleased(): void {
-    const started = this.session?.started === true;
+    // Déjà annulée : le relâchement est passé depuis longtemps, rien à supprimer.
+    const pending = this.session?.started === true && !this.session.cancelled;
     this.endSession();
-    if (started) this.armClickSuppression();
+    if (pending) this.armClickSuppression();
   }
 
   private endSession(): void {

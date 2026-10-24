@@ -277,9 +277,9 @@ export class LayerSelectionPlugin implements EditorPlugin {
   private listHeldFocus(): boolean {
     const element = this.focusedElement;
     if (element === undefined) return false;
-    // Une saisie (renommage) qui se détache en validant sur perte de focus n'a pas à rendre le focus à la ligne :
-    // le focus est parti ailleurs (ou nulle part) de lui-même.
-    if (element.matches(TEXT_INPUT_SELECTOR)) return false;
+    // Une saisie (renommage) détachée en validant sur perte de focus n'a pas à rendre le focus à la ligne :
+    // le focus est parti ailleurs (ou nulle part) de lui-même. Une saisie encore dans le DOM garde le comportement d'avant.
+    if (!element.isConnected && element.matches(TEXT_INPUT_SELECTOR)) return false;
     const doc = element.ownerDocument;
     const active = doc.activeElement;
     const inListOrNowhere =

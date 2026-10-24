@@ -585,6 +585,24 @@ describe('lost button release', () => {
     expect(show(h.editor.document.layers)).toBe('d,f(a,g(b)),c');
   });
 
+  it('keeps a cancelled drag pending a right-button press, so the late left click is still swallowed', () => {
+    jest.useFakeTimers();
+    const h = setup();
+    h.selection.select(['c', 'd'], 'replace');
+    press(h, 'c', y(4));
+    moveTo(y(1, 0.1));
+    row(h, 'c').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+
+    row(h, 'a').dispatchEvent(pointer('pointerdown', y(1), { button: 2, buttons: 3 }));
+    row(h, 'a').dispatchEvent(pointer('pointerdown', y(2), { isPrimary: false, pointerId: 2 }));
+    jest.advanceTimersByTime(5000);
+    release(y(1, 0.1));
+    const swallowed = click(row(h, 'c'), { ctrlKey: true });
+
+    expect(swallowed.defaultPrevented).toBe(true);
+    expect(h.selection.selected()).toEqual(['c', 'd']);
+  });
+
   it('does not swallow a click after a press aborted before the threshold', () => {
     const h = setup();
     press(h, 'c', y(4));

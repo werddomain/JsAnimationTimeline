@@ -679,6 +679,17 @@ describe('keyboard', () => {
 });
 
 describe('pruning', () => {
+  it('leaves an input focused in another row when rows are removed around it', () => {
+    const h = setup();
+    const input = document.createElement('input');
+    row(h, 'c').appendChild(input);
+    input.focus();
+
+    collapse(h.editor, 'f', true);
+
+    expect(document.activeElement).toBe(input);
+  });
+
   it('drops selected children when their folder is collapsed and focuses the folder', () => {
     const h = setup();
     h.selection.select(['a', 'b', 'c']);
