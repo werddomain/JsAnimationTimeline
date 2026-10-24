@@ -308,14 +308,17 @@ describe('createObjectStage targets', () => {
     const { stage, host, hero, applied } = setUp();
     host.load(docOf([refLayer('l1', 'hero', stageId)]));
     const newHero: ISprite = { name: 'newHero', log: [] };
+    hero.log.length = 0;
     stage.remove('hero');
+    // Released without reset: the old hero gets the default values once.
+    expect(hero.log).toEqual(['apply']);
     expect(host.missingTargets).toEqual(['l1']);
     stage.add({ id: 'hero', label: 'Héros', object: newHero });
     expect(host.missingTargets).toEqual([]);
     applied.length = 0;
     host.render(timeAt(5));
     expect(applied.map((entry) => entry.name)).toEqual(['newHero']);
-    expect(hero.log).toContain('apply');
+    expect(hero.log).toEqual(['apply']);
   });
 
   it('retries a failed resolution when an object is added', () => {

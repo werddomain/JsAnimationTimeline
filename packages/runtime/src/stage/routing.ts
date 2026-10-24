@@ -44,7 +44,6 @@ export function sameTarget(a: LayerTarget | undefined, b: LayerTarget | undefine
   return false;
 }
 
-/** Targets named by a stage's `subscribe` notification; anything but an array of objects counts as none. */
 /**
  * True when a change notified on `affected` concerns a binding on `target`.
  * Refs compare by `ref` only: the binding already belongs to the notifying
@@ -57,6 +56,7 @@ export function isAffectedTarget(affected: LayerTarget, target: LayerTarget): bo
   return sameTarget(affected, target);
 }
 
+/** Targets named by a stage's `subscribe` notification; anything but an array of objects counts as none. */
 export function toTargetList(value: unknown): LayerTarget[] {
   if (!Array.isArray(value)) {
     return [];

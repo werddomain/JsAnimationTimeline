@@ -34,6 +34,7 @@ describe('isAffectedTarget', () => {
   it('falls back to sameTarget for other targets', () => {
     expect(isAffectedTarget({ selector: '#a' }, { selector: '#a' })).toBe(true);
     expect(isAffectedTarget({ selector: '#a' }, { ref: 'a' })).toBe(false);
+    expect(isAffectedTarget({ ref: 'a' }, { selector: '#a' })).toBe(false);
   });
 });
 
