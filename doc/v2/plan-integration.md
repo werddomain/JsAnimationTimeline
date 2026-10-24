@@ -106,7 +106,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **W1** | 4 | 7 | Plugin `tweens.motion` : créer un motion tween depuis 1 ou 2 images clés, le supprimer | K1, G2, C6 | W2, W3, T2, I1 | `plugins/tweens/motion/` | ☐ |
 | **W2** | 4 | 8 | Plugin `tweens.propertyKeyframes` + API `editor.setProperty()` (crée les losanges ; nom vérifié dans le registre et dans les propriétés de l'objet) | W1, C7 | S1 | `plugins/tweens/propertyKeyframes/` | ☐ |
 | **W3** | 4 | 8 | Plugin `tweens.easing` (préréglages, remplace `TweenPropertiesDialog`) | W1 | E1 | `plugins/tweens/easing/` | ☐ |
-| **T1** | 5 | 5 | Plugin `toolbar.main` (zone « Scene 1 », API d'ajout de boutons) | L1 | C5, T2, T3, T4, P1 | `plugins/toolbar/main/` | ☐ |
+| **T1** | 5 | 5 | Plugin `toolbar.main` (zone « Scene 1 », API d'ajout de boutons) | L1 | C5, T2, T3, T4, P1 | `plugins/toolbar/main/` | ☑ |
 | **T2** | 5 | 8 | Plugin `toolbar.keyframeActions` (les 4 boutons du cahier) | T1, K2, W1 | E1 | `plugins/toolbar/keyframeActions/` | ☐ |
 | **T3** | 5 | 6 | Plugin `toolbar.timeSettings` (fps et durée, en commandes) | T1, C3 | E1 | `plugins/toolbar/timeSettings/` | ☐ |
 | **T4** | 5 | 9 | Plugin `toolbar.zoomControl` (liste déroulante + curseur) | T1, L3 | E1 | `plugins/toolbar/zoomControl/` | ☐ |
@@ -114,7 +114,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **P2** | 5 | 8 | Plugin `playback.livePreview` (réglage de l'aperçu : fréquence limitée ou application au relâchement pour les scènes lentes, calques masqués dans l'éditeur) | C7, L2 | E1 | `plugins/playback/livePreview/` | ☐ |
 | **I1** | 5 | 9 | Plugin `interaction.contextMenu` (repris, actions branchées sur les commandes) | K2, W1, Y8 | E1 | `plugins/interaction/contextMenu/` | ☐ |
 | **S1** | 6 | 9 | Plugin optionnel `properties.panel` (propriétés du registre filtrées par l'objet ciblé, valeurs lues avec `editor.sample()`) | W2, Y5, C7 | E1 | `plugins/properties/panel/` | ☐ |
-| **S2** | 6 | 5 | Plugin `persistence.json` (import/export, lecture des fichiers v1 via le migrateur, contrôle de forme de F06, cibles transmises telles quelles) | C4, R4, F06 | E1, B3 | `plugins/persistence/` | ☐ |
+| **S2** | 6 | 5 | Plugin `persistence.json` (import/export, lecture des fichiers v1 via le migrateur, contrôle de forme de F06, cibles transmises telles quelles) | C4, R4, F06 | E1, B3 | `plugins/persistence/` | ☑ |
 | **E1** | 6 | 10 | Démo de l'éditeur v2, dont une page « timeline seule + votre scène » (canvas + audio, et `stage: false`) + scénarios Playwright 1 à 10 et 9b | T2, T3, T4, P1, P2, C5, Y2, Y3, Y4, Y6, K3, W3, I1, S1, S2, C7, R8 | B3, Z1 | `demo/editor/`, `e2e/editor/` | ☐ |
 | **X1** | 7 | 4 | Package `export-css` (`@keyframes` + avertissements ; calques sans sélecteur et propriétés non CSS ignorés avec un avertissement) | R2 | X2 | `packages/export-css/` | ☑ |
 | **X2** | 7 | 5 | Scénario Playwright 12 (CSS exporté = `runtime` à l'image N) | X1, R3, F04 | D1 | `e2e/export-css/` | ☑ |
