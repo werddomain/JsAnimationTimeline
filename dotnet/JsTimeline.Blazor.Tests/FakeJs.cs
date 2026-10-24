@@ -62,9 +62,10 @@ internal sealed class FakeJsObject : IJSObjectReference
         try
         {
             // A handler may answer with a pending Task to hold the call open.
-            return Handler(identifier, args) is Task pending
+            var result = Handler(identifier, args);
+            return result is Task pending
                 ? new ValueTask<TValue>(AwaitAsync<TValue>(pending))
-                : new ValueTask<TValue>((TValue)Handler(identifier, args)!);
+                : new ValueTask<TValue>((TValue)result!);
         }
         catch (Exception error)
         {

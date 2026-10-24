@@ -58,7 +58,8 @@ Limites :
   - une `JSException` quand le lecteur refuse un document. Le lecteur garde le document précédent, et ce
     document refusé n'est pas renvoyé ; un nouveau document l'est ;
   - une `TimelineStageException` quand la scène échoue pendant la lecture, qui continue.
-  Sans gestionnaire, un document refusé est levé et une erreur de scène va dans la console du navigateur.
+  Sans gestionnaire (ou s'il est retiré plus tard), un document refusé est levé et une erreur de scène est
+  écrite dans la console du navigateur avec `console.error`.
   `Loop` et `Speed` s'appliquent même quand le document est refusé.
 - Le document refusé est reconnu par sa référence. Un parent qui crée un nouveau `TimelineDocument` à chaque
   rendu, avec un `OnError` qui le fait se redessiner, renvoie le document à chaque fois : garder le document

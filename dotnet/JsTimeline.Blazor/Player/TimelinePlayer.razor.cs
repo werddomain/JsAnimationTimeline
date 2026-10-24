@@ -83,7 +83,9 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
     /// <list type="bullet">
     /// <item>a <see cref="JSException"/> when it refuses a document (invalid document, or the stage
     /// refuses it); the refused instance is not sent again, a new instance is;</item>
-    /// <item>a <see cref="TimelineStageException"/> when the stage throws while playing (playback goes on).</item>
+    /// <item>a <see cref="TimelineStageException"/> when the stage throws while playing (playback goes on);</item>
+    /// <item>a <see cref="System.Text.Json.JsonException"/> when a document cannot be written as JSON
+    /// (for example a <see cref="LayerTarget"/> with two forms).</item>
     /// </list>
     /// A selector that matches nothing is not an error: see <see cref="TimelinePlayerState.MissingTargets"/>.
     /// Without a handler, a refused document is thrown to the renderer and a stage error goes to the
@@ -214,7 +216,9 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
         }
         if (_applyPending)
         {
-            return _applying;
+            // The pending application reads these parameters when it starts; its errors go to the
+            // caller that queued it.
+            return Task.CompletedTask;
         }
         _applyPending = true;
         var application = ApplyAfterAsync(_applying);
@@ -222,33 +226,61 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
         return ReportAfterAsync(application);
     }
 
-    private async Task<IReadOnlyList<JSException>> ApplyAfterAsync(Task previous)
+    private async Task<IReadOnlyList<Exception>> ApplyAfterAsync(Task previous)
     {
-        try
-        {
-            await previous;
-        }
-        catch (Exception)
-        {
-            // A previous application never faults (its errors are returned), but stay safe.
-        }
+        // Applications collect their errors instead of throwing, so the previous one never faults.
+        await previous;
         _applyPending = false;
-        var errors = new List<JSException>();
+        var errors = new List<Exception>();
         // Loop and Speed are applied even when the document is refused.
         await ApplyDataAsync(errors);
         await ApplyPlaybackAsync(errors);
         return errors;
     }
 
-    private async Task ReportAfterAsync(Task<IReadOnlyList<JSException>> application)
+    /// <summary>
+    /// Hands every error of an application to OnError. Without a handler, or when the handler throws,
+    /// the errors are thrown to the renderer once: the only one, or an InvalidOperationException
+    /// whose inner AggregateException holds them all.
+    /// </summary>
+    private async Task ReportAfterAsync(Task<IReadOnlyList<Exception>> application)
     {
-        foreach (var error in await application)
+        var errors = await application;
+        if (errors.Count == 0 || _disposed)
         {
-            await ReportAsync(error);
+            return;
+        }
+        var unhandled = new List<Exception>();
+        foreach (var error in errors)
+        {
+            if (!OnError.HasDelegate)
+            {
+                unhandled.Add(error);
+                continue;
+            }
+            try
+            {
+                await OnError.InvokeAsync(error);
+            }
+            catch (Exception failure)
+            {
+                unhandled.Add(failure);
+            }
+        }
+        if (unhandled.Count == 1)
+        {
+            ExceptionDispatchInfo.Capture(unhandled[0]).Throw();
+        }
+        if (unhandled.Count > 1)
+        {
+            // Not a bare AggregateException: the renderer would keep only its first inner exception.
+            throw new InvalidOperationException(
+                $"{nameof(TimelinePlayer)}: {unhandled.Count} errors while applying the parameters.",
+                new AggregateException(unhandled));
         }
     }
 
-    private async Task ApplyDataAsync(List<JSException> errors)
+    private async Task ApplyDataAsync(List<Exception> errors)
     {
         var (interop, data) = (_interop, Data);
         if (interop is null || ReferenceEquals(data, _appliedData) || ReferenceEquals(data, _refusedData))
@@ -264,16 +296,17 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
         {
             // Disposed or disconnected during the call: the player is gone with it.
         }
-        catch (JSException error)
+        catch (Exception error)
         {
-            // The player keeps the previous document. Remember the refused instance so a re-render of
-            // the parent (OnError re-renders it) does not send it again in a loop.
+            // Refused by the player (JSException) or not serializable: the player keeps the previous
+            // document. Remember the refused instance so a re-render of the parent (OnError re-renders
+            // it) does not send it again in a loop.
             _refusedData = data;
             errors.Add(error);
         }
     }
 
-    private async Task ApplyPlaybackAsync(List<JSException> errors)
+    private async Task ApplyPlaybackAsync(List<Exception> errors)
     {
         var (interop, loop, speed) = (_interop, Loop, Speed);
         if (interop is null)
@@ -297,7 +330,7 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
         {
             // Disposed or disconnected during a call: the player is gone with it.
         }
-        catch (JSException error)
+        catch (Exception error)
         {
             errors.Add(error);
         }
