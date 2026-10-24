@@ -114,6 +114,7 @@ describe('clicks inside the popup', () => {
     const onInput = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
     input?.dispatchEvent(onInput);
     dialog.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: editor.container }));
+    expect(popup(host)).not.toBeNull();
     const sun = Array.from(dialog.querySelectorAll<HTMLButtonElement>('.jt-target-popup__option'))[2];
     sun?.click();
 
@@ -241,6 +242,21 @@ describe('open popup follows the document', () => {
     // Assert
     expect(dialog).not.toBeNull();
     expect(pressed.map((button) => button.textContent)).toEqual(['Objet hero']);
+  });
+});
+
+describe('external changes while the popup is open', () => {
+  it('rebuilds the popup after a setTarget from the service', () => {
+    // Arrange
+    const { host, service } = mountTarget();
+    open(host, 'hero');
+
+    // Act
+    service.setTarget('hero', { ref: 'tree', stage: 'canvas' });
+    const pressed = Array.from(popup(host)?.querySelectorAll<HTMLButtonElement>('.jt-target-popup__option[aria-pressed="true"]') ?? []);
+
+    // Assert
+    expect(pressed.map((button) => button.textContent)).toEqual(['Objet tree']);
   });
 });
 

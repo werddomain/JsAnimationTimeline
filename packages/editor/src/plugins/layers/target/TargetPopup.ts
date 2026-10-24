@@ -155,7 +155,9 @@ function describeLabel(stage: IEditorStage, target: LayerTarget, fallback: strin
 
 /** Champ de saisie qui garde son comportement au mousedown (curseur, liste déroulante). */
 function isField(target: EventTarget | null): boolean {
-  return target instanceof HTMLInputElement || target instanceof HTMLSelectElement;
+  // Par le nom de balise : `instanceof` échouerait pour un document d'une autre fenêtre (iframe).
+  const tag = (target as { readonly tagName?: unknown } | null)?.tagName;
+  return tag === 'INPUT' || tag === 'SELECT';
 }
 
 /** Ouvre la fenêtre de choix pour `options.anchor`. */

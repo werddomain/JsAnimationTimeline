@@ -121,7 +121,7 @@ export class TargetPlugin implements EditorPlugin {
   private popup: IOpenPopup | null = null;
   /** Motif du dernier refus pendant une application (`command:refused`). */
   private refusal: string | undefined;
-  /** Vrai pendant l'exécution de la commande : la fenêtre se ferme juste après, inutile de la reconstruire. */
+  /** Vrai pendant une application lancée par la fenêtre (elle se ferme juste après) ; un `setTarget` externe la reconstruit. */
   private applying = false;
 
   readonly init = (ctx: IEditorContext): void => {
@@ -130,12 +130,21 @@ export class TargetPlugin implements EditorPlugin {
       return node !== undefined && isLayer(node) ? node : undefined;
     };
     const apply = (id: string, raw: unknown): ITargetApplyResult => this.applyTarget(ctx, layerOf(id), raw);
+    // Depuis la fenêtre : elle se ferme juste après, inutile de la reconstruire pendant la commande.
+    const applyFromPopup = (id: string, raw: unknown): ITargetApplyResult => {
+      this.applying = true;
+      try {
+        return apply(id, raw);
+      } finally {
+        this.applying = false;
+      }
+    };
     const service: ILayerTargetService = {
       setTarget: (id, target) => apply(id, target).kind === 'applied',
       alert: (id) => computeTargetAlert(ctx.stage, id, layerOf(id)?.target),
       open: (id) => {
         const button = control.button(id);
-        return button !== undefined && this.openPopup(ctx, id, button, apply);
+        return button !== undefined && this.openPopup(ctx, id, button, applyFromPopup);
       },
       close: () => this.closePopup(false)
     };
@@ -146,7 +155,7 @@ export class TargetPlugin implements EditorPlugin {
       alertOf: service.alert,
       onActivate: (id, button) => {
         if (this.popup?.layerId === id) this.closePopup(true);
-        else this.openPopup(ctx, id, button, apply);
+        else this.openPopup(ctx, id, button, applyFromPopup);
       },
       onDispose: (id) => {
         // La ligne disparaît : son bouton aussi, le focus va à l'éditeur.
@@ -159,7 +168,7 @@ export class TargetPlugin implements EditorPlugin {
       const layer = layerOf(open.layerId);
       if (layer === undefined) this.closePopup(false, true);
       else if (!this.applying && (layer.name !== open.name || !sameTarget(layer.target, open.target))) {
-        this.openPopup(ctx, open.layerId, open.button, apply);
+        this.openPopup(ctx, open.layerId, open.button, applyFromPopup);
       }
     };
     this.cleanups = [
@@ -193,13 +202,10 @@ export class TargetPlugin implements EditorPlugin {
     if (target === undefined) return { kind: 'refused', message: TargetPopupLabels.refused };
     if (sameTarget(layer.target, target)) return { kind: 'unchanged' };
     this.refusal = undefined;
-    this.applying = true;
     try {
       if (ctx.commands.execute(createSetTargetCommand(ctx.document, layer.id, target))) return { kind: 'applied' };
     } catch {
       return { kind: 'refused', message: TARGET_CANCELLED_MESSAGE };
-    } finally {
-      this.applying = false;
     }
     return { kind: 'refused', message: this.refusal ?? TARGET_CANCELLED_MESSAGE };
   }
