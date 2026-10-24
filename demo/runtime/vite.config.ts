@@ -1,14 +1,15 @@
 // demo/runtime/vite.config.ts
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+import { runtimePort } from '../../tools/devPorts';
 
 /**
  * Démo du runtime : lit le package depuis ses sources (pas de build préalable),
- * construit vers demo/runtime/dist avec des chemins relatifs, servie sur le
- * port 9001 pour les tests Playwright (même port que e2e/runtime/demoUrl.ts
- * et le script `dev` de demo/runtime/package.json).
+ * construit vers demo/runtime/dist avec des chemins relatifs, servie (dev et
+ * preview) sur `E2E_RUNTIME_PORT`, 9001 par défaut : le même port que lit
+ * Playwright (voir tools/devPorts.ts).
  */
-export const RUNTIME_DEMO_PORT = 9001;
+const RUNTIME_DEMO_PORT = runtimePort();
 
 export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
@@ -25,5 +26,6 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
   },
+  server: { port: RUNTIME_DEMO_PORT, strictPort: true },
   preview: { port: RUNTIME_DEMO_PORT, strictPort: true },
 });
