@@ -163,6 +163,10 @@ export class Player implements IPlayer {
     this.assertAlive();
     assertValidDocument(doc);
     this.host.load(doc);
+    if (this.destroyed) {
+      // onListenerError destroyed the player while the stages loaded the document.
+      return;
+    }
     this.doc = doc;
     this.transport.setTimeline(doc.settings);
   }

@@ -60,6 +60,14 @@ export class InlineStyleKeeper {
     }
   }
 
+  /**
+   * Puts back the original style of every held element, keeping the counters:
+   * a new document then rewrites only what its layers still animate.
+   */
+  restoreOriginals(): void {
+    this.held.forEach((entry, element) => restoreAttribute(element, entry.attribute));
+  }
+
   /** Restores every element still held. */
   restoreAll(): void {
     this.held.forEach((entry, element) => restoreAttribute(element, entry.attribute));

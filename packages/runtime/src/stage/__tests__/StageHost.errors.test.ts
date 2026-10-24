@@ -133,13 +133,13 @@ describe('refused documents', () => {
     second.calls.length = 0;
     refuse = true;
     expect(() => host.load(docOf([refLayer('l2', 'b')]))).toThrow(StageDocumentError);
-    expect(first.calls).toEqual(['release l1 A', 'resolve b', 'update l2', 'release l2 B', 'resolve a', 'update l1']);
-    expect(second.calls).toEqual(['release l3 C', 'update ', 'resolve c']);
+    expect(first.calls).toEqual(['release l1 A', 'resolve b', 'update l2', 'release l2 B', 'resolve a', 'update l1', 'sync paused', 'render 1']);
+    expect(second.calls).toEqual(['release l3 C', 'update ', 'resolve c', 'update l3', 'sync paused', 'render 1']);
+    expect(second.updates[second.updates.length - 1][0].object).toEqual({ name: 'C' });
     expect(host.missingTargets).toEqual(['l9']);
-    expect(host.warnings.map((w) => w.code)).toEqual(['unknown-stage']);
-    refuse = false;
-    host.render(timeAt(2));
-    expect(first.renders[0].states.map((s) => s.layerId)).toEqual(['l1']);
+    // The refusing stage refuses the previous document too: reported, not thrown.
+    expect(host.warnings.map((w) => w.code)).toEqual(['unknown-stage', 'stage-error']);
+    expect(first.renders[first.renders.length - 1].states.map((s) => s.layerId)).toEqual(['l1']);
   });
 
   it('rolls back a refused first document to nothing', () => {

@@ -21,13 +21,19 @@ export const WAAPI_MISSING_MESSAGE = 'The Web Animations API (Element.animate) i
 export class WaapiAnimations {
   private animations: Animation[] = [];
   private duration = 0;
+  private source: { readonly doc: ITimelineDocument; readonly layers: readonly IStageLayer<Element>[] } | null = null;
 
   /**
    * Replaces the animations by those of `doc`. All or nothing: when a target
    * fails, the new animations are cancelled and the old ones kept; a target
-   * without `Element.animate` throws a `StageDocumentError`.
+   * without `Element.animate` throws a `StageDocumentError`. Nothing is
+   * rebuilt for the same document, layers and elements (e.g. the document
+   * given back after a refused one): the next `sync` realigns them.
    */
   rebuild(doc: ITimelineDocument, layers: readonly IStageLayer<Element>[], registry: PropertyRegistry): void {
+    if (this.isSameSource(doc, layers)) {
+      return;
+    }
     const duration = timelineDuration(doc.settings);
     const created: Animation[] = [];
     try {
@@ -50,6 +56,13 @@ export class WaapiAnimations {
     this.cancel();
     this.animations = created;
     this.duration = duration;
+    this.source = { doc, layers: layers.slice() };
+  }
+
+  private isSameSource(doc: ITimelineDocument, layers: readonly IStageLayer<Element>[]): boolean {
+    const source = this.source;
+    return source !== null && source.doc === doc && source.layers.length === layers.length &&
+      source.layers.every((old, i) => old.layer === layers[i].layer && old.object === layers[i].object);
   }
 
   /** Aligns every animation on the time, rate and play state. */
@@ -72,5 +85,6 @@ export class WaapiAnimations {
   cancel(): void {
     this.animations.forEach((animation) => animation.cancel());
     this.animations = [];
+    this.source = null;
   }
 }

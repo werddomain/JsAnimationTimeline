@@ -10,8 +10,12 @@
  * 5. puis `update(doc, calquesLiés)` ; le propriétaire appelle ensuite `sync`
  *    et `render` de l'image courante ;
  * 6. fin : `release` de chaque calque, puis `detach`.
- * Une `StageDocumentError` levée par `update` annule le document (retour au
- * précédent) et remonte ; toute autre erreur est signalée par `StageReporter`.
+ * Une `StageDocumentError` levée par `update` annule le document : retour au
+ * précédent, `update` de toutes les scènes avec lui, puis `sync` et `render`
+ * de l'instant courant, et l'erreur remonte. Toute autre erreur est signalée
+ * par `StageReporter`. Si `onError` détruit l'hôte pendant un chargement,
+ * plus rien n'est résolu ni appliqué. Un changement de cibles signalé pendant
+ * un chargement est traité à la fin de celui-ci.
  */
 
 import { collectLayers } from '../evaluate/evaluateDocument';
@@ -25,7 +29,7 @@ import { isStageDocumentError, StageReportCodes } from './reports';
 import type { IStageReport } from './reports';
 import { assertValidStages, routeTarget, sameTarget } from './routing';
 import { StageReporter } from './StageReporter';
-import type { StageErrorHandler } from './StageReporter';
+import type { IStageReporterState, StageErrorHandler } from './StageReporter';
 import type { IStage, IStageContext, IStageLayer } from './types';
 
 /** Current position and play state, read when targets are refreshed. */
@@ -78,6 +82,9 @@ export class StageHost {
   private unsubscribers: Array<{ readonly stageId: string; readonly unsubscribe: () => void }> = [];
   private attached = false;
   private destroyed = false;
+  private loading = false;
+  /** Stages whose targets changed during a load; retried when it ends. */
+  private readonly pendingRetries = new Set<IStage>();
 
   /** Throws for a malformed stage or a duplicate stage id. */
   constructor(options: IStageHostOptions) {
@@ -104,27 +111,15 @@ export class StageHost {
    */
   load(doc: ITimelineDocument): void {
     this.assertAlive();
-    const saved: IHostState = { doc: this.doc, bindings: new Map(this.bindings), prepared: this.prepared };
-    const savedReports = this.reporter.save();
-    this.reporter.reset();
-    this.attach();
-    const layers = collectLayers(doc);
-    this.releaseStale(layers);
-    this.prepared = new Map();
-    layers.forEach((layer) => this.bindLayer(layer));
-    this.doc = doc;
-    this.refreshDerived();
-    const updated: IStage[] = [];
-    for (const stage of this.stages) {
-      try {
-        this.updateStage(stage, true);
-        updated.push(stage);
-      } catch (error) {
-        this.rollback(saved, updated);
-        this.reporter.restore(savedReports);
-        throw error;
-      }
+    this.loading = true;
+    try {
+      this.loadDocument(doc);
+    } finally {
+      this.loading = false;
     }
+    const pending = Array.from(this.pendingRetries);
+    this.pendingRetries.clear();
+    pending.forEach((stage) => this.onTargetsChanged(stage));
   }
 
   /** `sync` of every stage implementing it. */
@@ -159,6 +154,33 @@ export class StageHost {
     this.stageLayers.clear();
   }
 
+  private loadDocument(doc: ITimelineDocument): void {
+    const saved: IHostState = { doc: this.doc, bindings: new Map(this.bindings), prepared: this.prepared };
+    const savedReports = this.reporter.save();
+    this.reporter.reset();
+    this.attach();
+    const layers = collectLayers(doc);
+    this.releaseStale(layers);
+    this.prepared = new Map();
+    layers.forEach((layer) => this.bindLayer(layer));
+    if (this.destroyed) {
+      return;
+    }
+    this.doc = doc;
+    this.refreshDerived();
+    for (const stage of this.stages) {
+      try {
+        this.updateStage(stage, true);
+      } catch (error) {
+        this.rollback(saved, savedReports);
+        throw error;
+      }
+      if (this.destroyed) {
+        return;
+      }
+    }
+  }
+
   private assertAlive(): void {
     if (this.destroyed) {
       throw new Error('The stages were destroyed.');
@@ -171,6 +193,9 @@ export class StageHost {
     }
     this.attached = true;
     for (const stage of this.stages) {
+      if (this.destroyed) {
+        return;
+      }
       this.reporter.guard(stage.id, undefined, () => stage.attach?.(this.createContext(stage)), undefined);
       const subscribe = stage.targets?.subscribe;
       if (typeof subscribe === 'function') {
@@ -191,6 +216,10 @@ export class StageHost {
   }
 
   private onTargetsChanged(stage: IStage): void {
+    if (this.loading) {
+      this.pendingRetries.add(stage);
+      return;
+    }
     if (!this.destroyed && this.doc !== null) {
       this.retry((binding) => binding.stage === stage);
     }
@@ -200,6 +229,9 @@ export class StageHost {
   private releaseStale(layers: readonly ILayer[]): void {
     const byId = new Map(layers.map((layer) => [layer.id, layer]));
     for (const [id, binding] of Array.from(this.bindings)) {
+      if (this.destroyed) {
+        return;
+      }
       const layer = byId.get(id);
       if (layer === undefined || !sameTarget(layer.target, binding.target)) {
         this.release(binding);
@@ -211,11 +243,12 @@ export class StageHost {
   /** Keeps the cached binding of `layer`, or routes and resolves it. */
   private bindLayer(layer: ILayer): void {
     const target = layer.target;
-    if (target === undefined) {
+    if (target === undefined || this.destroyed) {
       return;
     }
     let binding = this.bindings.get(layer.id);
     if (binding === undefined) {
+      // A throwing `accepts` counts as false for this document; it is routed again on the next one, not on refresh.
       const route = routeTarget(target, this.stages, (stage, t) => this.reporter.guard(stage.id, layer.id, () => stage.accepts(t) === true, false));
       if (route.kind !== 'stage') {
         this.reportUnrouted(layer.id, route.kind === 'unknown-stage' ? route.stageId : undefined);
@@ -243,6 +276,9 @@ export class StageHost {
   }
 
   private resolve(layerId: string, target: LayerTarget, stage: IStage): IBinding {
+    if (this.destroyed) {
+      return { layerId, target, stage, object: null, resolved: false };
+    }
     const object = this.reporter.guard(stage.id, layerId, () => stage.resolve(target), null);
     const resolved = object !== null && object !== undefined;
     return { layerId, target, stage, object: resolved ? object : null, resolved };
@@ -270,7 +306,7 @@ export class StageHost {
 
   /** `update` of `stage`; a `StageDocumentError` is rethrown when `canRefuse`, every other error reported. */
   private updateStage(stage: IStage, canRefuse: boolean): void {
-    if (typeof stage.update !== 'function' || this.doc === null) {
+    if (typeof stage.update !== 'function' || this.doc === null || this.destroyed) {
       return;
     }
     try {
@@ -283,8 +319,12 @@ export class StageHost {
     }
   }
 
-  /** Back to `saved`: new objects released, released ones resolved again, stages updated again. */
-  private rollback(saved: IHostState, updated: readonly IStage[]): void {
+  /**
+   * Back to `saved`: new objects released, released ones resolved again, then
+   * `update` of every stage with the previous document, and `sync` and
+   * `render` of the current time.
+   */
+  private rollback(saved: IHostState, savedReports: IStageReporterState): void {
     const restored = new Map<string, IBinding>();
     this.bindings.forEach((binding, id) => {
       if (saved.bindings.get(id) !== binding) {
@@ -299,13 +339,30 @@ export class StageHost {
     this.prepared = new Map(saved.prepared);
     this.doc = saved.doc;
     this.refreshDerived();
-    updated.forEach((stage) => this.updateStage(stage, false));
+    this.reporter.restore(savedReports);
+    this.reapply(this.stages);
+  }
+
+  /** `update`, `sync` and `render` of `stages` at the current time. */
+  private reapply(stages: Iterable<IStage>): void {
+    if (this.doc === null) {
+      return;
+    }
+    for (const stage of stages) {
+      if (this.destroyed) {
+        return;
+      }
+      this.updateStage(stage, false);
+      const { time, state } = this.now();
+      this.syncStage(stage, time, state);
+      this.renderStage(stage, time);
+    }
   }
 
   private retry(filter: (binding: IBinding) => boolean): void {
     const changed = new Set<IStage>();
     for (const [id, binding] of Array.from(this.bindings)) {
-      if (!binding.resolved && filter(binding)) {
+      if (!binding.resolved && !this.destroyed && filter(binding)) {
         const next = this.resolve(id, binding.target, binding.stage);
         this.bindings.set(id, next);
         if (next.resolved) {
@@ -317,12 +374,7 @@ export class StageHost {
       return;
     }
     this.refreshDerived();
-    const { time, state } = this.now();
-    changed.forEach((stage) => {
-      this.updateStage(stage, false);
-      this.syncStage(stage, time, state);
-      this.renderStage(stage, time);
-    });
+    this.reapply(changed);
   }
 
   private syncStage(stage: IStage, time: ITransportTime, state: ITransportSyncState): void {

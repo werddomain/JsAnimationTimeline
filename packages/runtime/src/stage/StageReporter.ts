@@ -4,7 +4,8 @@
  * - un avertissement n'est ajouté qu'une fois (même code, scène, calque,
  *   propriété) ;
  * - une erreur de scène part dans `onError` la première fois par scène et par
- *   calque, puis elle est ignorée jusqu'au prochain document (`reset`).
+ *   calque, puis elle est ignorée jusqu'au prochain document (`reset`) ;
+ * - une erreur levée par `onError` lui-même est relancée en asynchrone.
  */
 
 import { StageReportCodes } from './reports';
@@ -26,6 +27,18 @@ function reportKey(report: IStageReport): string {
 
 function errorKey(stageId: string, layerId: string | undefined): string {
   return layerId === undefined ? stageId : `${stageId}\u0000${layerId}`;
+}
+
+/** The timer every JavaScript host provides (typed here without the DOM or Node libs). */
+interface ITimerHost {
+  setTimeout(callback: () => void, delayMs: number): unknown;
+}
+
+/** Rethrows outside the caller's stack. */
+function rethrowAsync(error: unknown): void {
+  (globalThis as unknown as ITimerHost).setTimeout(() => {
+    throw error;
+  }, 0);
 }
 
 function describeError(error: unknown): string {
@@ -74,7 +87,11 @@ export class StageReporter {
     this.keys.add(key);
     const frozen = Object.freeze({ ...report });
     this.reports.push(frozen);
-    this.onReport?.(frozen);
+    try {
+      this.onReport?.(frozen);
+    } catch (handlerError) {
+      rethrowAsync(handlerError);
+    }
   }
 
   /** An error thrown by a stage (or reported by it): the first per stage and layer goes to `onError`. */
@@ -92,7 +109,12 @@ export class StageReporter {
       error,
       message: `Stage "${stageId}"${where} threw: ${describeError(error)}`
     });
-    this.onError(error);
+    // A throwing handler must not leave a load or a destroy half done.
+    try {
+      this.onError(error);
+    } catch (handlerError) {
+      rethrowAsync(handlerError);
+    }
   }
 
   /** Runs `action`; a thrown error is reported and `fallback` returned. */

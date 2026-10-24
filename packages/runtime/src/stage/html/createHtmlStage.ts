@@ -118,7 +118,10 @@ function createWaapiStage(core: IHtmlStageCore, base: Omit<IHtmlStage, 'mode'>):
       reportDuplicates(core, layers);
     },
     sync: (time, state) => animations.sync(time, state),
-    detach: () => animations.cancel()
+    detach: () => {
+      animations.cancel();
+      core.ctx = null;
+    }
   };
 }
 
@@ -137,6 +140,9 @@ function createFrameStage(core: IHtmlStageCore, base: Omit<IHtmlStage, 'mode'>):
       return element;
     },
     update(doc: ITimelineDocument, layers: readonly IStageLayer<Element>[]): void {
+      // Styles of the previous document go away (tracks or visibility no longer animated); render rewrites the rest.
+      keeper.restoreOriginals();
+      hiddenByEditor.clear();
       managed = new Map(layers.map(({ layerId, layer }) => [layerId, needsVisibility(layer, doc.settings.totalFrames)]));
       reportDuplicates(core, layers);
     },
@@ -161,6 +167,7 @@ function createFrameStage(core: IHtmlStageCore, base: Omit<IHtmlStage, 'mode'>):
     detach(): void {
       keeper.restoreAll();
       hiddenByEditor.clear();
+      core.ctx = null;
     }
   };
 }

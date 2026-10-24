@@ -184,6 +184,7 @@ describe('frame mode', () => {
     expect(host.warnings.map((w) => [w.code, w.layerId])).toEqual([['duplicate-target', 'b']]);
     host.render(timeAt(4));
     host.load(docOf([layer('b', { element: el('box') })]));
+    host.render(timeAt(4));
     expect(el('box').style.getPropertyValue('transform')).toContain('translateX(30px)');
     host.load(docOf([]));
     expect(el('box').getAttribute('style')).toBe('color: red');
