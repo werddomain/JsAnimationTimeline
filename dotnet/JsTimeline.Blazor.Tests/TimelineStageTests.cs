@@ -264,6 +264,37 @@ public sealed class TimelineStageTests
     }
 
     [Fact]
+    public async Task Handle_dispose_gives_up_on_a_stop_that_never_answers()
+    {
+        var js = new FakeJsRuntime();
+        var jsStage = new FakeJsObject { Handler = (identifier, _) => identifier == "stop" ? new TaskCompletionSource().Task : null };
+        js.Module.Handler = (identifier, _) => identifier == "createDotNetStage" ? jsStage : null;
+        var handle = await DotNetStageHandle.CreateAsync(js, new RecordingStage(), FrameCallbackMode.IntegerFrames);
+
+        var disposing = handle.DisposeAsync().AsTask();
+        var finished = await Task.WhenAny(disposing, Task.Delay(DotNetStageHandle.DisposeTimeout * 3));
+
+        Assert.Same(disposing, finished);
+        Assert.True(jsStage.Disposed);
+        Assert.True(js.Module.Disposed);
+    }
+
+    [Fact]
+    public async Task Handle_creation_cancelled_after_the_import_skips_the_stage_and_releases_the_module()
+    {
+        var js = new FakeJsRuntime(resolveImport: false);
+        using var cancellation = new CancellationTokenSource();
+
+        var creating = DotNetStageHandle.CreateAsync(js, new RecordingStage(), FrameCallbackMode.IntegerFrames, cancellation.Token);
+        cancellation.Cancel();
+        js.Import.SetResult(js.Module);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => creating);
+        Assert.DoesNotContain("createDotNetStage", js.Module.Calls);
+        Assert.True(js.Module.Disposed);
+    }
+
+    [Fact]
     public async Task Handle_creation_cancelled_before_it_starts_calls_no_script()
     {
         var js = new FakeJsRuntime();
@@ -343,10 +374,41 @@ public sealed class TimelineStageTests
         Assert.Equal(TimelineStageOption.JsModule("./a.js"), TimelineStageOption.JsModule("./a.js"));
         Assert.NotEqual(TimelineStageOption.DotNet(stage), TimelineStageOption.DotNet(stage, FrameCallbackMode.EveryTick));
         Assert.Equal(TimelineStageOption.DotNet(stage), TimelineStageOption.DotNet(stage));
+        Assert.True(TimelineStageOption.JsModule("./a.js") == TimelineStageOption.JsModule("./a.js"));
+        Assert.True(TimelineStageOption.Html() != TimelineStageOption.None());
+        Assert.True((TimelineStageOption?)null == null);
+        Assert.False(TimelineStageOption.Html() == null);
         Assert.Equal("./js/myStage.js", Assert.IsType<JsModuleStageOption>(TimelineStageOption.JsModule("./js/myStage.js")).ModulePath);
         var dotNet = Assert.IsType<DotNetStageOption>(TimelineStageOption.DotNet(stage));
         Assert.Same(stage, dotNet.Stage);
         Assert.Equal(FrameCallbackMode.IntegerFrames, dotNet.Mode);
+    }
+
+    /// <summary>A stage whose own equality says every instance is the same.</summary>
+    public sealed class AlwaysEqualStage : ITimelineStage
+    {
+        public string Id => "dotnet";
+
+        public IReadOnlyList<TimelineStageTarget> Targets => [];
+
+        public IReadOnlyList<TimelineStageProperty> Properties => [];
+
+        public Task RenderAsync(TimelineStageFrame frame, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public override bool Equals(object? obj) => obj is AlwaysEqualStage;
+
+        public override int GetHashCode() => 1;
+    }
+
+    [Fact]
+    public void A_DotNet_option_compares_its_stage_by_reference()
+    {
+        var first = TimelineStageOption.DotNet(new AlwaysEqualStage());
+        var second = TimelineStageOption.DotNet(new AlwaysEqualStage());
+
+        Assert.NotEqual(first, second);
+        Assert.Equal(first, TimelineStageOption.DotNet(((DotNetStageOption)first).Stage));
+        Assert.Equal(first.GetHashCode(), TimelineStageOption.DotNet(((DotNetStageOption)first).Stage).GetHashCode());
     }
 
     [Fact]

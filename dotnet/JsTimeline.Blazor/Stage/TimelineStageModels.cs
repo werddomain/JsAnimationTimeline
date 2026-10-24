@@ -75,9 +75,11 @@ public sealed record TimelineStageReleasedLayer(string LayerId, LayerTarget Targ
 /// <param name="IntegerFrame">Displayed frame, 1..TotalFrames.</param>
 /// <param name="Layers">Layers of the stage, in document order.</param>
 /// <param name="Released">
-/// Layers removed or retargeted since the previous frame sent, each once with its old target. Apply
-/// them before <paramref name="Layers"/>: a retargeted layer is in both lists. When the editor or
-/// player ends (or changes stage), a last frame with no layers carries the final releases.
+/// Layers removed or retargeted since the previous frame sent, with the target they had. Apply them
+/// before <paramref name="Layers"/>: a retargeted layer is in both lists. A layer can appear more than
+/// once (one entry per target it lost, for example a retarget then a removal between two frames); an
+/// entry whose layer and target were never sent in <paramref name="Layers"/> must be ignored. When the
+/// editor or player ends (or changes stage), a last frame with no layers carries the final releases.
 /// </param>
 public sealed record TimelineStageFrame(
     double TimeMs,
