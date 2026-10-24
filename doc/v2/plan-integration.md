@@ -119,7 +119,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **X1** | 7 | 4 | Package `export-css` (`@keyframes` + avertissements ; calques sans sélecteur et propriétés non CSS ignorés avec un avertissement) | R2 | X2 | `packages/export-css/` | ☑ |
 | **X2** | 7 | 5 | Scénario Playwright 12 (CSS exporté = `runtime` à l'image N) | X1, R3, F04 | D1 | `e2e/export-css/` | ☑ |
 | **B1** | 8 | 5 | Razor Class Library : squelette, copie des builds dans `wwwroot`, modèle C# généré depuis le schéma (cible `Selector` / `Ref` / `Stage`) | F02, F05, F06 | B2, B3 | `dotnet/` | ☑ |
-| **B2** | 8 | 6 | Composant Blazor `TimelinePlayer` | B1, R3 | B4 | `dotnet/JsTimeline.Blazor/Player/` | ☐ |
+| **B2** | 8 | 6 | Composant Blazor `TimelinePlayer` | B1, R3 | B4 | `dotnet/JsTimeline.Blazor/Player/` | ☑ |
 | **B3** | 8 | 11 | Composant Blazor `TimelineEditor` (liaison des données, callbacks d'événements, paramètre `Stage` : HTML, module JS, scène C# `ITimelineStage` ou aucune) | B1, S2, E1, C7 | B4 | `dotnet/JsTimeline.Blazor/Editor/` | ☐ |
 | **B4** | 8 | 12 | Appli Blazor d'exemple (dont une page où un composant C# reçoit les images) + tests bUnit + `dotnet pack` en CI | B2, B3 | D1 | `dotnet/samples/`, `dotnet/*.Tests/` | ☐ |
 | **Z1** | 9 | 11 | Suppression de `packages/editor/src/legacy` et de l'ancienne démo | E1 | D1 | `packages/editor/src/legacy/` | ☐ |
