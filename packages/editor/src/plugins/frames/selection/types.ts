@@ -51,7 +51,9 @@ export interface IFramesSelectionService {
   /**
    * Sélectionne le rectangle de l'ancre à `to` (Maj+clic), en remplaçant la
    * sélection ou, si `additive`, en la complétant. Sans ancre : comme
-   * `select`, ou, si `additive`, `to` est ajoutée et devient l'ancre.
+   * `select` (une cellule invalide vide la sélection), ou, si `additive`,
+   * `to` est ajoutée et devient l'ancre. Avec une ancre, une cellule `to`
+   * invalide ne change rien.
    */
   selectRange(to: IFrameCell, additive?: boolean): void;
   /** Remplace la sélection par `cells` (cellules invalides ignorées) ; l'ancre va sur la dernière. */

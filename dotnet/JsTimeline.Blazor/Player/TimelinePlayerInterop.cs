@@ -6,15 +6,15 @@ using Microsoft.JSInterop;
 namespace JsTimeline.Blazor.Player;
 
 /// <summary>Options handed to <c>createTimelinePlayer</c> (serialized in camelCase by the JS runtime).</summary>
-internal sealed record TimelinePlayerJsOptions(bool Autoplay, bool Loop, double Speed, bool NotifyFrames, bool NotifyErrors);
+internal sealed record TimelinePlayerJsOptions(bool Autoplay, bool Loop, double Speed, bool NotifyFrames);
 
 /// <summary>Receives the events of the JavaScript player and hands them to the component.</summary>
 internal sealed class TimelinePlayerEventSink
 {
     private readonly Func<string, int, Task> _onEvent;
-    private readonly Func<string, Task> _onError;
+    private readonly Func<string, Task<bool>> _onError;
 
-    public TimelinePlayerEventSink(Func<string, int, Task> onEvent, Func<string, Task> onError)
+    public TimelinePlayerEventSink(Func<string, int, Task> onEvent, Func<string, Task<bool>> onError)
     {
         _onEvent = onEvent;
         _onError = onError;
@@ -24,9 +24,12 @@ internal sealed class TimelinePlayerEventSink
     [JSInvokable]
     public Task OnPlayerEvent(string name, int frame) => _onEvent(name, frame);
 
-    /// <summary>Called by TimelinePlayer.razor.js when the stage or a listener threw; playback goes on.</summary>
+    /// <summary>
+    /// Called by TimelinePlayer.razor.js when the stage or a listener threw; playback goes on.
+    /// Returns false when .NET does not handle it, so the script logs it.
+    /// </summary>
     [JSInvokable]
-    public Task OnPlayerError(string message) => _onError(message);
+    public Task<bool> OnPlayerError(string message) => _onError(message);
 }
 
 /// <summary>Typed calls to TimelinePlayer.razor.js and to the player object it creates.</summary>

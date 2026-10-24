@@ -53,9 +53,15 @@ export function drawScene(context: CanvasRenderingContext2D, sprites: readonly I
   });
 }
 
-/** Creates the `canvas` stage drawing on `context`; what it receives goes to `received`. */
-export function createCanvasStage(context: CanvasRenderingContext2D, received: IReceivedFrame[]): IObjectStage<ISprite> {
-  const hero = createSprite();
+/**
+ * Creates the `canvas` stage drawing on `context`; what it receives goes to `received`.
+ * The `hero` sprite is the one animated (the caller can read it).
+ */
+export function createCanvasStage(
+  context: CanvasRenderingContext2D,
+  received: IReceivedFrame[],
+  hero: ISprite = createSprite()
+): IObjectStage<ISprite> {
   return createObjectStage<ISprite>({
     id: CANVAS_STAGE_ID,
     properties: [
