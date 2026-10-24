@@ -1,0 +1,42 @@
+<Project>
+  <!--
+    dotnet/JsTimeline.Blazor/build/JsTimeline.Model.targets
+    Generates obj/.../Generated/TimelineModel.g.cs from schema/timeline.schema.json before each compile.
+    The file is never committed: the schema stays the only source of the C# and TypeScript models.
+  -->
+  <PropertyGroup>
+    <JsTimelineSchemaFile>$(JsTimelineRepoRoot)schema\timeline.schema.json</JsTimelineSchemaFile>
+    <JsTimelineModelNamespace>JsTimeline.Blazor.Model</JsTimelineModelNamespace>
+    <JsTimelineSchemaGenProject>$(MSBuildThisFileDirectory)..\..\tools\JsTimeline.SchemaGen\JsTimeline.SchemaGen.csproj</JsTimelineSchemaGenProject>
+  </PropertyGroup>
+
+  <Target Name="_JsTimelineModelPaths">
+    <PropertyGroup>
+      <JsTimelineModelFile>$(IntermediateOutputPath)Generated\TimelineModel.g.cs</JsTimelineModelFile>
+    </PropertyGroup>
+    <MSBuild Projects="$(JsTimelineSchemaGenProject)" Targets="GetTargetPath" Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" PropertyName="_JsTimelineSchemaGenDll" />
+    </MSBuild>
+    <Error Condition="!Exists('$(JsTimelineSchemaFile)')" Text="The timeline schema is missing: $(JsTimelineSchemaFile)." />
+  </Target>
+
+  <Target Name="JsTimelineGenerateModel"
+          DependsOnTargets="ResolveProjectReferences;_JsTimelineModelPaths"
+          BeforeTargets="CoreCompile"
+          Inputs="$(JsTimelineSchemaFile);$(_JsTimelineSchemaGenDll)"
+          Outputs="$(JsTimelineModelFile)">
+    <PropertyGroup>
+      <_JsTimelineDotnet>$(DOTNET_HOST_PATH)</_JsTimelineDotnet>
+      <_JsTimelineDotnet Condition="'$(_JsTimelineDotnet)' == ''">dotnet</_JsTimelineDotnet>
+    </PropertyGroup>
+    <Exec Command="&quot;$(_JsTimelineDotnet)&quot; &quot;$(_JsTimelineSchemaGenDll)&quot; &quot;$(JsTimelineSchemaFile)&quot; &quot;$(JsTimelineModelFile)&quot; $(JsTimelineModelNamespace) schema/timeline.schema.json" />
+  </Target>
+
+  <!-- Separate from the generation target so the file is compiled even when generation is skipped as up to date. -->
+  <Target Name="JsTimelineCompileModel" AfterTargets="JsTimelineGenerateModel" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Compile Include="$(JsTimelineModelFile)" />
+      <FileWrites Include="$(JsTimelineModelFile)" />
+    </ItemGroup>
+  </Target>
+</Project>

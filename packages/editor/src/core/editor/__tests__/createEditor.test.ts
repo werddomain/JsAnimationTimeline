@@ -223,6 +223,7 @@ describe('createEditor plugin sets', () => {
     // Assert
     expect(first.map((plugin) => plugin.id)).toEqual([
       'layout',
+      'layers',
       'interaction.shortcuts',
       'toolbar',
       'persistence.json',
