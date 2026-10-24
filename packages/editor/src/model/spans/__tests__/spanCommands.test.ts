@@ -107,6 +107,14 @@ describe('createSpanCommands', () => {
     expect(() => command.do(locked)).toThrow(CommandRefusedError);
   });
 
+  it("oublie l'état d'avant quand un nouveau do ne change rien", () => {
+    const command = commands.insertKeyframe('l1', 5);
+    command.do(createDoc([layer('l1', [{ id: 'a', start: 1, end: 10, kind: 'static' }])]));
+    const unchanged = createDoc([layer('l1', [{ id: 'a', start: 1, end: 4, kind: 'static' }, { id: 'b', start: 5, end: 10, kind: 'blank' }])]);
+    expect(command.do(unchanged)).toBe(unchanged);
+    expect(command.undo(unchanged)).toBe(unchanged);
+  });
+
   it("transforme un échec d'évaluation en refus", () => {
     const throwing = createSpanCommands({ require: () => { throw new TypeError('registre cassé'); } } as unknown as ReturnType<typeof createRegistry>);
     const doc = createDoc([layer('l1', [{ id: 'a', start: 1, end: 10, kind: 'static', tracks: { x: [{ frame: 1, value: 1 }] } }])]);

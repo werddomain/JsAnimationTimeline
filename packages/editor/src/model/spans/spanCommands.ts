@@ -92,6 +92,7 @@ function createSpanCommand(label: string, layerId: string, operation: Operation)
   return Object.freeze({
     label,
     do: (doc: ITimelineDocument): ITimelineDocument => {
+      snapshot = undefined;
       const next = run(label, operation, doc);
       if (next !== doc) snapshot = snapshotOf(doc, next, layerId);
       return next;

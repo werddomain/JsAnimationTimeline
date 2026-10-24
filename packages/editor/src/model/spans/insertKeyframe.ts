@@ -20,8 +20,16 @@
  * images clés jusqu'à N - 1 et reçoit à N - 1 les valeurs évaluées, pour
  * que l'animation finisse là où elle en était.
  *
+ * Sur une image qui est déjà une image clé (début d'une plage), F6 et F7 ne
+ * changent rien.
+ *
  * Les valeurs sont calculées avec le registre de propriétés reçu (celui de
  * l'éditeur), jamais avec le registre par défaut.
+ *
+ * Limite connue : l'accélération s'applique à toute la plage. Dans une
+ * interpolation accélérée, la valeur posée à N est exacte à l'insertion,
+ * mais les images voisines sont relues à leur position accélérée : la
+ * courbe change un peu (exact avec `linear`).
  */
 
 import type {
