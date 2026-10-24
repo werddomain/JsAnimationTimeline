@@ -51,6 +51,8 @@ describe('collectTsFiles', () => {
     touch('demo/runtime/other/skip.ts');
     touch('demo/readme.ts');
     touch('demo/editor/src/app.ts');
+    touch('demo/node_modules/pkg/src/skip.ts');
+    touch('demo/dist-x/src/skip.ts');
     expect(collectTsFiles(root)).toEqual([
       'demo/editor/src/app.ts',
       'demo/runtime/src/main.ts',
