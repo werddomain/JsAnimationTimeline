@@ -121,8 +121,17 @@ export class ToolbarMainPlugin implements EditorPlugin {
     root.append(scene, itemsHost);
     slot.appendChild(root);
     this.view = { root, sceneName, itemsHost, groups: new Map(), mounted: new Map() };
-    state.items.all().forEach((entry) => this.mount(entry));
+    // Un élément qui échoue n'empêche pas les autres d'être dessinés.
+    const failures: unknown[] = [];
+    state.items.all().forEach((entry) => {
+      try {
+        this.mount(entry);
+      } catch (error) {
+        failures.push(error);
+      }
+    });
     this.arrange();
+    if (failures.length > 0) throw failures[0];
   }
 
   destroy(): void {
@@ -149,9 +158,19 @@ export class ToolbarMainPlugin implements EditorPlugin {
   private refresh(): void {
     const view = this.view;
     if (view === null) return;
+    // Un `enabled()` qui lève désactive son bouton sans bloquer les suivants.
+    const failures: unknown[] = [];
     view.mounted.forEach((mounted, entry) => {
-      if (entry.kind === 'button') (mounted.element as HTMLButtonElement).disabled = !isEnabled(entry.definition);
+      if (entry.kind !== 'button') return;
+      const button = mounted.element as HTMLButtonElement;
+      try {
+        button.disabled = !isEnabled(entry.definition);
+      } catch (error) {
+        button.disabled = true;
+        failures.push(error);
+      }
     });
+    if (failures.length > 0) throw failures[0];
   }
 
   private createService(): IToolbarMainService {
@@ -208,32 +227,32 @@ export class ToolbarMainPlugin implements EditorPlugin {
     if (this.view !== null) this.view.sceneName.textContent = this.sceneName;
   }
 
-  /** Crée le DOM d'un élément ; un contrôle dont `render` lève est retiré du registre. */
+  /**
+   * Crée le DOM d'un élément. Si sa création lève (`render` d'un contrôle,
+   * `enabled()` d'un bouton), l'élément est retiré du registre.
+   */
   private mount(entry: ToolbarEntry): void {
     const view = this.view;
     const state = this.state;
     if (view === null || state === null) return;
     const doc = view.root.ownerDocument;
-    if (entry.kind === 'button') {
-      view.mounted.set(entry, { element: this.createButton(doc, entry, state.shortcuts) });
-      return;
-    }
-    const element = doc.createElement('div');
-    element.classList.add(`${TOOLBAR_CLASS}__control`);
-    element.dataset.toolbarItem = entry.info.id;
-    element.setAttribute('role', 'group');
-    element.setAttribute('aria-label', entry.info.label);
-    let cleanup: (() => void) | void;
     try {
-      cleanup = entry.definition.render(element);
+      const mounted =
+        entry.kind === 'button'
+          ? { element: this.createButton(doc, entry, state.shortcuts) }
+          : createControl(doc, entry);
+      view.mounted.set(entry, mounted);
     } catch (error) {
       state.items.remove(entry);
       throw error;
     }
-    view.mounted.set(entry, typeof cleanup === 'function' ? { element, cleanup } : { element });
   }
 
-  private createButton(doc: Document, entry: Extract<ToolbarEntry, { kind: 'button' }>, shortcuts: IShortcutsService): HTMLElement {
+  private createButton(
+    doc: Document,
+    entry: Extract<ToolbarEntry, { kind: 'button' }>,
+    shortcuts: IShortcutsService
+  ): HTMLElement {
     const { definition, info } = entry;
     const button = doc.createElement('button');
     button.type = 'button';
@@ -266,8 +285,13 @@ export class ToolbarMainPlugin implements EditorPlugin {
     if (view === null || state === null) return;
     const layout = state.items.layout();
     const used = new Set<string>();
-    layout.forEach(({ group, entries }) => {
-      used.add(group);
+    layout.forEach(({ group }) => used.add(group));
+    view.groups.forEach((element, group) => {
+      if (used.has(group)) return;
+      element.remove();
+      view.groups.delete(group);
+    });
+    layout.forEach(({ group, entries }, groupIndex) => {
       let element = view.groups.get(group);
       if (element === undefined) {
         element = view.root.ownerDocument.createElement('div');
@@ -275,17 +299,15 @@ export class ToolbarMainPlugin implements EditorPlugin {
         element.dataset.group = group;
         view.groups.set(group, element);
       }
-      view.itemsHost.appendChild(element);
+      place(view.itemsHost, element, groupIndex);
       const host = element;
+      let index = 0;
       entries.forEach((entry) => {
         const mounted = view.mounted.get(entry);
-        if (mounted !== undefined) host.appendChild(mounted.element);
+        if (mounted === undefined) return;
+        place(host, mounted.element, index);
+        index += 1;
       });
-    });
-    view.groups.forEach((element, group) => {
-      if (used.has(group)) return;
-      element.remove();
-      view.groups.delete(group);
     });
   }
 
@@ -293,6 +315,26 @@ export class ToolbarMainPlugin implements EditorPlugin {
     if (this.state === null) throw new Error("toolbar.main : la barre d'outils n'est pas initialisée.");
     return this.state;
   }
+}
+
+/**
+ * Met `child` à la position `index` de `parent`, sans le déplacer s'il y est
+ * déjà : un champ en cours de saisie garde ainsi son focus.
+ */
+function place(parent: HTMLElement, child: HTMLElement, index: number): void {
+  const current = parent.children.item(index);
+  if (current !== child) parent.insertBefore(child, current);
+}
+
+/** Crée le conteneur d'un contrôle et appelle son `render`. */
+function createControl(doc: Document, entry: Extract<ToolbarEntry, { kind: 'control' }>): IMountedItem {
+  const element = doc.createElement('div');
+  element.classList.add(`${TOOLBAR_CLASS}__control`);
+  element.dataset.toolbarItem = entry.info.id;
+  element.setAttribute('role', 'group');
+  element.setAttribute('aria-label', entry.info.label);
+  const cleanup = entry.definition.render(element);
+  return typeof cleanup === 'function' ? { element, cleanup } : { element };
 }
 
 function isEnabled(definition: IToolbarButtonDefinition): boolean {

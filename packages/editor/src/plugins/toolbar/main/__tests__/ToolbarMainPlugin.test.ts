@@ -297,3 +297,87 @@ describe('toolbar.main destroy', () => {
     expect(cleanup).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('toolbar.main failures', () => {
+  it('does not keep a button whose enabled() throws when it is added', () => {
+    // Arrange
+    const { toolbar, item } = mountToolbar();
+
+    // Act + Assert
+    expect(() =>
+      toolbar().addButton(
+        button('test.bad', {
+          enabled: () => {
+            throw new Error('enabled cassé');
+          }
+        })
+      )
+    ).toThrow('enabled cassé');
+    expect(item('test.bad')).toBeNull();
+    expect(() => toolbar().addButton(button('test.bad'))).not.toThrow();
+  });
+
+  it('disables a button whose enabled() throws on refresh, and still refreshes the others', () => {
+    // Arrange
+    let broken = false;
+    let otherEnabled = true;
+    const { toolbar, item } = mountToolbar();
+    toolbar().addButton(
+      button('test.first', {
+        enabled: () => {
+          if (broken) throw new Error('refresh cassé');
+          return true;
+        }
+      })
+    );
+    toolbar().addButton(button('test.second', { enabled: () => otherEnabled }));
+    broken = true;
+    otherEnabled = false;
+
+    // Act + Assert
+    expect(() => toolbar().refresh()).toThrow('refresh cassé');
+    expect((item('test.first') as HTMLButtonElement).disabled).toBe(true);
+    expect((item('test.second') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('fails the startup when a control added during init throws in render', () => {
+    // Arrange
+    const user = toolbarUser('test.user', (ctx) => {
+      ctx.services.require('toolbar.main').addControl({
+        id: 'test.broken',
+        label: 'Cassé',
+        render: () => {
+          throw new Error('render cassé');
+        }
+      });
+    });
+
+    // Act + Assert
+    expect(() => mountToolbar([user])).toThrow('render cassé');
+  });
+
+  it('keeps the focus in a control when another item is added before it', () => {
+    // Arrange
+    const { toolbar } = mountToolbar();
+    let input: HTMLInputElement | undefined;
+    toolbar().addControl({
+      id: 'test.field',
+      label: 'Champ',
+      group: 'time',
+      order: 300,
+      render: (element) => {
+        input = document.createElement('input');
+        element.appendChild(input);
+      }
+    });
+    input?.focus();
+    expect(document.activeElement).toBe(input);
+
+    // Act
+    toolbar().addButton(button('test.before', { group: 'history', order: 200 }));
+    toolbar().addButton(button('test.sameGroup', { group: 'time', order: 299 }));
+
+    // Assert
+    expect(document.activeElement).toBe(input);
+  });
+});

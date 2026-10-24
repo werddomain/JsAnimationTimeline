@@ -11,7 +11,7 @@ import { createShortcutsPlugin } from '../../interaction/shortcuts';
 import { LayoutPlugin } from '../../layout/LayoutPlugin';
 import { createManualScheduler } from '../../layout/__tests__/layoutFixtures';
 import type { IToolbarMainService } from '../main/types';
-import { ToolbarPlugin } from '../ToolbarPlugin';
+import { ToolbarMainPlugin } from '../main/ToolbarMainPlugin';
 import type { ToolbarOptions } from '../ToolbarPlugin';
 
 /** Éditeur monté avec la barre d'outils. */
@@ -26,12 +26,23 @@ export interface IMountedToolbar {
   readonly item: (id: string) => HTMLElement | null;
 }
 
-/** Plugins de base : coquille, raccourcis et barre d'outils. */
-export function toolbarBasePlugins(options: ToolbarOptions = {}): EditorPlugin[] {
+/** Epic `toolbar` de test : les tests montent seulement les plugins de la barre qu'ils visent. */
+function toolbarEpic(children: readonly EditorPlugin[]): EditorPlugin {
+  return { id: 'toolbar', dependencies: [], children, init: () => {}, destroy: () => {} };
+}
+
+/**
+ * Plugins de base : coquille, raccourcis et barre d'outils (`toolbar.main`
+ * seul, plus `toolbarChildren` comme autres enfants de l'epic).
+ */
+export function toolbarBasePlugins(
+  options: ToolbarOptions = {},
+  toolbarChildren: readonly EditorPlugin[] = []
+): EditorPlugin[] {
   return [
     new LayoutPlugin({ scrollSync: { scheduler: createManualScheduler() } }),
     createShortcutsPlugin(),
-    new ToolbarPlugin(options)
+    toolbarEpic([new ToolbarMainPlugin(options.main), ...toolbarChildren])
   ];
 }
 

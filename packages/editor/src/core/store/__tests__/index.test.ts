@@ -26,7 +26,7 @@ type CoreNames =
 describe('store and commands public API', () => {
   it('exports the runtime values of the store module', () => {
     // Assert
-    expect(Object.keys(store).sort()).toEqual(['Store', 'StoreError']);
+    expect(Object.keys(store).sort()).toEqual(['Store', 'StoreError', 'UNKNOWN_PROPERTY', 'findUnknownTracks']);
   });
 
   it('exports the runtime values of the commands module', () => {
