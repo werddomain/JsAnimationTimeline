@@ -23,3 +23,4 @@ export { StageHost } from './StageHost';
 export type { IStageHostClock, IStageHostOptions } from './StageHost';
 export { buildStageRegistry } from './registry';
 export * from './html';
+export * from './object';

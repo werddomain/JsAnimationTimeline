@@ -44,6 +44,18 @@ export function sameTarget(a: LayerTarget | undefined, b: LayerTarget | undefine
   return false;
 }
 
+/**
+ * True when a change notified on `affected` concerns a binding on `target`.
+ * Refs compare by `ref` only: the binding already belongs to the notifying
+ * stage, so `{ ref }` and `{ ref, stage }` name the same object there.
+ */
+export function isAffectedTarget(affected: LayerTarget, target: LayerTarget): boolean {
+  if (isRefTarget(affected) && isRefTarget(target)) {
+    return affected.ref === target.ref;
+  }
+  return sameTarget(affected, target);
+}
+
 /** Targets named by a stage's `subscribe` notification; anything but an array of objects counts as none. */
 export function toTargetList(value: unknown): LayerTarget[] {
   if (!Array.isArray(value)) {
