@@ -11,6 +11,7 @@ import type { IMotionTweenAvailability } from '../../../tweens/motion/types';
 import {
   DELETE_LABELS,
   LOCKED_REASON,
+  NO_KEYFRAME_REASON,
   NO_TARGET_REASON,
   computeKeyframeActionsState,
   resolveDeleteAction
@@ -53,6 +54,7 @@ function input(extra: Partial<IKeyframeActionsInput> = {}): IKeyframeActionsInpu
     selectedKeyframes: [],
     playheadFrame: 1,
     layerIds: undefined,
+    keyframeAt: () => false,
     tweenAt: (layerId, frame) => {
       const found = doc.layers.find((node) => node.id === layerId);
       return found !== undefined && 'spans' in found
@@ -66,6 +68,12 @@ function input(extra: Partial<IKeyframeActionsInput> = {}): IKeyframeActionsInpu
 }
 
 const cell = (rowId: string, frame: number) => ({ rowId, frame });
+const keyframe = (rowId: string, frame: number): ISelectedKeyframe => ({
+  rowId,
+  frame,
+  kind: 'keyframe',
+  spanId: 'x'
+});
 const property = (rowId: string, frame: number): ISelectedKeyframe => ({
   rowId,
   frame,
@@ -80,7 +88,7 @@ describe('computeKeyframeActionsState keyframe part', () => {
 
     // Assert
     expect(state.insert).toEqual({ enabled: false, reason: NO_TARGET_REASON });
-    expect(state.edit).toEqual({ enabled: false, reason: NO_TARGET_REASON });
+    expect(state.edit).toEqual({ enabled: false, reason: NO_KEYFRAME_REASON });
     expect(state.editTarget).toBeUndefined();
     expect(state.delete.enabled).toBe(false);
     expect(state.delete.label).toBe(DELETE_LABELS.generic);
@@ -88,7 +96,7 @@ describe('computeKeyframeActionsState keyframe part', () => {
 
   it('enables insert and edit for one selected keyframe cell', () => {
     // Act
-    const state = computeKeyframeActionsState(input({ cells: [cell('a', 5)] }));
+    const state = computeKeyframeActionsState(input({ cells: [cell('a', 5)], selectedKeyframes: [keyframe('a', 5)] }));
 
     // Assert
     expect(state.insert).toEqual({ enabled: true });
@@ -98,7 +106,11 @@ describe('computeKeyframeActionsState keyframe part', () => {
 
   it('targets the lowest frame of the first row for edit when several cells are selected', () => {
     // Act
-    const state = computeKeyframeActionsState(input({ cells: [cell('a', 5), cell('a', 2), cell('t', 3)] }));
+    const state = computeKeyframeActionsState(input({
+        cells: [cell('a', 2), cell('a', 5), cell('t', 3)],
+        selectedKeyframes: [keyframe('a', 5), keyframe('a', 2), keyframe('t', 3)]
+      })
+    );
 
     // Assert
     expect(state.insert.enabled).toBe(true);
@@ -107,7 +119,7 @@ describe('computeKeyframeActionsState keyframe part', () => {
 
   it('flags a target inside a tween', () => {
     // Act
-    const state = computeKeyframeActionsState(input({ cells: [cell('t', 4)] }));
+    const state = computeKeyframeActionsState(input({ cells: [cell('t', 4)], selectedKeyframes: [property('t', 4)] }));
 
     // Assert
     expect(state.editTarget).toEqual({ layerId: 't', frame: 4, inTween: true });
@@ -115,7 +127,7 @@ describe('computeKeyframeActionsState keyframe part', () => {
 
   it('disables with the locked reason when the row is locked', () => {
     // Act
-    const state = computeKeyframeActionsState(input({ cells: [cell('lock', 2)] }));
+    const state = computeKeyframeActionsState(input({ cells: [cell('lock', 2)], selectedKeyframes: [keyframe('lock', 2)] }));
 
     // Assert
     expect(state.insert).toEqual({ enabled: false, reason: LOCKED_REASON });
@@ -133,7 +145,8 @@ describe('computeKeyframeActionsState keyframe part', () => {
 
   it('stays enabled when only some targets are locked, editing an unlocked one', () => {
     // Act
-    const state = computeKeyframeActionsState(input({ cells: [cell('lock', 2), cell('a', 3)] }));
+    const state = computeKeyframeActionsState(input({ cells: [cell('lock', 2), cell('a', 3)], selectedKeyframes: [keyframe('lock', 2), keyframe('a', 3)] })
+    );
 
     // Assert
     expect(state.insert.enabled).toBe(true);
@@ -150,11 +163,30 @@ describe('computeKeyframeActionsState keyframe part', () => {
 
   it('falls back to the playhead on the selected layers', () => {
     // Act
+    const state = computeKeyframeActionsState(input({ playheadFrame: 5, layerIds: ['a'], keyframeAt: (_layerId, frame) => frame === 5 }));
+
+    // Assert
+    expect(state.insert.enabled).toBe(true);
+    expect(state.editTarget).toEqual({ layerId: 'a', frame: 5, inTween: false });
+  });
+
+  it('disables edit on a plain selected frame that is no keyframe, but not insert', () => {
+    // Act
+    const state = computeKeyframeActionsState(input({ cells: [cell('a', 3)] }));
+
+    // Assert
+    expect(state.insert.enabled).toBe(true);
+    expect(state.edit).toEqual({ enabled: false, reason: NO_KEYFRAME_REASON });
+    expect(state.editTarget).toBeUndefined();
+  });
+
+  it('disables edit when the playhead of a selected layer is not on a keyframe', () => {
+    // Act
     const state = computeKeyframeActionsState(input({ playheadFrame: 6, layerIds: ['a'] }));
 
     // Assert
     expect(state.insert.enabled).toBe(true);
-    expect(state.editTarget).toEqual({ layerId: 'a', frame: 6, inTween: false });
+    expect(state.edit).toEqual({ enabled: false, reason: NO_KEYFRAME_REASON });
   });
 
   it('follows canCreate for the tween button', () => {

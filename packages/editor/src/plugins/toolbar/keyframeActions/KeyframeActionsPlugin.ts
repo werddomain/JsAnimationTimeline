@@ -3,7 +3,8 @@
  * Plugin : toolbar.keyframeActions
  * Epic : toolbar
  * Dépend de : toolbar, toolbar.main, frames.keyframes, frames.selection, tweens.motion, interaction.shortcuts
- * Écoute : frames:selectionChanged, layers:selectionChanged, document:changed, document:loaded, tweens:motionAvailabilityChanged
+ * Écoute : frames:selectionChanged, layers:selectionChanged, document:changed, document:loaded, tweens:motionAvailabilityChanged,
+ *   playhead:changed
  * Émet : toolbar:editKeyframe
  *
  * Les quatre boutons d'images clés de la barre d'outils (groupe `keyframes`),
@@ -21,7 +22,17 @@
  * focalisable) et sa raison en infobulle ; son activation, au clic comme au
  * clavier, ne fait rien. L'état se met à jour sur les changements de
  * sélection, de document et de disponibilité des interpolations, pas sur les
- * mouvements du pointeur. `layers.selection` est lu s'il est présent.
+ * mouvements du pointeur, mais sur la tête de lecture (`playhead:changed`),
+ * dont dépendent le repli sur les calques sélectionnés et `inTween`.
+ * `layers.selection` est lu s'il est présent. La raison d'un bouton
+ * indisponible est aussi donnée aux lecteurs d'écran (`aria-description`).
+ *
+ * « Modifier » vise une image clé (sélectionnée, sinon celle de la tête de
+ * lecture sur un calque sélectionné). Avec un calque seul sélectionné (sans
+ * image) et la tête de lecture dans une interpolation, « Supprimer » passe
+ * par `deleteKeyframe()` (`canRemove` ne lit que les images sélectionnées) :
+ * il peut ne rien changer, comme Maj+F6. Comportement accepté, sans
+ * pré-contrôle du modèle.
  */
 
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
@@ -29,9 +40,11 @@ import '../../frames/keyframes/types';
 import '../../frames/selection/types';
 import '../../layers/selection/types';
 import '../../tweens/motion/types';
+import { findNodeById } from '@werddomain/timeline-runtime';
+import { rowMarks } from '../../frames/grid/gridCells';
 import { ToolbarGroupOrders } from '../main/ToolbarItems';
 import { computeKeyframeActionsState } from './keyframeActionsState';
-import type { IActionAvailability, IKeyframeActionsInput, IKeyframeActionsState } from './keyframeActionsState';
+import type { IKeyframeActionsInput, IKeyframeActionsState } from './keyframeActionsState';
 import './types';
 import './KeyframeActions.less';
 
@@ -75,6 +88,7 @@ export class KeyframeActionsPlugin implements EditorPlugin {
 
   private ctx: IEditorContext | null = null;
   private buttons = new Map<KeyframeAction, HTMLButtonElement>();
+  private state: IKeyframeActionsState | null = null;
   private cleanups: Array<() => void> = [];
 
   readonly init = (ctx: IEditorContext): void => {
@@ -86,6 +100,7 @@ export class KeyframeActionsPlugin implements EditorPlugin {
       cleanups.push(ctx.events.on('document:changed', refresh));
       cleanups.push(ctx.events.on('document:loaded', refresh));
       cleanups.push(ctx.events.on('tweens:motionAvailabilityChanged', refresh));
+      cleanups.push(ctx.events.on('playhead:changed', refresh));
       this.ctx = ctx;
       cleanups.push(
         ctx.services.require('toolbar.main').addControl({
@@ -109,6 +124,7 @@ export class KeyframeActionsPlugin implements EditorPlugin {
     this.cleanups = [];
     cleanups.forEach((cleanup) => cleanup());
     this.buttons = new Map();
+    this.state = null;
     this.ctx = null;
   }
 
@@ -164,51 +180,58 @@ export class KeyframeActionsPlugin implements EditorPlugin {
       selectedKeyframes: selection.keyframes(),
       playheadFrame: ctx.playback.frame,
       layerIds: ctx.services.get('layers.selection')?.selected(),
+      keyframeAt: (layerId, frame) => hasKeyframeAt(ctx.document, layerId, frame),
       tweenAt: (layerId, frame) => motion.tweenAt(layerId, frame),
       canCreate: motion.canCreate(),
       canRemove: motion.canRemove()
     };
   }
 
-  /** Recopie l'état courant dans les boutons. */
+  /** Recalcule l'état (une seule fois) et le recopie dans les boutons. */
   private refresh(): void {
     const ctx = this.ctx;
     if (ctx === null || this.buttons.size === 0) return;
     const state = computeKeyframeActionsState(this.readInput(ctx));
+    this.state = state;
     const shortcuts = ctx.services.require('interaction.shortcuts');
     BUTTONS.forEach((spec) => {
       const button = this.buttons.get(spec.action);
       if (button === undefined) return;
-      const availability = this.availabilityOf(spec.action, state);
+      const { enabled, reason } = state[spec.action];
       const label = spec.action === 'delete' ? state.delete.label : spec.label;
       button.setAttribute('aria-label', label);
-      if (availability.enabled) button.removeAttribute('aria-disabled');
-      else button.setAttribute('aria-disabled', 'true');
-      const hint = spec.shortcut !== undefined && this.hasShortcutHint(spec.action, state);
-      button.title = availability.enabled
-        ? hint && spec.shortcut !== undefined
-          ? `${label} (${shortcuts.format(spec.shortcut)})`
-          : label
-        : (availability.reason ?? label);
+      if (enabled) {
+        button.removeAttribute('aria-disabled');
+        button.removeAttribute('aria-description');
+        button.title = this.hintedLabel(spec, label, state, (keys) => shortcuts.format(keys));
+      } else {
+        button.setAttribute('aria-disabled', 'true');
+        button.title = reason ?? label;
+        if (reason === undefined) button.removeAttribute('aria-description');
+        else button.setAttribute('aria-description', reason);
+      }
     });
   }
 
-  /** L'infobulle de « Supprimer » rappelle Maj+F6 seulement quand c'est `deleteKeyframe` qui part. */
-  private hasShortcutHint(action: KeyframeAction, state: IKeyframeActionsState): boolean {
-    return action !== 'delete' || state.delete.action === 'deleteKeyframe';
-  }
-
-  private availabilityOf(action: KeyframeAction, state: IKeyframeActionsState): IActionAvailability {
-    return state[action];
+  /** Libellé suivi du raccourci, sauf pour « Supprimer » quand c'est `remove()` qui part (Maj+F6 ne le ferait pas). */
+  private hintedLabel(
+    spec: IButtonSpec,
+    label: string,
+    state: IKeyframeActionsState,
+    format: (keys: string) => string
+  ): string {
+    if (spec.shortcut === undefined) return label;
+    if (spec.action === 'delete' && state.delete.action !== 'deleteKeyframe') return label;
+    return `${label} (${format(spec.shortcut)})`;
   }
 
   /** Exécute l'action d'un bouton, si elle est disponible à l'instant du clic. */
   private activate(action: KeyframeAction): void {
     const ctx = this.ctx;
-    const button = this.buttons.get(action);
-    if (ctx === null || button === undefined) return;
+    if (ctx === null || this.buttons.size === 0) return;
     this.refresh();
-    if (button.getAttribute('aria-disabled') === 'true') return;
+    const state = this.state;
+    if (state === null || !state[action].enabled) return;
     switch (action) {
       case 'insert':
         ctx.services.require('frames.keyframes').insertKeyframe();
@@ -217,24 +240,21 @@ export class KeyframeActionsPlugin implements EditorPlugin {
         ctx.services.require('tweens.motion').create();
         return;
       case 'delete':
-        this.runDelete(ctx);
+        if (state.delete.action === 'removeTween') ctx.services.require('tweens.motion').remove();
+        else ctx.services.require('frames.keyframes').deleteKeyframe();
         return;
       case 'edit':
-        this.runEdit(ctx);
+        if (state.editTarget !== undefined) ctx.events.emit('toolbar:editKeyframe', state.editTarget);
         return;
     }
   }
+}
 
-  private runDelete(ctx: IEditorContext): void {
-    const state = computeKeyframeActionsState(this.readInput(ctx));
-    if (state.delete.action === 'removeTween') ctx.services.require('tweens.motion').remove();
-    else ctx.services.require('frames.keyframes').deleteKeyframe();
-  }
-
-  private runEdit(ctx: IEditorContext): void {
-    const target = computeKeyframeActionsState(this.readInput(ctx)).editTarget;
-    if (target !== undefined) ctx.events.emit('toolbar:editKeyframe', target);
-  }
+/** Vrai si l'image `frame` du calque porte une image clé (contenu ou propriété). */
+function hasKeyframeAt(doc: IEditorContext['document'], layerId: string, frame: number): boolean {
+  const node = findNodeById(doc.layers, layerId);
+  if (node === undefined) return false;
+  return rowMarks(node, doc.settings.totalFrames, { first: frame, last: frame }).some((mark) => mark.kind !== 'spanEnd');
 }
 
 /** Crée le plugin `toolbar.keyframeActions`. */

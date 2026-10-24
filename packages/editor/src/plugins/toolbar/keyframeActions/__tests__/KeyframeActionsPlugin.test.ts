@@ -116,6 +116,8 @@ function setup(): IHarness {
 }
 
 const cells = (rowId: string, ...frames: number[]) => frames.map((frame) => ({ rowId, frame }));
+/** Attend le rendu groupé de la lecture (qui émet `playhead:changed`). */
+const nextDisplayFrame = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 60));
 const disabled = (button: HTMLElement): boolean => button.getAttribute('aria-disabled') === 'true';
 
 describe('rendering', () => {
@@ -283,15 +285,50 @@ describe('buttons run exactly their service', () => {
     // Act
     selection.set(cells('a', 5));
     button('edit').click();
-    selection.set(cells('b', 4));
+    selection.set(cells('b', 3));
     button('edit').click();
 
     // Assert
     expect(edits).toEqual([
       { layerId: 'a', frame: 5, inTween: false },
-      { layerId: 'b', frame: 4, inTween: true }
+      { layerId: 'b', frame: 3, inTween: true }
     ]);
     expect(probe.changes).toBe(0);
+  });
+});
+
+describe('edit targets a keyframe', () => {
+  it('is unavailable on a plain frame and explains why', () => {
+    // Arrange
+    const { selection, edits, button } = setup();
+
+    // Act
+    selection.set(cells('a', 3));
+    button('edit').click();
+
+    // Assert
+    expect(disabled(button('edit'))).toBe(true);
+    expect(button('edit').title).toBe('Sélectionnez une image clé.');
+    expect(edits).toEqual([]);
+  });
+
+  it('uses the playhead on a selected layer only when it is on a keyframe', async () => {
+    // Arrange
+    const { editor, layers, edits, button } = setup();
+    layers.select(['a']);
+
+    // Act
+    editor.playback.seek(5);
+    await nextDisplayFrame();
+    const onKeyframe = !disabled(button('edit'));
+    button('edit').click();
+    editor.playback.seek(3);
+    await nextDisplayFrame();
+
+    // Assert
+    expect(onKeyframe).toBe(true);
+    expect(edits).toEqual([{ layerId: 'a', frame: 5, inTween: false }]);
+    expect(disabled(button('edit'))).toBe(true);
   });
 });
 
@@ -319,6 +356,22 @@ describe('unavailable buttons', () => {
     expect(probe.created).toEqual([]);
     expect(probe.removed).toEqual([]);
     expect(edits).toEqual([]);
+  });
+
+  it('expose the reason with aria-description, cleared when available', () => {
+    // Arrange
+    const { selection, button } = setup();
+    const initial = button('insert').getAttribute('aria-description');
+
+    // Act
+    selection.set(cells('a', 5));
+    const enabled = button('insert').getAttribute('aria-description');
+    selection.set(cells('lock', 2));
+
+    // Assert
+    expect(initial).toBe(NO_TARGET_REASON);
+    expect(enabled).toBeNull();
+    expect(button('insert').getAttribute('aria-description')).toBe(LOCKED_REASON);
   });
 
   it('prevent the keyboard activation of an aria-disabled button', () => {

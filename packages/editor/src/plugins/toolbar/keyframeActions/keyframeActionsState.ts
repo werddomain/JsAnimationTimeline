@@ -20,6 +20,9 @@ export const NO_TARGET_REASON = 'Sélectionnez une image ou un calque.';
 /** Raison affichée quand tous les calques visés sont verrouillés. */
 export const LOCKED_REASON = 'Le calque est verrouillé.';
 
+/** Raison affichée quand « Modifier » n'a aucune image clé à viser. */
+export const NO_KEYFRAME_REASON = 'Sélectionnez une image clé.';
+
 /** Libellés du bouton « Supprimer » : celui de l'action qui va s'exécuter. */
 export const DELETE_LABELS = Object.freeze({
   generic: "Supprimer l'image clé ou l'interpolation",
@@ -57,6 +60,8 @@ export interface IKeyframeActionsInput {
   readonly playheadFrame: number;
   /** Calques sélectionnés, `undefined` sans le service `layers.selection`. */
   readonly layerIds: readonly string[] | undefined;
+  /** Vrai si l'image `frame` du calque porte une image clé (contenu ou propriété). */
+  readonly keyframeAt: (layerId: string, frame: number) => boolean;
   /** Interpolation qui contient l'image (`tweens.motion`). */
   readonly tweenAt: (layerId: string, frame: number) => ISpan | undefined;
   readonly canCreate: IMotionTweenAvailability;
@@ -123,6 +128,11 @@ function deleteFrom(keyframes: IActionAvailability, label: string): IDeleteActio
  * 2. sinon, si `tweens.motion.canRemove()` est actif, `remove()` ;
  * 3. sinon `deleteKeyframe()`, désactivé avec la raison des images clés
  *    quand il n'y a rien à supprimer.
+ *
+ * Avec un calque seul sélectionné (aucune image) et la tête de lecture dans
+ * une interpolation, `canRemove` ne lit que les images sélectionnées : le
+ * bouton passe donc par `deleteKeyframe()`, qui peut ne rien changer, comme
+ * Maj+F6. Comportement accepté : pas de pré-contrôle du modèle ici.
  * Le libellé nomme l'action retenue ; il reste générique quand le bouton est
  * désactivé.
  */
@@ -134,27 +144,44 @@ export function resolveDeleteAction(input: IKeyframeActionsInput): IDeleteAction
   return deleteFrom(keyframes, DELETE_LABELS.keyframe);
 }
 
+/** Images clés que « Modifier » peut viser : les images clés sélectionnées, sinon celle de la tête de lecture. */
+function keyframeCandidates(input: IKeyframeActionsInput): IFrameCell[] {
+  if (input.selectedKeyframes.length > 0) {
+    return input.selectedKeyframes.map(({ rowId, frame }) => ({ rowId, frame }));
+  }
+  if (input.cells.length > 0) return [];
+  return (input.layerIds ?? [])
+    .map((rowId) => ({ rowId, frame: input.playheadFrame }))
+    .filter((cell) => input.keyframeAt(cell.rowId, cell.frame));
+}
+
 /**
- * Image visée par « Modifier » : sur la première ligne ciblée et modifiable,
- * l'image la plus à gauche.
+ * « Modifier » : sur la première ligne d'images clés visées et modifiables,
+ * l'image clé la plus à gauche. Les images clés visées sont les images clés
+ * sélectionnées (contenu ou propriété), sinon, sans image sélectionnée, la
+ * tête de lecture sur un calque sélectionné si elle est sur une image clé.
  */
-function editTargetOf(input: IKeyframeActionsInput, editable: readonly IFrameCell[]): EditTarget | undefined {
-  if (editable.length === 0) return undefined;
+function editOf(input: IKeyframeActionsInput): { edit: IActionAvailability; editTarget?: EditTarget } {
+  const candidates = keyframeCandidates(input);
+  if (candidates.length === 0) return { edit: { enabled: false, reason: NO_KEYFRAME_REASON } };
+  const locked = lockedLayerIds(input.doc);
+  const editable = candidates.filter((cell) => !locked.has(cell.rowId));
+  if (editable.length === 0) return { edit: { enabled: false, reason: LOCKED_REASON } };
   const layerId = editable[0].rowId;
   const frame = Math.min(...editable.filter((cell) => cell.rowId === layerId).map((cell) => cell.frame));
-  return { layerId, frame, inTween: input.tweenAt(layerId, frame) !== undefined };
+  return { edit: { enabled: true }, editTarget: { layerId, frame, inTween: input.tweenAt(layerId, frame) !== undefined } };
 }
 
 /** État des quatre boutons pour l'entrée donnée. */
 export function computeKeyframeActionsState(input: IKeyframeActionsInput): IKeyframeActionsState {
   const { all, editable } = targetsOf(input);
   const keyframes = keyframePart(all, editable);
-  const editTarget = editTargetOf(input, editable);
+  const { edit, editTarget } = editOf(input);
   return {
     insert: keyframes,
     createTween: availability(input.canCreate),
     delete: resolveDeleteAction(input),
-    edit: keyframes,
+    edit,
     ...(editTarget === undefined ? {} : { editTarget })
   };
 }
