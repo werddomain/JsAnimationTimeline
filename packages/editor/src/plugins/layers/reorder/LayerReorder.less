@@ -1,0 +1,55 @@
+// Glisser-déposer des calques (layers.reorder). Réglages par variables CSS :
+//   --jt-layer-drop-line   couleur du trait d'insertion et du cadre « dans un dossier »
+//   --jt-layer-row-dragging  opacité des lignes en cours de déplacement
+
+.JsTimeLine {
+  // Le trait d'insertion est positionné par rapport à la liste.
+  .jt-layer-list {
+    position: relative;
+  }
+
+  // Sans cela, le navigateur garde le geste tactile pour le défilement et le glisser au doigt ne démarre
+  // pas. Contrepartie : on ne peut plus faire défiler la liste en balayant sur une ligne (molette, barre
+  // de défilement et clavier restent possibles).
+  .jt-layer-row {
+    touch-action: none;
+  }
+
+  .jt-layer-list--dragging,
+  .jt-layer-list--dragging .jt-layer-row {
+    cursor: grabbing;
+    touch-action: none;
+  }
+
+  .jt-layer-row--dragging {
+    opacity: var(--jt-layer-row-dragging, 0.5);
+  }
+
+  .jt-layer-row--drop-into {
+    outline: 2px solid var(--jt-layer-drop-line, #1b4fa8);
+    outline-offset: -2px;
+  }
+
+  .jt-layer-drop-line {
+    position: absolute;
+    right: 0;
+    height: 2px;
+    margin-top: -1px;
+    background-color: var(--jt-layer-drop-line, #1b4fa8);
+    pointer-events: none;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  // Zone d'annonce : hors écran mais lue par les lecteurs d'écran.
+  .jt-layer-reorder-live {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
