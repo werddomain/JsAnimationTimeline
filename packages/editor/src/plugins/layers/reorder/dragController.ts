@@ -356,8 +356,11 @@ export class DragController {
     const disarm = (): void => {
       clearTimeout(timer);
       element.removeEventListener('click', onClick, true);
+      element.removeEventListener('pointerdown', disarm, true);
       if (this.suppressClick === disarm) this.suppressClick = undefined;
     };
+    // Un nouvel appui, n'importe où, rend la suppression sans objet : son clic ne doit pas être avalé.
+    element.addEventListener('pointerdown', disarm, true);
     element.addEventListener('click', onClick, true);
     this.suppressClick = disarm;
   }

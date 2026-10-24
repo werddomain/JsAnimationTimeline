@@ -5,6 +5,7 @@
  */
 
 import { findNodeById } from '@werddomain/timeline-runtime';
+import { createCommand } from '../../../../core/commands/createCommand';
 import { NAME_EDITING_ATTRIBUTE } from '../../list/LayerRowView';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';
 import { RENAME_INPUT_CLASS } from '../inlineEdit';
@@ -244,6 +245,24 @@ describe('inline editing review fixes', () => {
 
     expect(nameOf(editor.document, 'a')).toBe('Renommé');
     expect(document.activeElement).toBe(document.body);
+  });
+
+  it('gives the focus to a neighbour row when the row being renamed is removed', () => {
+    const { host, editor } = mount(tree);
+    focusableRow(host, 'b');
+    editor.getService('layers.selection')?.select(['b']);
+    doubleClick(nameElement(host, 'b'));
+    inputOf(host).focus();
+
+    editor.execute(
+      createCommand(
+        'Supprimer',
+        (d) => ({ ...d, layers: d.layers.filter((node) => node.id !== 'b') }),
+        (d) => d
+      )
+    );
+
+    expect(document.activeElement?.closest('[data-row-id]')?.getAttribute('data-row-id')).toBe('a');
   });
 
   it('ignores a blur of an input that is no longer connected (no command during document:changed)', () => {

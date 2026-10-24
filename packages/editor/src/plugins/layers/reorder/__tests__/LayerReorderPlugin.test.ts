@@ -603,6 +603,19 @@ describe('lost button release', () => {
     expect(h.selection.selected()).toEqual(['c', 'd']);
   });
 
+  it('does not let a stale suppression swallow a click of a new press outside the list', () => {
+    const h = setup();
+    press(h, 'c', y(4));
+    moveTo(y(1, 0.1));
+    document.dispatchEvent(pointer('pointermove', y(0), { buttons: 0 }));
+
+    document.body.dispatchEvent(pointer('pointerdown', y(0)));
+    const outside = click(document.body);
+    release(y(0));
+
+    expect(outside.defaultPrevented).toBe(false);
+  });
+
   it('does not swallow a click after a press aborted before the threshold', () => {
     const h = setup();
     press(h, 'c', y(4));
