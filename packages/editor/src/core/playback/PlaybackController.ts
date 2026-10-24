@@ -9,14 +9,22 @@
  *   une seule fois ; plusieurs `seek` et commandes pendant un glisser ne
  *   donnent donc qu'une évaluation ;
  * - pendant la lecture, le `tick` du transport arrive déjà dans une image
- *   d'horloge : le rendu se fait tout de suite et remplace celui en attente.
+ *   d'horloge : le rendu se fait tout de suite et remplace celui en attente
+ *   (un rendu en attente qui passe avant le `tick` de la même image ne rend
+ *   rien : le `tick` s'en charge) ;
+ * - `play` et `pause` demandent aussi un rendu : la pause fige une image qui
+ *   a pu avancer depuis le dernier `tick`, et `play` en fin de timeline
+ *   repart de l'image 1.
  *
  * Un rendu émet, dans l'ordre : `playhead:changed` (si l'image entière a
  * changé depuis le rendu précédent), puis `frame:render` avec l'échantillon.
  * Le premier rendu est demandé à la création.
  *
  * Fps ou durée changés par le document : l'image entière courante est
- * gardée (bornée à la nouvelle durée), pas le temps en millisecondes.
+ * gardée (bornée à la nouvelle durée), pas le temps en millisecondes ; en
+ * lecture, le temps repart donc du début de cette image. Des réglages
+ * invalides (une commande n'est pas revalidée par le Store) sont ignorés par
+ * le transport, qui garde les précédents ; le rendu est quand même demandé.
  */
 
 import { createTransport } from '@werddomain/timeline-runtime';
@@ -36,6 +44,11 @@ import type { PlaybackStateEvent } from './playbackEvents';
 import type { IFrameSample } from './types';
 
 const NO_PAYLOAD: PlaybackStateEvent = Object.freeze({});
+
+/** Mêmes règles que le transport : fps fini > 0, durée entière ≥ 1. */
+function isValidTimeline(fps: number, totalFrames: number): boolean {
+  return Number.isFinite(fps) && fps > 0 && Number.isInteger(totalFrames) && totalFrames >= 1;
+}
 
 /** Pièces dont la lecture a besoin. */
 export interface IPlaybackControllerOptions {
@@ -110,15 +123,17 @@ export class PlaybackController {
 
   play(): void {
     this.transport.play();
+    this.schedule();
   }
 
   pause(): void {
     this.transport.pause();
+    this.schedule();
   }
 
   toggle(): void {
-    if (this.transport.playing) this.transport.pause();
-    else this.transport.play();
+    if (this.transport.playing) this.pause();
+    else this.play();
   }
 
   seek(frame: number): void {
@@ -164,7 +179,8 @@ export class PlaybackController {
 
   private onDocument(doc: ITimelineDocument): void {
     const { fps, totalFrames } = doc.settings;
-    if (fps !== this.transport.fps || totalFrames !== this.transport.totalFrames) {
+    const changed = fps !== this.transport.fps || totalFrames !== this.transport.totalFrames;
+    if (changed && isValidTimeline(fps, totalFrames)) {
       const frame = this.transport.frame;
       this.move(() => {
         this.transport.setTimeline({ fps, totalFrames });
@@ -196,7 +212,8 @@ export class PlaybackController {
 
   private readonly onScheduledFrame = (): void => {
     this.pendingHandle = null;
-    if (!this.destroyed) this.render();
+    // En lecture, le `tick` de cette image rend déjà.
+    if (!this.destroyed && !this.transport.playing) this.render();
   };
 
   private render(): void {
@@ -205,6 +222,8 @@ export class PlaybackController {
       const previous = this.lastPlayhead;
       this.lastPlayhead = time.integerFrame;
       this.bus.emit('playhead:changed', { frame: time.integerFrame, previous });
+      // Un gestionnaire a pu détruire l'éditeur.
+      if (this.destroyed) return;
     }
     const sample = this.sampler.sample(this.store.document, time);
     this.bus.emit('frame:render', { sample });

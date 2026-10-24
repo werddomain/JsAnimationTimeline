@@ -50,7 +50,8 @@ export interface EditorOptions {
   readonly clock?: IPlayerClock;
   /**
    * Refuse (`StoreError`) un document dont une piste a un nom inconnu du
-   * registre, au lieu d'avertir. Faux par défaut.
+   * registre, au lieu d'avertir. Faux par défaut. Contrôle fait au chargement
+   * (`data`, `load`) ; les commandes ne sont pas revalidées.
    */
   readonly strictProperties?: boolean;
   /** Reçoit les pistes inconnues du registre d'un document accepté. Par défaut : `console.warn`. */

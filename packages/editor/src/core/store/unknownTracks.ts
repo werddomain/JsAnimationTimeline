@@ -29,7 +29,7 @@ function firstTrackPath(layer: ILayer, pointer: string, property: string): strin
   const index = layer.spans.findIndex((span) =>
     Object.prototype.hasOwnProperty.call(resolveTracks(span), property)
   );
-  return `${pointer}/spans/${index}/tracks/${property}`;
+  return index < 0 ? `${pointer}/spans` : `${pointer}/spans/${index}/tracks/${property}`;
 }
 
 /** Une entrée par calque et par nom inconnu, à la première piste qui le porte. */

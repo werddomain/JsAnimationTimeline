@@ -50,7 +50,11 @@ export type StoreWarningHandler = (issues: readonly IUnknownPropertyIssue[]) => 
 export interface StoreOptions {
   /** Registre où chercher les noms de pistes. Par défaut : `defaultPropertyRegistry`. */
   readonly registry?: PropertyRegistry;
-  /** Refuse (`StoreError`) un document qui a une piste inconnue du registre, au lieu d'avertir. */
+  /**
+   * Refuse (`StoreError`) un document qui a une piste inconnue du registre, au
+   * lieu d'avertir. Contrôle fait au chargement seulement (document initial et
+   * `load`) : les documents produits par les commandes ne sont pas revalidés.
+   */
   readonly strictProperties?: boolean;
   /** Reçoit les pistes inconnues d'un document accepté. Par défaut : `console.warn`. */
   readonly onWarning?: StoreWarningHandler;

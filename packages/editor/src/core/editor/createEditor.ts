@@ -84,10 +84,10 @@ function createParts(container: HTMLElement, options: EditorOptions): IEditorPar
   freezeAnnouncedDocuments(bus);
   const host = new PluginHost<IEditorContext>().registerAll(resolvePlugins(options));
   const clock = options.clock ?? createDefaultClock();
+  const playback = new PlaybackController({ bus, store, registry, clock });
   const element = createRootElement(container);
   host.slots.define(ROOT_SLOT, element);
   const lifecycle = new EditorLifecycle();
-  const playback = new PlaybackController({ bus, store, registry, clock });
   const playbackFacade = createPlaybackFacade(playback, (operation) => lifecycle.assertActive(operation));
   const services = new ServiceRegistry();
   return { bus, store, commands, host, services, registry, playback, playbackFacade, element, lifecycle };

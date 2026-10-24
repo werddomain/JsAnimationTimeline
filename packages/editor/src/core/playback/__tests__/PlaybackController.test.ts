@@ -311,3 +311,104 @@ describe('editor playback: events reserved to the core', () => {
     expect(fakePlay).toThrow(/événement du noyau/);
   });
 });
+
+describe('editor playback: review regressions', () => {
+  it('renders the paused frame even when it moved since the last tick', () => {
+    // Arrange
+    const { editor, clock } = createPlaybackEditor();
+    editor.playback.play();
+    clock.advance(DISPLAY_FRAME_MS);
+    const log = recordRenders(editor);
+
+    // Act
+    clock.advance(90);
+    editor.playback.pause();
+    clock.advance(DISPLAY_FRAME_MS);
+
+    // Assert
+    expect(editor.playback.frame).toBe(2);
+    expect(log.renders[log.renders.length - 1]?.time.integerFrame).toBe(2);
+    expect(log.playheads[log.playheads.length - 1]).toEqual({ frame: 2, previous: 1 });
+  });
+
+  it('renders once when a pending render runs before the playback tick of the same frame', () => {
+    // Arrange
+    const { editor, clock } = createPlaybackEditor();
+    clock.advance(DISPLAY_FRAME_MS);
+    editor.playback.seek(3);
+    editor.playback.play();
+    const log = recordRenders(editor);
+
+    // Act
+    clock.advance(DISPLAY_FRAME_MS);
+
+    // Assert
+    expect(log.renders).toHaveLength(1);
+  });
+
+  it('keeps the previous timeline but still renders after a command with invalid settings', () => {
+    // Arrange
+    const { editor, clock } = createPlaybackEditor();
+    clock.advance(DISPLAY_FRAME_MS);
+    const log = recordRenders(editor);
+
+    // Act
+    editor.execute(setTotalFrames(0, 20));
+    clock.advance(DISPLAY_FRAME_MS);
+    editor.undo();
+    clock.advance(DISPLAY_FRAME_MS);
+
+    // Assert
+    expect(editor.playback.totalFrames).toBe(20);
+    expect(log.renders).toHaveLength(2);
+  });
+
+  it('keeps the frame when the duration changes during playback', () => {
+    // Arrange
+    const { editor, clock } = createPlaybackEditor();
+    editor.playback.play();
+    clock.advance(450);
+
+    // Act
+    editor.execute(setTotalFrames(40, 20));
+
+    // Assert
+    expect(editor.playback.playing).toBe(true);
+    expect(editor.playback.time).toEqual({ timeMs: 400, frame: 5, integerFrame: 5 });
+  });
+
+  it('stops rendering when a playhead:changed listener destroys the editor', () => {
+    // Arrange
+    const { editor, clock } = createPlaybackEditor();
+    clock.advance(DISPLAY_FRAME_MS);
+    const renders: number[] = [];
+    editor.on('playhead:changed', () => editor.destroy());
+    editor.on('frame:render', ({ sample }) => renders.push(sample.time.integerFrame));
+
+    // Act
+    editor.playback.seek(4);
+    clock.advance(DISPLAY_FRAME_MS);
+
+    // Assert
+    expect(editor.isDestroyed).toBe(true);
+    expect(renders).toEqual([]);
+    expect(clock.pendingFrames).toBe(0);
+  });
+
+  it('accepts a seek from a frame:render listener and renders it on the next display frame', () => {
+    // Arrange
+    const { editor, clock } = createPlaybackEditor();
+    const frames: number[] = [];
+    editor.onFrame((sample) => {
+      frames.push(sample.time.integerFrame);
+      if (sample.time.integerFrame === 1) editor.playback.seek(9);
+    });
+
+    // Act
+    clock.advance(DISPLAY_FRAME_MS);
+    clock.advance(DISPLAY_FRAME_MS);
+
+    // Assert
+    expect(frames).toEqual([1, 9]);
+  });
+});
