@@ -285,14 +285,25 @@ export class LayerSelectionPlugin implements EditorPlugin {
   }
 
   /**
-   * Le focus quitte une saisie de la liste de lui-même : `blur` vers un élément connu (Tab ; le `blur` de
-   * Chromium à la suppression d'un élément focalisé a un `relatedTarget` nul, il ne compte pas) ou touche Tab.
+   * Le focus quitte une saisie de la liste de lui-même : `blur` vers un élément connu (Tab ; voir `blurLeaves`
+   * pour un `blur` sans destinataire) ou touche Tab.
    */
   private onFocusLeaving(event: Event): void {
     const target = event.target;
     if (!(target instanceof Element) || !target.matches(TEXT_INPUT_SELECTOR)) return;
-    const leaves = event instanceof KeyboardEvent ? event.key === 'Tab' : (event as FocusEvent).relatedTarget !== null;
+    const leaves = event instanceof KeyboardEvent ? event.key === 'Tab' : this.blurLeaves(target, event as FocusEvent);
     if (leaves) this.markFocusLeaving();
+  }
+
+  /**
+   * Un `blur` sans destinataire est un départ (clic dans une iframe : la scène) si la ligne de la saisie est
+   * encore affichée ; si elle ne l'est plus, c'est le `blur` que Chromium envoie à l'élément retiré (la liste a
+   * déjà recalculé ses lignes d'après le nouveau document) et la ligne voisine doit récupérer le focus.
+   */
+  private blurLeaves(target: Element, event: FocusEvent): boolean {
+    if (event.relatedTarget !== null) return true;
+    const id = target.closest<HTMLElement>('[data-row-id]')?.dataset.rowId;
+    return id !== undefined && this.list?.row(id) !== undefined;
   }
 
   private markFocusLeaving(): void {
@@ -348,7 +359,7 @@ export class LayerSelectionPlugin implements EditorPlugin {
       isSelected: (id) => this.state.ids.has(id) && this.rowIds().includes(id),
       anchor: () => this.visibleOnly(this.state.anchor),
       focused: () => this.visibleOnly(this.state.focused),
-      select: (ids, mode = 'replace') => this.select(ids, mode),
+      select: (ids, mode = 'replace', options) => this.select(ids, mode, options?.previous),
       selectRange: (fromId, toId, additive = false) =>
         this.commit(selectRangeIds(this.state, this.rowIds(), fromId, toId, additive)),
       selectAll: () => this.commit(selectAllIds(this.state, this.rowIds())),
@@ -361,8 +372,8 @@ export class LayerSelectionPlugin implements EditorPlugin {
     return id !== undefined && this.rowIds().includes(id) ? id : undefined;
   }
 
-  private select(ids: readonly string[], mode: SelectionMode): void {
-    this.commit(selectIds(this.state, this.rowIds(), ids, mode));
+  private select(ids: readonly string[], mode: SelectionMode, previous?: readonly string[]): void {
+    this.commit(selectIds(this.state, this.rowIds(), ids, mode), previous);
   }
 
   private rowIds(): readonly string[] {

@@ -679,6 +679,19 @@ describe('keyboard', () => {
   });
 });
 
+describe('select with an explicit previous', () => {
+  it('announces the given previous ids instead of the ones computed from the current rows', () => {
+    const h = setup();
+    h.selection.select(['a', 'c']);
+    h.events.length = 0;
+
+    h.selection.select(['b'], 'replace', { previous: ['x', 'y'] });
+
+    expect(h.events).toHaveLength(1);
+    expect(h.events[0]).toMatchObject({ ids: ['b'], previous: ['x', 'y'] });
+  });
+});
+
 describe('pruning', () => {
   it('leaves an input focused in another row when rows are removed around it', () => {
     const h = setup();

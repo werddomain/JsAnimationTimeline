@@ -197,7 +197,8 @@ export type {
   LayerNodeUpdater,
   LayerRowsChangedEvent,
   LayerSelectionChangedEvent,
-  SelectionMode
+  SelectionMode,
+  SelectOptions
 } from './plugins/layers';
 
 // Plugins des images (epic `frames`) : grille des plages et des images clés.
