@@ -22,14 +22,14 @@ export interface INodeLocation {
 }
 
 /** Plus petit entier ≥ 1 qui n'est pas dans `used`. */
-function smallestFree(used: ReadonlySet<number>): number {
+export function smallestFree(used: ReadonlySet<number>): number {
   let candidate = 1;
   while (used.has(candidate)) candidate += 1;
   return candidate;
 }
 
 /** Entiers N des textes de la forme `<prefix>N` (N sans zéro initial). */
-function numbersWithPrefix(texts: readonly string[], prefix: string): Set<number> {
+export function numbersWithPrefix(texts: readonly string[], prefix: string): Set<number> {
   const found = new Set<number>();
   texts.forEach((text) => {
     if (!text.startsWith(prefix)) return;

@@ -17,7 +17,9 @@ export {
   newFolder,
   nextFolderId,
   nextFolderName,
+  numbersWithPrefix,
   removeNodes,
+  smallestFree,
   topMostIds,
   ungroupNode
 } from './groupsTree';
