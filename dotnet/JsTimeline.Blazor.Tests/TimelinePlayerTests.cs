@@ -68,7 +68,7 @@ public sealed class TimelinePlayerTests : BunitContext
         var arguments = CreateInvocation().Arguments;
         Assert.IsType<ElementReference>(arguments[0]);
         Assert.Equal(TimelineJson.Serialize(document), arguments[1]);
-        Assert.Equal(new TimelinePlayerJsOptions(Autoplay: true, Loop: true, Speed: 2, NotifyFrames: false), arguments[2]);
+        Assert.Equal(new TimelinePlayerJsOptions(Autoplay: true, Loop: true, Speed: 2, NotifyFrames: false, NotifyErrors: false), arguments[2]);
         Assert.True(cut.Instance.IsReady);
     }
 
@@ -79,6 +79,28 @@ public sealed class TimelinePlayerTests : BunitContext
 
         var options = Assert.IsType<TimelinePlayerJsOptions>(CreateInvocation().Arguments[2]);
         Assert.True(options.NotifyFrames);
+    }
+
+    [Fact]
+    public void Stage_errors_are_sent_only_when_OnError_has_a_handler()
+    {
+        Render<TimelinePlayer>(ps => ps.Add(p => p.Data, Document()).Add(p => p.OnError, (Exception _) => { }));
+
+        var options = Assert.IsType<TimelinePlayerJsOptions>(CreateInvocation().Arguments[2]);
+        Assert.True(options.NotifyErrors);
+    }
+
+    [Fact]
+    public async Task A_stage_error_reaches_OnError_as_a_TimelineStageException()
+    {
+        Exception? reported = null;
+        var cut = Render<TimelinePlayer>(ps => ps.Add(p => p.Data, Document()).Add(p => p.OnError, (Exception e) => reported = e));
+
+        await Sink().OnPlayerError("render failed");
+
+        var error = Assert.IsType<TimelineStageException>(reported);
+        Assert.Equal("render failed", error.Message);
+        Assert.True(cut.Instance.IsReady);
     }
 
     [Fact]
@@ -126,13 +148,16 @@ public sealed class TimelinePlayerTests : BunitContext
 
         _player.VerifyInvoke("play");
         _player.VerifyInvoke("pause");
+        await cut.InvokeAsync(() => cut.Instance.RefreshTargetsAsync());
+        await cut.InvokeAsync(() => cut.Instance.RefreshTargetsAsync("l1"));
+        Assert.Equal([null, "l1"], _player.Invocations["refreshTargets"].Select(i => i.Arguments[0]));
         Assert.Equal(12, _player.VerifyInvoke("seek").Arguments[0]);
     }
 
     [Fact]
     public async Task GetStateAsync_returns_the_state_of_the_player()
     {
-        var state = new TimelinePlayerState(5, true, 24, 24, 1000, ["l2"]);
+        var state = new TimelinePlayerState(5, true, 24, 24, 1000, ["l2"], [new TimelineStageWarning("unrouted", "No stage", null, "l3", null)]);
         _player.Setup<TimelinePlayerState>("getState").SetResult(state);
         var cut = Render<TimelinePlayer>(ps => ps.Add(p => p.Data, Document()));
 

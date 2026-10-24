@@ -22,6 +22,7 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
     private double _appliedSpeed;
     private bool _creating;
     private bool _disposed;
+    private Task _applying = Task.CompletedTask;
 
     [Inject]
     private IJSRuntime JS { get; set; } = default!;
@@ -77,8 +78,15 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
     public EventCallback OnReady { get; set; }
 
     /// <summary>
-    /// The JavaScript player refused the document (invalid document or selector). Without a handler,
-    /// the error is thrown to the renderer.
+    /// An error of the JavaScript player:
+    /// <list type="bullet">
+    /// <item>a <see cref="JSException"/> when it refuses a document (invalid document, or the stage
+    /// refuses it); the refused instance is not sent again, a new instance is;</item>
+    /// <item>a <see cref="TimelineStageException"/> when the stage throws while playing (playback goes on).</item>
+    /// </list>
+    /// A selector that matches nothing is not an error: see <see cref="TimelinePlayerState.MissingTargets"/>.
+    /// Without a handler, a refused document is thrown to the renderer and a stage error goes to the
+    /// browser console. Set it on the first render, like <see cref="OnFrame"/>.
     /// </summary>
     [Parameter]
     public EventCallback<Exception> OnError { get; set; }
@@ -111,6 +119,13 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
 
     /// <summary>Reads the current state of the JavaScript player.</summary>
     public Task<TimelinePlayerState> GetStateAsync() => RequireInterop().GetStateAsync().AsTask();
+
+    /// <summary>
+    /// Looks again for the layers without an element (all of them, or only <paramref name="layerId"/>).
+    /// Targets are looked up when a document is applied: call it when the content renders an animated
+    /// element later (an <c>@if</c> block, a child component loading data, a list).
+    /// </summary>
+    public Task RefreshTargetsAsync(string? layerId = null) => RequireInterop().RefreshTargetsAsync(layerId).AsTask();
 
     /// <inheritdoc />
     protected override Task OnParametersSetAsync()
@@ -153,8 +168,8 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
     private async Task CreatePlayerAsync()
     {
         var (data, loop, speed) = (Data, Loop, Speed);
-        _events ??= DotNetObjectReference.Create(new TimelinePlayerEventSink(HandlePlayerEventAsync));
-        var options = new TimelinePlayerJsOptions(Autoplay, loop, speed, OnFrame.HasDelegate);
+        _events ??= DotNetObjectReference.Create(new TimelinePlayerEventSink(HandlePlayerEventAsync, HandlePlayerErrorAsync));
+        var options = new TimelinePlayerJsOptions(Autoplay, loop, speed, OnFrame.HasDelegate, OnError.HasDelegate);
         TimelinePlayerInterop interop;
         try
         {
@@ -182,30 +197,75 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
         await ApplyParametersAsync();
     }
 
-    private async Task ApplyParametersAsync()
+    /// <summary>
+    /// Sends the changed parameters, one application at a time: OnReady and OnError re-render the
+    /// parent, which sets the parameters again while an application may still be running.
+    /// </summary>
+    private Task ApplyParametersAsync()
     {
-        var interop = _interop;
+        if (_interop is null)
+        {
+            return Task.CompletedTask;
+        }
+        _applying = ApplyAfterAsync(_applying);
+        return _applying;
+    }
+
+    private async Task ApplyAfterAsync(Task previous)
+    {
+        try
+        {
+            await previous;
+        }
+        catch (Exception)
+        {
+            // Already reported to the caller that started it.
+        }
+        await ApplyDataAsync();
+        await ApplyPlaybackAsync();
+    }
+
+    private async Task ApplyDataAsync()
+    {
+        var (interop, data) = (_interop, Data);
+        if (interop is null || ReferenceEquals(data, _appliedData) || ReferenceEquals(data, _refusedData))
+        {
+            return;
+        }
+        try
+        {
+            await interop.UpdateAsync(data);
+            (_appliedData, _refusedData) = (data, null);
+        }
+        catch (Exception error) when (IsTeardown(error))
+        {
+            // Disposed or disconnected during the call: the player is gone with it.
+        }
+        catch (JSException error)
+        {
+            // The player keeps the previous document. Remember the refused one so a re-render of the
+            // parent (OnError re-renders it) does not send it again in a loop.
+            _refusedData = data;
+            await ReportAsync(error);
+        }
+    }
+
+    private async Task ApplyPlaybackAsync()
+    {
+        var (interop, loop, speed) = (_interop, Loop, Speed);
         if (interop is null)
         {
             return;
         }
         try
         {
-            if (!ReferenceEquals(Data, _appliedData))
+            if (loop != _appliedLoop)
             {
-                var data = Data;
-                await interop.UpdateAsync(data);
-                _appliedData = data;
-            }
-            if (Loop != _appliedLoop && !_disposed)
-            {
-                var loop = Loop;
                 await interop.SetLoopAsync(loop);
                 _appliedLoop = loop;
             }
-            if (Speed != _appliedSpeed && !_disposed)
+            if (speed != _appliedSpeed && !_disposed)
             {
-                var speed = Speed;
                 await interop.SetSpeedAsync(speed);
                 _appliedSpeed = speed;
             }
@@ -219,6 +279,14 @@ public sealed partial class TimelinePlayer : ComponentBase, IAsyncDisposable
             await ReportAsync(error);
         }
     }
+
+    private Task HandlePlayerErrorAsync(string message) => InvokeAsync(async () =>
+    {
+        if (!_disposed)
+        {
+            await OnError.InvokeAsync(new TimelineStageException(message));
+        }
+    });
 
     private Task HandlePlayerEventAsync(string name, int frame) => InvokeAsync(async () =>
     {

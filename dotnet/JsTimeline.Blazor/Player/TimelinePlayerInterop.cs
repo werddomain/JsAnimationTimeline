@@ -6,18 +6,27 @@ using Microsoft.JSInterop;
 namespace JsTimeline.Blazor.Player;
 
 /// <summary>Options handed to <c>createTimelinePlayer</c> (serialized in camelCase by the JS runtime).</summary>
-internal sealed record TimelinePlayerJsOptions(bool Autoplay, bool Loop, double Speed, bool NotifyFrames);
+internal sealed record TimelinePlayerJsOptions(bool Autoplay, bool Loop, double Speed, bool NotifyFrames, bool NotifyErrors);
 
 /// <summary>Receives the events of the JavaScript player and hands them to the component.</summary>
 internal sealed class TimelinePlayerEventSink
 {
     private readonly Func<string, int, Task> _onEvent;
+    private readonly Func<string, Task> _onError;
 
-    public TimelinePlayerEventSink(Func<string, int, Task> onEvent) => _onEvent = onEvent;
+    public TimelinePlayerEventSink(Func<string, int, Task> onEvent, Func<string, Task> onError)
+    {
+        _onEvent = onEvent;
+        _onError = onError;
+    }
 
     /// <summary>Called by TimelinePlayer.razor.js for play, pause, complete, loop and frame.</summary>
     [JSInvokable]
     public Task OnPlayerEvent(string name, int frame) => _onEvent(name, frame);
+
+    /// <summary>Called by TimelinePlayer.razor.js when the stage or a listener threw; playback goes on.</summary>
+    [JSInvokable]
+    public Task OnPlayerError(string message) => _onError(message);
 }
 
 /// <summary>Typed calls to TimelinePlayer.razor.js and to the player object it creates.</summary>
@@ -64,6 +73,8 @@ internal sealed class TimelinePlayerInterop : IAsyncDisposable
 
     public ValueTask UpdateAsync(TimelineDocument document) =>
         _player.InvokeVoidAsync("update", TimelineJson.Serialize(document));
+
+    public ValueTask RefreshTargetsAsync(string? layerId) => _player.InvokeVoidAsync("refreshTargets", layerId);
 
     public ValueTask SetLoopAsync(bool loop) => _player.InvokeVoidAsync("setLoop", loop);
 

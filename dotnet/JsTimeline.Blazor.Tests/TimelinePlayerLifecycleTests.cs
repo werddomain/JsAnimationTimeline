@@ -131,22 +131,56 @@ public sealed class TimelinePlayerLifecycleTests : BunitContext
     }
 
     [Fact]
-    public void A_failed_update_is_sent_again_with_the_next_parameters()
+    public void A_refused_update_is_not_sent_again_but_loop_and_speed_still_apply()
     {
         var js = UseFakeJs();
-        var fail = true;
-        js.Player.Handler = (identifier, _) => identifier == "update" && fail ? throw new JSException("bad") : null;
+        var refused = Document(48);
+        js.Player.Handler = (identifier, args) =>
+            identifier == "update" && (string)args![0]! == TimelineJson.Serialize(refused) ? throw new JSException("bad") : null;
         var errors = 0;
         var cut = Render<TimelinePlayer>(ps => ps.Add(p => p.Data, Document()).Add(p => p.OnError, (Exception _) => errors++));
         Assert.True(cut.Instance.IsReady);
-        var next = Document(48);
 
-        cut.Render(ps => ps.Add(p => p.Data, next));
+        cut.Render(ps => ps.Add(p => p.Data, refused).Add(p => p.Loop, true));
+        cut.Render(ps => ps.Add(p => p.Data, refused).Add(p => p.Speed, 2));
+
         Assert.Equal(1, errors);
-        fail = false;
-        cut.Render(ps => ps.Add(p => p.Data, next).Add(p => p.Loop, true));
-
+        Assert.Single(js.Player.Calls, c => c == "update");
         Assert.Contains("setLoop", js.Player.Calls);
+        Assert.Contains("setSpeed", js.Player.Calls);
+
+        cut.Render(ps => ps.Add(p => p.Data, Document(60)));
+
         Assert.Equal(2, js.Player.Calls.Count(c => c == "update"));
+    }
+
+    [Fact]
+    public void A_parent_re_rendered_by_OnError_does_not_loop_on_a_refused_update()
+    {
+        var js = UseFakeJs();
+        js.Player.Handler = (identifier, _) => identifier == "update" ? throw new JSException("bad") : null;
+        var host = Render<PlayerHost>(ps => ps.Add(p => p.Data, Document()));
+
+        host.Render(ps => ps.Add(p => p.Data, Document(48)));
+
+        Assert.Equal(1, host.Instance.Errors);
+        Assert.Single(js.Player.Calls, c => c == "update");
+    }
+
+    /// <summary>A parent whose OnError handler re-renders it, like any component method handler.</summary>
+    private sealed class PlayerHost : ComponentBase
+    {
+        [Parameter]
+        public TimelineDocument Data { get; set; } = default!;
+
+        public int Errors { get; private set; }
+
+        protected override void BuildRenderTree(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
+        {
+            builder.OpenComponent<TimelinePlayer>(0);
+            builder.AddComponentParameter(1, nameof(TimelinePlayer.Data), Data);
+            builder.AddComponentParameter(2, nameof(TimelinePlayer.OnError), EventCallback.Factory.Create<Exception>(this, _ => Errors++));
+            builder.CloseComponent();
+        }
     }
 }
