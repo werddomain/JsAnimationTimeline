@@ -16,7 +16,9 @@
  * de document en document jusqu'à un passage complet (`sync` puis `render`)
  * sur le document courant (`completePass`). Les avertissements relevés
  * pendant un chargement (scène inconnue, cible non routée, propriété
- * inconnue, cible en double) sont recalculés à chaque document et ne sont
+ * inconnue, cible en double, et tout ce que relève `host.load`, y compris
+ * ses nouvelles tentatives et son retour arrière) sont recalculés à chaque
+ * document et ne sont
  * pas reportés : un tel avertissement qui disparaît puis revient est émis de
  * nouveau, même dans une même image ou pendant une retenue. Un glisser de 60
  * commandes sur un calque à la scène inconnue, ou avec une scène dont
