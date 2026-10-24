@@ -11,7 +11,7 @@
  * après une création ou un regroupement, le nouveau dossier (déplié) devient
  * la sélection, par le service `layers.selection` (la sélection n'est jamais
  * dans une commande). Pas de bouton ici : la barre d'outils (Y8) appelle le
- * service `layers.groups` et écoute `selection:changed` pour `canGroup()`.
+ * service `layers.groups` et écoute `layers:selectionChanged` pour `canGroup()`.
  *
  * Verrous : créer, grouper et dissocier ne sont pas bloqués par un verrou (le
  * verrou protège les images clés, comme pour le glisser-déposer de Y6 qui

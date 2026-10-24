@@ -117,19 +117,27 @@ export {
   LayoutShellPlugin,
   PlayheadPlugin,
   RulerPlugin,
-  ScrollSyncPlugin
+  ScrollSyncPlugin,
+  ZoomPlugin
 } from './plugins/layout';
 export type {
   IFrameScheduler,
   ILayoutShellApi,
+  IPlayheadApi,
   IScrollPosition,
   IScrollState,
   IRulerApi,
   IScrollSyncApi,
+  IZoomApi,
+  IZoomRange,
   LayoutOptions,
   LayoutZone,
+  PlayheadScrubEvent,
   RulerOptions,
-  ScrollSyncOptions
+  ScrollSyncOptions,
+  ZoomAnchor,
+  ZoomChangedEvent,
+  ZoomOptions
 } from './plugins/layout';
 
 // Plugins des calques (epic `layers`) : liste des calques, contrôles de ligne et sélection.
@@ -157,7 +165,7 @@ export type {
   ILayerSelectionService,
   LayerNodeUpdater,
   LayerRowsChangedEvent,
-  SelectionChangedEvent,
+  LayerSelectionChangedEvent,
   SelectionMode
 } from './plugins/layers';
 
@@ -189,6 +197,7 @@ export {
 export {
   MAX_FPS,
   MIN_FPS,
+  MAX_TOTAL_FRAMES,
   MIN_TOTAL_FRAMES,
   TIME_SETTINGS_PLUGIN_ID,
   TimeSettingsLabels,

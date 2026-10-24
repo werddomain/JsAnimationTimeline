@@ -4,7 +4,7 @@
  * Epic : layers
  * Dépend de : layers.list
  * Écoute : layers:rowsChanged, document:changed, document:loaded
- * Émet : selection:changed
+ * Émet : layers:selectionChanged
  *
  * Sélection multiple des calques et des dossiers, et navigation au clavier
  * dans l'arbre. La sélection est de l'état d'interface : elle n'est ni dans
@@ -21,19 +21,19 @@
  * focus) ; Gauche / Droite replient, déplient ou vont au parent / premier
  * enfant ; Espace inverse la ligne ; Ctrl+A sélectionne tout ; Échap vide.
  *
- * `selection:changed` part chaque fois que l'ensemble des ids, l'ancre ou le
+ * `layers:selectionChanged` part chaque fois que l'ensemble des ids, l'ancre ou le
  * focus change (un déplacement du focus seul, avec Ctrl+flèche, l'émet aussi) ;
  * `ids` et `previous` sont dans l'ordre d'affichage. Charger un autre document
  * (`document:loaded`) vide la sélection, l'ancre et le focus : un nouveau
  * document peut réutiliser des ids.
  *
- * Élagage : à chaque `layers:rowsChanged`, `document:changed` et
- * `document:loaded`, la sélection perd les ids qui ne sont plus dans le
+ * Élagage : à chaque `document:changed` (la liste a déjà annoncé ses lignes avec
+ * `layers:rowsChanged`, qui ne fait que repeindre), la sélection perd les ids qui ne sont plus dans le
  * document ET ceux qui ne sont plus visibles (dans un dossier replié) ; ainsi
  * une action sur la sélection (supprimer, glisser, grouper) ne touche jamais
  * une ligne cachée. L'ancre et le focus passent sur la ligne restante la plus
  * proche (le dossier replié lui-même, ou la ligne voisine d'une ligne
- * supprimée). `selection:changed` part si l'élagage a changé quelque chose.
+ * supprimée). `layers:selectionChanged` part si l'élagage a changé quelque chose.
  *
  * Service `layers.selection` : voir `ILayerSelectionService`.
  */
@@ -59,7 +59,7 @@ import {
 } from './selectionModel';
 import type { SelectionRowRef, SelectionState } from './selectionModel';
 import { paintList, paintRows, unpaint } from './selectionView';
-import type { ILayerSelectionService, SelectionChangedEvent, SelectionMode } from './types';
+import type { ILayerSelectionService, LayerSelectionChangedEvent, SelectionMode } from './types';
 import './LayerSelection.less';
 
 /** Identifiant du plugin et de son service. */
@@ -102,6 +102,8 @@ export class LayerSelectionPlugin implements EditorPlugin {
   private knownRows: readonly SelectionRowRef[] = [];
   /** Dernier élément de la liste qui a eu le focus DOM (pour le rendre après le retrait de sa ligne). */
   private focusedElement: Element | undefined;
+  /** Appui de souris en cours : a-t-il commencé hors de toute ligne ? `undefined` sans appui connu. */
+  private pressedOnEmpty: boolean | undefined;
   private renderCleanups: Array<() => void> = [];
 
   readonly init = (ctx: IEditorContext): void => {
@@ -109,8 +111,11 @@ export class LayerSelectionPlugin implements EditorPlugin {
     this.list = ctx.services.require('layers.list');
     this.cleanups = [
       ctx.services.provide(LAYERS_SELECTION_PLUGIN_ID, this.createService()),
-      ctx.events.on('layers:rowsChanged', () => this.reconcile(true)),
-      ctx.events.on('document:changed', () => this.reconcile(false)),
+      // Lignes neuves : on les repeint seulement. L'élagage attend `document:changed` ou
+      // `document:loaded` : la liste annonce ses lignes avant, et sur un chargement la
+      // sélection doit être vidée d'un coup, sans élagage intermédiaire.
+      ctx.events.on('layers:rowsChanged', () => paintRows(this.requireList(), this.state)),
+      ctx.events.on('document:changed', () => this.reconcile()),
       ctx.events.on('document:loaded', () => this.onLoaded())
     ];
   };
@@ -123,9 +128,11 @@ export class LayerSelectionPlugin implements EditorPlugin {
     paintList(element);
     this.listen(element, 'focusin', (event) => this.onFocusIn(event as FocusEvent));
     this.listen(element, 'focusout', (event) => this.onFocusOut(event as FocusEvent));
+    this.listen(element, 'mousedown', (event) => this.onMouseDown(event as MouseEvent));
     this.listen(element, 'click', (event) => this.onClick(event as MouseEvent));
     this.listen(element, 'keydown', (event) => this.onKeyDown(event as KeyboardEvent));
     const zone = element.parentElement;
+    if (zone !== null) this.listen(zone, 'mousedown', (event) => this.onMouseDown(event as MouseEvent));
     if (zone !== null) this.listen(zone, 'click', (event) => this.onZoneClick(event as MouseEvent));
     paintRows(this.requireList(), this.state);
   }
@@ -151,7 +158,25 @@ export class LayerSelectionPlugin implements EditorPlugin {
   }
 
   private onFocusIn(event: FocusEvent): void {
-    if (event.target instanceof Element) this.focusedElement = event.target;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    this.focusedElement = target;
+    // Focus arrivé par un autre chemin (lecteur d'écran, autre plugin) : le tabindex suit.
+    const list = this.requireList();
+    const id = list.rowIdAt(target);
+    if (id !== undefined && list.rowElement(id) === target) this.commit(focusRow(this.state, this.rowIds(), id));
+  }
+
+  /** Mémorise si l'appui d'un clic a commencé dans l'espace vide (hors de toute ligne). */
+  private onMouseDown(event: MouseEvent): void {
+    this.pressedOnEmpty = this.requireList().rowIdAt(event.target) === undefined;
+  }
+
+  /** Vrai si le clic qui finit a commencé dans l'espace vide (ou sans appui connu, clic synthétique) ; remet à zéro. */
+  private takePressedOnEmpty(): boolean {
+    const startedEmpty = this.pressedOnEmpty !== false;
+    this.pressedOnEmpty = undefined;
+    return startedEmpty;
   }
 
   private onFocusOut(event: FocusEvent): void {
@@ -191,7 +216,7 @@ export class LayerSelectionPlugin implements EditorPlugin {
 
   /**
    * Adopte `next` ; si les ids, l'ancre ou le focus ont changé, repeint les
-   * lignes et annonce `selection:changed`. `previousIds` : ids d'avant dans
+   * lignes et annonce `layers:selectionChanged`. `previousIds` : ids d'avant dans
    * leur ordre d'avant (défaut : ordre d'affichage courant).
    */
   private commit(next: SelectionState, previousIds?: readonly string[]): void {
@@ -202,13 +227,13 @@ export class LayerSelectionPlugin implements EditorPlugin {
     this.state = next;
     paintRows(this.requireList(), next);
     const { anchor, focused } = next;
-    const payload: SelectionChangedEvent = {
+    const payload: LayerSelectionChangedEvent = {
       ids: orderedIds(next, rowIds),
       previous,
       ...(anchor === undefined ? {} : { anchor }),
       ...(focused === undefined ? {} : { focused })
     };
-    this.requireContext().events.emit('selection:changed', payload);
+    this.requireContext().events.emit('layers:selectionChanged', payload);
   }
 
   /** Nouveau document : ses ids peuvent en réutiliser d'anciens, donc tout est remis à zéro. */
@@ -218,8 +243,8 @@ export class LayerSelectionPlugin implements EditorPlugin {
     this.commit(EMPTY_SELECTION, previousIds);
   }
 
-  /** Élague la sélection d'après les lignes visibles ; `repaint` repeint aussi les lignes (éléments neufs). */
-  private reconcile(repaint: boolean): void {
+  /** Élague la sélection d'après les lignes visibles. */
+  private reconcile(): void {
     const held = this.listHeldFocus();
     const ctx = this.requireContext();
     const rows = this.requireList().rows();
@@ -230,7 +255,6 @@ export class LayerSelectionPlugin implements EditorPlugin {
     const next = pruneSelection(this.state, previousRows, refs, exists);
     this.knownRows = refs;
     this.commit(next, previousIds);
-    if (repaint) paintRows(this.requireList(), this.state);
     if (held) this.restoreFocus();
   }
 
@@ -247,13 +271,18 @@ export class LayerSelectionPlugin implements EditorPlugin {
     if (!(target instanceof Element)) return;
     const list = this.requireList();
     const id = list.rowIdAt(target);
+    const startedEmpty = this.takePressedOnEmpty();
     if (target.closest(IGNORED_CLICK_SELECTOR) !== null) {
       // Repli ou contrôle : la sélection ne bouge pas, mais le clavier reste sur cette ligne.
       if (id !== undefined && target.closest(TEXT_INPUT_SELECTOR) === null) {
+        this.commit(focusRow(this.state, this.rowIds(), id));
         list.rowElement(id)?.focus({ preventScroll: true });
       }
       return;
     }
+    // Appui sur une ligne, relâché ailleurs (clic maladroit, glissement) : le clic arrive
+    // sur la liste, pas sur une ligne ; on ne vide pas la sélection pour autant.
+    if (id === undefined && !startedEmpty) return;
     const intent = resolveClick(
       { id, ctrl: event.ctrlKey || event.metaKey, shift: event.shiftKey },
       this.state.anchor
@@ -268,7 +297,8 @@ export class LayerSelectionPlugin implements EditorPlugin {
     const target = event.target;
     const zone = event.currentTarget;
     if (!(target instanceof Element) || !(zone instanceof Element)) return;
-    const onEmpty = target === zone || target.closest(`.${LAYER_LIST_CLASSES.empty}`) !== null;
+    const startedEmpty = this.takePressedOnEmpty();
+    const onEmpty = startedEmpty && (target === zone || target.closest(`.${LAYER_LIST_CLASSES.empty}`) !== null);
     if (!onEmpty || event.ctrlKey || event.metaKey || event.shiftKey) return;
     this.commit(clearSelection(this.state));
   }
@@ -332,7 +362,7 @@ export class LayerSelectionPlugin implements EditorPlugin {
 
   private listen(
     target: HTMLElement,
-    type: 'click' | 'keydown' | 'focusin' | 'focusout',
+    type: 'click' | 'mousedown' | 'keydown' | 'focusin' | 'focusout',
     handler: (event: Event) => void
   ): void {
     target.addEventListener(type, handler);

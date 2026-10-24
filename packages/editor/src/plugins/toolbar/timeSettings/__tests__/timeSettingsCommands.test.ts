@@ -14,6 +14,7 @@ import {
   createSetFpsCommand,
   createSetTotalFramesCommand,
   lastUsedFrame,
+  MAX_TOTAL_FRAMES,
   TimeSettingsLabels,
   totalFramesError
 } from '../timeSettingsCommands';
@@ -121,7 +122,7 @@ describe('createSetTotalFramesCommand', () => {
     expect(editor.document.settings.totalFrames).toBe(120);
   });
 
-  it.each([0, -5, 12.5])('refuses %p with a clear French message', (totalFrames) => {
+  it.each([0, -5, 12.5, 100_001, 1e21])('refuses %p with a clear French message', (totalFrames) => {
     // Arrange
     const { editor, refusals } = mount();
 
@@ -130,7 +131,7 @@ describe('createSetTotalFramesCommand', () => {
 
     // Assert
     expect(editor.document.settings.totalFrames).toBe(60);
-    expect(refusals).toEqual(["La durée doit être un nombre entier d'au moins 1 image."]);
+    expect(refusals).toEqual(['La durée doit être un nombre entier de 1 à 100 000 images.']);
   });
 
   it('refuses to end before the last span, naming its layer even inside a folder', () => {
@@ -158,6 +159,19 @@ describe('createSetTotalFramesCommand', () => {
     expect(reduced.settings.totalFrames).toBe(20);
     expect(command.undo(reduced).settings.totalFrames).toBe(60);
     expect(() => command.do(spanDoc())).toThrow('se termine');
+  });
+});
+
+describe('MAX_TOTAL_FRAMES', () => {
+  it('accepts the maximum duration and nothing above it', () => {
+    // Arrange
+    const { editor } = mount();
+
+    // Act + Assert
+    expect(MAX_TOTAL_FRAMES).toBe(100_000);
+    expect(editor.execute(createSetTotalFramesCommand(MAX_TOTAL_FRAMES))).toBe(true);
+    expect(editor.execute(createSetTotalFramesCommand(MAX_TOTAL_FRAMES + 1))).toBe(false);
+    expect(editor.document.settings.totalFrames).toBe(MAX_TOTAL_FRAMES);
   });
 });
 

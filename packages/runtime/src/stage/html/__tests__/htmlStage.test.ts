@@ -187,7 +187,7 @@ describe('frame mode', () => {
     host.render(timeAt(4));
     expect(el('box').style.getPropertyValue('transform')).toContain('translateX(30px)');
     host.load(docOf([]));
-    expect(el('box').getAttribute('style')).toBe('color: red');
+    expect(el('box').style.cssText).toBe('color: red;');
   });
 
   it('removes the style attribute it added, and restores everything on detach', () => {

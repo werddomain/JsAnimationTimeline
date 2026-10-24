@@ -23,6 +23,6 @@ export {
 } from './selection';
 export type {
   ILayerSelectionService,
-  SelectionChangedEvent,
+  LayerSelectionChangedEvent,
   SelectionMode
 } from './selection';

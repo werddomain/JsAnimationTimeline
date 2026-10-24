@@ -385,8 +385,8 @@ describe('robustness', () => {
     const doc = makeDoc();
     const bad = layerWithoutAnimate();
     expect(() => p.update({ ...doc, layers: [doc.layers[0], bad] })).toThrow('The Web Animations API (Element.animate) is not available.');
-    expect(fake.animations.slice(0, 2).every((a) => a.playState === 'running')).toBe(true);
-    expect(fake.animations[2].playState).toBe('idle');
+    // The layer dropped by the refused document was released, so the previous animations are rebuilt, running.
+    expect(fake.animations.filter((a) => a.playState === 'running').map((a) => a.target)).toEqual([document.getElementById('box'), document.querySelector('.dot')]);
     expect(p.playing).toBe(true);
     clock.advance(100);
     expect(p.frame).toBe(4);

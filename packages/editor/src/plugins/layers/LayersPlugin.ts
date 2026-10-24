@@ -31,7 +31,7 @@ export class LayersPlugin implements EditorPlugin {
     this.children = [
       new LayerListPlugin(),
       new LayerSelectionPlugin(),
-      new LayerGroupsPlugin()
+      new LayerGroupsPlugin(),
     ];
   }
 
