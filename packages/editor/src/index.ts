@@ -162,7 +162,7 @@ export type {
   ILayerSelectionService,
   LayerNodeUpdater,
   LayerRowsChangedEvent,
-  SelectionChangedEvent,
+  LayerSelectionChangedEvent,
   SelectionMode
 } from './plugins/layers';
 
