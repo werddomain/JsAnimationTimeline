@@ -200,7 +200,7 @@ export class InlineStyleKeeper {
       return;
     }
     if (entry.written.has(name)) {
-      // Already saved: only the value changes (a shorthand changes the same longhands).
+      // Already saved: only the value changes (a shorthand changes the same longhands for same-shape values, e.g. one value to one value).
       element.style.setProperty(name, value);
       return;
     }
