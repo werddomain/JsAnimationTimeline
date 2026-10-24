@@ -432,6 +432,76 @@ describe('mouse', () => {
     expect(h.selection.selected()).toEqual([]);
   });
 
+  it('replays the pending focus from the zone click handler', () => {
+    const h = setup();
+    h.selection.select(['a']);
+    mouseDown(row(h, 'c'));
+    row(h, 'c').focus();
+    click((h.list.element() as HTMLElement).parentElement as Element);
+    expect(h.selection.selected()).toEqual(['a']);
+    expect(h.selection.focused()).toBe('c');
+  });
+
+  it.each(['dragend', 'contextmenu'])('%s flushes the pending focus once and resets the release state', (type) => {
+    const h = setup();
+    h.selection.select(['a']);
+    mouseDown(row(h, 'a'));
+    row(h, 'c').focus();
+    row(h, 'b').dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    document.dispatchEvent(new Event(type, { bubbles: true }));
+    expect(h.selection.focused()).toBe('c');
+    h.events.length = 0;
+    click(row(h, 'a'));
+    expect(h.selection.focused()).toBe('a');
+    expect(h.events).toHaveLength(1);
+    mouseDown(h.list.element() as Element);
+    row(h, 'b').dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    document.dispatchEvent(new Event(type, { bubbles: true }));
+    click(h.list.element() as Element);
+    expect(h.selection.selected()).toEqual([]);
+  });
+
+  it('leaves no stale press state or timer after destroy', () => {
+    jest.useFakeTimers();
+    try {
+      const h = setup();
+      const base = jest.getTimerCount();
+      mouseDown(row(h, 'a'));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      expect(jest.getTimerCount()).toBe(base + 1);
+      h.editor.destroy();
+      expect(jest.getTimerCount()).toBeLessThanOrEqual(base);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('leaves no stale press state or timer after a second render', () => {
+    jest.useFakeTimers();
+    try {
+      const events: LayerSelectionChangedEvent[] = [];
+      const layers = new LayersPlugin();
+      const plugin = layers.children.find((child) => child instanceof LayerSelectionPlugin) as LayerSelectionPlugin;
+      const host = document.createElement('div');
+      document.body.appendChild(host);
+      const editor = createEditor(host, { data: tree, defaultPlugins: [new LayoutPlugin(), layers], plugins: [recorder(events)] });
+      const list = editor.getService('layers.list');
+      const selection = editor.getService('layers.selection') as ILayerSelectionService;
+      selection.select(['a']);
+      const base = jest.getTimerCount();
+      mouseDown(list?.rowElement('a') as Element);
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      expect(jest.getTimerCount()).toBe(base + 1);
+      plugin.render();
+      expect(jest.getTimerCount()).toBe(base);
+      click(list?.element() as Element);
+      expect(selection.selected()).toEqual([]);
+      editor.destroy();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('forgets a stale press: mousedown without click, then a click without mousedown on the zone clears', async () => {
     const h = setup();
     h.selection.select(['a']);
@@ -678,6 +748,15 @@ describe('pruning', () => {
     expect(document.activeElement).toBe(row(h, 'x'));
     expect(h.events).toEqual([{ ids: [], previous: ['b'], focused: 'x' }]);
     expect(row(h, 'x').tabIndex).toBe(0);
+  });
+
+  it('emits exactly one event on load with several rows selected and list focus, focused = first row', () => {
+    const h = setup();
+    click(row(h, 'a'));
+    click(row(h, 'c'), { ctrl: true });
+    h.events.length = 0;
+    h.editor.load(doc([layer('x'), layer('c')]));
+    expect(h.events).toEqual([{ ids: [], previous: ['a', 'c'], focused: 'x' }]);
   });
 
   it('does not steal the focus on load when it moved elsewhere', () => {

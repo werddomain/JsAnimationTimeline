@@ -128,6 +128,7 @@ export class LayerSelectionPlugin implements EditorPlugin {
   };
 
   render(): void {
+    this.flushPendingFocus();
     this.releaseRender();
     const element = this.requireList().element();
     if (element === undefined) return;
@@ -161,7 +162,6 @@ export class LayerSelectionPlugin implements EditorPlugin {
   /** Retire les écouteurs posés par `render` (avant un nouveau `render`, et à la destruction). */
   private releaseRender(): void {
     this.resetPress();
-    this.clearPressTimer();
     const cleanups = this.renderCleanups;
     this.renderCleanups = [];
     cleanups.forEach((cleanup) => cleanup());
