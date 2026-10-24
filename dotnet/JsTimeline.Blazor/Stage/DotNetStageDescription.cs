@@ -28,17 +28,18 @@ internal sealed partial record DotNetStageDescription(
     public static DotNetStageDescription From(ITimelineStage stage, FrameCallbackMode mode)
     {
         ArgumentNullException.ThrowIfNull(stage);
-        if (string.IsNullOrWhiteSpace(stage.Id))
+        // Each member of the stage is read once: a later change cannot make the description inconsistent.
+        var id = stage.Id;
+        if (string.IsNullOrWhiteSpace(id))
         {
             throw new ArgumentException("A stage needs a non-empty Id.", nameof(stage));
         }
-        var targets = stage.Targets ?? throw new ArgumentException($"Stage \"{stage.Id}\": Targets is null.", nameof(stage));
-        var properties = stage.Properties ?? throw new ArgumentException($"Stage \"{stage.Id}\": Properties is null.", nameof(stage));
-        CheckTargets(stage.Id, targets);
-        CheckProperties(stage.Id, properties);
-        // Copies: the stage's lists are read once and cannot change the description afterwards.
+        var targets = (stage.Targets ?? throw new ArgumentException($"Stage \"{id}\": Targets is null.", nameof(stage))).ToList();
+        var properties = (stage.Properties ?? throw new ArgumentException($"Stage \"{id}\": Properties is null.", nameof(stage))).ToList();
+        CheckTargets(id, targets);
+        CheckProperties(id, properties);
         return new DotNetStageDescription(
-            stage.Id,
+            id,
             ModeName(mode),
             targets.Select(t => t with { Properties = t.Properties?.ToList() }).ToList(),
             properties.Select(Describe).ToList());

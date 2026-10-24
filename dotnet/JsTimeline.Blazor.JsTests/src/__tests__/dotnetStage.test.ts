@@ -221,6 +221,24 @@ describe('review cases: no lost released ids, no stuck pump', () => {
     expect(receiver.frames[receiver.frames.length - 1].released).toEqual(['l-hero']);
   });
 
+  it('moves the ids of a failed call to the frame already waiting', async () => {
+    // Arrange: the call carrying the release is in flight and a newer frame waits.
+    const receiver = new FakeDotNetReference();
+    const player = playerWith(receiver, 'everyTick', () => undefined);
+    await receiver.resolveAll();
+    player.update({ ...heroDocument(), layers: [] });
+    await flush();
+    player.seek(4);
+
+    // Act
+    await receiver.rejectNext(new Error('RenderAsync threw'));
+
+    // Assert
+    const sent = receiver.frames[receiver.frames.length - 1];
+    expect(sent.integerFrame).toBe(4);
+    expect(sent.released).toEqual(['l-hero']);
+  });
+
   it('keeps sending when the receiver throws instead of rejecting', async () => {
     // Arrange
     const errors: unknown[] = [];

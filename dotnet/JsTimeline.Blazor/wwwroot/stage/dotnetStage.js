@@ -117,9 +117,13 @@ export function createDotNetStage(description, receiver) {
     }
     Promise.resolve(call)
       .catch((error) => {
-        // .NET did not get these ids: send them with the next frame.
+        // .NET did not get these ids: send them with the frame waiting, else with the next one.
         if (!stopped) {
-          released = [...frame.released, ...released];
+          if (pending !== null) {
+            pending = { ...pending, released: [...frame.released, ...pending.released] };
+          } else {
+            released = [...frame.released, ...released];
+          }
           changed = true;
         }
         report(error);
