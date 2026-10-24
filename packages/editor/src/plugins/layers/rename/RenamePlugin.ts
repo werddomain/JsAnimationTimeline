@@ -106,14 +106,16 @@ export class RenamePlugin implements EditorPlugin {
     }
     // Une saisie encore ouverte sur une autre ligne est validée d'abord.
     this.session?.edit.commit();
-    const edit = startInlineEdit(
-      nameElement,
-      row.node.name,
-      (value) => void service.rename(id, value),
-      () => {
+    const edit = startInlineEdit(nameElement, {
+      // Nom relu au moment voulu : il a pu changer (annulation, autre plugin) pendant la saisie.
+      currentName: () => list.row(id)?.node.name ?? row.node.name,
+      onCommit: (value) => void service.rename(id, value),
+      onDone: (refocus) => {
         if (this.session?.edit === edit) this.session = undefined;
+        // Entrée et Échap rendent le focus à la ligne (clavier) ; une perte de focus le laisse où il est allé.
+        if (refocus) list.rowElement(id)?.focus();
       }
-    );
+    });
     this.session = { id, edit };
   }
 }

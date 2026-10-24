@@ -86,10 +86,11 @@ describe('visibility row control', () => {
   it('shows an eye per row with aria-pressed and French labels', () => {
     const { host } = mount(tree);
     expect(rowButton(host, 'b').getAttribute('aria-pressed')).toBe('true');
-    expect(rowButton(host, 'b').getAttribute('aria-label')).toBe('Masquer le calque');
+    expect(rowButton(host, 'b').getAttribute('aria-label')).toBe('Visibilité de « b »');
     expect(rowButton(host, 'b').title).toBe('Masquer le calque');
     expect(rowButton(host, 'a').getAttribute('aria-pressed')).toBe('false');
-    expect(rowButton(host, 'a').getAttribute('aria-label')).toBe('Afficher le calque');
+    expect(rowButton(host, 'a').getAttribute('aria-label')).toBe('Visibilité de « a »');
+    expect(rowButton(host, 'a').title).toBe('Afficher le calque');
   });
 
   it('sits left of the lock (order 10 before 20)', () => {
@@ -109,18 +110,27 @@ describe('visibility row control', () => {
     expect(findNodeById(editor.document.layers, 'b')?.visible).toBe(false);
     expect(rowButton(host, 'b')).toBe(button);
     expect(button.getAttribute('aria-pressed')).toBe('false');
-    expect(button.getAttribute('aria-label')).toBe('Afficher le calque');
+    expect(button.getAttribute('aria-label')).toBe('Visibilité de « b »');
+    expect(button.title).toBe('Afficher le calque');
     expect(document.activeElement).toBe(button);
     editor.undo();
     expect(button.getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('does not let the click reach the row', () => {
+  it('does not let click, keydown, mousedown or pointerdown reach the row', () => {
     const { host } = mount(tree);
-    const onRowClick = jest.fn();
-    host.querySelector('[data-row-id="b"]')?.addEventListener('click', onRowClick);
-    rowButton(host, 'b').click();
-    expect(onRowClick).not.toHaveBeenCalled();
+    const onRow = jest.fn();
+    const row = host.querySelector('[data-row-id="b"]');
+    const types = ['click', 'keydown', 'mousedown', 'pointerdown'];
+    types.forEach((type) => row?.addEventListener(type, onRow));
+    const button = rowButton(host, 'b');
+    types.forEach((type) => button.dispatchEvent(new Event(type, { bubbles: true })));
+    expect(onRow).not.toHaveBeenCalled();
+  });
+
+  it('keeps the row buttons in the tab order', () => {
+    const { host } = mount(tree);
+    expect(rowButton(host, 'b').tabIndex).toBe(0);
   });
 
   it('toggles a folder own flag', () => {
@@ -136,11 +146,13 @@ describe('visibility header control', () => {
     const { host, editor } = mount(original);
     const header = headerButton(host);
     expect(header.getAttribute('aria-pressed')).toBe('false');
-    expect(header.getAttribute('aria-label')).toBe('Afficher tous les calques');
+    expect(header.getAttribute('aria-label')).toBe('Visibilité de tous les calques');
+    expect(header.title).toBe('Afficher tous les calques');
     header.click();
     expect(editor.document.layers.every((node) => node.visible !== false)).toBe(true);
     expect(header.getAttribute('aria-pressed')).toBe('true');
-    expect(header.getAttribute('aria-label')).toBe('Masquer tous les calques');
+    expect(header.getAttribute('aria-label')).toBe('Visibilité de tous les calques');
+    expect(header.title).toBe('Masquer tous les calques');
     header.click();
     expect(editor.document.layers.every((node) => node.visible === false)).toBe(true);
     editor.undo();

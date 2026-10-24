@@ -87,9 +87,10 @@ describe('lock row control', () => {
   it('shows a padlock per row with aria-pressed and French labels', () => {
     const { host } = mount(tree);
     expect(rowButton(host, 'b').getAttribute('aria-pressed')).toBe('false');
-    expect(rowButton(host, 'b').getAttribute('aria-label')).toBe('Verrouiller le calque');
+    expect(rowButton(host, 'b').getAttribute('aria-label')).toBe('Verrou de « b »');
+    expect(rowButton(host, 'b').title).toBe('Verrouiller le calque');
     expect(rowButton(host, 'f').getAttribute('aria-pressed')).toBe('true');
-    expect(rowButton(host, 'f').getAttribute('aria-label')).toBe('Déverrouiller le calque');
+    expect(rowButton(host, 'f').getAttribute('aria-label')).toBe('Verrou de « f »');
     expect(rowButton(host, 'f').title).toBe('Déverrouiller le calque');
   });
 
@@ -98,6 +99,9 @@ describe('lock row control', () => {
     const inherited = rowButton(host, 'a');
     expect(inherited.dataset.inherited).toBe('true');
     expect(inherited.getAttribute('aria-pressed')).toBe('false');
+    expect(inherited.title).toBe('Verrouiller le calque (Verrouillé par un dossier parent)');
+    expect(inherited.getAttribute('aria-label')).toBe('Verrou de « a » (Verrouillé par un dossier parent)');
+    expect(rowButton(host, 'd').title).toBe('Déverrouiller le calque');
     expect(rowButton(host, 'd').dataset.inherited).toBeUndefined();
     expect(rowButton(host, 'b').dataset.inherited).toBeUndefined();
     inherited.click();
@@ -133,11 +137,13 @@ describe('lock header control', () => {
     const { host, editor } = mount(original);
     const header = headerButton(host);
     expect(header.getAttribute('aria-pressed')).toBe('false');
-    expect(header.getAttribute('aria-label')).toBe('Verrouiller tous les calques');
+    expect(header.getAttribute('aria-label')).toBe('Verrou de tous les calques');
+    expect(header.title).toBe('Verrouiller tous les calques');
     header.click();
     expect(editor.document.layers.every((node) => node.locked === true)).toBe(true);
     expect(header.getAttribute('aria-pressed')).toBe('true');
-    expect(header.getAttribute('aria-label')).toBe('Déverrouiller tous les calques');
+    expect(header.getAttribute('aria-label')).toBe('Verrou de tous les calques');
+    expect(header.title).toBe('Déverrouiller tous les calques');
     header.click();
     expect(editor.document.layers.every((node) => node.locked === false)).toBe(true);
     editor.undo();

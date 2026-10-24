@@ -34,6 +34,9 @@ export const LAYERS_LOCK_PLUGIN_ID = 'layers.lock';
 /** Position du contrôle dans la ligne (après l'œil, 10). */
 export const LOCK_CONTROL_ORDER = 20;
 
+/** Note ajoutée au cadenas d'une ligne verrouillée par un dossier parent. */
+export const LOCK_INHERITED_NOTE = 'Verrouillé par un dossier parent';
+
 /** Classe du bouton de verrouillage. */
 export const LOCK_BUTTON_CLASS = 'jt-layer-flag--lock';
 
@@ -78,8 +81,11 @@ export class LockPlugin implements EditorPlugin {
       pressed: resolveLocked,
       inherited: (row) => row.lockedByAncestor && !resolveLocked(row.node),
       glyph: (pressed) => (pressed ? '🔒' : '🔓'),
-      rowLabel: (pressed) => (pressed ? LockLabels.unlock : LockLabels.lock),
-      headerLabel: (all) => (all ? LockLabels.unlockAll : LockLabels.lockAll),
+      rowLabel: (node) => `Verrou de « ${node.name} »`,
+      rowTitle: (pressed) => (pressed ? LockLabels.unlock : LockLabels.lock),
+      inheritedNote: LOCK_INHERITED_NOTE,
+      headerLabel: 'Verrou de tous les calques',
+      headerTitle: (all) => (all ? LockLabels.unlockAll : LockLabels.lockAll),
       document: () => ctx.document,
       onToggle: (id) => void service.toggle(id),
       onToggleAll: () => void service.setAll(nextAllValue(ctx.document, LOCKED_FLAG))

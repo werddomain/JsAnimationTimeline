@@ -27,10 +27,16 @@ export interface IFlagToggleOptions {
   readonly inherited?: (row: ILayerRow) => boolean;
   /** Pictogramme du bouton selon l'état. */
   readonly glyph: (pressed: boolean) => string;
-  /** Libellé de l'action d'une ligne selon son état courant (« Masquer le calque »). */
-  readonly rowLabel: (pressed: boolean) => string;
-  /** Libellé de l'action de l'en-tête selon l'état de l'ensemble. */
-  readonly headerLabel: (allPressed: boolean) => string;
+  /** Libellé accessible stable d'une ligne, avec le nom du nœud (« Visibilité de « Héros » »). */
+  readonly rowLabel: (node: LayerNode) => string;
+  /** Action d'une ligne selon son état courant (infobulle : « Masquer le calque »). */
+  readonly rowTitle: (pressed: boolean) => string;
+  /** Note ajoutée au libellé et à l'infobulle d'une ligne dont l'état est hérité. */
+  readonly inheritedNote?: string;
+  /** Libellé accessible stable de l'en-tête (« Visibilité de tous les calques »). */
+  readonly headerLabel: string;
+  /** Action de l'en-tête selon l'état de l'ensemble (infobulle). */
+  readonly headerTitle: (allPressed: boolean) => string;
   /** Document courant (état de l'en-tête). */
   readonly document: () => ITimelineDocument;
   /** Bascule le nœud `id` (clic sur une ligne). */
@@ -53,19 +59,22 @@ export const FLAG_BUTTON_CLASSES = Object.freeze({
 });
 
 /** Pose l'état visuel et accessible du bouton. */
-function paintButton(button: HTMLButtonElement, pressed: boolean, label: string, glyph: string): void {
+function paintButton(button: HTMLButtonElement, pressed: boolean, label: string, title: string, glyph: string): void {
   button.textContent = glyph;
   button.setAttribute('aria-pressed', String(pressed));
   button.setAttribute('aria-label', label);
-  button.title = label;
+  button.title = title;
 }
 
 function createButton(host: HTMLElement, className: string, onClick: () => void): HTMLButtonElement {
   const button = host.ownerDocument.createElement('button');
   button.type = 'button';
   button.classList.add(FLAG_BUTTON_CLASSES.button, className);
+  (['keydown', 'mousedown', 'pointerdown'] as const).forEach((type) =>
+    button.addEventListener(type, (event) => event.stopPropagation())
+  );
   button.addEventListener('click', (event) => {
-    // La ligne ne doit pas réagir (sélection, Y5) : le clic ne concerne que le drapeau.
+    // La ligne ne doit pas réagir (sélection, clavier, Y5) : clic, touches et pointeur ne concernent que le drapeau.
     event.stopPropagation();
     onClick();
   });
@@ -81,8 +90,9 @@ export function createFlagToggleControl(options: IFlagToggleOptions): IFlagToggl
     const button = element.firstElementChild;
     if (!(button instanceof HTMLButtonElement)) return;
     const pressed = options.pressed(row.node);
-    paintButton(button, pressed, options.rowLabel(pressed), options.glyph(pressed));
     const inherited = options.inherited?.(row) ?? false;
+    const note = inherited && options.inheritedNote !== undefined ? ` (${options.inheritedNote})` : '';
+    paintButton(button, pressed, options.rowLabel(row.node) + note, options.rowTitle(pressed) + note, options.glyph(pressed));
     button.classList.toggle(FLAG_BUTTON_CLASSES.inherited, inherited);
     if (inherited) button.dataset.inherited = 'true';
     else delete button.dataset.inherited;
@@ -91,7 +101,7 @@ export function createFlagToggleControl(options: IFlagToggleOptions): IFlagToggl
   const paintHeader = (button: HTMLButtonElement): void => {
     const nodes = options.document().layers;
     const all = nodes.length > 0 && nodes.every(options.pressed);
-    paintButton(button, all, options.headerLabel(all), options.glyph(all));
+    paintButton(button, all, options.headerLabel, options.headerTitle(all), options.glyph(all));
   };
 
   return {

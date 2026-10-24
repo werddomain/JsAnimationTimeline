@@ -75,8 +75,10 @@ export class VisibilityPlugin implements EditorPlugin {
       className: VISIBILITY_BUTTON_CLASS,
       pressed: resolveVisible,
       glyph: (pressed) => (pressed ? '👁' : '◌'),
-      rowLabel: (pressed) => (pressed ? VisibilityLabels.hide : VisibilityLabels.show),
-      headerLabel: (all) => (all ? VisibilityLabels.hideAll : VisibilityLabels.showAll),
+      rowLabel: (node) => `Visibilité de « ${node.name} »`,
+      rowTitle: (pressed) => (pressed ? VisibilityLabels.hide : VisibilityLabels.show),
+      headerLabel: 'Visibilité de tous les calques',
+      headerTitle: (all) => (all ? VisibilityLabels.hideAll : VisibilityLabels.showAll),
       document: () => ctx.document,
       onToggle: (id) => void service.toggle(id),
       onToggleAll: () => void service.setAll(nextAllValue(ctx.document, VISIBLE_FLAG))

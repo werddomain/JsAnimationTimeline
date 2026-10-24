@@ -206,3 +206,69 @@ describe('inline editing', () => {
     expect(host.querySelector(`.${RENAME_INPUT_CLASS}`)).toBeNull();
   });
 });
+
+describe('inline editing review fixes', () => {
+  function focusableRow(host: HTMLElement, id: string): HTMLElement {
+    const row = host.querySelector<HTMLElement>(`[data-row-id="${id}"]`);
+    if (row === null) throw new Error(`ligne ${id} absente`);
+    row.tabIndex = -1;
+    return row;
+  }
+
+  it('gives the focus back to the row after Enter and Escape, not after blur', () => {
+    const { host } = mount(tree);
+    const row = focusableRow(host, 'a');
+    doubleClick(nameElement(host, 'a'));
+    press(inputOf(host), 'Enter');
+    expect(document.activeElement).toBe(row);
+    doubleClick(nameElement(host, 'a'));
+    press(inputOf(host), 'Escape');
+    expect(document.activeElement).toBe(row);
+    doubleClick(nameElement(host, 'a'));
+    inputOf(host).dispatchEvent(new FocusEvent('blur'));
+    expect(document.activeElement).not.toBe(row);
+  });
+
+  it('ignores a blur of an input that is no longer connected (no command during document:changed)', () => {
+    const { host, editor } = mount(tree);
+    doubleClick(nameElement(host, 'a'));
+    const input = inputOf(host);
+    input.value = 'perdu';
+    input.remove();
+    input.dispatchEvent(new FocusEvent('blur'));
+    expect(nameOf(editor.document, 'a')).toBe('a');
+    expect(editor.canUndo).toBe(false);
+  });
+
+  it('restores the current name, not the name captured at start, after a cancel', () => {
+    const { host, editor } = mount(tree);
+    doubleClick(nameElement(host, 'a'));
+    editor.getService('layers.rename')?.rename('a', 'Autre');
+    expect(nameElement(host, 'a').textContent).not.toBe('Autre');
+    press(inputOf(host), 'Escape');
+    expect(nameElement(host, 'a').textContent).toBe('Autre');
+  });
+
+  it('keeps pointer, drag, keyup and context menu events away from the row', () => {
+    const { host } = mount(tree);
+    doubleClick(nameElement(host, 'a'));
+    const types = ['pointerdown', 'dragstart', 'keyup', 'contextmenu', 'mousedown', 'click', 'dblclick'];
+    const seen = jest.fn();
+    types.forEach((type) => host.addEventListener(type, seen));
+    const input = inputOf(host);
+    types.forEach((type) => input.dispatchEvent(new Event(type, { bubbles: true, cancelable: true })));
+    expect(seen).not.toHaveBeenCalled();
+  });
+
+  it('abandons the edit, with no rename, when the parent folder is collapsed', () => {
+    const { host, editor, list } = mount(tree);
+    doubleClick(nameElement(host, 'a'));
+    inputOf(host).value = 'perdu';
+    list.setCollapsed('f', true);
+    expect(host.querySelector(`.${RENAME_INPUT_CLASS}`)).toBeNull();
+    expect(nameOf(editor.document, 'a')).toBe('a');
+    editor.undo();
+    expect(nameOf(editor.document, 'a')).toBe('a');
+    expect(editor.canUndo).toBe(false);
+  });
+});
