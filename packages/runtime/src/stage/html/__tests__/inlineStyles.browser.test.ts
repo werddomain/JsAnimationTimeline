@@ -10,6 +10,7 @@ import { InlineStyleKeeper } from '../inlineStyles';
 
 const SHORTHANDS: Readonly<Record<string, readonly string[]>> = {
   margin: ['margin-top', 'margin-right', 'margin-bottom', 'margin-left'],
+  padding: ['padding-top', 'padding-right', 'padding-bottom', 'padding-left'],
   'border-radius': [
     'border-top-left-radius',
     'border-top-right-radius',
@@ -21,6 +22,8 @@ const SHORTHANDS: Readonly<Record<string, readonly string[]>> = {
 interface IDeclaration {
   value: string;
   priority: string;
+  /** Set when a shorthand was written with var(): the longhands then read '' and the shorthand reads this text. */
+  varText?: string;
 }
 
 /** CSS 1-4 value expansion (top right bottom left); a single-target property keeps its value. */
@@ -53,6 +56,10 @@ class FakeStyle {
     if (parts.some((part) => part === undefined)) {
       return '';
     }
+    const varText = parts[0]?.varText;
+    if (varText !== undefined && parts.every((part) => part?.varText === varText)) {
+      return varText;
+    }
     const priorities = new Set(parts.map((part) => part?.priority));
     if (priorities.size > 1) {
       return '';
@@ -77,6 +84,10 @@ class FakeStyle {
     }
     const longhands = SHORTHANDS[name];
     const targets = longhands ?? [name];
+    if (longhands !== undefined && value.includes('var(')) {
+      targets.forEach((key) => this.declarations.set(key, { value: '', priority, varText: value }));
+      return;
+    }
     const parts = expandBoxValue(value.split(/\s+/), targets.length);
     targets.forEach((key, index) => {
       this.declarations.set(key, { value: parts[index], priority });
@@ -115,18 +126,34 @@ interface IFakeDocument {
   createElementNS(namespace: string, name: string): { style?: FakeStyle };
 }
 
-function fakeElement(css: string): { target: Element; style: FakeStyle } {
+const XHTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+
+interface IFakeKind {
+  readonly namespaceURI?: string;
+  readonly localName?: string;
+  /** Receives each `[namespace, name]` used to create a probe element. */
+  readonly probes?: Array<readonly [string, string]>;
+}
+
+function fakeElement(css: string, kind: IFakeKind = {}): { target: Element; style: FakeStyle } {
   const style = new FakeStyle();
   style.cssText = css;
   const ownerDocument: IFakeDocument = {
-    createElement: () => ({ style: new FakeStyle() }),
-    createElementNS: () => ({ style: new FakeStyle() }),
+    createElement: (tag) => {
+      kind.probes?.push(['', tag]);
+      return { style: new FakeStyle() };
+    },
+    createElementNS: (namespace, name) => {
+      kind.probes?.push([namespace, name]);
+      return { style: new FakeStyle() };
+    },
   };
   const target = {
     style,
     ownerDocument,
-    namespaceURI: 'http://www.w3.org/1999/xhtml',
-    localName: 'div',
+    namespaceURI: kind.namespaceURI ?? XHTML_NAMESPACE,
+    localName: kind.localName ?? 'div',
     hasAttribute: () => true,
     getAttribute: () => style.cssText,
     removeAttribute: () => undefined,
@@ -256,6 +283,32 @@ describe('InlineStyleKeeper restore in a browser (longhands listed)', () => {
     keeper.write(target, 'color', 'blue');
     keeper.release(target);
     expect(style.getPropertyValue('color')).toBe('red');
+  });
+
+  it('gives back a page shorthand written with var() whose longhands read empty', () => {
+    const { target, style } = fakeElement('padding: var(--pad); color: red');
+    const keeper = held(target);
+    keeper.write(target, 'padding', '5px');
+    keeper.write(target, 'padding', '6px');
+    expect(style.getPropertyValue('padding')).toBe('6px');
+    keeper.release(target);
+    expect(style.getPropertyValue('padding')).toBe('var(--pad)');
+    expect(style.getPropertyValue('color')).toBe('red');
+  });
+
+  it.each([
+    ['a custom element', XHTML_NAMESPACE, 'my-widget', 'div'],
+    ['an unknown namespace', 'urn:x', 'thing', 'div'],
+    ['an SVG element', SVG_NAMESPACE, 'rect', 'g'],
+  ])('probes with a fixed element name for %s, never its own name', (_label, namespaceURI, localName, expected) => {
+    const probes: Array<readonly [string, string]> = [];
+    const { target, style } = fakeElement('margin: 1px', { namespaceURI, localName, probes });
+    const keeper = held(target);
+    keeper.write(target, 'margin', '5px');
+    keeper.release(target);
+    expect(probes.length).toBeGreaterThan(0);
+    expect(probes.every(([, name]) => name === expected)).toBe(true);
+    expect(style.getPropertyValue('margin')).toBe('1px');
   });
 
   it('restores through cssText when the probe element has no style (XML document)', () => {
