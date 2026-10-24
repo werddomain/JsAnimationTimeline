@@ -132,7 +132,6 @@ describe('rectangle selection', () => {
 
   it('adds the target and anchors on it when additive without an anchor', () => {
     // Arrange
-    const start = toggleCell(selectOnly({ rowId: 'a', frame: 1 }, rows, TOTAL), { rowId: 'a', frame: 1 }, rows, TOTAL);
     const withCell = selectCells([{ rowId: 'c', frame: 4 }], rows, TOTAL);
     const noAnchor = { cells: withCell.cells };
 
@@ -140,8 +139,20 @@ describe('rectangle selection', () => {
     const state = selectRectangle(noAnchor, { rowId: 'a', frame: 6 }, true, rows, TOTAL);
 
     // Assert
-    expect(start).toEqual({ cells: [] });
     expect(state).toEqual({ cells: [{ rowId: 'a', frame: 6 }, { rowId: 'c', frame: 4 }], anchor: { rowId: 'a', frame: 6 } });
+  });
+
+  it('clears without an anchor on an invalid target, and ignores it when additive', () => {
+    // Arrange
+    const noAnchor = { cells: selectCells([{ rowId: 'c', frame: 4 }], rows, TOTAL).cells };
+
+    // Act
+    const replaced = selectRectangle(noAnchor, { rowId: 'f', frame: 6 }, false, rows, TOTAL);
+    const added = selectRectangle(noAnchor, { rowId: 'f', frame: 6 }, true, rows, TOTAL);
+
+    // Assert
+    expect(replaced).toBe(EMPTY_FRAME_SELECTION);
+    expect(added).toBe(noAnchor);
   });
 
   it('acts like a single click without an anchor, and ignores an invalid target', () => {
