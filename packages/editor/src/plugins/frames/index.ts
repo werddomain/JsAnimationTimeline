@@ -23,3 +23,11 @@ export type {
   IGridWindow,
   IRowRange
 } from './grid';
+export { FRAMES_SELECTION_CLASSES, FRAMES_SELECTION_PLUGIN_ID, FramesSelectionPlugin } from './selection';
+export type {
+  FramesSelectionChangedEvent,
+  IFrameCell,
+  IFramesSelectionService,
+  ISelectedKeyframe,
+  SelectedKeyframeKind
+} from './selection';
