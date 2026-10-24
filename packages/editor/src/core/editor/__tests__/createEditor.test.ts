@@ -164,7 +164,7 @@ describe('createEditor root element and context', () => {
     ];
 
     // Act
-    createEditor(createContainer(), { plugins });
+    createEditor(createContainer(), { defaultPlugins: false, plugins });
 
     // Assert
     expect(log).toEqual(['init:layout', 'init:layers.list', 'init:layers.lock']);
@@ -219,7 +219,7 @@ describe('createEditor plugin sets', () => {
     const second = defaultPlugins();
 
     // Assert
-    expect(first.map((plugin) => plugin.id)).toEqual(['interaction.shortcuts']);
+    expect(first.map((plugin) => plugin.id)).toEqual(['layout', 'interaction.shortcuts']);
     expect(second).not.toBe(first);
     first.forEach((plugin, index) => expect(second[index]).not.toBe(plugin));
   });
@@ -233,8 +233,10 @@ describe('createEditor plugin sets', () => {
     const explicit = resolvePlugins({ defaultPlugins: true, plugins: [extra] });
 
     // Assert
-    expect(omitted).toEqual([...defaultPlugins(), extra]);
-    expect(explicit).toEqual([...defaultPlugins(), extra]);
+    const expectedIds = [...defaultPlugins().map((plugin) => plugin.id), 'extra'];
+    expect(omitted.map((plugin) => plugin.id)).toEqual(expectedIds);
+    expect(explicit.map((plugin) => plugin.id)).toEqual(expectedIds);
+    expect(omitted[omitted.length - 1]).toBe(extra);
   });
 
   it('loads no default plugin when defaultPlugins is false', () => {

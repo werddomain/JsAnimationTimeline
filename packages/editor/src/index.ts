@@ -91,6 +91,19 @@ export type {
 export { StoreError } from './core/store';
 export type { DocumentChangeCause, DocumentChangedEvent, DocumentLoadedEvent } from './core/store';
 
+// Plugins de mise en page (epic `layout`) : coquille, emplacements et défilement.
+export { LAYOUT_SLOTS, LAYOUT_ZONES, LayoutPlugin, LayoutShellPlugin, ScrollSyncPlugin } from './plugins/layout';
+export type {
+  IFrameScheduler,
+  ILayoutShellApi,
+  IScrollPosition,
+  IScrollState,
+  IScrollSyncApi,
+  LayoutOptions,
+  LayoutZone,
+  ScrollSyncOptions
+} from './plugins/layout';
+
 // Plugin interaction.shortcuts (raccourcis clavier déclarés par les plugins).
 export { SHORTCUTS_PLUGIN_ID, ShortcutError, createShortcutsPlugin } from './plugins/interaction/shortcuts';
 export type {

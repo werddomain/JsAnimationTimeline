@@ -1,0 +1,94 @@
+// packages/editor/src/plugins/layout/shell/LayoutShell.less
+// Grille de la coquille (layout.shell). Tailles réglables par variables CSS :
+//   --jt-layers-width  largeur de la colonne des calques (250px)
+//   --jt-ruler-height  hauteur de la règle (24px)
+// layout.scrollSync renseigne --jt-scrollbar-x / --jt-scrollbar-y (épaisseur
+// des barres de défilement de la zone des images) pour garder la règle et les
+// calques alignés jusqu'au bout du défilement.
+
+.JsTimeLine {
+  .jt-shell {
+    display: grid;
+    grid-template-columns: var(--jt-layers-width, 250px) minmax(0, 1fr);
+    grid-template-rows: auto var(--jt-ruler-height, 24px) minmax(0, 1fr) auto;
+    grid-template-areas:
+      'toolbar toolbar'
+      'layersHeader ruler'
+      'layers frames'
+      'layersFooter framesFooter';
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    background-color: #fff;
+  }
+
+  .jt-zone {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    box-sizing: border-box;
+  }
+
+  .jt-zone--toolbar {
+    grid-area: toolbar;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background-color: #e8e8e8;
+    border-bottom: 1px solid #ccc;
+  }
+
+  .jt-zone--layersHeader {
+    grid-area: layersHeader;
+    background-color: #e0e0e0;
+    border-right: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+  }
+
+  .jt-zone--ruler {
+    grid-area: ruler;
+    overflow: hidden;
+    margin-right: var(--jt-scrollbar-y, 0px);
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #ccc;
+  }
+
+  .jt-zone--layers {
+    grid-area: layers;
+    overflow: hidden;
+    margin-bottom: var(--jt-scrollbar-x, 0px);
+    background-color: #fafafa;
+    border-right: 1px solid #ccc;
+  }
+
+  .jt-zone--frames {
+    grid-area: frames;
+    overflow: auto;
+    background-color: #fff;
+  }
+
+  .jt-zone--layersFooter {
+    grid-area: layersFooter;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background-color: #e8e8e8;
+    border-top: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+  }
+
+  .jt-zone--framesFooter {
+    grid-area: framesFooter;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #e8e8e8;
+    border-top: 1px solid #ccc;
+  }
+
+  @media (max-width: 480px) {
+    .jt-shell {
+      grid-template-columns: var(--jt-layers-width, 150px) minmax(0, 1fr);
+    }
+  }
+}
