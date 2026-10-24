@@ -6,6 +6,7 @@
  * événement `toolbar:editKeyframe`, suivi des événements et destruction.
  */
 
+import { createManualClock } from '@werddomain/timeline-runtime';
 import type { ILayer, ISpan, ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
 import { createEditor } from '../../../../core/editor/createEditor';
 import type { IEditor } from '../../../../core/editor/types';
@@ -64,6 +65,8 @@ interface IProbe {
 
 interface IHarness {
   readonly editor: IEditor;
+  /** Horloge manuelle : `advance` fait le rendu groupé qui émet `playhead:changed`. */
+  readonly clock: ReturnType<typeof createManualClock>;
   readonly selection: IFramesSelectionService;
   readonly layers: ILayerSelectionService;
   readonly probe: IProbe;
@@ -73,8 +76,10 @@ interface IHarness {
 }
 
 function setup(): IHarness {
+  const clock = createManualClock();
   const editor = createEditor(createContainer(), {
     data: sample(),
+    clock,
     defaultPlugins: [
       ...toolbarBasePlugins({}, [new KeyframeActionsPlugin()]),
       new LayersPlugin(),
@@ -112,12 +117,12 @@ function setup(): IHarness {
   };
   const control = (): HTMLElement | null =>
     editor.container.querySelector<HTMLElement>(`[data-toolbar-item="${KEYFRAME_ACTIONS_PLUGIN_ID}"]`);
-  return { editor, selection, layers, probe, edits, button, control };
+  return { editor, clock, selection, layers, probe, edits, button, control };
 }
 
 const cells = (rowId: string, ...frames: number[]) => frames.map((frame) => ({ rowId, frame }));
-/** Attend le rendu groupé de la lecture (qui émet `playhead:changed`). */
-const nextDisplayFrame = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 60));
+/** Durée d'une image d'affichage de l'horloge manuelle. */
+const DISPLAY_FRAME_MS = 16;
 const disabled = (button: HTMLElement): boolean => button.getAttribute('aria-disabled') === 'true';
 
 describe('rendering', () => {
@@ -312,18 +317,18 @@ describe('edit targets a keyframe', () => {
     expect(edits).toEqual([]);
   });
 
-  it('uses the playhead on a selected layer only when it is on a keyframe', async () => {
+  it('uses the playhead on a selected layer only when it is on a keyframe', () => {
     // Arrange
-    const { editor, layers, edits, button } = setup();
+    const { editor, clock, layers, edits, button } = setup();
     layers.select(['a']);
 
     // Act
     editor.playback.seek(5);
-    await nextDisplayFrame();
+    clock.advance(DISPLAY_FRAME_MS);
     const onKeyframe = !disabled(button('edit'));
     button('edit').click();
     editor.playback.seek(3);
-    await nextDisplayFrame();
+    clock.advance(DISPLAY_FRAME_MS);
 
     // Assert
     expect(onKeyframe).toBe(true);
