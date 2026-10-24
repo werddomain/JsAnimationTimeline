@@ -101,7 +101,8 @@ interface IMergeRange {
 /**
  * Pistes de l'interpolation fusionnée. Ordre d'écriture : images clés des
  * interpolations absorbées, puis valeurs évaluées aux images clés de contenu
- * intermédiaires, à k1 et à k2 - 1 (elles l'emportent sur la même image).
+ * intermédiaires, à k1 et à k2 - 1 (elles l'emportent sur la même image,
+ * sauf, pour une image clé vide, une image clé déjà posée à k2 - 1).
  */
 function mergedTracks(
   layer: ILayer,
