@@ -18,12 +18,15 @@
  * - les valeurs évaluées de k2, à l'image k2 - 1 (celles évaluées à k2 - 1 si
  *   k2 est une image clé vide).
  * k2 reste une image clé de contenu, inchangée : les valeurs à k2 et hors de
- * [k1, k2] ne bougent pas. L'accélération des plages absorbées est perdue.
+ * [k1, k2] ne bougent pas. L'accélération est perdue quand plusieurs plages sont absorbées ; celle d'une
+ * seule interpolation absorbée est conservée.
  * Quand k2 est une image clé vide, l'interpolation finit sur les valeurs
  * évaluées à k2 - 1 dans le calque d'origine (pas de saut ni de retour en
  * arrière) : la cible garde ces valeurs puis disparaît à k2.
- * Si [k1, k2 - 1] est déjà exactement une interpolation, la demande est
- * refusée (ALREADY_TWEEN) : rien à créer.
+ * Si [k1, k2 - 1] est déjà une interpolation et que la fusion donnerait la
+ * même plage (mêmes pistes, même accélération), la demande est refusée
+ * (ALREADY_TWEEN) : rien à changer. Sinon la fusion s'applique (par exemple
+ * pour viser k2 avec une interpolation créée depuis une seule plage).
  * Une plage statique d'une seule image est refusée (code ADJACENT_KEYFRAMES) :
  * une interpolation d'une image ne peut pas bouger.
  */
@@ -118,6 +121,20 @@ function mergedTracks(
   return toTracks(points);
 }
 
+/** Vrai si `a` et `b` ont les mêmes bornes, nature, accélération et images clés de propriété. */
+function sameSpan(a: ISpan, b: ISpan): boolean {
+  if (a.id !== b.id || a.start !== b.start || a.end !== b.end || a.kind !== b.kind || a.easing !== b.easing) return false;
+  const left = Object.entries(a.tracks ?? {});
+  const right = b.tracks ?? {};
+  return (
+    left.length === Object.keys(right).length &&
+    left.every(([name, track]) => {
+      const other = right[name];
+      return other !== undefined && other.length === track.length && track.every((k, i) => k.frame === other[i].frame && k.value === other[i].value);
+    })
+  );
+}
+
 /** Fusionne les plages de [from, to - 1] en une interpolation (images clés `from` et `to`). */
 export function createMotionTweenBetween(
   doc: ITimelineDocument,
@@ -135,9 +152,11 @@ export function createMotionTweenBetween(
   if (to - from < 2) throw motionTweenRefusal('ADJACENT_KEYFRAMES');
   const absorbed = layer.spans.slice(first, last);
   if (absorbed.some((span) => span.kind === 'blank')) throw motionTweenRefusal('BLANK_SPAN');
-  if (absorbed.length === 1 && absorbed[0].kind === 'tween') throw motionTweenRefusal('ALREADY_TWEEN');
   const tracks = mergedTracks(layer, absorbed, { from, to, endsBlank: layer.spans[last].kind === 'blank' }, registry);
-  const merged: ISpan = withTracks({ id: absorbed[0].id, start: from, end: to - 1, kind: 'tween' }, tracks);
+  const easing = absorbed.length === 1 && absorbed[0].kind === 'tween' ? absorbed[0].easing : undefined;
+  const head: ISpan = { id: absorbed[0].id, start: from, end: to - 1, kind: 'tween' };
+  const merged: ISpan = withTracks(easing === undefined ? head : { ...head, easing }, tracks);
+  if (absorbed.length === 1 && sameSpan(absorbed[0], merged)) throw motionTweenRefusal('ALREADY_TWEEN');
   return replaceLayer(doc, withSpans(layer, [...layer.spans.slice(0, first), merged, ...layer.spans.slice(last)]));
 }
 
