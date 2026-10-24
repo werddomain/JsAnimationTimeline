@@ -5,13 +5,18 @@
  * objets et une fonction `apply` ; l'aide s'occupe du routage `{ ref }`, de la
  * liste des cibles, de la remise à zéro et d'un seul `endFrame` par image.
  * Un calque inactif reçoit `reset` puis `apply` ; sans `reset`, `apply` reçoit
- * les valeurs par défaut du registre.
+ * les valeurs par défaut du registre, pour les propriétés déclarées et pour
+ * celles que les pistes du calque animent (retenues à `update`, aussi au
+ * relâchement).
  * `add()` et `remove()` signalent la cible touchée (`{ ref, stage }`) : l'hôte
  * relâche l'ancien objet et résout de nouveau les calques liés à ce `ref`,
- * qu'ils soient écrits avec ou sans `stage`.
+ * qu'ils soient écrits avec ou sans `stage`. Avec un `resolve` personnalisé, un
+ * autre `ref` peut mener au même objet : tous les calques liés sont aussi
+ * signalés.
  */
 
 import { isRefTarget } from '../../model/guards';
+import type { ILayer } from '../../model/layer';
 import type { LayerTarget } from '../../model/target';
 import { defaultPropertyRegistry } from '../../properties/PropertyRegistry';
 import type { PropertyRegistry } from '../../properties/PropertyRegistry';
@@ -36,7 +41,13 @@ function targetInfo(stageId: string, entry: IObjectStageEntry<unknown>): ITarget
 /** What the stage remembers of a layer between `update` and `release`. */
 interface IBoundLayer {
   readonly target: LayerTarget;
+  /** Declared properties of the object and properties animated by the layer's tracks. */
   readonly names: readonly string[];
+}
+
+/** Names of the properties animated by the tracks of `layer`'s spans. */
+function trackNames(layer: ILayer): string[] {
+  return Array.from(new Set(layer.spans.flatMap((span) => Object.keys(span.tracks ?? {}))));
 }
 
 /** Creates a stage animating the `objects` with `apply`; see `IObjectStageOptions`. */
@@ -45,7 +56,10 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
   const entries = new Map<string, IObjectStageEntry<T>>();
   const subscribers = new Set<(affected?: readonly LayerTarget[]) => void>();
   const notify = (id: string): void => {
-    const affected: readonly LayerTarget[] = [{ ref: id, stage: stageId }];
+    const own: LayerTarget = { ref: id, stage: stageId };
+    // A custom `resolve` may map other refs to this object: notify every bound target too.
+    const affected: readonly LayerTarget[] =
+      options.resolve === undefined ? [own] : [own, ...Array.from(bound.values(), (layer) => layer.target)];
     Array.from(subscribers).forEach((listener) => listener(affected));
   };
   /** Layer id → target of the layers bound by the last `update` (needed by `release`). */
@@ -124,7 +138,10 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
     update(_doc, layers: readonly IStageLayer<T>[]) {
       bound.clear();
       layers.forEach((layer) =>
-        bound.set(layer.layerId, { target: layer.target, names: declaredNames(layer.object, layer.target) })
+        bound.set(layer.layerId, {
+          target: layer.target,
+          names: Array.from(new Set([...declaredNames(layer.object, layer.target), ...trackNames(layer.layer)]))
+        })
       );
     },
     render(time, states) {

@@ -247,6 +247,35 @@ describe('createObjectStage inactive layers and release', () => {
     expect(applied[0].values).toEqual({ x: 0, y: 0, frameIndex: 0 });
   });
 
+  it('applies the defaults of animated but undeclared properties on release (no reset)', () => {
+    const { host, applied } = setUp();
+    // "villain" declares nothing and the stage only declares frameIndex: x comes from the tracks.
+    host.load(docOf([refLayer('l1', 'villain', 'canvas', { x: [{ frame: 1, value: 5 }, { frame: 10, value: 50 }] })]));
+    host.render(timeAt(6));
+    applied.length = 0;
+    host.load(docOf([]));
+    expect(applied).toEqual([{ name: 'villain', values: { frameIndex: 0, x: 0 }, active: false }]);
+  });
+
+  it('gives an inactive layer the defaults of its animated but undeclared properties', () => {
+    const { host, applied } = setUp();
+    const layer: ILayer = {
+      id: 'l1',
+      type: 'layer',
+      name: 'l1',
+      target: { ref: 'villain', stage: 'canvas' },
+      spans: [
+        { id: 's1', start: 1, end: 4, kind: 'tween', tracks: { x: [{ frame: 1, value: 0 }, { frame: 4, value: 30 }] } },
+        { id: 's2', start: 5, end: 10, kind: 'blank' }
+      ]
+    };
+    host.load(docOf([layer]));
+    applied.length = 0;
+    host.render(timeAt(7));
+    expect(applied[0].active).toBe(false);
+    expect(applied[0].values).toEqual({ frameIndex: 0, x: 0 });
+  });
+
   it('does not apply on release for a layer it never saw', () => {
     const { stage, hero, applied } = setUp();
     stage.release?.('unknown', hero);
@@ -319,6 +348,22 @@ describe('createObjectStage targets', () => {
     host.render(timeAt(5));
     expect(applied.map((entry) => entry.name)).toEqual(['newHero']);
     expect(hero.log).toEqual(['apply']);
+  });
+
+  it('with a custom resolve, also notifies the layers that reached the object through another ref', () => {
+    const { stage, host, hero } = setUp({
+      resolve: (target, objects) => objects.get('ref' in target && target.ref === 'alias' ? 'hero' : 'ghost') ?? null
+    });
+    host.load(docOf([refLayer('l1', 'alias', 'canvas')]));
+    expect(host.missingTargets).toEqual([]);
+    hero.log.length = 0;
+    stage.remove('hero');
+    // The layer was bound through "alias", not "hero": it is still released.
+    expect(hero.log).toEqual(['apply']);
+    expect(host.missingTargets).toEqual(['l1']);
+    const newHero: ISprite = { name: 'newHero', log: [] };
+    stage.add({ id: 'hero', label: 'Héros', object: newHero });
+    expect(host.missingTargets).toEqual([]);
   });
 
   it('retries a failed resolution when an object is added', () => {
