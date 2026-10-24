@@ -291,11 +291,24 @@ describe('inline editing review fixes', () => {
   it('treats a blur with no destination and no press as focus leaving when the row is still listed (click into an iframe)', () => {
     const { host, editor } = mount(tree);
     const input = renameWithChange(host, editor);
+    // Un clic dans une iframe garde le focus dans le document (l'iframe devient l'élément actif).
+    jest.spyOn(document, 'hasFocus').mockReturnValue(true);
 
     input.blur();
 
     expect(nameOf(editor.document, 'a')).toBe('Renommé');
     expect(document.activeElement).toBe(document.body);
+  });
+
+  it('keeps the row focusable after a window or tab switch commits the rename', () => {
+    const { host, editor } = mount(tree);
+    const input = renameWithChange(host, editor);
+    jest.spyOn(document, 'hasFocus').mockReturnValue(false);
+
+    input.blur();
+
+    expect(nameOf(editor.document, 'a')).toBe('Renommé');
+    expect(document.activeElement).toBe(host.querySelector('[data-row-id="a"]'));
   });
 
   it('commits with Tab and lets the focus land on the next element instead of the row', () => {
