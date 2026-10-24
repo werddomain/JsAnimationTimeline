@@ -267,7 +267,9 @@ export class LayerSelectionPlugin implements EditorPlugin {
     // est toujours là une fois la pile finie, c'était un vrai départ ; sinon `reconcile` ou
     // `onLoaded` s'en sert pour rendre le focus.
     queueMicrotask(() => {
-      if (target.isConnected && this.focusedElement === target) this.focusedElement = undefined;
+      // Un focus rendu dans la même pile (blur puis focus) garde l'élément suivi.
+      const stillFocused = target.ownerDocument.activeElement === target;
+      if (target.isConnected && !stillFocused && this.focusedElement === target) this.focusedElement = undefined;
     });
   }
 

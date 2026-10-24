@@ -814,6 +814,17 @@ describe('pruning', () => {
     expect(document.activeElement).toBe(document.body);
   });
 
+  it('keeps tracking a row blurred and refocused in the same stack', async () => {
+    const h = setup();
+    click(row(h, 'b'));
+    row(h, 'b').focus();
+    row(h, 'b').blur();
+    row(h, 'b').focus();
+    await Promise.resolve();
+    h.editor.load(doc([layer('x')]));
+    expect(document.activeElement).toBe(row(h, 'x'));
+  });
+
   it('does not move the focus on load when the list did not hold it', () => {
     const h = setup();
     h.selection.select(['b']);
