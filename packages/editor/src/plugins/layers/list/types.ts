@@ -1,0 +1,91 @@
+// packages/editor/src/plugins/layers/list/types.ts
+/**
+ * Contrat de `layers.list` pour les autres plugins : la ligne vue par un
+ * contrôle, le contrôle de ligne (Y2 à Y4 s'y branchent sans toucher à la
+ * liste), le service `layers.list` et l'événement `layers:rowsChanged`.
+ */
+
+import type { LayerNode } from '@werddomain/timeline-runtime';
+import type { IVisibleRow } from '../../../model/rows';
+
+/** Une ligne affichée, avec son nœud du document courant. */
+export interface ILayerRow extends IVisibleRow {
+  /** Calque ou dossier de la ligne (document courant, figé). */
+  readonly node: LayerNode;
+  /**
+   * Vrai si la ligne est verrouillée, elle ou un dossier parent : les
+   * contrôles qui modifient les images s'en servent pour se désactiver.
+   */
+  readonly lockedByAncestor: boolean;
+}
+
+/**
+ * Contrôle ajouté à droite de chaque ligne (œil, cadenas, couleur...).
+ *
+ * La liste crée pour chaque ligne un élément `<span>` propre au contrôle,
+ * le place selon `order`, puis appelle `render` une fois. Ensuite, à chaque
+ * document (ou changement de ligne), elle appelle `update` sur le même
+ * élément. Sans `update`, l'élément est vidé et `render` rappelé.
+ */
+export interface ILayerRowControl {
+  /** Identifiant unique, en notation pointée (par convention, celui du plugin : `layers.lock`). */
+  readonly id: string;
+  /** Position de gauche à droite : le plus petit `order` est le plus à gauche. */
+  readonly order: number;
+  /** Rend le contrôle de `row` dans `element` (vide, déjà dans la ligne). */
+  readonly render: (row: ILayerRow, element: HTMLElement) => void;
+  /** Met à jour le contrôle quand la ligne ou son nœud a changé. */
+  readonly update?: (row: ILayerRow, element: HTMLElement) => void;
+  /** Libère ce que `render` a créé hors de `element` ; l'élément est retiré ensuite par la liste. */
+  readonly dispose?: (row: ILayerRow, element: HTMLElement) => void;
+  /**
+   * En-tête de colonne facultatif (comme l'œil et le cadenas au-dessus des
+   * colonnes dans Flash), rendu dans la zone `layersHeader`.
+   */
+  readonly renderHeader?: (element: HTMLElement) => void;
+}
+
+/** Charge utile de `layers:rowsChanged`. */
+export interface LayerRowsChangedEvent {
+  /** Lignes affichées, en ordre d'affichage. */
+  readonly rows: readonly ILayerRow[];
+  /** Lignes d'avant (vide au premier rendu). */
+  readonly previous: readonly ILayerRow[];
+}
+
+/** API publiée sous le service `layers.list`. */
+export interface ILayerListService {
+  /** Lignes affichées (document courant), en ordre d'affichage. */
+  rows(): readonly ILayerRow[];
+  /** Ligne `id`, ou `undefined` si elle n'est pas affichée (inconnue ou dans un dossier replié). */
+  row(id: string): ILayerRow | undefined;
+  /** Élément DOM de la ligne `id`, ou `undefined` (non affichée, ou avant le rendu). */
+  rowElement(id: string): HTMLElement | undefined;
+  /** Id de la ligne qui contient `target` (délégation d'événements), ou `undefined`. */
+  rowIdAt(target: EventTarget | null): string | undefined;
+  /** Élément de la liste (`role="tree"`), ou `undefined` avant le rendu et après la destruction. */
+  element(): HTMLElement | undefined;
+  /**
+   * Ajoute un contrôle de ligne, rendu tout de suite sur les lignes déjà
+   * affichées. Lève une erreur si son `id` est déjà pris.
+   *
+   * @returns La fonction qui retire le contrôle de toutes les lignes.
+   */
+  addRowControl(control: ILayerRowControl): () => void;
+  /** Replie ou déplie le dossier `folderId` (commande annulable) ; `true` si le document a changé. */
+  setCollapsed(folderId: string, collapsed: boolean): boolean;
+  /** Inverse l'état replié du dossier `folderId` (commande annulable) ; `true` si le document a changé. */
+  toggleCollapsed(folderId: string): boolean;
+}
+
+declare module '../../../core/context/IEditorContext' {
+  interface EditorServiceMap {
+    'layers.list': ILayerListService;
+  }
+}
+
+declare module '../../../core/events/TimelineEventMap' {
+  interface TimelineEventMap {
+    'layers:rowsChanged': LayerRowsChangedEvent;
+  }
+}
