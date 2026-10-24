@@ -11,14 +11,16 @@
  * initialisés après lui) :
  * - `frames.grid` : la grille des plages et des images clés de chaque ligne ;
  * - `frames.selection` : la sélection des images et des images clés ;
+ * - `frames.keyframes` : F5 / F6 / F7 et le glisser des images clés ;
  * - `frames.clipboard` : copier / coller des images (Ctrl+C, Ctrl+V).
  *
- * Les tâches suivantes (K2...) ajoutent leur plugin à `children`.
+ * Les tâches suivantes ajoutent leur plugin à `children`.
  */
 
 import type { EditorPlugin } from '../../core/context/IEditorContext';
 import { FramesClipboardPlugin } from './clipboard/FramesClipboardPlugin';
 import { FramesGridPlugin } from './grid/FramesGridPlugin';
+import { FramesKeyframesPlugin } from './keyframes/FramesKeyframesPlugin';
 import { FramesSelectionPlugin } from './selection/FramesSelectionPlugin';
 
 /** Epic `frames` : grille des images, sélection et leurs fonctionnalités. */
@@ -28,7 +30,12 @@ export class FramesPlugin implements EditorPlugin {
   readonly children: readonly EditorPlugin[];
 
   constructor() {
-    this.children = [new FramesGridPlugin(), new FramesSelectionPlugin(), new FramesClipboardPlugin()];
+    this.children = [
+      new FramesGridPlugin(),
+      new FramesSelectionPlugin(),
+      new FramesKeyframesPlugin(),
+      new FramesClipboardPlugin()
+    ];
   }
 
   readonly init = (): void => {};
