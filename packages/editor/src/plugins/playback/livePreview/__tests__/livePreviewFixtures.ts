@@ -16,7 +16,8 @@ import { createShortcutsPlugin } from '../../../interaction/shortcuts';
 import { createManualScheduler, placeAt } from '../../../layout/__tests__/layoutFixtures';
 import { LayoutPlugin } from '../../../layout/LayoutPlugin';
 import { ToolbarMainPlugin } from '../../../toolbar/main/ToolbarMainPlugin';
-import { LivePreviewPlugin } from '../LivePreviewPlugin';
+import { createLivePreviewPlugin } from '..';
+import type { LivePreviewPlugin } from '..';
 import type { ILivePreviewApi, ILivePreviewOptions } from '../types';
 
 /** Durée d'une image d'affichage pour l'horloge manuelle, en millisecondes. */
@@ -28,6 +29,7 @@ const FRAME_WIDTH = 15;
 
 export interface IPreviewHarness {
   readonly editor: IEditor;
+  readonly plugin: LivePreviewPlugin;
   readonly stage: IFakeStage;
   readonly clock: IManualClock;
   readonly preview: () => ILivePreviewApi;
@@ -60,6 +62,11 @@ function pointer(type: string, frame: number, buttons: number): MouseEvent {
 /** Éditeurs montés, détruits par `cleanPreviews` (un test peut s'arrêter en plein glisser). */
 const mountedEditors: IEditor[] = [];
 
+/** Confie un éditeur créé hors fixture à `cleanPreviews`. */
+export function trackEditor(editor: IEditor): void {
+  mountedEditors.push(editor);
+}
+
 /** Détruit les éditeurs montés puis retire les conteneurs (à appeler dans `afterEach`). */
 export function cleanPreviews(): void {
   mountedEditors.splice(0).forEach((editor) => {
@@ -72,6 +79,15 @@ export function cleanPreviews(): void {
 export interface IPreviewShell {
   /** `false` : sans `toolbar.main` (éditeur sans barre d'outils). */
   readonly withToolbar?: boolean;
+  /** `true` : l'epic playback est enregistrée avant l'epic de la barre d'outils. */
+  readonly toolbarAfterPlayback?: boolean;
+}
+
+/** Epics barre d'outils et playback, dans l'ordre demandé par la coquille. */
+function shellEpics(plugin: LivePreviewPlugin, shell: IPreviewShell): EditorPlugin[] {
+  const toolbar = shell.withToolbar === false ? [] : [epic('toolbar', [new ToolbarMainPlugin()])];
+  const playback = epic('playback', [plugin]);
+  return shell.toolbarAfterPlayback === true ? [playback, ...toolbar] : [...toolbar, playback];
 }
 
 /** Monte l'éditeur avec la coquille, les raccourcis, la barre d'outils et `playback.livePreview`. */
@@ -80,6 +96,7 @@ export function mountPreview(options: ILivePreviewOptions = {}, shell: IPreviewS
   document.body.appendChild(container);
   const clock = createManualClock();
   const stage = createFakeStage();
+  const plugin = createLivePreviewPlugin(options);
   const editor = createEditor(container, {
     data: createStageDocument(),
     stage,
@@ -87,8 +104,7 @@ export function mountPreview(options: ILivePreviewOptions = {}, shell: IPreviewS
     defaultPlugins: [
       new LayoutPlugin({ scrollSync: { scheduler: createManualScheduler() }, ruler: { frameWidth: FRAME_WIDTH } }),
       createShortcutsPlugin(),
-      ...(shell.withToolbar === false ? [] : [epic('toolbar', [new ToolbarMainPlugin()])]),
-      epic('playback', [new LivePreviewPlugin(options)])
+      ...shellEpics(plugin, shell)
     ]
   });
   mountedEditors.push(editor);
@@ -98,6 +114,7 @@ export function mountPreview(options: ILivePreviewOptions = {}, shell: IPreviewS
   stage.log.length = 0;
   return {
     editor,
+    plugin,
     stage,
     clock,
     preview: () => editor.getService('playback.livePreview') as ILivePreviewApi,
