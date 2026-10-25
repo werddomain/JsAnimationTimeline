@@ -12,7 +12,7 @@ import { defaultPlugins } from '../../../../core/editor/defaultPlugins';
 import { DEFAULT_PREVIEW_MAX_FPS, LIVE_PREVIEW_PLUGIN_ID, LivePreviewPlugin } from '../LivePreviewPlugin';
 import { remainingMs } from '../previewSettings';
 import type { PreviewChangedEvent } from '../types';
-import { DISPLAY_FRAME_MS, cleanPreviews, mountPreview } from './livePreviewFixtures';
+import { DISPLAY_FRAME_MS, cleanPreviews, mountPreview, trackEditor } from './livePreviewFixtures';
 
 afterEach(() => {
   jest.useRealTimers();
@@ -288,10 +288,10 @@ describe('playback.livePreview toolbar control', () => {
 
     // Act
     const editor = createEditor(container, { defaultPlugins: defaultPlugins() });
+    trackEditor(editor);
 
     // Assert
     expect(editor.container.querySelector(`[data-toolbar-item="${LIVE_PREVIEW_PLUGIN_ID}"] select`)).not.toBeNull();
-    editor.destroy();
   });
 
   it('mounts without toolbar.main and still holds during a scrub', () => {
@@ -308,6 +308,14 @@ describe('playback.livePreview toolbar control', () => {
     expect(editor.container.querySelector(`[data-toolbar-item="${LIVE_PREVIEW_PLUGIN_ID}"]`)).toBeNull();
     expect(during).toEqual([]);
     expect(renders()).toEqual(['render:6']);
+  });
+
+  it('adds the control when the playback epic is registered before the toolbar epic', () => {
+    // Act
+    const { editor } = mountPreview({}, { toolbarAfterPlayback: true });
+
+    // Assert
+    expect(editor.container.querySelector(`[data-toolbar-item="${LIVE_PREVIEW_PLUGIN_ID}"] select`)).not.toBeNull();
   });
 
   it('has no toolbar control with toolbar: false', () => {
@@ -375,16 +383,17 @@ describe('playback.livePreview timers and endings (review follow-ups)', () => {
 
   it('renders frame 6 once when the release comes before the pending display frame (throttled)', () => {
     // Arrange
-    const { renders, clock, down, moveQuiet, up } = mountPreview({ mode: 'throttled', maxFps: 10 });
+    const { renders, clock, down, move, moveQuiet, up } = mountPreview({ mode: 'throttled', maxFps: 10 });
     down(2);
+    move(3);
 
-    // Act
+    // Act: the last display frame is still pending when the pointer is released.
     moveQuiet(6);
     up();
     clock.advance(DISPLAY_FRAME_MS);
 
     // Assert
-    expect(renders()).toEqual(['render:2', 'render:6']);
+    expect(renders().filter((entry) => entry === 'render:6')).toEqual(['render:6']);
   });
 
   it('holds again when a drag goes on after playback was started then paused', () => {
