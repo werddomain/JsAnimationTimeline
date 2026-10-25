@@ -1,8 +1,8 @@
 # doc/v2/validation/README.md
 
-# Démonstrations et tests conservés des phases 3 et 7
+# Démonstrations et tests conservés des phases 3, 4 et 7
 
-Ces pages conservent les supports utilisés pour les validations des phases 3 et 7,
+Ces pages conservent les supports des phases 3 et 7 et ajoutent la revue de phase 4,
 ainsi que tous leurs contrôles automatisés. Elles utilisent les API existantes et
 le serveur de démo du runtime ; aucun serveur personnel, chemin absolu de PC ou
 téléchargement de dépendance supplémentaire n'est nécessaire.
@@ -24,8 +24,9 @@ Sur une machine neuve, installer une fois Chromium avec
 [le guide E2E](../../../e2e/README.md)).
 
 - Phase 3 : <http://localhost:9311/validation-phase3.html>.
+- Phase 4 : <http://localhost:9311/validation-phase4.html>.
 - Phase 7 : <http://localhost:9311/validation-phase7.html>.
-- La page d'accueil du runtime contient aussi les deux liens.
+- La page d'accueil du runtime contient aussi les trois liens.
 
 Les ports proviennent de `tools/devPorts.ts`. Une autre copie de travail doit
 choisir une autre paire. Pour travailler sur les pages sans reconstruire à chaque
@@ -71,6 +72,45 @@ La perte de focus du document est simulée de manière explicite. Le véritable
 Alt+Tab du système reste un contrôle manuel. Les limites de mise en page et de
 calques sont décrites dans `doc/v2/todo/layout-L1-L3.md` et `calques.md`.
 
+### Phase 4 : images et interpolation
+
+La nouvelle page propose une scène courte et trois calques : un carré avec deux
+positions, une source vide aux images 1–4 et une orbe avec deux images clés. Les
+boutons de démonstration de l'interpolation appellent le service existant
+`tweens.motion` ; leur disponibilité suit la sélection. La checklist indique les
+manipulations à refaire manuellement. La réinitialisation restaure le document,
+la sélection, l'historique, le presse-papiers d'images et les coches.
+
+Neuf contrôles indépendants conservent la sélection simple/Ctrl/Maj sans
+historique, F5 sans rechargement du navigateur, F6, F7 avec masquage réel de la
+scène, un glisser horizontal de clé de contenu, le collage Ctrl+C/Ctrl+V d'une
+plage vide, la création/suppression d'interpolation avec annuler/rétablir et la
+réinitialisation. Le glisser déplace la clé intérieure 5 vers 7 sans collision.
+
+Le cas de régression du presse-papiers part d'un carré à x = 0 sur 1–4, x = 100
+sur 5–8, puis d'une plage statique sans piste sur 9–24. Coller le vide sur 5–8
+doit masquer le carré puis conserver x = 100 dès 9. Les tests vérifient à la fois
+`editor.sample()` et les styles calculés de la vraie scène, puis le document
+complet après un seul annuler et après rétablir. Chaque contrôle collecte les
+erreurs de page/console et joint une capture.
+
+Le neuvième contrôle modélise explicitement les événements de mise en cache et
+retour de page : une modification F6 et son historique restent utilisables,
+puis une sortie définitive détruit l’éditeur. Il ne prouve pas la restauration
+native du cache arrière/avant du navigateur (BFCache).
+
+Pour ne lancer que ces contrôles, après construction, dans le même environnement
+de ports et de CI :
+
+```powershell
+npm run e2e --workspace e2e -- validation/phase4.spec.ts
+```
+
+Cette page est un support de validation de la phase 4. Elle ne vaut pas validation
+utilisateur et ne couvre pas tous les scénarios E1, les navigateurs autres que
+Chromium, le tactile, les propriétés ou courbes à venir, ni les futurs contrôles
+de barre d'outils de la phase 5.
+
 ### Phase 7 : export CSS
 
 La démonstration réutilise `DEMO_ANIMATION`, sans seconde copie du document.
@@ -91,6 +131,7 @@ que le runtime conserve le style initial. La boucle est unique ou infinie.
 
 ## Périmètre
 
-Il s'agit du portage des démonstrations validées et de leurs tests. Les autres
+Les pages des phases 3 et 7 conservent les démonstrations validées et leurs tests ;
+la page de phase 4 ajoute le support de revue de cette phase. Les autres
 scénarios de la tâche E1 et les fonctionnalités restantes du plan restent à faire.
 Les sorties de test et les paquets NuGet locaux ne sont pas publiés ni versionnés.
