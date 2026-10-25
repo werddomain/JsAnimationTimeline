@@ -38,7 +38,7 @@ The general review found that the prose-only English header no longer satisfied 
 
 ## Remaining integration gates
 
-P2 and T2 may be prepared and independently reviewed, but phase-5 merges wait for the user's phase-4 validation after K3 and the W1 documentation follow-up. No P2 PR, push or merge was performed in this completion step.
+Benoit validated phase 4 on 2026-10-25. The phase boundary hold is lifted; phase-5 integration still requires the complete local gate and final independent reviews. No P2 PR, push or merge was performed in this completion step.
 
 The parent owns independent ECC general, TypeScript and security review, followed by the full gate before any PR: clean dist, npm ci, zero-error lint, typecheck, npm test, build, build:demo, CI=1 E2E with worktree-specific clean ports, .NET Release with zero warnings, .NET tests and local package validation. Publish nothing. Review results must be recorded when those reviews actually run; earlier ECC results do not cover this integration.
 
