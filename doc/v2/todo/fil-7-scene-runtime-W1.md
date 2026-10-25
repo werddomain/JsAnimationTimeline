@@ -1,18 +1,23 @@
+<!-- doc/v2/todo/fil-7-scene-runtime-W1.md -->
+
 # Fil 7 : scène côté runtime et W1 — reste à faire
 
-État au 2026-10-24, arrêt demandé par Benoit. Rien n'est en cours.
+État de reprise au 2026-10-24. Les phases 3 et 7 ont été validées par Benoit ; les travaux ci-dessous restent limités aux suivis déjà ouverts. Aucune nouvelle tâche du plan ne démarre sans son accord. Les démonstrations et leurs tests sont conservés dans [le guide de validation](../validation/README.md) (PR #96).
 
 ## Fusionné
 
 - Phase 2b : F06 (#22), R6 (#21), R7 (#33), R8 (#41) et leurs suites (#43, #56, #62, #71).
 - W1 `tweens.motion` (#73) et ses suites (#80, #84, #91).
+- C7 : le suivi des avertissements de scène (#93) est maintenant fusionné.
 
-## Pas encore en PR
+## Suite documentaire W1
 
-- Branche `v2/W1-doc-mergedTracks` : une ligne de JSDoc dans
-  `packages/editor/src/plugins/tweens/motion/createMotionTween.ts` (`mergedTracks` : exception
-  « sauf, pour une image clé vide, une image clé déjà posée à k2 - 1 »). Lint, typecheck et tests
-  de l'éditeur passent. Reste : relecture ECC, PR vers `v2/base`.
+- Branche `v2/W1-doc-mergedTracks` : correction de la JSDoc de
+  `packages/editor/src/plugins/tweens/motion/createMotionTween.ts`. `mergedTracks` conserve une
+  image clé déjà posée à k2 - 1 lorsque k2 est une image clé vide ; cette exception est maintenant
+  explicitée, sans changement du comportement.
+- La PR vers `v2/base` doit consigner les relectures ECC et la vérification locale complète sur
+  son arbre exact. Aucun ancien résultat de test ne remplace cette vérification d'intégration.
 
 ## Points connus, non bloquants (relectures ECC et intégrateur)
 
@@ -45,7 +50,10 @@
 
 ## Prochaines étapes du plan qui dépendent de ce fil
 
-- W2, W3, T2 et I1 utilisent le service `tweens.motion` (`canCreate` / `canRemove`, événement
-  `tweens:motionAvailabilityChanged`).
+- W2, W3 et I1 utiliseront le service `tweens.motion` (`canCreate` / `canRemove`, événement
+  `tweens:motionAvailabilityChanged`) ; ils restent en attente de son accord. T2 est déjà
+  fusionnée (#88) ; ses retouches ouvertes sont suivies séparément dans le fil de phase 5.
 - C7 / P2 utilisent `isEditorVisible` de l'hôte de scène ; E1 et D1 réutilisent la démo
   `demo/runtime/object-stage.html`.
+
+La reprise documentaire est préparée ; ses revues ECC indépendantes restent à effectuer lorsque le plafond de dépenses du workspace permettra aux agents de reprendre.
