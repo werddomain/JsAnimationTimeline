@@ -17,6 +17,11 @@
  *   à la sélection) ;
  * - appui sur une image d'une sélection de plusieurs images : la sélection
  *   reste entière (glisser de K2), et se réduit à cette image au relâchement ;
+ * - `cancelPendingClick()` (service) oublie le clic de l'appui en cours : son
+ *   relâchement ne change plus ni la sélection ni la tête de lecture. Le
+ *   glisser des images clés (`frames.keyframes`, K2) l'appelle dès qu'il
+ *   démarre, pour qu'un glisser revenu à son image de départ, ou annulé par
+ *   Échap, ne réduise pas une sélection multiple ;
  * - clic sur une ligne de dossier : vide la sélection (un dossier n'a pas
  *   d'images).
  *
@@ -24,9 +29,9 @@
  * ni dans l'historique. Elle est vidée au chargement d'un document, et
  * nettoyée quand un calque disparaît, qu'un dossier est replié ou que la
  * durée diminue. Ordre : sur `document:changed`, la grille redessine (et
- * annonce `frames:gridRendered`) avant ce nettoyage, qui redessine ensuite. Elle est dessinée dans un
- * calque de décoration posé sur la grille (`frames.grid` → `element()`),
- * redessiné à chaque `frames:gridRendered`, seulement dans la fenêtre
+ * annonce `frames:gridRendered`) avant ce nettoyage, qui redessine ensuite.
+ * Elle est dessinée dans un calque de décoration posé sur la grille
+ * (`frames.grid` → `element()`), redessiné à chaque `frames:gridRendered`, seulement dans la fenêtre
  * dessinée par la grille.
  */
 
@@ -112,6 +117,7 @@ export class FramesSelectionPlugin implements EditorPlugin {
           this.apply((rows, total) => selectRectangle(this.state, to, additive, rows, total)),
         set: (cells) => this.apply((rows, total) => selectCells(cells, rows, total)),
         clear: () => this.commit(EMPTY_FRAME_SELECTION),
+        // Appelé par le glisser des images clés (K2) dès qu'il démarre : voir l'en-tête.
         cancelPendingClick: () => this.cancelRelease()
       }),
       ctx.events.on('document:loaded', reset),
