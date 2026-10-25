@@ -1,13 +1,13 @@
 // packages/editor/src/plugins/toolbar/keyframeActions/__tests__/KeyframeActionsPlugin.test.ts
 /**
- * Tests de `toolbar.keyframeActions` : les quatre boutons dans la barre
- * d'outils, appel d'un seul service par bouton, boutons indisponibles
- * (`aria-disabled`, infobulle, clavier), aiguillage de « Supprimer »,
- * événement `toolbar:editKeyframe`, suivi des événements et destruction.
+ * Integration tests for toolbar buttons, service routing, unavailable
+ * states, accessible tooltips, edit events, playback refresh and cleanup.
  */
 
 import { createManualClock } from '@werddomain/timeline-runtime';
 import type { ILayer, ISpan, ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
+import { EventBus } from '../../../../core/events/EventBus';
 import { createEditor } from '../../../../core/editor/createEditor';
 import type { IEditor } from '../../../../core/editor/types';
 import { FramesPlugin } from '../../../frames/FramesPlugin';
@@ -16,13 +16,22 @@ import { LayersPlugin } from '../../../layers/LayersPlugin';
 import type { ILayerSelectionService } from '../../../layers/selection/types';
 import { cleanBody, createContainer } from '../../../layout/__tests__/layoutFixtures';
 import { TweensPlugin } from '../../../tweens/TweensPlugin';
-import type { MotionTweenEvent } from '../../../tweens/motion/types';
+import type { MotionAvailabilityChangedEvent, MotionTweenEvent } from '../../../tweens/motion/types';
 import { toolbarBasePlugins } from '../../__tests__/toolbarFixtures';
 import { KeyframeActionsPlugin, KEYFRAME_ACTIONS_PLUGIN_ID } from '../KeyframeActionsPlugin';
-import { DELETE_LABELS, LOCKED_REASON, NO_TARGET_REASON } from '../keyframeActionsState';
+import { DELETE_LABELS, LOCKED_REASON, NO_KEYFRAME_REASON, NO_TARGET_REASON } from '../keyframeActionsState';
+import * as keyframeActionsState from '../keyframeActionsState';
 import type { ToolbarEditKeyframeEvent } from '../types';
 
-afterEach(cleanBody);
+const mounted: IEditor[] = [];
+
+afterEach(() => {
+  mounted.splice(0).forEach((editor) => {
+    if (!editor.isDestroyed) editor.destroy();
+  });
+  cleanBody();
+  jest.restoreAllMocks();
+});
 
 function layer(id: string, extra: Partial<ILayer> = {}): ILayer {
   return { id, type: 'layer', name: id, spans: [], ...extra };
@@ -47,14 +56,26 @@ function sample(): ITimelineDocument {
         }
       ]
     }),
+    layer('p', {
+      spans: [
+        { id: 'p1', start: 1, end: 10, kind: 'static' },
+        {
+          id: 'p2',
+          start: 11,
+          end: 20,
+          kind: 'tween',
+          tracks: { x: [{ frame: 11, value: 0 }, { frame: 15, value: 5 }, { frame: 20, value: 9 }] }
+        }
+      ]
+    }),
     layer('lock', { locked: true, spans: [{ id: 'l1', start: 1, end: 8, kind: 'static' }] })
   ];
   return { version: '2.0.0', settings: { fps: 24, totalFrames: 40 }, layers };
 }
 
-/** Observation des effets : les services sont figés, on lit donc leurs effets. */
+/** Observe document effects rather than replacing the frozen services. */
 interface IProbe {
-  /** Nombre de `document:changed`. */
+  /** Number of document:changed events. */
   changes: number;
   readonly created: MotionTweenEvent[];
   readonly removed: MotionTweenEvent[];
@@ -64,8 +85,9 @@ interface IProbe {
 }
 
 interface IHarness {
+  readonly context: IEditorContext;
   readonly editor: IEditor;
-  /** Horloge manuelle : `advance` fait le rendu groupé qui émet `playhead:changed`. */
+  /** advance() runs the scheduled display frame and playhead:changed event. */
   readonly clock: ReturnType<typeof createManualClock>;
   readonly selection: IFramesSelectionService;
   readonly layers: ILayerSelectionService;
@@ -73,9 +95,20 @@ interface IHarness {
   readonly edits: ToolbarEditKeyframeEvent[];
   readonly button: (action: string) => HTMLButtonElement;
   readonly control: () => HTMLElement | null;
+  /** Emit an event through this fixture's test plugin. */
+  readonly emit: (name: 'tweens:motionAvailabilityChanged', payload: MotionAvailabilityChangedEvent) => void;
 }
 
 function setup(): IHarness {
+  let context: IEditorContext | undefined;
+  const emitterPlugin: EditorPlugin = {
+    id: 'test.emitter',
+    dependencies: [],
+    init: (ctx) => {
+      context = ctx;
+    },
+    destroy: () => {}
+  };
   const clock = createManualClock();
   const editor = createEditor(createContainer(), {
     data: sample(),
@@ -84,13 +117,15 @@ function setup(): IHarness {
       ...toolbarBasePlugins({}, [new KeyframeActionsPlugin()]),
       new LayersPlugin(),
       new FramesPlugin(),
-      new TweensPlugin()
+      new TweensPlugin(),
+      emitterPlugin
     ]
   });
+  mounted.push(editor);
   const selection = editor.getService('frames.selection');
   const layers = editor.getService('layers.selection');
-  if (selection === undefined || layers === undefined) {
-    throw new Error('montage incomplet');
+  if (selection === undefined || layers === undefined || context === undefined) {
+    throw new Error('Incomplete test fixture');
   }
   const edits: ToolbarEditKeyframeEvent[] = [];
   editor.on('toolbar:editKeyframe', (event) => edits.push(event));
@@ -112,16 +147,18 @@ function setup(): IHarness {
   editor.on('command:refused', (event) => probe.refused.push(event.reason));
   const button = (action: string): HTMLButtonElement => {
     const found = editor.container.querySelector<HTMLButtonElement>(`[data-keyframe-action="${action}"]`);
-    if (found === null) throw new Error(`bouton ${action} absent`);
+    if (found === null) throw new Error(`Missing ${action} button`);
     return found;
   };
   const control = (): HTMLElement | null =>
     editor.container.querySelector<HTMLElement>(`[data-toolbar-item="${KEYFRAME_ACTIONS_PLUGIN_ID}"]`);
-  return { editor, clock, selection, layers, probe, edits, button, control };
+  const events = context.events;
+  const emit: IHarness['emit'] = (name, payload) => events.emit(name, payload);
+  return { context, editor, clock, selection, layers, probe, edits, button, control, emit };
 }
 
 const cells = (rowId: string, ...frames: number[]) => frames.map((frame) => ({ rowId, frame }));
-/** Durée d'une image d'affichage de l'horloge manuelle. */
+/** Manual clock display frame duration. */
 const DISPLAY_FRAME_MS = 16;
 const disabled = (button: HTMLElement): boolean => button.getAttribute('aria-disabled') === 'true';
 
@@ -169,11 +206,13 @@ describe('rendering', () => {
 
     // Assert
     expect(disabled(button('insert'))).toBe(true);
-    expect(button('insert').title).toBe(NO_TARGET_REASON);
+    expect(button('insert').title).toBe(`Ajouter une image clé : ${NO_TARGET_REASON}`);
     expect(disabled(button('edit'))).toBe(true);
     expect(disabled(button('delete'))).toBe(true);
     expect(disabled(button('createTween'))).toBe(true);
-    expect(button('createTween').title).toBe(editor.getService('tweens.motion')?.canCreate().reason);
+    expect(button('createTween').title).toBe(
+      `Créer une interpolation de mouvement : ${editor.getService('tweens.motion')?.canCreate().reason}`
+    );
   });
 
   it('registers no shortcut of its own', () => {
@@ -270,7 +309,7 @@ describe('buttons run exactly their service', () => {
     const { selection, probe, button } = setup();
     selection.set([...cells('b', 2, 3), ...cells('a', 5)]);
 
-    expect(button('delete').getAttribute('aria-label')).toBe(DELETE_LABELS.property);
+    expect(button('delete').getAttribute('aria-label')).toBe(DELETE_LABELS.keyframe);
 
     // Act
     button('delete').click();
@@ -281,6 +320,93 @@ describe('buttons run exactly their service', () => {
     expect(probe.shape('a')).toEqual(['static 1-8']);
     expect(probe.propertyFrames('b')).toEqual([1, 6]);
     expect(probe.changes).toBe(1);
+  });
+
+  it('delete names the property keyframe when it is the only target, and removes it', () => {
+    // Arrange
+    const { selection, probe, button } = setup();
+    selection.set(cells('b', 3));
+
+    // Act
+    const label = button('delete').getAttribute('aria-label');
+    button('delete').click();
+
+    // Assert
+    expect(label).toBe(DELETE_LABELS.property);
+    expect(probe.propertyFrames('b')).toEqual([1, 6]);
+  });
+
+  it('deletes a mixed property keyframe and tween start as one undoable keyframe action', () => {
+    // Arrange
+    const { editor, selection, probe, button } = setup();
+    selection.set(cells('p', 11, 12, 13, 14, 15));
+    const before = editor.document;
+
+    // Act
+    const label = button('delete').getAttribute('aria-label');
+    const title = button('delete').title;
+    button('delete').click();
+    const after = editor.document;
+
+    // Assert
+    expect(label).toBe(DELETE_LABELS.keyframe);
+    expect(title).toMatch(/^Supprimer l'image clé \(.*F6\)$/);
+    expect(probe.removed).toEqual([]);
+    expect(after).toEqual({
+      ...before,
+      layers: before.layers.map((node) =>
+        node.id === 'p' ? layer('p', { spans: [{ id: 'p1', start: 1, end: 20, kind: 'static' }] }) : node
+      )
+    });
+    expect(probe.changes).toBe(1);
+    expect(editor.undo()).toBe(true);
+    expect(editor.document).toEqual(before);
+    expect(editor.canUndo).toBe(false);
+    expect(editor.redo()).toBe(true);
+    expect(editor.document).toEqual(after);
+    expect(editor.canRedo).toBe(false);
+  });
+
+  it('delete does not name the property keyframe across two layers either', () => {
+    // Arrange
+    const { selection, button } = setup();
+    selection.set([...cells('p', 11, 15), ...cells('a', 5)]);
+
+    // Assert
+    expect(button('delete').getAttribute('aria-label')).toBe(DELETE_LABELS.keyframe);
+  });
+
+  it('delete is unavailable on a plain frame of a span, and does nothing', () => {
+    // Arrange
+    const { selection, probe, button } = setup();
+    selection.set(cells('a', 3));
+
+    // Act
+    button('delete').click();
+
+    // Assert
+    expect(disabled(button('delete'))).toBe(true);
+    expect(button('delete').title).toBe(`${DELETE_LABELS.generic} : ${NO_KEYFRAME_REASON}`);
+    expect(probe.changes).toBe(0);
+  });
+
+  it('disables delete on an ordinary playhead frame with only a layer selected', () => {
+    // Arrange
+    const { editor, clock, layers, probe, button } = setup();
+    editor.playback.seek(3);
+    clock.advance(DISPLAY_FRAME_MS);
+    layers.select(['a']);
+    const before = editor.document;
+
+    // Act
+    button('delete').click();
+
+    // Assert
+    expect(disabled(button('delete'))).toBe(true);
+    expect(button('delete').title).toBe(`${DELETE_LABELS.generic} : ${NO_KEYFRAME_REASON}`);
+    expect(editor.document).toBe(before);
+    expect(editor.canUndo).toBe(false);
+    expect(probe.changes).toBe(0);
   });
 
   it('edit emits toolbar:editKeyframe with inTween false then true and changes nothing', () => {
@@ -313,7 +439,7 @@ describe('edit targets a keyframe', () => {
 
     // Assert
     expect(disabled(button('edit'))).toBe(true);
-    expect(button('edit').title).toBe('Sélectionnez une image clé.');
+    expect(button('edit').title).toBe("Modifier l'image clé : Sélectionnez une image clé.");
     expect(edits).toEqual([]);
   });
 
@@ -334,6 +460,152 @@ describe('edit targets a keyframe', () => {
     expect(onKeyframe).toBe(true);
     expect(edits).toEqual([{ layerId: 'a', frame: 5, inTween: false }]);
     expect(disabled(button('edit'))).toBe(true);
+  });
+});
+
+describe('playhead during playback', () => {
+  it.each(['cells', 'layers'] as const)('does not recompute state on playback ticks with %s selected', (target) => {
+    // Arrange
+    const { editor, clock, layers, selection } = setup();
+    if (target === 'cells') selection.set(cells('a', 5));
+    else layers.select(['a']);
+    const compute = jest.spyOn(keyframeActionsState, 'computeKeyframeActionsState');
+    editor.playback.play();
+
+    // Act
+    clock.advance(100);
+    clock.advance(100);
+    clock.advance(100);
+
+    // Assert
+    expect(editor.playback.frame).toBeGreaterThan(5);
+    expect(compute).not.toHaveBeenCalled();
+  });
+
+  it('does not recompute state for a paused playhead when selected cells determine the target', () => {
+    // Arrange
+    const { editor, clock, selection } = setup();
+    selection.set(cells('a', 5));
+    const compute = jest.spyOn(keyframeActionsState, 'computeKeyframeActionsState');
+
+    // Act
+    editor.playback.seek(3);
+    clock.advance(DISPLAY_FRAME_MS);
+
+    // Assert
+    expect(editor.playback.frame).toBe(3);
+    expect(compute).not.toHaveBeenCalled();
+  });
+
+  it('does not touch the buttons while playing with cells selected', () => {
+    // Arrange
+    const { editor, clock, selection, button } = setup();
+    selection.set(cells('a', 5));
+    editor.playback.play();
+    const writes = jest.fn();
+    (['insert', 'createTween', 'delete', 'edit'] as const).forEach((action) => {
+      const item = button(action);
+      const set = item.setAttribute.bind(item);
+      item.setAttribute = (name: string, value: string) => {
+        writes();
+        set(name, value);
+      };
+      item.removeAttribute = writes;
+    });
+
+    // Act
+    clock.advance(DISPLAY_FRAME_MS * 3);
+
+    // Assert
+    expect(editor.playback.frame).toBeGreaterThan(1);
+    expect(writes).not.toHaveBeenCalled();
+  });
+
+  it.each([3, 5])('writes nothing when an availability refresh finds the same state at frame %i', (frame) => {
+    // Arrange
+    const { context, selection, button, emit } = setup();
+    selection.set(cells('a', frame));
+    const motion = context.services.require('tweens.motion');
+    const availability = { canCreate: motion.canCreate(), canRemove: motion.canRemove() };
+    const compute = jest.spyOn(keyframeActionsState, 'computeKeyframeActionsState');
+    const writes = (['insert', 'createTween', 'delete', 'edit'] as const).flatMap((action) => {
+      const item = button(action);
+      return [
+        jest.spyOn(item, 'setAttribute'),
+        jest.spyOn(item, 'removeAttribute'),
+        jest.spyOn(item, 'title', 'set')
+      ];
+    });
+
+    // Act
+    emit('tweens:motionAvailabilityChanged', availability);
+
+    // Assert
+    expect(compute).toHaveBeenCalledTimes(1);
+    writes.forEach((write) => expect(write).not.toHaveBeenCalled());
+  });
+});
+
+describe('playhead refresh at the end of playback', () => {
+  it.each([
+    { from: 3, to: 5, initiallyDisabled: true },
+    { from: 5, to: 6, initiallyDisabled: false }
+  ])('keeps state from frame $from during playback and updates on pause at frame $to', ({ from, to, initiallyDisabled }) => {
+    // Arrange: layer a has keyframes at 1 and 5 only; no cells are selected.
+    const { editor, clock, layers, button } = setup();
+    editor.playback.seek(from);
+    clock.advance(DISPLAY_FRAME_MS);
+    layers.select(['a']);
+    expect(disabled(button('edit'))).toBe(initiallyDisabled);
+    expect(disabled(button('delete'))).toBe(initiallyDisabled);
+
+    // Act
+    editor.playback.play();
+    editor.playback.seek(to);
+    clock.advance(0);
+
+    // Assert: the display has moved, but playback keeps the previous button state.
+    expect(editor.playback.playing).toBe(true);
+    expect(editor.playback.frame).toBe(to);
+    expect(disabled(button('edit'))).toBe(initiallyDisabled);
+    expect(disabled(button('delete'))).toBe(initiallyDisabled);
+
+    // Act: pause must update synchronously, before another playhead render.
+    editor.playback.pause();
+
+    // Assert
+    expect(editor.playback.frame).toBe(to);
+    expect(disabled(button('edit'))).toBe(!initiallyDisabled);
+    expect(disabled(button('delete'))).toBe(!initiallyDisabled);
+  });
+
+  it('refreshes on complete even when the final frame was already rendered during playback', () => {
+    // Arrange
+    const { editor, clock, layers, button } = setup();
+    layers.select(['a']);
+    expect(disabled(button('edit'))).toBe(false);
+    editor.playback.play();
+    editor.playback.seek(editor.document.settings.totalFrames);
+    clock.advance(0);
+    expect(editor.playback.playing).toBe(true);
+    expect(editor.playback.frame).toBe(40);
+    expect(disabled(button('edit'))).toBe(false);
+    expect(disabled(button('delete'))).toBe(false);
+    const playheads = jest.fn();
+    editor.on('playhead:changed', playheads);
+    const completed = jest.fn();
+    editor.on('playback:complete', completed);
+
+    // Act: finish the last frame without a further integer playhead change.
+    clock.advance(50);
+
+    // Assert
+    expect(editor.playback.playing).toBe(false);
+    expect(editor.playback.frame).toBe(40);
+    expect(playheads).not.toHaveBeenCalled();
+    expect(completed).toHaveBeenCalledTimes(1);
+    expect(disabled(button('edit'))).toBe(true);
+    expect(disabled(button('delete'))).toBe(true);
   });
 });
 
@@ -400,7 +672,7 @@ describe('unavailable buttons', () => {
 
     // Assert
     expect(disabled(button('insert'))).toBe(true);
-    expect(button('insert').title).toBe(LOCKED_REASON);
+    expect(button('insert').title).toBe(`Ajouter une image clé : ${LOCKED_REASON}`);
     expect(disabled(button('edit'))).toBe(true);
     expect(button('delete').getAttribute('aria-label')).toBe(DELETE_LABELS.generic);
   });
@@ -433,20 +705,20 @@ describe('following the editor', () => {
     expect(button('insert').title).not.toBe(NO_TARGET_REASON);
   });
 
-  it('updates on document:changed', () => {
+  it('updates on document:changed (a lock applied with the selection unchanged)', () => {
     // Arrange
     const { editor, selection, button } = setup();
-    selection.set(cells('b', 2));
-    expect(button('delete').getAttribute('aria-label')).toBe(DELETE_LABELS.tween);
+    selection.set(cells('a', 3));
+    expect(disabled(button('insert'))).toBe(false);
 
     // Act
-    editor.getService('tweens.motion')?.remove();
+    editor.getService('layers.lock')?.setLocked('a', true);
 
     // Assert
-    expect(button('delete').getAttribute('aria-label')).toBe(DELETE_LABELS.keyframe);
+    expect(button('insert').getAttribute('aria-description')).toBe(LOCKED_REASON);
   });
 
-  it('updates on document:loaded', () => {
+  it('updates on document:loaded (the selections are cleared by the load; the subscription itself is checked below)', () => {
     // Arrange
     const { editor, selection, button } = setup();
     selection.set(cells('a', 5));
@@ -459,21 +731,103 @@ describe('following the editor', () => {
     expect(disabled(button('insert'))).toBe(true);
   });
 
-  it('updates on tweens:motionAvailabilityChanged', () => {
+  it('subscribes to each of the events that can change the buttons', () => {
     // Arrange
-    const { editor, button } = setup();
-    const refresh = jest.fn();
-    editor.on('tweens:motionAvailabilityChanged', refresh);
+    const names: string[] = [];
+    const original = EventBus.prototype.on;
+    const spy = jest.spyOn(EventBus.prototype, 'on').mockImplementation(function (this: EventBus, ...args) {
+      if (armedNames) names.push(String(args[0]));
+      return original.apply(this, args);
+    } as typeof original);
+    let armedNames = false;
+    const probe: EditorPlugin = {
+      id: 'test.probe',
+      dependencies: new KeyframeActionsPlugin().dependencies,
+      init: () => {
+        armedNames = true;
+      },
+      destroy: () => {}
+    };
 
     // Act
-    editor.getService('frames.selection')?.set(cells('a', 5));
+    try {
+      createEditor(createContainer(), {
+        data: sample(),
+        defaultPlugins: [
+          ...toolbarBasePlugins({}, [probe, new KeyframeActionsPlugin()]),
+          new LayersPlugin(),
+          new FramesPlugin(),
+          new TweensPlugin()
+        ]
+      }).destroy();
+    } finally {
+      spy.mockRestore();
+    }
 
     // Assert
-    expect(refresh).toHaveBeenCalled();
-    expect(disabled(button('createTween'))).toBe(false);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'frames:selectionChanged',
+        'layers:selectionChanged',
+        'document:changed',
+        'document:loaded',
+        'tweens:motionAvailabilityChanged',
+        'playhead:changed',
+        'playback:pause',
+        'playback:complete'
+      ])
+    );
   });
 
-  it.todo('keeps createTween enabled right after a create on {k1,k2} (pending W1 issue)');
+  it('updates on tweens:motionAvailabilityChanged (nothing else changed since)', () => {
+    // Arrange
+    const { editor, clock, layers, button, emit } = setup();
+    editor.playback.seek(3);
+    clock.advance(DISPLAY_FRAME_MS);
+    layers.select(['a']);
+    expect(disabled(button('edit'))).toBe(true);
+    editor.playback.seek(5);
+
+    // Act: no playhead:changed yet (no display frame), only the availability event.
+    const before = disabled(button('edit'));
+    emit('tweens:motionAvailabilityChanged', {
+      canCreate: { enabled: false },
+      canRemove: { enabled: false }
+    });
+
+    // Assert
+    expect(before).toBe(true);
+    expect(disabled(button('edit'))).toBe(false);
+  });
+
+  it('follows W1 availability across a two-keyframe create, undo and redo', () => {
+    // Arrange: W1 refuses creating an identical tween a second time.
+    const { editor, selection, probe, button } = setup();
+    selection.set(cells('a', 1, 5));
+    expect(disabled(button('createTween'))).toBe(false);
+    const before = editor.document;
+
+    // Act
+    button('createTween').click();
+    const after = editor.document;
+
+    // Assert
+    expect(probe.shape('a')).toEqual(['tween 1-4', 'static 5-8']);
+    expect(probe.created).toHaveLength(1);
+    expect(disabled(button('createTween'))).toBe(true);
+    expect(button('createTween').title).toBe('Créer une interpolation de mouvement : Déjà une interpolation.');
+    button('createTween').click();
+    expect(editor.document).toBe(after);
+    expect(probe.changes).toBe(1);
+    expect(probe.refused).toEqual([]);
+    expect(editor.undo()).toBe(true);
+    expect(editor.document).toEqual(before);
+    expect(editor.canUndo).toBe(false);
+    expect(disabled(button('createTween'))).toBe(false);
+    expect(editor.redo()).toBe(true);
+    expect(editor.document).toEqual(after);
+    expect(disabled(button('createTween'))).toBe(true);
+  });
 });
 
 describe('destroy', () => {
@@ -493,19 +847,32 @@ describe('destroy', () => {
     expect(probe.changes).toBe(0);
   });
 
-  it('rolls back what init did when it throws', () => {
-    // Arrange
-    const container = createContainer();
+  it('rolls back failed init subscriptions while the editor stays alive', () => {
+    // Arrange: the live editor already owns the control id, so another init must fail.
+    const { context, editor, selection, button } = setup();
+    const plugin = new KeyframeActionsPlugin();
+    const unsubscribes: Array<jest.Mock> = [];
+    const listeners: Array<jest.Mock> = [];
+    const on: IEditorContext['events']['on'] = (name, handler) => {
+      const listener = jest.fn(handler);
+      listeners.push(listener);
+      const off = context.events.on(name, listener);
+      const wrapped = jest.fn(off);
+      unsubscribes.push(wrapped);
+      return wrapped;
+    };
 
     // Act
-    const create = (): IEditor =>
-      createEditor(container, {
-        data: sample(),
-        defaultPlugins: [...toolbarBasePlugins({}, [new KeyframeActionsPlugin()]), new LayersPlugin(), new FramesPlugin()]
-      });
+    expect(() => plugin.init({ ...context, events: { ...context.events, on } })).toThrow(/déjà|duplicate/i);
 
     // Assert
-    expect(create).toThrow();
-    expect(container.querySelector('[data-toolbar-item="toolbar.keyframeActions"]')).toBeNull();
+    expect(unsubscribes).toHaveLength(8);
+    unsubscribes.forEach((unsubscribe) => expect(unsubscribe).toHaveBeenCalledTimes(1));
+    plugin.destroy();
+    unsubscribes.forEach((unsubscribe) => expect(unsubscribe).toHaveBeenCalledTimes(1));
+    expect(editor.isDestroyed).toBe(false);
+    selection.set(cells('a', 5));
+    expect(disabled(button('insert'))).toBe(false);
+    listeners.forEach((listener) => expect(listener).not.toHaveBeenCalled());
   });
 });

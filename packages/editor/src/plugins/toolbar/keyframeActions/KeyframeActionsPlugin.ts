@@ -1,38 +1,28 @@
 // packages/editor/src/plugins/toolbar/keyframeActions/KeyframeActionsPlugin.ts
 /**
- * Plugin : toolbar.keyframeActions
- * Epic : toolbar
- * Dépend de : toolbar, toolbar.main, frames.keyframes, frames.selection, tweens.motion, interaction.shortcuts
- * Écoute : frames:selectionChanged, layers:selectionChanged, document:changed, document:loaded, tweens:motionAvailabilityChanged,
- *   playhead:changed
- * Émet : toolbar:editKeyframe
+ * Plugin: toolbar.keyframeActions
+ * Epic: toolbar
+ * Depends on: toolbar, toolbar.main, frames.keyframes, frames.selection, tweens.motion, interaction.shortcuts
+ * Listens: frames:selectionChanged, layers:selectionChanged, document:changed, document:loaded, tweens:motionAvailabilityChanged, playhead:changed, playback:pause, playback:complete
+ * Emits: toolbar:editKeyframe
  *
- * Les quatre boutons d'images clés de la barre d'outils (groupe `keyframes`),
- * dans un seul contrôle de `toolbar.main` :
- * - « Ajouter une image clé » : `frames.keyframes.insertKeyframe()` ;
- * - « Créer une interpolation de mouvement » : `tweens.motion.create()` ;
- * - « Supprimer » : l'action aiguillée par `resolveDeleteAction` (image clé
- *   de propriété, interpolation ou image clé), nommée dans l'infobulle ;
- * - « Modifier l'image clé » : émet `toolbar:editKeyframe` (le panneau de
- *   propriétés l'écoute).
+ * Four buttons share one toolbar.main control in the keyframes group:
+ * insertKeyframe(), create(), deletion routed by resolveDeleteAction,
+ * and toolbar:editKeyframe for the property panel.
  *
- * Ce plugin ne contient aucune logique de modèle et n'enregistre aucun
- * raccourci (F5 / F6 / F7 sont à `frames.keyframes`). Un bouton indisponible
- * porte `aria-disabled="true"` (jamais l'attribut natif : il reste
- * focalisable) et sa raison en infobulle ; son activation, au clic comme au
- * clavier, ne fait rien. L'état se met à jour sur les changements de
- * sélection, de document et de disponibilité des interpolations, pas sur les
- * mouvements du pointeur, mais sur la tête de lecture (`playhead:changed`),
- * dont dépendent le repli sur les calques sélectionnés et `inTween`.
- * `layers.selection` est lu s'il est présent. La raison d'un bouton
- * indisponible est aussi donnée aux lecteurs d'écran (`aria-description`).
+ * Model operations and keyboard shortcuts belong to their owning services.
+ * Unavailable buttons use aria-disabled rather than the native attribute,
+ * stay focusable, and ignore activation. Their tooltip includes the action
+ * and reason; aria-description also exposes the reason to screen readers.
+ * Selection, document and tween availability changes refresh the state.
+ * Playhead changes matter only without selected cells and outside playback;
+ * pause and completion refresh the state after playback. DOM attributes
+ * are written only when they change. layers.selection is optional.
  *
- * « Modifier » vise une image clé (sélectionnée, sinon celle de la tête de
- * lecture sur un calque sélectionné). Avec un calque seul sélectionné (sans
- * image) et la tête de lecture dans une interpolation, « Supprimer » passe
- * par `deleteKeyframe()` (`canRemove` ne lit que les images sélectionnées) :
- * il peut ne rien changer, comme Maj+F6. Comportement accepté, sans
- * pré-contrôle du modèle.
+ * Edit targets a selected keyframe, otherwise the playhead keyframe on a
+ * selected layer. With only a layer selected, Delete uses deleteKeyframe()
+ * because canRemove() considers selected cells only. It is unavailable when
+ * no target carries a keyframe; no further model dry run is performed here.
  */
 
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
@@ -48,13 +38,13 @@ import type { IKeyframeActionsInput, IKeyframeActionsState } from './keyframeAct
 import './types';
 import './KeyframeActions.less';
 
-/** Identifiant du plugin (et de son contrôle dans la barre d'outils). */
+/** Plugin and toolbar control identifier. */
 export const KEYFRAME_ACTIONS_PLUGIN_ID = 'toolbar.keyframeActions';
 
-/** Libellé du contrôle (nom accessible du groupe de boutons). */
+/** Accessible name of the button group. */
 export const KEYFRAME_ACTIONS_LABEL = 'Actions des images clés';
 
-/** Classe du contrôle. */
+/** Control CSS class. */
 export const KEYFRAME_ACTIONS_CLASS = 'jt-keyframeActions';
 
 type KeyframeAction = 'insert' | 'createTween' | 'delete' | 'edit';
@@ -63,7 +53,7 @@ interface IButtonSpec {
   readonly action: KeyframeAction;
   readonly label: string;
   readonly icon: string;
-  /** Raccourci rappelé dans l'infobulle (affiché par `interaction.shortcuts`). */
+  /** Tooltip shortcut, formatted by interaction.shortcuts. */
   readonly shortcut?: string;
 }
 
@@ -74,7 +64,7 @@ const BUTTONS: readonly IButtonSpec[] = [
   { action: 'edit', label: "Modifier l'image clé", icon: '✎' }
 ];
 
-/** Plugin `toolbar.keyframeActions` : ajouter, interpoler, supprimer et modifier les images clés. */
+/** Toolbar control for inserting, tweening, deleting and editing keyframes. */
 export class KeyframeActionsPlugin implements EditorPlugin {
   readonly id = 'toolbar.keyframeActions';
   readonly dependencies: readonly string[] = [
@@ -100,7 +90,9 @@ export class KeyframeActionsPlugin implements EditorPlugin {
       cleanups.push(ctx.events.on('document:changed', refresh));
       cleanups.push(ctx.events.on('document:loaded', refresh));
       cleanups.push(ctx.events.on('tweens:motionAvailabilityChanged', refresh));
-      cleanups.push(ctx.events.on('playhead:changed', refresh));
+      cleanups.push(ctx.events.on('playback:pause', refresh));
+      cleanups.push(ctx.events.on('playback:complete', refresh));
+      cleanups.push(ctx.events.on('playhead:changed', () => this.onPlayhead()));
       this.ctx = ctx;
       cleanups.push(
         ctx.services.require('toolbar.main').addControl({
@@ -147,7 +139,7 @@ export class KeyframeActionsPlugin implements EditorPlugin {
       icon.textContent = spec.icon;
       button.append(icon);
       const onClick = (): void => this.activate(spec.action);
-      // Un bouton indisponible ne réagit pas à Entrée ni Espace (qui déclencheraient un clic).
+      // Prevent Enter and Space from generating a click on unavailable buttons.
       const onKeyDown = (event: KeyboardEvent): void => {
         if ((event.key === 'Enter' || event.key === ' ') && button.getAttribute('aria-disabled') === 'true') {
           event.preventDefault();
@@ -170,7 +162,7 @@ export class KeyframeActionsPlugin implements EditorPlugin {
     };
   }
 
-  /** Entrées du calcul d'état, lues dans les services au moment de l'appel. */
+  /** Read current state inputs from the services. */
   private readInput(ctx: IEditorContext): IKeyframeActionsInput {
     const selection = ctx.services.require('frames.selection');
     const motion = ctx.services.require('tweens.motion');
@@ -187,7 +179,15 @@ export class KeyframeActionsPlugin implements EditorPlugin {
     };
   }
 
-  /** Recalcule l'état (une seule fois) et le recopie dans les boutons. */
+  /** The playhead matters only without selected cells and outside playback. */
+  private onPlayhead(): void {
+    const ctx = this.ctx;
+    if (ctx === null || ctx.playback.playing) return;
+    if (ctx.services.require('frames.selection').cells().length > 0) return;
+    this.refresh();
+  }
+
+  /** Compute the state once and apply it to the buttons. */
   private refresh(): void {
     const ctx = this.ctx;
     if (ctx === null || this.buttons.size === 0) return;
@@ -199,21 +199,21 @@ export class KeyframeActionsPlugin implements EditorPlugin {
       if (button === undefined) return;
       const { enabled, reason } = state[spec.action];
       const label = spec.action === 'delete' ? state.delete.label : spec.label;
-      button.setAttribute('aria-label', label);
+      setAttr(button, 'aria-label', label);
       if (enabled) {
-        button.removeAttribute('aria-disabled');
-        button.removeAttribute('aria-description');
-        button.title = this.hintedLabel(spec, label, state, (keys) => shortcuts.format(keys));
+        unsetAttr(button, 'aria-disabled');
+        unsetAttr(button, 'aria-description');
+        setTitle(button, this.hintedLabel(spec, label, state, (keys) => shortcuts.format(keys)));
       } else {
-        button.setAttribute('aria-disabled', 'true');
-        button.title = reason ?? label;
-        if (reason === undefined) button.removeAttribute('aria-description');
-        else button.setAttribute('aria-description', reason);
+        setAttr(button, 'aria-disabled', 'true');
+        setTitle(button, reason === undefined ? label : `${label} : ${reason}`);
+        if (reason === undefined) unsetAttr(button, 'aria-description');
+        else setAttr(button, 'aria-description', reason);
       }
     });
   }
 
-  /** Libellé suivi du raccourci, sauf pour « Supprimer » quand c'est `remove()` qui part (Maj+F6 ne le ferait pas). */
+  /** Omit the delete shortcut when remove() runs, since Shift+F6 would not run it. */
   private hintedLabel(
     spec: IButtonSpec,
     label: string,
@@ -225,7 +225,7 @@ export class KeyframeActionsPlugin implements EditorPlugin {
     return `${label} (${format(spec.shortcut)})`;
   }
 
-  /** Exécute l'action d'un bouton, si elle est disponible à l'instant du clic. */
+  /** Run a button action only if it is available at activation time. */
   private activate(action: KeyframeAction): void {
     const ctx = this.ctx;
     if (ctx === null || this.buttons.size === 0) return;
@@ -250,14 +250,27 @@ export class KeyframeActionsPlugin implements EditorPlugin {
   }
 }
 
-/** Vrai si l'image `frame` du calque porte une image clé (contenu ou propriété). */
+/** Write an attribute only when it changes. */
+function setAttr(button: HTMLButtonElement, name: string, value: string): void {
+  if (button.getAttribute(name) !== value) button.setAttribute(name, value);
+}
+
+function unsetAttr(button: HTMLButtonElement, name: string): void {
+  if (button.hasAttribute(name)) button.removeAttribute(name);
+}
+
+function setTitle(button: HTMLButtonElement, title: string): void {
+  if (button.title !== title) button.title = title;
+}
+
+/** Whether the layer has a content or property keyframe at frame. */
 function hasKeyframeAt(doc: IEditorContext['document'], layerId: string, frame: number): boolean {
   const node = findNodeById(doc.layers, layerId);
   if (node === undefined) return false;
   return rowMarks(node, doc.settings.totalFrames, { first: frame, last: frame }).some((mark) => mark.kind !== 'spanEnd');
 }
 
-/** Crée le plugin `toolbar.keyframeActions`. */
+/** Create the toolbar.keyframeActions plugin. */
 export function createKeyframeActionsPlugin(): KeyframeActionsPlugin {
   return new KeyframeActionsPlugin();
 }

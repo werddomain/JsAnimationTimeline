@@ -1,7 +1,6 @@
 // packages/editor/src/plugins/toolbar/keyframeActions/__tests__/keyframeActionsState.test.ts
 /**
- * Tests de `keyframeActionsState` : disponibilité des quatre boutons, cible du
- * bouton « Modifier » et aiguillage du bouton « Supprimer » (fonctions pures).
+ * Pure state tests for button availability, edit targets and deletion routing.
  */
 
 import type { ISpan, LayerNode } from '@werddomain/timeline-runtime';
@@ -39,6 +38,7 @@ const doc = createDoc([
   layer('a', [staticSpan('a1', 1, 4), staticSpan('a2', 5, 8)]),
   layer('t', [tweenSpan('t1', 1, 8)]),
   layer('t2', [tweenSpan('u1', 1, 8)]),
+  layer('p', [staticSpan('p1', 1, 10), tweenSpan('p2', 11, 20)]),
   layer('lock', [staticSpan('l1', 1, 8)], { locked: true }),
   folder('lf', [layer('inLocked', [staticSpan('i1', 1, 8)])], true),
   folder('f', [layer('inFolder', [staticSpan('n1', 1, 8)])])
@@ -106,7 +106,8 @@ describe('computeKeyframeActionsState keyframe part', () => {
 
   it('targets the lowest frame of the first row for edit when several cells are selected', () => {
     // Act
-    const state = computeKeyframeActionsState(input({
+    const state = computeKeyframeActionsState(
+      input({
         cells: [cell('a', 2), cell('a', 5), cell('t', 3)],
         selectedKeyframes: [keyframe('a', 5), keyframe('a', 2), keyframe('t', 3)]
       })
@@ -145,7 +146,8 @@ describe('computeKeyframeActionsState keyframe part', () => {
 
   it('stays enabled when only some targets are locked, editing an unlocked one', () => {
     // Act
-    const state = computeKeyframeActionsState(input({ cells: [cell('lock', 2), cell('a', 3)], selectedKeyframes: [keyframe('lock', 2), keyframe('a', 3)] })
+    const state = computeKeyframeActionsState(
+      input({ cells: [cell('lock', 2), cell('a', 3)], selectedKeyframes: [keyframe('lock', 2), keyframe('a', 3)] })
     );
 
     // Assert
@@ -222,7 +224,7 @@ describe('resolveDeleteAction', () => {
 
   it('routes to deleteKeyframe otherwise', () => {
     // Act
-    const action = resolveDeleteAction(input({ cells: [cell('a', 5)] }));
+    const action = resolveDeleteAction(input({ cells: [cell('a', 5)], keyframeAt: () => true }));
 
     // Assert
     expect(action).toEqual({ action: 'deleteKeyframe', enabled: true, label: DELETE_LABELS.keyframe });
@@ -263,7 +265,7 @@ describe('resolveDeleteAction', () => {
 
     // Assert
     expect(action.action).toBe('deleteKeyframe');
-    expect(action.label).toBe(DELETE_LABELS.property);
+    expect(action.label).toBe(DELETE_LABELS.keyframe);
   });
 
   it('mixed selection across layers: a property keyframe on another layer still wins', () => {
@@ -279,6 +281,71 @@ describe('resolveDeleteAction', () => {
 
     // Assert
     expect(action.action).toBe('deleteKeyframe');
+    expect(action.enabled).toBe(true);
+    expect(action.label).toBe(DELETE_LABELS.keyframe);
+  });
+
+  it('names the property keyframe only when every target is a selected property keyframe', () => {
+    // Act
+    const all = resolveDeleteAction(
+      input({ cells: [cell('t', 4), cell('t2', 5)], selectedKeyframes: [property('t', 4), property('t2', 5)], canRemove: ON })
+    );
+
+    // Assert
+    expect(all.label).toBe(DELETE_LABELS.property);
+  });
+
+  it('does not name the property keyframe when a content keyframe at a tween start is also targeted', () => {
+    // Arrange: static 1-10 + tween 11-20, cells 11..15 with a property keyframe at 15.
+    const source = input({
+      cells: [11, 12, 13, 14, 15].map((frame) => cell('p', frame)),
+      selectedKeyframes: [keyframe('p', 11), property('p', 15)],
+      canRemove: ON
+    });
+
+    // Act
+    const action = resolveDeleteAction(source);
+
+    // Assert
+    expect(action.action).toBe('deleteKeyframe');
+    expect(action.label).toBe(DELETE_LABELS.keyframe);
+  });
+
+  it('does not name the property keyframe across two layers when one target is a content keyframe', () => {
+    // Arrange
+    const source = input({
+      cells: [cell('p', 11), cell('p', 15), cell('a', 5)],
+      selectedKeyframes: [property('p', 15), keyframe('a', 5)],
+      canRemove: ON
+    });
+
+    // Act
+    const action = resolveDeleteAction(source);
+
+    // Assert
+    expect(action.label).toBe(DELETE_LABELS.keyframe);
+  });
+
+  it('is disabled with the keyframe reason on a plain frame of a span', () => {
+    // Act
+    const action = resolveDeleteAction(input({ cells: [cell('a', 3)] }));
+
+    // Assert
+    expect(action).toEqual({
+      action: 'deleteKeyframe',
+      enabled: false,
+      reason: NO_KEYFRAME_REASON,
+      label: DELETE_LABELS.generic
+    });
+  });
+
+  it('is enabled as soon as one editable target carries a keyframe', () => {
+    // Act
+    const action = resolveDeleteAction(
+      input({ cells: [cell('a', 3), cell('a', 5)], keyframeAt: (_layerId, frame) => frame === 5 })
+    );
+
+    // Assert
     expect(action.enabled).toBe(true);
   });
 
