@@ -1,0 +1,60 @@
+<!-- demo/runtime/validation-phase5.html -->
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JsAnimationTimeline v2 · Validation de la phase 5</title>
+  <link rel="icon" href="data:,">
+</head>
+<body class="JsTimeLine phase5-validation">
+<main>
+  <header class="page-head">
+    <div>
+      <div class="eyebrow">JsAnimationTimeline v2 · Revue locale</div>
+      <h1>Phase 5 — Barre d’outils et lecture</h1>
+      <p class="intro">Manipuler les commandes existantes, puis comparer la tête de lecture à la scène réellement dessinée. Réinitialiser entre les essais. Cette phase attend votre validation.</p>
+    </div>
+    <span class="badge">Phase 5 · À valider</span>
+  </header>
+  <section class="scene-strip" aria-label="Scène et repères">
+    <div class="card scene-card">
+      <div class="section-head"><h2>Scène de contrôle</h2><span class="muted">24 images · 12 images/s au départ</span></div>
+      <div id="stage" aria-label="Objets de la scène">
+        <div id="content-object" class="stage-object">CARRÉ</div>
+        <div id="motion-object" class="stage-object">●</div>
+        <div id="locked-object" class="stage-object">MASQUÉ</div>
+      </div>
+      <p id="draw-status" role="status">Chargement du rendu…</p>
+    </div>
+    <aside class="card review-note">
+      <h2>Trois repères stables</h2>
+      <p>Carré : clés de contenu à 1 et 13, x = 0 puis 180. Ajouter une clé à 5 ; ou sélectionner 1 puis Ctrl+13 pour créer une interpolation.</p>
+      <p>Orbe : plage statique 1–12, interpolation 13–24, clé de propriété à 17 (x = 60). Sélectionner 13 puis Maj+17 permet de vérifier la suppression mixte : elle fusionne la plage avec la précédente.</p>
+      <p>Le témoin est verrouillé et masqué. Il doit rester invisible pendant le glisser et la lecture.</p>
+    </aside>
+  </section>
+  <section class="card" aria-label="Éditeur de validation">
+    <div class="timeline-head"><h2>Éditeur v2 · Commandes et aperçu</h2><span>Entrée · Ctrl+Z / Ctrl+Y · glisser la règle</span></div>
+    <div id="editor-host"></div>
+    <div class="timeline-foot"><button id="reset" type="button">Réinitialiser la validation</button><span id="review-status" role="status">Chargement…</span></div>
+    <p id="edit-status" role="status">Aucune demande de modification.</p>
+    <div id="fatal" role="alert" hidden></div>
+  </section>
+  <section class="card review-grid" aria-label="Liste de validation de la phase 5">
+    <div class="section-head"><h2>Parcours de validation</h2><span class="muted">Cocher après vérification · réinitialiser entre les essais</span></div>
+    <div class="checks">
+      <label><input type="checkbox"><span>Commandes de clés<small>Ajouter à 5 sur le carré, Modifier, Annuler et Rétablir. Orbe 17 : supprimer la propriété ; sur 13–17, vérifier « Supprimer l’image clé » et la fusion annulable.</small></span></label>
+      <label><input type="checkbox"><span>Interpolation et disponibilité<small>Carré 1 puis Ctrl+13 : créer. Cellule 6 : supprimer l’interpolation. Sans sélection puis sur le témoin : lire l’action et la raison dans les infobulles.</small></span></label>
+      <label><input type="checkbox"><span>Cadence, durée et historique<small>Passer à 24 img/s et 30 images ; Annuler. Refuser une durée de 20, puis Échap pour rétablir 24. Entrée dans Cadence conserve son rôle de saisie.</small></span></label>
+      <label><input type="checkbox"><span>Zoom de la règle<small>Choisir un palier, utiliser le curseur au clavier, puis Ajuster à la fenêtre. La grille et la règle restent alignées, sans entrée d’historique.</small></span></label>
+      <label><input type="checkbox"><span>Lecture et scène<small>Lire/Pause, Entrée hors champ, vitesse, Boucle et arrêt à 24. Vérifier le mouvement visible de l’orbe et l’invisibilité du témoin.</small></span></label>
+      <label><input type="checkbox"><span>Aperçu pendant le glisser<small>Comparer En direct, Limité (10 img/s) et Au relâchement sur la règle. L’image demandée peut avancer avant l’image dessinée. Relâcher, puis essayer les flèches de la tête.</small></span></label>
+    </div>
+    <p class="scope-note">Support ciblé : pas de panneau de propriétés, de nouvelles fonctions d’interpolation ni de suite E1 complète. Les rendus comptés proviennent de la scène HTML ; un même numéro peut être dessiné plusieurs fois selon l’ordre des événements.</p>
+  </section>
+  <footer><span>Phase 4 validée · Phase 5 en attente de votre accord</span><a href="./index.html">Toutes les démonstrations</a></footer>
+</main>
+<script type="module" src="./src/validation/phase5.ts"></script>
+</body>
+</html>
