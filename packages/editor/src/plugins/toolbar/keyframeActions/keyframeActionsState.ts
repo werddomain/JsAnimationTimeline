@@ -100,10 +100,22 @@ function keyframePart(all: readonly IFrameCell[], editable: readonly IFrameCell[
   return { enabled: true };
 }
 
-/** Vrai si une image clé de propriété sélectionnée est bien dans une interpolation. */
-function hasPropertyKeyframe(input: IKeyframeActionsInput): boolean {
+/** Vrai si l'image clé de propriété sélectionnée de cette cellule est bien dans une interpolation. */
+function isTweenPropertyKeyframe(input: IKeyframeActionsInput, target: IFrameCell): boolean {
   return input.selectedKeyframes.some(
-    (keyframe) => keyframe.kind === 'propertyKeyframe' && input.tweenAt(keyframe.rowId, keyframe.frame) !== undefined
+    (keyframe) =>
+      keyframe.kind === 'propertyKeyframe' &&
+      keyframe.rowId === target.rowId &&
+      keyframe.frame === target.frame &&
+      input.tweenAt(keyframe.rowId, keyframe.frame) !== undefined
+  );
+}
+
+/** Vrai si la cellule porte une image clé (sélectionnée, ou lue dans le document). */
+function carriesKeyframe(input: IKeyframeActionsInput, target: IFrameCell): boolean {
+  return (
+    input.keyframeAt(target.rowId, target.frame) ||
+    input.selectedKeyframes.some((keyframe) => keyframe.rowId === target.rowId && keyframe.frame === target.frame)
   );
 }
 
@@ -121,26 +133,38 @@ function deleteFrom(keyframes: IActionAvailability, label: string): IDeleteActio
  * Aiguille le bouton « Supprimer » (décision d'interface seulement, sans
  * logique de modèle) :
  * 1. si une image clé de propriété sélectionnée est dans une interpolation,
- *    `frames.keyframes.deleteKeyframe()` : seule cette image clé de propriété
- *    part. Règle mixte : dès qu'UNE image clé de propriété est sélectionnée,
- *    c'est cette action qui s'exécute, même si la sélection compte aussi des
- *    cellules d'interpolation simples (sur le même calque ou un autre) ;
+ *    `frames.keyframes.deleteKeyframe()` (règle mixte : dès qu'UNE image clé
+ *    de propriété est sélectionnée, c'est cette action qui s'exécute, même
+ *    avec des cellules d'interpolation simples, sur le même calque ou un
+ *    autre). Elle s'applique pourtant à TOUTES les cibles modifiables : le
+ *    libellé « de propriété » n'est donc retenu que si chacune est une image
+ *    clé de propriété sélectionnée, sinon c'est « Supprimer l'image clé » ;
  * 2. sinon, si `tweens.motion.canRemove()` est actif, `remove()` ;
  * 3. sinon `deleteKeyframe()`, désactivé avec la raison des images clés
- *    quand il n'y a rien à supprimer.
+ *    quand il n'y a rien à supprimer, ou (`NO_KEYFRAME_REASON`) quand aucune
+ *    cible modifiable ne porte d'image clé : sur une simple image d'une
+ *    étendue, il ne ferait rien.
  *
  * Avec un calque seul sélectionné (aucune image) et la tête de lecture dans
  * une interpolation, `canRemove` ne lit que les images sélectionnées : le
- * bouton passe donc par `deleteKeyframe()`, qui peut ne rien changer, comme
- * Maj+F6. Comportement accepté : pas de pré-contrôle du modèle ici.
+ * bouton passe par `deleteKeyframe()`, actif seulement si la tête de lecture
+ * est sur une image clé. Pas de pré-contrôle du modèle au-delà.
  * Le libellé nomme l'action retenue ; il reste générique quand le bouton est
  * désactivé.
  */
 export function resolveDeleteAction(input: IKeyframeActionsInput): IDeleteAction {
   const { all, editable } = targetsOf(input);
   const keyframes = keyframePart(all, editable);
-  if (hasPropertyKeyframe(input)) return deleteFrom(keyframes, DELETE_LABELS.property);
+  if (editable.some((target) => isTweenPropertyKeyframe(input, target))) {
+    const label = editable.every((target) => isTweenPropertyKeyframe(input, target))
+      ? DELETE_LABELS.property
+      : DELETE_LABELS.keyframe;
+    return deleteFrom(keyframes, label);
+  }
   if (input.canRemove.enabled) return { action: 'removeTween', enabled: true, label: DELETE_LABELS.tween };
+  if (keyframes.enabled && !editable.some((target) => carriesKeyframe(input, target))) {
+    return deleteFrom({ enabled: false, reason: NO_KEYFRAME_REASON }, DELETE_LABELS.keyframe);
+  }
   return deleteFrom(keyframes, DELETE_LABELS.keyframe);
 }
 
