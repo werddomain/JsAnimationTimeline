@@ -7,7 +7,7 @@
 import { evaluateLayer } from '@werddomain/timeline-runtime';
 import type { PropertyRegistry } from '@werddomain/timeline-runtime';
 import { CommandRefusedError } from '../../../../core/commands/CommandRefusedError';
-import { createDoc, createRegistry, layer, shapeOf } from '../../../../model/spans/__tests__/fixtures';
+import { createDoc, createRegistry, expectValid, layer, layerOf, shapeOf } from '../../../../model/spans/__tests__/fixtures';
 import { createPasteCommand, PASTE_COMMAND_LABEL } from '../pasteCommand';
 import type { IPastePlacement } from '../pasteCommand';
 
@@ -131,5 +131,42 @@ describe('paste carry command history', () => {
     expect(restored).toEqual(input);
     expect(redone).toEqual(pasted);
     expect(evaluateLayer(again, 12, { registry }).values.x).toBe(100);
+  });
+});
+
+
+describe('prototype-named paste command history', () => {
+  it('restores both rows with one undo and reproduces registered carry on redo', () => {
+    // Arrange: the prototype-named property is registered but absent from the target.
+    const customRegistry = createRegistry().register({ name: 'toString', kind: 'value', unit: '', defaultValue: 3 });
+    const input = createDoc([
+      layer('a', [
+        { id: 'a1', start: 1, end: 4, kind: 'static', tracks: { x: [{ frame: 1, value: 2 }] } },
+        { id: 'a2', start: 5, end: 12, kind: 'static' }
+      ]),
+      layer('b', [{ id: 'b1', start: 1, end: 12, kind: 'static', tracks: { x: [{ frame: 1, value: 4 }] } }])
+    ], 12);
+    const command = createPasteCommand([
+      { layerId: 'b', runs: [{ at: 2, run: { length: 2, spans: [{ start: 1, end: 2, kind: 'blank' }] } }] },
+      { layerId: 'a', runs: [{ at: 1, run: {
+        length: 4, spans: [{ start: 1, end: 4, kind: 'static', tracks: { toString: [{ frame: 1, value: 10 }] } }]
+      } }] }
+    ], customRegistry);
+    expectValid(input);
+
+    // Act
+    const pasted = command.do(input);
+    const restored = command.undo(pasted);
+    const redone = command.do(restored);
+
+    // Assert
+    expectValid(pasted);
+    expectValid(restored);
+    expectValid(redone);
+    expect(shapeOf(pasted, 'b')).toEqual(['static 1-1', 'blank 2-3', 'static 4-12']);
+    expect(evaluateLayer(layerOf(pasted, 'a'), 1, { registry: customRegistry }).values).toMatchObject({ toString: 10 });
+    expect(evaluateLayer(layerOf(pasted, 'a'), 5, { registry: customRegistry }).values).toMatchObject({ toString: 3 });
+    expect(restored).toEqual(input);
+    expect(redone).toEqual(pasted);
   });
 });

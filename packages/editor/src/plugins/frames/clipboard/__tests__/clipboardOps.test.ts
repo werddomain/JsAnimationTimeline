@@ -505,3 +505,117 @@ describe('paste with empty tracks', () => {
     expectValid(output);
   });
 });
+
+
+describe('prototype-named paste properties', () => {
+  it.each([true, false])('restores a registered default with following tracks=%s', (withFollowingTracks) => {
+    // Arrange: the original layer never uses the registered property.
+    const customRegistry = createRegistry().register({ name: 'toString', kind: 'value', unit: '', defaultValue: 3 });
+    const input = createDoc([layer('b', [
+      { id: 'before', start: 1, end: 4, kind: 'static', tracks: { x: [{ frame: 1, value: 2 }] } },
+      { id: 'after', start: 5, end: 12, kind: 'static',
+        ...(withFollowingTracks ? { tracks: { x: [{ frame: 5, value: 20 }] } } : {}) }
+    ])], 12);
+    const clip: PastedRun = { length: 4, spans: [{ start: 1, end: 4, kind: 'static', tracks: { toString: [{ frame: 1, value: 10 }] } }] };
+    expectValid(input);
+
+    // Act
+    const output = pasteSpans(input, 'b', 1, clip, customRegistry);
+
+    // Assert: never read Object.prototype.toString as a track or a numeric value.
+    expectValid(output);
+    expect(evaluateLayer(layerOf(output, 'b'), 1, { registry: customRegistry }).values).toMatchObject({ toString: 10 });
+    [5, 8, 12].forEach((frame) => {
+      expect(evaluateLayer(layerOf(output, 'b'), frame, { registry: customRegistry }).values).toMatchObject({ toString: 3 });
+    });
+    expect(spansOf(output, 'b')[1].tracks).toMatchObject({ toString: [{ frame: 5, value: 3 }] });
+  });
+
+  it.each([true, false])('ignores an unknown prototype-named property with following tracks=%s', (withFollowingTracks) => {
+    // Arrange
+    const input = createDoc([layer('b', [
+      { id: 'unknown', start: 1, end: 4, kind: 'static', tracks: { toString: [{ frame: 1, value: 0.4 }] } },
+      { id: 'blank', start: 5, end: 6, kind: 'blank' },
+      { id: 'after', start: 7, end: 12, kind: 'static',
+        ...(withFollowingTracks ? { tracks: { x: [{ frame: 7, value: 20 }] } } : {}) }
+    ])], 12);
+    const clip: PastedRun = { length: 2, spans: [{ start: 1, end: 2, kind: 'static', tracks: { y: [{ frame: 1, value: 9 }] } }] };
+    expectValid(input);
+
+    // Act
+    const output = pasteSpans(input, 'b', 5, clip, registry);
+
+    // Assert: retain the raw unknown track without inventing an edge value.
+    expectValid(output);
+    expect(spansOf(output, 'b')[0]).toBe(spansOf(input, 'b')[0]);
+    expect(Object.prototype.hasOwnProperty.call(spansOf(output, 'b')[2].tracks ?? {}, 'toString')).toBe(false);
+    expect(evaluateLayer(layerOf(output, 'b'), 7, { registry, unknownProperties: 'skip' }).values.y).toBe(0);
+  });
+
+  it('cuts a tween without inventing edge values for an unknown prototype-named property', () => {
+    // Arrange
+    const input = createDoc([layer('b', [{
+      id: 'tween', start: 1, end: 10, kind: 'tween', tracks: {
+        x: [{ frame: 1, value: 0 }, { frame: 10, value: 90 }],
+        toString: [{ frame: 1, value: 0.4 }, { frame: 10, value: 1 }]
+      }
+    }])], 10);
+    expectValid(input);
+
+    // Act
+    const output = pasteSpans(input, 'b', 4, run(2), registry);
+
+    // Assert
+    expectValid(output);
+    expect(spansOf(output, 'b')[0].tracks).toMatchObject({ toString: [{ frame: 1, value: 0.4 }] });
+    expect(spansOf(output, 'b')[2].tracks).toMatchObject({ toString: [{ frame: 10, value: 1 }] });
+    [1, 2, 3, 6, 7, 8, 9, 10].forEach((frame) => {
+      const before = evaluateLayer(layerOf(input, 'b'), frame, { registry, unknownProperties: 'skip' }).values.x;
+      expect(evaluateLayer(layerOf(output, 'b'), frame, { registry, unknownProperties: 'skip' }).values.x).toBeCloseTo(before);
+    });
+  });
+
+  it('cuts a registered prototype-named tween whose first key is after the cut', () => {
+    // Arrange: the left remainder needs a synthetic edge key for an implicit start.
+    const customRegistry = createRegistry().register({ name: 'toString', kind: 'value', unit: '', defaultValue: 0 });
+    const input = createDoc([layer('b', [{
+      id: 'tween', start: 1, end: 10, kind: 'tween', tracks: { toString: [{ frame: 10, value: 90 }] }
+    }])], 10);
+    expectValid(input);
+
+    // Act
+    const output = pasteSpans(input, 'b', 4, run(2), customRegistry);
+
+    // Assert
+    expectValid(output);
+    [1, 2, 3, 6, 7, 8, 9, 10].forEach((frame) => {
+      const before = evaluateLayer(layerOf(input, 'b'), frame, { registry: customRegistry }).values;
+      const after = evaluateLayer(layerOf(output, 'b'), frame, { registry: customRegistry }).values;
+      Object.entries(before).forEach(([name, value]) => expect(after[name]).toBeCloseTo(value));
+    });
+  });
+});
+
+describe('documented nonlinear property interpolation limit', () => {
+  it('retains the existing rounded cut behavior even with linear easing', () => {
+    // This records the accepted F6-style slicing limit, not exact interior parity.
+    const discreteRegistry = createRegistry().register({
+      name: 'sprite', kind: 'value', unit: '', defaultValue: 0,
+      interpolate: (a, b, t) => Math.floor(a + (b - a) * t)
+    });
+    const input = createDoc([layer('b', [{
+      id: 'tween', start: 1, end: 8, kind: 'tween', easing: 'linear',
+      tracks: { sprite: [{ frame: 1, value: 0 }, { frame: 8, value: 5 }] }
+    }])], 8);
+
+    const output = pasteSpans(input, 'b', 7, run(1), discreteRegistry);
+    const sample = (document: ITimelineDocument): number[] => Array.from({ length: 6 }, (_, index) =>
+      evaluateLayer(layerOf(document, 'b'), index + 1, { registry: discreteRegistry }).values.sprite);
+
+    expectValid(input);
+    expectValid(output);
+    expect(sample(input)).toEqual([0, 0, 1, 2, 2, 3]);
+    expect(sample(output)).toEqual([0, 0, 1, 1, 2, 3]);
+    expect(evaluateLayer(layerOf(output, 'b'), 8, { registry: discreteRegistry }).values.sprite).toBe(5);
+  });
+});

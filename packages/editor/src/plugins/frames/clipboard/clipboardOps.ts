@@ -8,13 +8,13 @@
  * the replacement, considering both original and pasted track names. Unknown
  * properties do not refuse a paste and are never assigned invented edge values.
  *
- * Cut interpolation segments retain exact interior values only for linear
- * easing, as with F6. Pinning a registry default can override an element's own
+ * Cut segments retain exact interior values only with linear easing and
+ * linear property interpolation, as with F6. Pinning a registry default can override an element's own
  * CSS (for example opacity 1 over an underlying opacity 0.5).
  * Locked layers and folders refuse the whole paste.
  */
 
-import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry, PropertyTracks } from '@werddomain/timeline-runtime';
+import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
 import { SpanOperationCodes, SpanOperationError } from '../../../model/spans/SpanOperationError';
 import { createSpanIdFactory, replaceLayer, requireEditableLayer } from '../../../model/spans/layerAccess';
 import { lastFrame, shiftSpan, withSpans, withTracks } from '../../../model/spans/tracks';
@@ -100,22 +100,22 @@ function pinAfterPaste(
   const index = after.findIndex((span) => span.kind !== 'blank');
   const target = after[index];
   if (target === undefined) return [...after];
-  const missing = [...names].filter((name) => !(target.tracks?.[name] ?? []).some((key) => key.frame === target.start));
+  const tracks = new Map(Object.entries(target.tracks ?? {}));
+  const missing = [...names].filter((name) => !(tracks.get(name) ?? []).some((key) => key.frame === target.start));
   if (missing.length === 0) return [...after];
-  const values = evaluatePasteValues(original, target.start, registry);
-  const candidateValues = evaluatePasteValues(candidate, target.start, registry);
-  const tracks: Record<string, PropertyTracks[string]> = { ...target.tracks };
+  const values = new Map(Object.entries(evaluatePasteValues(original, target.start, registry)));
+  const candidateValues = new Map(Object.entries(evaluatePasteValues(candidate, target.start, registry)));
+  let changed = false;
   missing.forEach((name) => {
-    const value = values[name] ?? registry.get(name)?.defaultValue;
-    const current = candidateValues[name] ?? registry.get(name)?.defaultValue;
+    const value = values.get(name) ?? registry.get(name)?.defaultValue;
+    const current = candidateValues.get(name) ?? registry.get(name)?.defaultValue;
     // Unknown properties have no invented value; unchanged carry needs no key.
     if (value === undefined || value === current) return;
-    tracks[name] = [{ frame: target.start, value }, ...(tracks[name] ?? [])];
+    tracks.set(name, [{ frame: target.start, value }, ...(tracks.get(name) ?? [])]);
+    changed = true;
   });
-  const unchanged = Object.keys(tracks).length === Object.keys(target.tracks ?? {}).length &&
-    Object.keys(tracks).every((name) => tracks[name] === target.tracks?.[name]);
-  if (unchanged) return [...after];
-  const pinned = withTracks(target, tracks);
+  if (!changed) return [...after];
+  const pinned = withTracks(target, Object.fromEntries(tracks));
   return after.map((span, position) => (position === index ? pinned : span));
 }
 

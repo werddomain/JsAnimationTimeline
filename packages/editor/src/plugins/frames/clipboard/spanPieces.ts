@@ -1,29 +1,21 @@
 // packages/editor/src/plugins/frames/clipboard/spanPieces.ts
 /**
- * Morceaux de plage, communs à la copie et au collage : `slicePiece` retourne
- * la partie [from, to] d'une plage, avec les mêmes règles de coupe que
- * l'insertion d'une image clé (F6 / F7, `model/spans/insertKeyframe.ts`) :
- * - plage vide : un morceau vide ;
- * - morceau copié (`inherit`) : une image clé au début pour chaque
- *   propriété posée jusque-là dans le calque, héritées des plages
- *   précédentes comprises (collé ailleurs, il garde la même apparence) ;
- * - partie qui reste sur son calque (collage) : ses propres pistes ; coupée à
- *   gauche, ses propres propriétés évaluées au bord ;
- * - interpolation : les images clés de propriété du morceau sont gardées ;
- *   sur un bord droit coupé, une image clé pour chaque propriété interpolée,
- *   avec la valeur évaluée par le runtime (accélération comprise), pour que
- *   le morceau garde son allure.
+ * Span pieces shared by copy and paste, using the F6/F7 boundary rules:
+ * - blank pieces remain blank;
+ * - copied pieces pin properties already set in the layer, including carry;
+ * - surviving pieces keep their own tracks and evaluate any cut left edge;
+ * - tween pieces retain their interior property keyframes and evaluate any
+ *   cut right edge using the runtime.
  *
- * Choix : une propriété que la source montre à sa valeur par défaut parce
- * qu'elle n'est posée que plus loin n'est pas écrite ; collée sur un calque
- * qui la pose déjà, elle garde la valeur de ce calque.
+ * Properties only set later in the source are not copied at their defaults:
+ * pasting them into a layer that already sets them retains the target value.
  *
- * Limite connue (la même que pour F6) : l'accélération s'applique à toute
- * la plage ; sur un morceau d'une interpolation accélérée, les images entre
- * les bords sont relues à leur position accélérée (exact avec `linear`).
+ * Existing F6 limitation: each cut piece retains the original easing and
+ * property interpolator. Interior samples may change with non-linear easing
+ * or non-linear interpolators such as floor/round. Exact cut parity requires
+ * both linear easing and linear property interpolation.
  *
- * Suite possible (K1) : exporter `truncateTween` et `newSpan` de
- * `insertKeyframe.ts` plutôt que de refaire la coupe ici.
+ * K1 follow-up: reuse truncateTween/newSpan if they become public helpers.
  */
 
 import type { ILayer, ISpan, PropertyRegistry, PropertyTracks, PropertyValues } from '@werddomain/timeline-runtime';
@@ -59,15 +51,16 @@ function withEdgeKeyframes(
   frame: number,
   values: PropertyValues
 ): PropertyTracks | undefined {
-  const next: Record<string, PropertyTracks[string]> = { ...tracks };
+  const next = new Map(Object.entries(tracks ?? {}));
+  const ownValues = new Map(Object.entries(values));
   names.forEach((name) => {
-    const track = next[name] ?? [];
-    const value = values[name];
+    const track = next.get(name) ?? [];
+    const value = ownValues.get(name);
     // Propriété sans valeur évaluée (inconnue du registre) : pas d'image clé inventée.
     if (value === undefined || track.some((keyframe) => keyframe.frame === frame)) return;
-    next[name] = [...track, { frame, value }].sort((a, b) => a.frame - b.frame);
+    next.set(name, [...track, { frame, value }].sort((a, b) => a.frame - b.frame));
   });
-  return Object.keys(next).length > 0 ? next : undefined;
+  return next.size > 0 ? Object.fromEntries(next) : undefined;
 }
 
 /**

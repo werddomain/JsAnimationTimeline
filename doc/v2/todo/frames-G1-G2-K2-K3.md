@@ -21,7 +21,7 @@
 
 ## Limites connues (documentées dans le code)
 
-- Couper une interpolation accélérée (F6, copie ou collage) garde l'accélération sur chaque morceau : les images entre les bords coupés changent légèrement. C'est exact avec `linear`.
+- Couper une interpolation accélérée (F6, copie ou collage) garde l’accélération sur chaque morceau : les images entre les bords coupés peuvent changer. Un interpolateur de propriété non linéaire (`floor`, `round`) peut aussi changer des images conservées. L’exactitude exige une accélération et un interpolateur linéaires.
 - K1 refuse de déplacer une image clé de contenu au-delà de la fin de sa plage : glisser la dernière image clé vers la droite est refusé, alors que Flash l'accepte.
 - Le glisser des images clés ne change pas de calque (décalage en images seulement) et ne fait pas défiler la grille près des bords.
 - Collage : une propriété que la source montre à sa valeur par défaut, parce qu'elle n'est posée que plus loin, n'est pas copiée. Sur un calque qui la pose déjà, l'image collée garde la valeur de ce calque.
@@ -45,4 +45,6 @@
 - Une piste vide collée n’ajoute plus de clé inutile après la plage.
 - Une valeur par défaut du registre rétablie peut remplacer le style CSS initial de la cible (par exemple opacity 1 au lieu de 0.5). Le modèle ne mémorise pas ce style extérieur.
 - La copie garde son contrat existant : une coupe nécessitant l’évaluation d’une propriété inconnue peut être refusée. Le mode tolérant est limité au collage.
-- Les revues ECC indépendantes restent requises avant fusion ; les anciens avis ne couvrent pas automatiquement les nouvelles corrections. La vérification locale comprend 3 003 tests npm, 48 tests navigateur et 145 tests .NET, les builds et le paquet NuGet local (rien publié).
+- Les revues ECC indépendantes restent requises avant fusion ; les anciens avis ne couvrent pas automatiquement les nouvelles corrections. Les résultats exacts de la vérification locale, des builds et du paquet NuGet local sont consignés dans le corps de la PR pour l’arbre vérifié (rien publié).
+
+- Revue finale : les lectures de pistes et de valeurs utilisent des Map de propriétés propres, pour accepter aussi un nom valide comme `toString`. Régressions avec propriété connue/inconnue, plage suivante avec/sans pistes, coupe et annuler/rétablir. La vérification complète et les revues finales couvrent aussi cette correction avant toute fusion.
