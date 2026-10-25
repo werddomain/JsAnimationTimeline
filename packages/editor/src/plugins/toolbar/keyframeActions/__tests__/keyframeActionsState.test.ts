@@ -1,7 +1,6 @@
 // packages/editor/src/plugins/toolbar/keyframeActions/__tests__/keyframeActionsState.test.ts
 /**
- * Tests de `keyframeActionsState` : disponibilité des quatre boutons, cible du
- * bouton « Modifier » et aiguillage du bouton « Supprimer » (fonctions pures).
+ * Pure state tests for button availability, edit targets and deletion routing.
  */
 
 import type { ISpan, LayerNode } from '@werddomain/timeline-runtime';
@@ -107,7 +106,8 @@ describe('computeKeyframeActionsState keyframe part', () => {
 
   it('targets the lowest frame of the first row for edit when several cells are selected', () => {
     // Act
-    const state = computeKeyframeActionsState(input({
+    const state = computeKeyframeActionsState(
+      input({
         cells: [cell('a', 2), cell('a', 5), cell('t', 3)],
         selectedKeyframes: [keyframe('a', 5), keyframe('a', 2), keyframe('t', 3)]
       })
@@ -146,7 +146,8 @@ describe('computeKeyframeActionsState keyframe part', () => {
 
   it('stays enabled when only some targets are locked, editing an unlocked one', () => {
     // Act
-    const state = computeKeyframeActionsState(input({ cells: [cell('lock', 2), cell('a', 3)], selectedKeyframes: [keyframe('lock', 2), keyframe('a', 3)] })
+    const state = computeKeyframeActionsState(
+      input({ cells: [cell('lock', 2), cell('a', 3)], selectedKeyframes: [keyframe('lock', 2), keyframe('a', 3)] })
     );
 
     // Assert
