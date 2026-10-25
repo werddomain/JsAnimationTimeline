@@ -1,0 +1,65 @@
+<!-- demo/runtime/validation-phase4.html -->
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JsAnimationTimeline v2 · Validation de la phase 4</title>
+  <link rel="icon" href="data:,">
+</head>
+<body class="JsTimeLine phase4-validation">
+<main>
+  <header class="page-head">
+    <div>
+      <div class="eyebrow">JsAnimationTimeline v2 · Revue locale</div>
+      <h1>Phase 4 — Images, clés et mouvement</h1>
+      <p class="intro">Une scène courte pour vérifier la sélection, les images clés, le presse-papiers et l’interpolation. Chaque modification se vérifie aussi avec Annuler et Rétablir.</p>
+    </div>
+    <span class="badge">Validation de la phase 4</span>
+  </header>
+
+  <section class="scene-strip" aria-label="Scène et repères">
+    <div class="card scene-card">
+      <div class="section-head"><h2>Scène de contrôle</h2><span class="muted">24 images · 12 images/s</span></div>
+      <div id="stage" aria-label="Objets de la scène">
+        <div id="target-object" class="stage-object">CARRÉ</div>
+        <div id="source-object" class="stage-object">SOURCE</div>
+        <div id="motion-object" class="stage-object">●</div>
+      </div>
+    </div>
+    <aside class="card review-note">
+      <h2>Repères du document initial</h2>
+      <p>Carré : x = 0 aux images 1–4, x = 100 aux images 5–8 ; les images 9–24 conservent cette position sans piste propre.</p>
+      <p>Source : plage vide 1–4. Orbe : deux clés à 1 et 13 pour créer un mouvement.</p>
+      <p>Cliquer une cellule place la tête de lecture. Pause et historique se trouvent dans la barre de l’éditeur.</p>
+    </aside>
+  </section>
+
+  <section class="card" aria-label="Éditeur de validation">
+    <div class="timeline-head"><h2>Éditeur v2 · Images et interpolation</h2><span>F5 · F6 · F7 · Ctrl+C / Ctrl+V</span></div>
+    <div id="editor-host"></div>
+    <div class="demo-actions" aria-label="Démonstration de l’interpolation">
+      <button id="create-tween" type="button" disabled>Créer l’interpolation</button>
+      <button id="remove-tween" type="button" disabled>Supprimer l’interpolation</button>
+      <span id="tween-status">Sélectionner les images clés de l’orbe.</span>
+    </div>
+    <div class="timeline-foot"><button id="reset" type="button">Réinitialiser le document</button><span id="selection-status" role="status">Aucune sélection</span><span id="review-status" role="status">Chargement…</span></div>
+    <div id="fatal" role="alert" hidden></div>
+  </section>
+
+  <section class="card review-grid" aria-label="Liste de validation de la phase 4">
+    <div class="section-head"><h2>Parcours de validation</h2><span class="muted">Réinitialiser entre les essais · cocher après vérification</span></div>
+    <div class="checks">
+      <label><input type="checkbox"><span>Sélectionner des images<small>Clic simple, Ctrl+clic puis Maj+clic : la sélection change sans créer d’historique.</small></span></label>
+      <label><input type="checkbox"><span>Insérer avec F5, F6 et F7<small>F5 sur 24 prolonge le document ; F6 crée une clé ; F7 crée du vide et masque le carré. Annuler chaque essai.</small></span></label>
+      <label><input type="checkbox"><span>Déplacer une clé<small>Sur le carré, glisser la clé 5 vers 7, sans atteindre la clé 9 ; la sélection suit. Annuler.</small></span></label>
+      <label><input type="checkbox"><span>Coller une plage vide<small>Source 1 à 4 : clic puis Maj+clic, Ctrl+C. Carré 5 : Ctrl+V. Masqué de 5 à 8 ; x = 100 dès 9. Annuler et rétablir.</small></span></label>
+      <label><input type="checkbox"><span>Créer puis supprimer le mouvement<small>Sur l’orbe, clic 1 puis Ctrl+clic 13 ; utiliser les boutons ci-dessus. Vérifier la scène, Annuler et Rétablir.</small></span></label>
+      <label><input type="checkbox"><span>Repartir du document initial<small>La réinitialisation vide la sélection, l’historique, le presse-papiers et les coches.</small></span></label>
+    </div>
+  </section>
+  <footer><span>Démonstration conservée dans le dépôt · contrôles Playwright réutilisables</span><a href="./index.html">Toutes les démonstrations</a></footer>
+</main>
+<script type="module" src="./src/validation/phase4.ts"></script>
+</body>
+</html>
