@@ -99,9 +99,10 @@ interface IMergeRange {
 }
 
 /**
- * Pistes de l'interpolation fusionnée. Ordre d'écriture : images clés des
- * interpolations absorbées, puis valeurs évaluées aux images clés de contenu
- * intermédiaires, à k1 et à k2 - 1 (elles l'emportent sur la même image).
+ * Tracks of the merged tween. Write absorbed tween keyframes first, then
+ * evaluated values at intermediate content keyframes, k1 and k2 - 1.
+ * Later writes win at the same frame, except an existing keyframe at k2 - 1
+ * is retained when k2 is a blank content keyframe.
  */
 function mergedTracks(
   layer: ILayer,
