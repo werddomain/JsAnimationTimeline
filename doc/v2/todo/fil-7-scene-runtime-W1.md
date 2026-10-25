@@ -56,4 +56,4 @@
 - C7 / P2 utilisent `isEditorVisible` de l'hôte de scène ; E1 et D1 réutilisent la démo
   `demo/runtime/object-stage.html`.
 
-La reprise documentaire est préparée ; ses revues ECC indépendantes restent à effectuer lorsque le plafond de dépenses du workspace permettra aux agents de reprendre.
+Les résultats des revues ECC indépendantes et de la vérification locale complète sont consignés dans la PR pour l’arbre intégré. La validation de la phase 4 reste une étape distincte, réservée à Benoit.
