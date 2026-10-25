@@ -193,6 +193,26 @@ describe('frames.keyframes drag', () => {
     expect(cellsOf(h)).toEqual(['p:4']);
   });
 
+  it('keeps a multiple selection after Escape and a release on the start frame', () => {
+    // Arrange
+    const h = setupKeyframes(data());
+    h.selection.set([
+      { rowId: 'p', frame: 4 },
+      { rowId: 'q', frame: 4 }
+    ]);
+    pressCell(h.grid, 0, 4);
+    moveTo('pointermove', 0, 6);
+
+    // Act : Échap, puis relâchement sur l'image de départ.
+    pressKey(document.body, 'Escape');
+    moveTo('pointerup', 0, 4);
+
+    // Assert : pas de clic qui réduit la sélection, document inchangé.
+    expect(cellsOf(h)).toEqual(['p:4', 'q:4']);
+    expect(h.editor.toJSON()).toEqual(data());
+    expect(h.editor.playback.frame).toBe(1);
+  });
+
   it('leaves Escape alone when no drag is active', () => {
     // Arrange
     const h = setupKeyframes(data());
