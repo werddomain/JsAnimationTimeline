@@ -20,6 +20,7 @@ import {
 } from '../../../../model/spans/__tests__/fixtures';
 import { extractSpans } from '../clipboardModel';
 import { pasteSpans } from '../clipboardOps';
+import type { PastedRun } from '../clipboardOps';
 import type { IClipRun } from '../types';
 
 const registry: PropertyRegistry = createRegistry();
@@ -402,3 +403,88 @@ describe('pasteSpans keeps the frames after the pasted range', () => {
   });
 });
 
+
+
+describe('integration carry regressions', () => {
+  const overwritten = (): ILayer => layer('b', [
+    { id: 'before', start: 1, end: 4, kind: 'static', tracks: { x: [{ frame: 1, value: 0 }] } },
+    { id: 'overwritten', start: 5, end: 8, kind: 'static', tracks: { x: [{ frame: 5, value: 100 }] } },
+    { id: 'after', start: 9, end: 12, kind: 'static' }
+  ]);
+  const clips: ReadonlyArray<{ readonly label: string; readonly clip: PastedRun }> = [
+    { label: 'a y-only clip', clip: { length: 4, spans: [{ start: 1, end: 4, kind: 'static', tracks: { y: [{ frame: 1, value: 7 }] } }] } },
+    { label: 'a blank clip', clip: { length: 4, spans: [{ start: 1, end: 4, kind: 'blank' }] } },
+    { label: 'a static clip with no tracks', clip: { length: 4, spans: [{ start: 1, end: 4, kind: 'static' }] } }
+  ];
+
+  it.each(clips)('preserves a removed span property after $label', ({ clip }) => {
+    const original = overwritten();
+    const input = createDoc([original], 12);
+
+    const output = pasteSpans(input, 'b', 5, clip, registry);
+
+    expect([9, 10, 11, 12].map((frame) => xAt(layerOf(output, 'b'), frame))).toEqual([100, 100, 100, 100]);
+    expect(spansOf(output, 'b').find((span) => span.start === 9)?.tracks?.x).toEqual([{ frame: 9, value: 100 }]);
+    expectValid(output);
+    expect(layerOf(input, 'b')).toBe(original);
+  });
+
+  it('preserves a shortened tween endpoint throughout the following static spans', () => {
+    const original = layer('b', [
+      { id: 'tween', start: 1, end: 10, kind: 'tween', tracks: { x: [{ frame: 1, value: 0 }, { frame: 10, value: 100 }] } },
+      { id: 'after', start: 11, end: 30, kind: 'static' }
+    ]);
+    const clip: PastedRun = { length: 10, spans: [{ start: 1, end: 10, kind: 'static', tracks: { opacity: [{ frame: 1, value: 0.5 }] } }] };
+
+    const output = pasteSpans(createDoc([original], 30), 'b', 5, clip, registry);
+    const result = layerOf(output, 'b');
+
+    expect(Array.from({ length: 16 }, (_, index) => xAt(result, 15 + index))).toEqual(Array.from({ length: 16 }, () => 100));
+    [1, 2, 3, 4].forEach((frame) => expect(xAt(result, frame)).toBeCloseTo(xAt(original, frame)));
+    expectValid(output);
+  });
+
+  it('pastes at span boundaries on a layer containing an unrelated unknown property', () => {
+    const original = layer('b', [
+      { id: 'unknown', start: 1, end: 4, kind: 'static', tracks: { glow: [{ frame: 1, value: 0.4 }] } },
+      { id: 'blank', start: 5, end: 6, kind: 'blank' },
+      { id: 'after', start: 7, end: 10, kind: 'static', tracks: { x: [{ frame: 7, value: 20 }] } }
+    ]);
+    const clip: PastedRun = { length: 2, spans: [{ start: 1, end: 2, kind: 'static', tracks: { y: [{ frame: 1, value: 9 }] } }] };
+
+    const output = pasteSpans(createDoc([original], 10), 'b', 5, clip, registry);
+    const result = layerOf(output, 'b');
+
+    expect(result.spans[0]).toBe(original.spans[0]);
+    expect(evaluateLayer(result, 5, { registry, unknownProperties: 'skip' }).values.y).toBe(9);
+    expect(evaluateLayer(result, 7, { registry, unknownProperties: 'skip' }).values).toMatchObject({ x: 20, y: 0 });
+    expectValid(output);
+  });
+
+  it('cuts known tracks without refusing because another span has an unknown property', () => {
+    const original = layer('b', [
+      { id: 'known', start: 1, end: 10, kind: 'static', tracks: { x: [{ frame: 1, value: 2 }] } },
+      { id: 'unknown', start: 11, end: 14, kind: 'static', tracks: { glow: [{ frame: 11, value: 0.4 }] } }
+    ]);
+    const clip: PastedRun = { length: 2, spans: [{ start: 1, end: 2, kind: 'static', tracks: { y: [{ frame: 1, value: 9 }] } }] };
+
+    const output = pasteSpans(createDoc([original], 14), 'b', 4, clip, registry);
+    const result = layerOf(output, 'b');
+
+    expect(result.spans[result.spans.length - 1]?.tracks?.glow).toEqual([{ frame: 11, value: 0.4 }]);
+    expect(evaluateLayer(result, 6, { registry, unknownProperties: 'skip' }).values).toMatchObject({ x: 2, y: 0 });
+    expectValid(output);
+  });
+
+  it('does not pin a property whose rendered carry did not change', () => {
+    const original = layer('b', [
+      { id: 'before', start: 1, end: 4, kind: 'static', tracks: { x: [{ frame: 1, value: 100 }] } },
+      { id: 'after', start: 5, end: 12, kind: 'static' }
+    ]);
+
+    const output = pasteSpans(createDoc([original], 12), 'b', 1, run(4, 'static', 100), registry);
+
+    expect(spansOf(output, 'b')[1]).toBe(original.spans[1]);
+    expect(xAt(layerOf(output, 'b'), 5)).toBe(100);
+  });
+});

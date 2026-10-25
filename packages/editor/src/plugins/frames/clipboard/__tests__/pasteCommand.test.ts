@@ -4,6 +4,7 @@
  * lignes (durée comprise), rétablir, et refus sans effet.
  */
 
+import { evaluateLayer } from '@werddomain/timeline-runtime';
 import type { PropertyRegistry } from '@werddomain/timeline-runtime';
 import { CommandRefusedError } from '../../../../core/commands/CommandRefusedError';
 import { createDoc, createRegistry, layer, shapeOf } from '../../../../model/spans/__tests__/fixtures';
@@ -106,5 +107,29 @@ describe('createPasteCommand', () => {
     // Assert
     expect(next).toBe(doc);
     expect(command.undo(next)).toBe(doc);
+  });
+});
+
+
+describe('paste carry command history', () => {
+  it('restores overwritten inherited values with one undo and reproduces them on redo', () => {
+    const input = createDoc([layer('a', [
+      { id: 'before', start: 1, end: 4, kind: 'static', tracks: { x: [{ frame: 1, value: 0 }] } },
+      { id: 'removed', start: 5, end: 8, kind: 'static', tracks: { x: [{ frame: 5, value: 100 }] } },
+      { id: 'after', start: 9, end: 12, kind: 'static' }
+    ])], 12);
+    const command = createPasteCommand([{ layerId: 'a', runs: [{ at: 5, run: { length: 4, spans: [{ start: 1, end: 4, kind: 'blank' }] } }] }], registry);
+
+    const pasted = command.do(input);
+    const restored = command.undo(pasted);
+    const redone = command.do(restored);
+
+    const first = pasted.layers[0];
+    const again = redone.layers[0];
+    if (first.type !== 'layer' || again.type !== 'layer') throw new Error('Expected pasted layers.');
+    expect(evaluateLayer(first, 9, { registry }).values.x).toBe(100);
+    expect(restored).toBe(input);
+    expect(redone).toEqual(pasted);
+    expect(evaluateLayer(again, 12, { registry }).values.x).toBe(100);
   });
 });

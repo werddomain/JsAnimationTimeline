@@ -223,6 +223,56 @@ describe('frames.clipboard keys on refusal and highlighted text', () => {
     expect(clipboard.hasContent()).toBe(false);
   });
 
+  it('takes Ctrl+V without pasting during a history group', () => {
+    const captured: { ctx?: IEditorContext } = {};
+    const spy: EditorPlugin = { id: 'test.spy', dependencies: [], init: (ctx) => void (captured.ctx = ctx), destroy: () => undefined };
+    const { editor, select, clipboard } = setup(sample, [spy]);
+    select([['a', 1]]);
+    expect(clipboard.copy()).toBe(true);
+    select([['c', 10]]);
+    const before = editor.document;
+    captured.ctx?.commands.beginGroup('Groupe');
+
+    const pasteEvent = press(editor, 'v');
+    captured.ctx?.commands.cancelGroup();
+
+    expect(pasteEvent.defaultPrevented).toBe(true);
+    expect(editor.document).toBe(before);
+    expect(editor.canUndo).toBe(false);
+    expect(clipboard.hasContent()).toBe(true);
+    expect(editor.getService('frames.selection')?.cells()).toEqual([{ rowId: 'c', frame: 10 }]);
+  });
+
+  it.each(['anchor', 'focus'] as const)('leaves Ctrl+C to the browser when only the %s endpoint is outside the editor', (outsideEnd) => {
+    const { editor, select, clipboard } = setup();
+    select([['a', 1]]);
+    const inside = document.createElement('span');
+    const outside = document.createElement('p');
+    inside.textContent = 'Inside editor';
+    outside.textContent = 'Outside editor';
+    editor.container.appendChild(inside);
+    document.body.appendChild(outside);
+    const selection = window.getSelection();
+    const insideText = inside.firstChild;
+    const outsideText = outside.firstChild;
+    if (selection === null || insideText === null || outsideText === null) throw new Error('Expected text selection nodes.');
+    const anchor = outsideEnd === 'anchor' ? outsideText : insideText;
+    const focus = outsideEnd === 'focus' ? outsideText : insideText;
+    selection.setBaseAndExtent(anchor, 0, focus, 5);
+
+    try {
+      expect(selection.anchorNode).toBe(anchor);
+      expect(selection.focusNode).toBe(focus);
+      const event = press(editor, 'c');
+      expect(event.defaultPrevented).toBe(false);
+      expect(clipboard.hasContent()).toBe(false);
+    } finally {
+      selection.removeAllRanges();
+      inside.remove();
+      outside.remove();
+    }
+  });
+
   it('leaves Ctrl+V to the browser when there is nowhere to paste', () => {
     // Arrange
     const { editor, select, clipboard } = setup();
