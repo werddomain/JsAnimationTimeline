@@ -10,6 +10,16 @@
 /** Mode de `select` : remplacer la sélection, ajouter à elle, ou inverser l'état de chaque id. */
 export type SelectionMode = 'replace' | 'add' | 'toggle';
 
+/** Options facultatives de `select`. */
+export interface SelectOptions {
+  /**
+   * Ids à annoncer comme sélection d'avant dans `layers:selectionChanged` (par défaut : ceux de la sélection
+   * courante, retrouvés dans les lignes courantes). Pour qui change les lignes et la sélection ensemble
+   * (dégrouper) : l'ancien dossier n'est plus une ligne, il manquerait sinon.
+   */
+  readonly previous?: readonly string[];
+}
+
 /** Charge utile de `layers:selectionChanged`. */
 export interface LayerSelectionChangedEvent {
   /** Ids sélectionnés, dans l'ordre d'affichage des lignes. */
@@ -36,8 +46,14 @@ export interface ILayerSelectionService {
    * Sélectionne `ids` (les ids qui ne sont pas des lignes visibles sont
    * ignorés). L'ancre et le focus vont sur le dernier id valide. `replace`
    * avec aucun id valide vide la sélection.
+   *
+   * `options.previous` remplace, pour cet appel seulement, le `previous` de
+   * l'événement émis (sélection d'avant une commande qui a fait disparaître
+   * des lignes) : copié tel quel, sans validation ni tri ; ignoré si la
+   * sélection ne change pas (aucun événement). `selectRange`, `selectAll` et
+   * `clear` ne l'acceptent pas.
    */
-  select(ids: readonly string[], mode?: SelectionMode): void;
+  select(ids: readonly string[], mode?: SelectionMode, options?: SelectOptions): void;
   /**
    * Sélectionne les lignes visibles de `fromId` à `toId` (dans un sens ou
    * l'autre), en remplaçant la sélection ou, si `additive`, en la complétant.

@@ -121,6 +121,10 @@ export class TargetPlugin implements EditorPlugin {
   private popup: IOpenPopup | null = null;
   /** Motif du dernier refus pendant une application (`command:refused`). */
   private refusal: string | undefined;
+  /** Une reconstruction attend la fin d'un choix sur la scène. */
+  private rebuildPending = false;
+  /** Suit le document pour la fenêtre ouverte (rejoué à la fin d'un choix sur la scène). */
+  private followDocument: () => void = () => undefined;
   /** Vrai pendant une application lancée par la fenêtre (elle se ferme juste après) ; un `setTarget` externe la reconstruit. */
   private applying = false;
 
@@ -167,12 +171,14 @@ export class TargetPlugin implements EditorPlugin {
       if (open === null) return;
       const layer = layerOf(open.layerId);
       if (layer === undefined) this.closePopup(false, true);
-      else if (!this.applying && !open.view.picking && (layer.name !== open.name || !sameTarget(layer.target, open.target))) {
-        // Reconstruite avec la saisie en cours ; le focus n'y revient que s'il y était. Pendant un choix sur
-        // la scène, la fenêtre attend (le choix relit le document à l'application).
-        this.openPopup(ctx, open.layerId, open.button, applyFromPopup, open.view.draft());
+      else if (!this.applying && (layer.name !== open.name || !sameTarget(layer.target, open.target))) {
+        // Pendant un choix sur la scène, la reconstruction attend la fin du choix (`onPickEnd`).
+        if (open.view.picking) this.rebuildPending = true;
+        // Reconstruite avec la saisie modifiée (sinon la nouvelle cible) ; le focus n'y revient que s'il y était.
+        else this.openPopup(ctx, open.layerId, open.button, applyFromPopup, open.view.draft());
       }
     };
+    this.followDocument = followDocument;
     this.cleanups = [
       ctx.services.provide(LAYERS_TARGET_PLUGIN_ID, service),
       ctx.services.require('layers.list').addRowControl(control),
@@ -231,6 +237,11 @@ export class TargetPlugin implements EditorPlugin {
       current: layer.target,
       apply: (target) => apply(layerId, target),
       draft,
+      onPickEnd: () => {
+        if (!this.rebuildPending) return;
+        this.rebuildPending = false;
+        this.followDocument();
+      },
       onClose: () => {
         button.setAttribute('aria-expanded', 'false');
         if (this.popup?.view === view) this.popup = null;
@@ -244,6 +255,7 @@ export class TargetPlugin implements EditorPlugin {
   private closePopup(restoreFocus: boolean, anchorGone = false): void {
     const open = this.popup;
     this.popup = null;
+    this.rebuildPending = false;
     open?.view.close(restoreFocus, anchorGone);
   }
 }
