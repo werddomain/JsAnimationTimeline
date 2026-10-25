@@ -299,9 +299,12 @@ export class LayerSelectionPlugin implements EditorPlugin {
    * Un `blur` sans destinataire est un départ (clic dans une iframe : la scène) si la ligne de la saisie est
    * encore affichée ; si elle ne l'est plus, c'est le `blur` que Chromium envoie à l'élément retiré (la liste a
    * déjà recalculé ses lignes d'après le nouveau document) et la ligne voisine doit récupérer le focus.
+   * A window or tab switch sends the same destination-less blur while the document loses focus.
+   * Keep the row in keyboard navigation in that case; a focused document still signals an iframe departure.
    */
   private blurLeaves(target: Element, event: FocusEvent): boolean {
     if (event.relatedTarget !== null) return true;
+    if (!target.ownerDocument.hasFocus()) return false;
     const id = target.closest<HTMLElement>('[data-row-id]')?.dataset.rowId;
     // Saisie hors d'une ligne (en-tête, contrôle) : aucune ligne à retirer, c'est un départ.
     if (id === undefined) return true;

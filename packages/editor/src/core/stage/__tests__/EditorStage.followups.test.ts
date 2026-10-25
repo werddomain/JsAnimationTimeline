@@ -101,15 +101,13 @@ describe('stage:report only announces new warnings', () => {
 
   it('announces a warning again after it went away and came back', () => {
     // Arrange
-    const { editor, clock } = createStageEditor();
+    const { editor } = createStageEditor();
     const reports: IStageReport[] = [];
     editor.on('stage:report', (report) => reports.push(report));
 
-    // Act : une image entre chaque document (un retour dans la même image reste reporté, voir reportFeed).
+    // Act : trois documents dans la même image (avertissements de chargement, jamais reportés).
     editor.execute(setTarget('l-tree', { ref: 'tree', stage: 'nope' }, { ref: 'tree', stage: 'fake' }));
-    clock.advance(DISPLAY_FRAME_MS);
     editor.undo();
-    clock.advance(DISPLAY_FRAME_MS);
     editor.redo();
 
     // Assert

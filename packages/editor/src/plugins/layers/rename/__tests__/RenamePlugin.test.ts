@@ -291,11 +291,33 @@ describe('inline editing review fixes', () => {
   it('treats a blur with no destination and no press as focus leaving when the row is still listed (click into an iframe)', () => {
     const { host, editor } = mount(tree);
     const input = renameWithChange(host, editor);
+    // Clicking into an iframe keeps the parent document focused (the iframe becomes active).
+    jest.spyOn(document, 'hasFocus').mockReturnValue(true);
 
     input.blur();
 
     expect(nameOf(editor.document, 'a')).toBe('Renommé');
     expect(document.activeElement).toBe(document.body);
+  });
+
+  it('keeps the row focusable after a window or tab switch commits the rename', async () => {
+    const { host, editor } = mount(tree);
+    const input = renameWithChange(host, editor);
+    jest.spyOn(document, 'hasFocus').mockReturnValue(false);
+
+    input.blur();
+    await Promise.resolve();
+
+    expect(nameOf(editor.document, 'a')).toBe('Renommé');
+    expect(document.activeElement).toBe(host.querySelector('[data-row-id="a"]'));
+    expect(editor.undo()).toBe(true);
+    expect(nameOf(editor.document, 'a')).toBe('a');
+    expect(editor.redo()).toBe(true);
+    expect(nameOf(editor.document, 'a')).toBe('Renommé');
+    const row = host.querySelector<HTMLElement>('[data-row-id="a"]');
+    expect(document.activeElement).toBe(row);
+    row?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(host.querySelector('[data-row-id="b"]'));
   });
 
   it('commits with Tab and lets the focus land on the next element instead of the row', () => {

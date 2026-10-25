@@ -1,0 +1,60 @@
+<!-- demo/runtime/validation-phase3.html -->
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JsAnimationTimeline v2 · Validation de la phase 3</title>
+  <link rel="icon" href="data:,">
+</head>
+<body class="JsTimeLine phase3-validation">
+<main>
+  <header class="page-head">
+    <div>
+      <div class="eyebrow">JsAnimationTimeline v2 · Revue locale</div>
+      <h1>Phase 3 — Une timeline, des calques, des repères</h1>
+      <p class="intro">Parcours de validation des fonctions déjà intégrées : structure de l’éditeur, navigation dans les calques, cibles et mise en page. Les modifications de document passent par les commandes annulables existantes.</p>
+    </div>
+    <div class="badge">Phase 3 validée · Support réutilisable</div>
+  </header>
+
+  <section class="scene-strip" aria-label="Scène de contrôle">
+    <div class="card scene-card">
+      <div class="section-head"><h2>Scène HTML de contrôle</h2><span class="muted">180 images · 24 images/s</span></div>
+      <div id="stage" aria-label="Objets de la scène">
+        <div id="hero-object" class="stage-object" data-timeline-target="hero">HÉROS</div>
+        <div id="orb-object" class="stage-object" data-timeline-target="orb">●</div>
+        <div id="cloud-object" class="stage-object" data-timeline-target="cloud">Nuage</div>
+      </div>
+    </div>
+    <aside class="card review-note">
+      <h2>À essayer au clavier</h2>
+      <p>Double-cliquer un nom, puis Entrée ou Échap. Utiliser Ctrl+Z / Ctrl+Y ; Ctrl+Alt+↑ / ↓ déplace un calque. Le zoom de la règle reste un réglage de vue.</p>
+      <iframe id="focus-iframe" title="Zone de contrôle de sortie du focus" srcdoc="<!doctype html><html lang='fr'><body style='margin:0;font:12px Segoe UI,sans-serif'><button style='width:100%;height:30px;border:1px solid #ccd7e5;border-radius:6px;background:#f5f8fc;color:#425c7a'>Zone iframe : vérifier la sortie du focus</button></body></html>"></iframe>
+      <p>Le retour après Alt+Tab pendant un renommage reste aussi à vérifier manuellement.</p>
+    </aside>
+  </section>
+
+  <section class="card" aria-label="Éditeur de validation">
+    <div class="timeline-head"><h2>Éditeur v2 · Calques et mise en page</h2><span>Dossiers, 23 calques et défilement synchronisé</span></div>
+    <div id="editor-host"></div>
+    <div class="timeline-foot"><span>Double-clic : renommer</span><span>Ctrl+molette : zoom</span><button id="reset" type="button">Réinitialiser le document</button><span id="review-status" role="status">Chargement…</span></div>
+    <div id="fatal" hidden></div>
+  </section>
+
+  <section class="card review-grid" aria-label="Liste de validation de la phase 3">
+    <div class="section-head"><h2>Parcours de validation</h2><span class="muted">Cocher après vérification · aucun état n’est envoyé</span></div>
+    <div class="checks">
+      <label><input type="checkbox"><span>Déplier et replier les dossiers<small>Sélection simple, Ctrl et Maj ; navigation au clavier.</small></span></label>
+      <label><input type="checkbox"><span>Renommer, annuler et rétablir<small>Entrée, Échap, clic hors de la liste et retour après Alt+Tab.</small></span></label>
+      <label><input type="checkbox"><span>Visibilité, verrou et couleur<small>Contrôles de ligne et commandes annulables.</small></span></label>
+      <label><input type="checkbox"><span>Choisir la cible du calque<small>Liste, saisie et alerte de cible manquante.</small></span></label>
+      <label><input type="checkbox"><span>Réorganiser les calques<small>Glisser-déposer ou Ctrl+Alt+flèches ; annuler ensuite.</small></span></label>
+      <label><input type="checkbox"><span>Défilement, règle et zoom<small>Alignement des lignes et graduations, tête de lecture au clavier.</small></span></label>
+    </div>
+  </section>
+  <footer><span>Démonstration conservée dans le dépôt · contrôles Playwright réutilisables</span><span>Phase 3 · Calques et mise en page</span></footer>
+</main>
+<script type="module" src="./src/validation/phase3.ts"></script>
+</body>
+</html>
