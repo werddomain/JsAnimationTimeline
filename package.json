@@ -16,11 +16,14 @@
     "build": "npm run build --workspaces --if-present",
     "build:demo": "npm run build:demo --workspaces --if-present",
     "dev": "npm run dev --workspace packages/editor",
+    "dev:validation": "npm run dev --workspace demo/runtime",
+    "preview:validation": "npm run preview:demo --workspace demo/runtime",
     "test": "npm test --workspaces --if-present",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
-    "test:e2e": "npm run e2e --workspace e2e"
+    "test:e2e": "npm run e2e --workspace e2e",
+    "test:validation": "npm run e2e --workspace e2e -- validation"
   },
   "license": "MIT",
   "repository": {
