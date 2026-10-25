@@ -39,6 +39,7 @@ export default defineConfig({
         main: fileURLToPath(new URL('index.html', import.meta.url)),
         objectStage: fileURLToPath(new URL('object-stage.html', import.meta.url)),
         validationPhase3: fileURLToPath(new URL('validation-phase3.html', import.meta.url)),
+        validationPhase4: fileURLToPath(new URL('validation-phase4.html', import.meta.url)),
         validationPhase7: fileURLToPath(new URL('validation-phase7.html', import.meta.url)),
       },
     },
