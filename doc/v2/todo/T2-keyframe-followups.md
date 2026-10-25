@@ -80,8 +80,8 @@ Each module exceeds 80% in all four metrics. These checks cover T2 only.
 
 Independent general, TypeScript and security reviews and the full repository
 gate belong to the parent task. No PR, push or merge was performed here.
-The phase 5 T2 merge waits for the user's phase 4 validation after K3 and the
-W1 documentation follow-up. The original `phase5-toolbar-playback.md` remains
+Benoit validated phase 4 on 2026-10-25. The phase boundary hold is lifted;
+complete integration checks and final independent reviews still apply. The original `phase5-toolbar-playback.md` remains
 on the preserved source branch.
 
 Before PR, the parent still owns clean dist/install checks, full lint,
