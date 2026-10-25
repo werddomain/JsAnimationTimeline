@@ -2,9 +2,8 @@
 /**
  * Plugin: toolbar.keyframeActions
  * Epic: toolbar
- * Dependencies: toolbar, toolbar.main, frames.keyframes, frames.selection, tweens.motion, interaction.shortcuts
- * Listens to: frames:selectionChanged, layers:selectionChanged, document:changed, document:loaded,
- *   tweens:motionAvailabilityChanged, playhead:changed, playback:pause, playback:complete
+ * Depends on: toolbar, toolbar.main, frames.keyframes, frames.selection, tweens.motion, interaction.shortcuts
+ * Listens: frames:selectionChanged, layers:selectionChanged, document:changed, document:loaded, tweens:motionAvailabilityChanged, playhead:changed, playback:pause, playback:complete
  * Emits: toolbar:editKeyframe
  *
  * Four buttons share one toolbar.main control in the keyframes group:

@@ -51,9 +51,30 @@ Logs are under
 - `t2-green-coverage.log`: final focused suite and coverage.
 - `t2-typecheck.log` and `t2-lint.log`: editor typecheck and scoped lint.
 
-Focused result: 64 passed, no todo. Combined coverage for the two production
+Initial focused result: 64 passed, no todo. Combined coverage for the two production
 modules: 97.26% statements, 89.52% branches, 98.07% functions and 99.44% lines.
 Each module exceeds 80% in all four metrics. These checks cover T2 only.
+
+## Review corrections, 2026-10-25
+
+- Restored the structured English header keys accepted by the repository
+  checker: `Depends on` and `Listens`. Dependencies match the literal array;
+  the event list contains all eight subscriptions on one line because the
+  existing parser reads single-line values only.
+- The unchanged-state regression now emits an unchanged availability event
+  through its fixture, asserts one state calculation, and observes attribute
+  additions/removals and title setters on all four buttons. Frames 3 and 5
+  exercise both unavailable and available keyframe actions. Repeating an
+  identical selection no longer serves as the refresh trigger.
+- `t2-review-red-conventions.log`: the existing repository convention test
+  failed on the unrecognized dependency header before correction.
+- `t2-review-red-dom-writes.log`: temporarily removing the three DOM-write
+  guards caused both regression cases to fail; all guards were restored.
+- `t2-review-green-conventions.log`: repository convention test passed.
+- `t2-review-green-coverage.log`: 65 focused tests passed, no todo; coverage
+  remains 97.26% statements, 89.52% branches, 98.07% functions, 99.44% lines.
+- `t2-review-typecheck.log` and `t2-review-lint.log`: editor typecheck and
+  scoped ESLint passed. No production behavior or public contract changed.
 
 ## Remaining integration work
 

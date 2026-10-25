@@ -521,19 +521,28 @@ describe('playhead during playback', () => {
     expect(writes).not.toHaveBeenCalled();
   });
 
-  it('writes nothing when a refresh finds the same state', () => {
+  it.each([3, 5])('writes nothing when an availability refresh finds the same state at frame %i', (frame) => {
     // Arrange
-    const { selection, button } = setup();
-    selection.set(cells('a', 5));
-    const item = button('insert');
-    const writes = jest.fn();
-    item.setAttribute = writes;
+    const { context, selection, button, emit } = setup();
+    selection.set(cells('a', frame));
+    const motion = context.services.require('tweens.motion');
+    const availability = { canCreate: motion.canCreate(), canRemove: motion.canRemove() };
+    const compute = jest.spyOn(keyframeActionsState, 'computeKeyframeActionsState');
+    const writes = (['insert', 'createTween', 'delete', 'edit'] as const).flatMap((action) => {
+      const item = button(action);
+      return [
+        jest.spyOn(item, 'setAttribute'),
+        jest.spyOn(item, 'removeAttribute'),
+        jest.spyOn(item, 'title', 'set')
+      ];
+    });
 
     // Act
-    selection.set(cells('a', 5));
+    emit('tweens:motionAvailabilityChanged', availability);
 
     // Assert
-    expect(writes).not.toHaveBeenCalled();
+    expect(compute).toHaveBeenCalledTimes(1);
+    writes.forEach((write) => expect(write).not.toHaveBeenCalled());
   });
 });
 
