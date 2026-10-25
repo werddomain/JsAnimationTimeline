@@ -75,7 +75,9 @@ function startDemo(): void {
     document.querySelectorAll<HTMLInputElement>('.checks input').forEach((input) => { input.checked = false; });
     update();
   });
-  window.addEventListener('pagehide', () => editor.destroy(), { once: true });
+  window.addEventListener('pagehide', (event) => {
+    if (!event.persisted) editor.destroy();
+  });
   window.phase4Review = { editor, ready: true };
   update();
 }

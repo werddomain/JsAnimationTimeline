@@ -218,4 +218,26 @@ test.describe('preserved phase 4 validation demo', () => {
     await expect(page.locator('.checks input').first()).not.toBeChecked();
     await expectTarget(page, 1, true, 0);
   });
+
+  test('keeps an edited editor usable across explicitly modeled persisted page transitions', async ({ page }) => {
+    const original = (await state(page)).document;
+    await clickCell(page, 'target', 11);
+    await page.keyboard.press('F6');
+    const edited = (await state(page)).document;
+    expect(edited).not.toEqual(original);
+    expect((await state(page)).canUndo).toBe(true);
+
+    // Modeled lifecycle signals, not a native Back/Forward cache navigation.
+    await page.evaluate(() => {
+      window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true }));
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+    });
+    await expect(page.locator('#editor-host .jt-shell')).toBeVisible();
+    expect(await state(page)).toMatchObject({ document: edited, canUndo: true });
+    await undo(page);
+    expect(await state(page)).toMatchObject({ document: original, canUndo: false, canRedo: true });
+
+    await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: false })));
+    await expect(page.locator('#editor-host .jt-shell')).toHaveCount(0);
+  });
 });
