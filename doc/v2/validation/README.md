@@ -81,7 +81,7 @@ boutons de démonstration de l'interpolation appellent le service existant
 manipulations à refaire manuellement. La réinitialisation restaure le document,
 la sélection, l'historique, le presse-papiers d'images et les coches.
 
-Huit contrôles indépendants conservent la sélection simple/Ctrl/Maj sans
+Neuf contrôles indépendants conservent la sélection simple/Ctrl/Maj sans
 historique, F5 sans rechargement du navigateur, F6, F7 avec masquage réel de la
 scène, un glisser horizontal de clé de contenu, le collage Ctrl+C/Ctrl+V d'une
 plage vide, la création/suppression d'interpolation avec annuler/rétablir et la
@@ -93,6 +93,11 @@ doit masquer le carré puis conserver x = 100 dès 9. Les tests vérifient à la
 `editor.sample()` et les styles calculés de la vraie scène, puis le document
 complet après un seul annuler et après rétablir. Chaque contrôle collecte les
 erreurs de page/console et joint une capture.
+
+Le neuvième contrôle modélise explicitement les événements de mise en cache et
+retour de page : une modification F6 et son historique restent utilisables,
+puis une sortie définitive détruit l’éditeur. Il ne prouve pas la restauration
+native du cache arrière/avant du navigateur (BFCache).
 
 Pour ne lancer que ces contrôles, après construction, dans le même environnement
 de ports et de CI :
