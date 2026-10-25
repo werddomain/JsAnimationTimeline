@@ -10,7 +10,7 @@
 | G1 | `frames.grid` | Fusionnée (PR #42) |
 | G2 | `frames.selection` | Fusionnée (PR #53), suivi fusionné (PR #61) |
 | K2 | `frames.keyframes` | Fusionnée (PR #70), suivi fusionné (PR #77) |
-| K3 | `frames.clipboard` | PR #79 ouverte, branche `v2/K3-frames-clipboard`, régressions de conservation après collage reproduites puis corrigées ; vérification complète et revues ECC à terminer avant fusion |
+| K3 | `frames.clipboard` | PR #79 ouverte, branche `v2/K3-frames-clipboard`, régressions de conservation après collage reproduites puis corrigées ; vérification complète locale verte, revues ECC finales en cours avant fusion |
 
 ## Prochaines étapes
 
@@ -45,4 +45,4 @@
 - Une piste vide collée n’ajoute plus de clé inutile après la plage.
 - Une valeur par défaut du registre rétablie peut remplacer le style CSS initial de la cible (par exemple opacity 1 au lieu de 0.5). Le modèle ne mémorise pas ce style extérieur.
 - La copie garde son contrat existant : une coupe nécessitant l’évaluation d’une propriété inconnue peut être refusée. Le mode tolérant est limité au collage.
-- Les dernières revues ECC indépendantes restent requises ; les agents ont été interrompus par le plafond de dépenses du workspace. Ne pas fusionner sur la seule base des vérifications locales.
+- Les revues ECC indépendantes restent requises avant fusion ; les anciens avis ne couvrent pas automatiquement les nouvelles corrections. La vérification locale comprend 3 003 tests npm, 48 tests navigateur et 145 tests .NET, les builds et le paquet NuGet local (rien publié).
