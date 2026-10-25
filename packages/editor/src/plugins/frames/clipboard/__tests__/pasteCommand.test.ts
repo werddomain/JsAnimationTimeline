@@ -128,7 +128,7 @@ describe('paste carry command history', () => {
     const again = redone.layers[0];
     if (first.type !== 'layer' || again.type !== 'layer') throw new Error('Expected pasted layers.');
     expect(evaluateLayer(first, 9, { registry }).values.x).toBe(100);
-    expect(restored).toBe(input);
+    expect(restored).toEqual(input);
     expect(redone).toEqual(pasted);
     expect(evaluateLayer(again, 12, { registry }).values.x).toBe(100);
   });

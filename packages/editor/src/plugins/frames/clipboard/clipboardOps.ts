@@ -1,37 +1,24 @@
 // packages/editor/src/plugins/frames/clipboard/clipboardOps.ts
 /**
- * Collage d'une suite d'images copiées sur un calque (Ctrl+V, comme dans
- * Flash CS4) : fonction pure qui retourne un nouveau document.
+ * Pure CS4-style frame paste: replace the selected range, split boundary spans,
+ * assign new span ids, and extend the document only when needed.
  *
- * Le collage écrase les images [at, at + longueur - 1] du calque :
- * - la plage qui contient `at` est raccourcie à `at - 1` (une interpolation
- *   garde ses valeurs : une image clé est posée à `at - 1`) ;
- * - ce qui reste après la dernière image collée devient une nouvelle plage
- *   qui commence juste après, avec les valeurs évaluées là (une
- *   interpolation reste une interpolation et garde ses images clés
- *   suivantes) ; les plages entièrement recouvertes disparaissent ;
- * - les plages collées sont décalées aux images absolues et reçoivent de
- *   nouveaux ids ;
- * - après la dernière image du calque, la dernière plage est d'abord
- *   prolongée jusqu'à `at - 1` (comme F6 sur une zone vide ; un calque vide
- *   reçoit une plage vide de 1 à `at - 1`) ;
- * - `totalFrames` grandit jusqu'à la dernière image collée, si besoin ;
- * - les images après le collage gardent leurs valeurs : la première plage
- *   non vide qui suit fixe, à son début, les propriétés écrites par le
- *   collage (voir `pinAfterPaste`) ;
- * - les parties qui restent gardent leurs propres pistes (elles continuent
- *   de suivre les plages précédentes du calque).
+ * Known rendered properties after the pasted range keep their original values.
+ * The first following non-blank span pins only carried values that differ after
+ * the replacement, considering both original and pasted track names. Unknown
+ * properties do not refuse a paste and are never assigned invented edge values.
  *
- * Les propriétés des plages collées ne sont pas réévaluées : une propriété
- * inconnue du registre est recopiée telle quelle. Un calque (ou un de ses
- * dossiers) verrouillé est refusé (`SpanOperationError`).
+ * Cut interpolation segments retain exact interior values only for linear
+ * easing, as with F6. Pinning a registry default can override an element's own
+ * CSS (for example opacity 1 over an underlying opacity 0.5).
+ * Locked layers and folders refuse the whole paste.
  */
 
 import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry, PropertyTracks } from '@werddomain/timeline-runtime';
 import { SpanOperationCodes, SpanOperationError } from '../../../model/spans/SpanOperationError';
-import { createSpanIdFactory, evaluateValues, replaceLayer, requireEditableLayer } from '../../../model/spans/layerAccess';
+import { createSpanIdFactory, replaceLayer, requireEditableLayer } from '../../../model/spans/layerAccess';
 import { lastFrame, shiftSpan, withSpans, withTracks } from '../../../model/spans/tracks';
-import { slicePiece } from './spanPieces';
+import { evaluatePasteValues, slicePiece } from './spanPieces';
 import type { IClipRun, IClipSpan } from './types';
 
 /** Ce que le collage lit d'une suite copiée. */
@@ -74,9 +61,10 @@ function survivors(
   registry: PropertyRegistry
 ): ISpan[] {
   if (span.end < range.at || span.start > range.end) return [span];
-  const left = span.start < range.at ? [slicePiece(layer, span, span.start, range.at - 1, registry)] : [];
+  const options = { unknownProperties: 'skip' as const };
+  const left = span.start < range.at ? [slicePiece(layer, span, span.start, range.at - 1, registry, options)] : [];
   const right =
-    span.end > range.end ? [slicePiece(layer, span, range.end + 1, span.end, registry, { id: nextId() })] : [];
+    span.end > range.end ? [slicePiece(layer, span, range.end + 1, span.end, registry, { ...options, id: nextId() })] : [];
   return [...left, ...right];
 }
 
@@ -94,41 +82,39 @@ function withTotalFramesAtLeast(doc: ITimelineDocument, minimum: number): ITimel
   return { ...doc, settings: { ...doc.settings, totalFrames: minimum } };
 }
 
-/** Propriétés écrites par les plages collées. */
-function pastedNames(pasted: readonly ISpan[]): ReadonlySet<string> {
+/** Property names used by a sequence of spans. */
+function trackNames(pasted: readonly ISpan[]): ReadonlySet<string> {
   const names = new Set<string>();
   pasted.forEach((span) => Object.keys(span.tracks ?? {}).forEach((name) => names.add(name)));
   return names;
 }
 
-/**
- * Les plages après le collage gardent leur apparence. Le runtime reporte la
- * dernière valeur d'une propriété sur les plages suivantes qui ne la posent
- * pas : une propriété écrite par le collage changerait donc toutes les
- * images d'après. La première plage non vide après le collage reçoit, à son
- * début, une image clé pour chaque propriété collée qu'elle ne pose pas
- * déjà, avec la valeur qu'avait le calque d'origine à cette image (ou la
- * valeur par défaut du registre s'il ne la posait pas encore).
- */
+/** Restores only changed known carry values at the first following non-blank span. */
 function pinAfterPaste(
   original: ILayer,
+  candidate: ILayer,
   after: readonly ISpan[],
   names: ReadonlySet<string>,
   registry: PropertyRegistry
 ): ISpan[] {
   const index = after.findIndex((span) => span.kind !== 'blank');
   const target = after[index];
-  if (target === undefined || names.size === 0) return [...after];
+  if (target === undefined) return [...after];
   const missing = [...names].filter((name) => !(target.tracks?.[name] ?? []).some((key) => key.frame === target.start));
   if (missing.length === 0) return [...after];
-  const values = evaluateValues(original, target.start, registry);
+  const values = evaluatePasteValues(original, target.start, registry);
+  const candidateValues = evaluatePasteValues(candidate, target.start, registry);
   const tracks: Record<string, PropertyTracks[string]> = { ...target.tracks };
   missing.forEach((name) => {
     const value = values[name] ?? registry.get(name)?.defaultValue;
-    // Propriété inconnue du registre et jamais posée ici : rien à reporter.
-    if (value === undefined) return;
+    const current = candidateValues[name] ?? registry.get(name)?.defaultValue;
+    // Unknown properties have no invented value; unchanged carry needs no key.
+    if (value === undefined || value === current) return;
     tracks[name] = [{ frame: target.start, value }, ...(tracks[name] ?? [])];
   });
+  const unchanged = Object.keys(tracks).length === Object.keys(target.tracks ?? {}).length &&
+    Object.keys(tracks).every((name) => tracks[name] === target.tracks?.[name]);
+  if (unchanged) return [...after];
   const pinned = withTracks(target, tracks);
   return after.map((span, position) => (position === index ? pinned : span));
 }
@@ -151,12 +137,11 @@ export function pasteSpans(
   const layer = lastFrame(original) < at - 1 ? extendTo(original, at - 1, nextId) : original;
   const kept = layer.spans.flatMap((span) => survivors(layer, span, range, nextId, registry));
   const pasted = run.spans.map((piece) => placedSpan(piece, at, nextId()));
-  const after = pinAfterPaste(
-    layer,
-    kept.filter((span) => span.start > range.end),
-    pastedNames(pasted),
-    registry
-  );
-  const spans = [...kept.filter((span) => span.end < at), ...pasted, ...after];
+  const before = kept.filter((span) => span.end < at);
+  const following = kept.filter((span) => span.start > range.end);
+  const candidate = withSpans(layer, [...before, ...pasted, ...following]);
+  const names = new Set([...trackNames(original.spans), ...trackNames(pasted)]);
+  const after = pinAfterPaste(layer, candidate, following, names, registry);
+  const spans = [...before, ...pasted, ...after];
   return withTotalFramesAtLeast(replaceLayer(doc, withSpans(layer, spans)), range.end);
 }

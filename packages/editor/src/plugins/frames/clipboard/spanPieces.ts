@@ -27,9 +27,25 @@
  */
 
 import type { ILayer, ISpan, PropertyRegistry, PropertyTracks, PropertyValues } from '@werddomain/timeline-runtime';
+import { evaluateLayer } from '@werddomain/timeline-runtime';
 import { evaluateValues } from '../../../model/spans/layerAccess';
-import { SpanOperationError } from '../../../model/spans/SpanOperationError';
+import { SpanOperationCodes, SpanOperationError } from '../../../model/spans/SpanOperationError';
 import { mapKeyframes, tracksFromValues, withTracks } from '../../../model/spans/tracks';
+
+/** Evaluates known properties for paste without changing the strict K1/copy contract. */
+export function evaluatePasteValues(layer: ILayer, frame: number, registry: PropertyRegistry): PropertyValues {
+  try {
+    return evaluateLayer(layer, frame, { registry, unknownProperties: 'skip' }).values;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new SpanOperationError(
+      SpanOperationCodes.EVALUATION_FAILED,
+      `Impossible de calculer les valeurs du calque « ${layer.name} » à l'image ${frame} : ${detail}`
+    );
+  }
+}
+
+type ValuesReader = typeof evaluateValues;
 
 /** Images clés de propriété comprises entre `from` et `to` (bornes incluses). */
 function keyframesWithin(tracks: PropertyTracks | undefined, from: number, to: number): PropertyTracks | undefined {
@@ -60,10 +76,16 @@ function withEdgeKeyframes(
  * échoue (propriété inconnue du registre), ses pistes sont gardées telles
  * quelles (`undefined`). Un bord coupé, lui, doit être évalué.
  */
-function valuesAtStart(layer: ILayer, span: ISpan, from: number, registry: PropertyRegistry): PropertyValues | undefined {
-  if (from > span.start) return setSoFar(layer, span, evaluateValues(layer, from, registry));
+function valuesAtStart(
+  layer: ILayer,
+  span: ISpan,
+  from: number,
+  registry: PropertyRegistry,
+  readValues: ValuesReader
+): PropertyValues | undefined {
+  if (from > span.start) return setSoFar(layer, span, readValues(layer, from, registry));
   try {
-    return setSoFar(layer, span, evaluateValues(layer, from, registry));
+    return setSoFar(layer, span, readValues(layer, from, registry));
   } catch (error) {
     if (error instanceof SpanOperationError) return undefined;
     throw error;
@@ -96,6 +118,8 @@ export interface ISliceOptions {
    * continue de suivre les plages précédentes.
    */
   readonly inherit?: boolean;
+  /** Paste-only evaluation mode; copies retain their existing strict boundary checks. */
+  readonly unknownProperties?: 'skip';
 }
 
 /** Valeurs à poser au début du morceau, ou `undefined` pour garder les pistes de la plage. */
@@ -104,12 +128,13 @@ function startValues(
   span: ISpan,
   from: number,
   registry: PropertyRegistry,
-  inherit: boolean
+  inherit: boolean,
+  readValues: ValuesReader
 ): PropertyValues | undefined {
-  if (inherit) return valuesAtStart(layer, span, from, registry);
+  if (inherit) return valuesAtStart(layer, span, from, registry, readValues);
   if (from === span.start) return undefined;
   const own = new Set(Object.keys(span.tracks ?? {}));
-  return Object.fromEntries(Object.entries(evaluateValues(layer, from, registry)).filter(([name]) => own.has(name)));
+  return Object.fromEntries(Object.entries(readValues(layer, from, registry)).filter(([name]) => own.has(name)));
 }
 
 function staticTracks(
@@ -118,9 +143,10 @@ function staticTracks(
   from: number,
   to: number,
   registry: PropertyRegistry,
-  inherit: boolean
+  inherit: boolean,
+  readValues: ValuesReader
 ): PropertyTracks | undefined {
-  const values = startValues(layer, span, from, registry, inherit);
+  const values = startValues(layer, span, from, registry, inherit, readValues);
   return values === undefined ? keyframesWithin(span.tracks, from, to) : tracksFromValues(values, from);
 }
 
@@ -130,14 +156,15 @@ function tweenTracks(
   from: number,
   to: number,
   registry: PropertyRegistry,
-  inherit: boolean
+  inherit: boolean,
+  readValues: ValuesReader
 ): PropertyTracks | undefined {
   const names = Object.keys(span.tracks ?? {});
   const kept = keyframesWithin(span.tracks, from, to);
-  const values = startValues(layer, span, from, registry, inherit);
+  const values = startValues(layer, span, from, registry, inherit, readValues);
   const withStart = values === undefined ? kept : withEdgeKeyframes(kept, Object.keys(values), from, values);
   // Bord droit coupé : seules les propriétés interpolées par la plage changent.
-  return to < span.end ? withEdgeKeyframes(withStart, names, to, evaluateValues(layer, to, registry)) : withStart;
+  return to < span.end ? withEdgeKeyframes(withStart, names, to, readValues(layer, to, registry)) : withStart;
 }
 
 /**
@@ -154,8 +181,9 @@ export function slicePiece(
 ): ISpan {
   const id = options.id ?? span.id;
   const inherit = options.inherit ?? false;
+  const readValues = options.unknownProperties === 'skip' ? evaluatePasteValues : evaluateValues;
   const piece: ISpan = { ...span, id, start: from, end: to };
   if (span.kind === 'blank') return { id, start: from, end: to, kind: 'blank' };
-  if (span.kind === 'static') return withTracks(piece, staticTracks(layer, span, from, to, registry, inherit));
-  return withTracks(piece, tweenTracks(layer, span, from, to, registry, inherit));
+  if (span.kind === 'static') return withTracks(piece, staticTracks(layer, span, from, to, registry, inherit, readValues));
+  return withTracks(piece, tweenTracks(layer, span, from, to, registry, inherit, readValues));
 }

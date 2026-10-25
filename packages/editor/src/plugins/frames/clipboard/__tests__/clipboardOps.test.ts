@@ -488,3 +488,20 @@ describe('integration carry regressions', () => {
     expect(xAt(layerOf(output, 'b'), 5)).toBe(100);
   });
 });
+
+
+describe('paste with empty tracks', () => {
+  it('does not add a redundant key after an empty pasted track', () => {
+    const original = layer('b', [
+      { id: 'before', start: 1, end: 4, kind: 'static' },
+      { id: 'after', start: 5, end: 12, kind: 'static' }
+    ]);
+    const clip: PastedRun = { length: 4, spans: [{ start: 1, end: 4, kind: 'static', tracks: { x: [] } }] };
+
+    const output = pasteSpans(createDoc([original], 12), 'b', 1, clip, registry);
+
+    expect(spansOf(output, 'b')[1]).toBe(original.spans[1]);
+    expect(evaluateLayer(layerOf(output, 'b'), 5, { registry }).values).toEqual(evaluateLayer(original, 5, { registry }).values);
+    expectValid(output);
+  });
+});

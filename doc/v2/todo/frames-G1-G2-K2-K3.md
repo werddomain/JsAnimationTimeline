@@ -1,3 +1,4 @@
+<!-- doc/v2/todo/frames-G1-G2-K2-K3.md -->
 # Reste à faire : images (G1, G2, K2, K3)
 
 État au 24 octobre 2026, à l'arrêt demandé par Benoit.
@@ -9,7 +10,7 @@
 | G1 | `frames.grid` | Fusionnée (PR #42) |
 | G2 | `frames.selection` | Fusionnée (PR #53), suivi fusionné (PR #61) |
 | K2 | `frames.keyframes` | Fusionnée (PR #70), suivi fusionné (PR #77) |
-| K3 | `frames.clipboard` | PR #79 ouverte, branche `v2/K3-frames-clipboard`, deuxième revue de l'intégrateur corrigée, vérification locale verte ; revue et fusion à faire |
+| K3 | `frames.clipboard` | PR #79 ouverte, branche `v2/K3-frames-clipboard`, régressions de conservation après collage reproduites puis corrigées ; vérification complète et revues ECC à terminer avant fusion |
 
 ## Prochaines étapes
 
@@ -24,16 +25,24 @@
 - K1 refuse de déplacer une image clé de contenu au-delà de la fin de sa plage : glisser la dernière image clé vers la droite est refusé, alors que Flash l'accepte.
 - Le glisser des images clés ne change pas de calque (décalage en images seulement) et ne fait pas défiler la grille près des bords.
 - Collage : une propriété que la source montre à sa valeur par défaut, parce qu'elle n'est posée que plus loin, n'est pas copiée. Sur un calque qui la pose déjà, l'image collée garde la valeur de ce calque.
-- Collage : si le calque visé contient déjà une propriété inconnue du registre et que le collage doit fixer les valeurs d'après, le collage est refusé.
+- Collage : seules les propriétés connues du registre sont évaluées aux coupes ; aucune valeur de bord n’est inventée pour une propriété inconnue.
 - Le presse-papiers des images vit seulement dans la mémoire de l'éditeur (perdu au rechargement).
 
 ## Petites remarques des revues, non faites
 
 - `frames.keyframes` : un déplacement retourne `false` sans événement quand le décalage, une fois borné, vaut 0 (déjà au bord). C'est documenté, mais aucun message n'est affiché.
-- `frames.clipboard` : une piste vide dans un contenu collé ajoute une image clé inutile au début de la plage suivante (sans changer l'affichage).
 - Tests à ajouter : `cancelPendingClick` directement dans les tests de `frames.selection`, et `lostpointercapture` avec un autre pointeur.
 
 ## Branches et worktrees
 
 - `v2/K3-frames-clipboard` : PR #79, à jour avec `v2/base`.
 - Worktree `JsAnimationTimeline-K2c` (branche `v2/K2-selection-docs`) : vide, jamais poussé. Ses deux points ont été faits dans la PR #79 ; on peut le supprimer.
+
+## Reprise K3 : conservation des images après collage
+
+- Les noms des pistes originales et collées sont examinés. La première plage non vide après le collage reçoit seulement les valeurs héritées qui ont changé.
+- Régressions conservées : propriété portée par une plage entièrement remplacée (copie sur y, vide ou sans piste), interpolation raccourcie suivie d’une plage fixe, propriété inconnue ailleurs dans le calque, absence de clé inutile, annuler/rétablir.
+- Une piste vide collée n’ajoute plus de clé inutile après la plage.
+- Une valeur par défaut du registre rétablie peut remplacer le style CSS initial de la cible (par exemple opacity 1 au lieu de 0.5). Le modèle ne mémorise pas ce style extérieur.
+- La copie garde son contrat existant : une coupe nécessitant l’évaluation d’une propriété inconnue peut être refusée. Le mode tolérant est limité au collage.
+- Les dernières revues ECC indépendantes restent requises ; les agents ont été interrompus par le plafond de dépenses du workspace. Ne pas fusionner sur la seule base des vérifications locales.
