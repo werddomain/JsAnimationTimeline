@@ -20,16 +20,26 @@ export default defineConfig({
         find: /^@werddomain\/timeline-runtime$/,
         replacement: fileURLToPath(new URL('../../packages/runtime/src/index.ts', import.meta.url)),
       },
+      {
+        find: /^@werddomain\/timeline-editor$/,
+        replacement: fileURLToPath(new URL('../../packages/editor/src/index.ts', import.meta.url)),
+      },
+      {
+        find: /^@werddomain\/timeline-export-css$/,
+        replacement: fileURLToPath(new URL('../../packages/export-css/src/index.ts', import.meta.url)),
+      },
     ],
   },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
-      // Deux pages : le lecteur HTML (index) et la scène sans HTML animé (R8).
+      // Existing runtime pages and the preserved phase-validation demonstrations.
       input: {
         main: fileURLToPath(new URL('index.html', import.meta.url)),
         objectStage: fileURLToPath(new URL('object-stage.html', import.meta.url)),
+        validationPhase3: fileURLToPath(new URL('validation-phase3.html', import.meta.url)),
+        validationPhase7: fileURLToPath(new URL('validation-phase7.html', import.meta.url)),
       },
     },
   },

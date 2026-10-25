@@ -8,7 +8,8 @@
     // Typecheck before any build: the packages are read from their sources.
     "paths": {
       "@werddomain/timeline-runtime": ["../packages/runtime/src/index.ts"],
-      "@werddomain/timeline-export-css": ["../packages/export-css/src/index.ts"]
+      "@werddomain/timeline-export-css": ["../packages/export-css/src/index.ts"],
+      "@werddomain/timeline-editor": ["../packages/editor/src/index.ts"]
     }
   },
   "include": ["**/*.ts"],
