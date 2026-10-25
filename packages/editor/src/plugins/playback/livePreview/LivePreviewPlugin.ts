@@ -1,9 +1,10 @@
 // packages/editor/src/plugins/playback/livePreview/LivePreviewPlugin.ts
 /**
- * Plugin: playback.livePreview; epic: playback.
- * Requires playback and layout.playhead. The toolbar.main service is optional.
- * Listens to scrub start/end, frame renders and playback play/pause/complete;
- * emits playback:previewChanged.
+ * Plugin: playback.livePreview
+ * Epic: playback
+ * Depends on: playback, layout.playhead
+ * Listens: playhead:scrubStart, playhead:scrubEnd, frame:render, playback:play, playback:pause, playback:complete, editor:ready
+ * Emits: playback:previewChanged
  *
  * While scrubbing, live mode renders each display frame, throttled mode limits
  * scene renders using the editor clock, and onRelease mode waits for release.

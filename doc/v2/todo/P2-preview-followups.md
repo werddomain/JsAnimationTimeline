@@ -28,6 +28,14 @@ Evidence is preserved under `C:/Users/clefw/.codex/visualizations/2026/10/24/01a
 
 Preview-module coverage: 95.47% statements, 84.76% branches, 83.33% functions, 98.19% lines. `LivePreviewPlugin.ts`: 93.23%, 84.61%, 93.75%, 97.29%, respectively. The initialization error cleanup remains uncovered by these focused tests; the unchanged select's invalid-value branches are also outside this regression scope. No browser or full-repository validation is claimed by this record.
 
+## Structured header review correction (2026-10-25)
+
+The general review found that the prose-only English header no longer satisfied the repository convention checker. The header now uses separate `Plugin`, `Epic`, `Depends on`, `Listens` and `Emits` fields. Its dependencies match the literal `['playback', 'layout.playhead']`; the event list includes the optional-toolbar retry on `editor:ready`. Only the structured comment changed; runtime behavior and the throttled duplicate-render caveat remain unchanged.
+
+- RED: `npm test --workspace tools/conventions -- --runInBand --runTestsByPath src/__tests__/repo.test.ts` failed with the missing `Depends on` field and the mismatched plugin id. This used the existing real-repository test, without a replacement or mirrored checker (`p2-header-conventions-red.log`).
+- GREEN: `npm test --workspace tools/conventions -- --runInBand --runTestsByPath src/__tests__/repo.test.ts src/__tests__/pluginHeader.test.ts` passed 20/20 tests (`p2-header-conventions-green.log`).
+- Existing preview, stage-hold and playhead suites passed again: 87/87 tests (`p2-header-focused-tests.log`). `git diff --check` passed. The earlier coverage and typecheck records remain evidence for the behavior change; they were not rerun for this comment-only correction.
+
 ## Remaining integration gates
 
 P2 and T2 may be prepared and independently reviewed, but phase-5 merges wait for the user's phase-4 validation after K3 and the W1 documentation follow-up. No P2 PR, push or merge was performed in this completion step.
