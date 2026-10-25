@@ -318,6 +318,29 @@ describe('playback.livePreview toolbar control', () => {
     expect(editor.container.querySelector(`[data-toolbar-item="${LIVE_PREVIEW_PLUGIN_ID}"] select`)).not.toBeNull();
   });
 
+  it('removes a late toolbar control and its detached select listener on plugin destroy', () => {
+    // Arrange
+    const { editor, plugin, preview } = mountPreview({}, { toolbarAfterPlayback: true });
+    const api = preview();
+    const root = editor.container;
+    const select = root.querySelector(`[data-toolbar-item="${LIVE_PREVIEW_PLUGIN_ID}"] select`) as HTMLSelectElement;
+    const toolbar = editor.getService('toolbar.main');
+    expect(select).not.toBeNull();
+    expect(toolbar?.items().filter((item) => item.id === LIVE_PREVIEW_PLUGIN_ID)).toHaveLength(1);
+
+    // Act: keep the toolbar alive so its own destroy cannot hide a missing plugin cleanup.
+    plugin.destroy();
+    select.value = 'onRelease';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+
+    // Assert
+    expect(root.querySelector(`[data-toolbar-item="${LIVE_PREVIEW_PLUGIN_ID}"]`)).toBeNull();
+    expect(toolbar?.items().filter((item) => item.id === LIVE_PREVIEW_PLUGIN_ID)).toEqual([]);
+    expect(api.mode).toBe('live');
+    expect(editor.getService(LIVE_PREVIEW_PLUGIN_ID)).toBeUndefined();
+    expect(() => plugin.destroy()).not.toThrow();
+  });
+
   it('has no toolbar control with toolbar: false', () => {
     // Act
     const { editor } = mountPreview({ toolbar: false });
@@ -369,12 +392,14 @@ describe('playback.livePreview timers and endings (review follow-ups)', () => {
 
   it('renders frame 6 once when the release comes before the pending display frame (onRelease)', () => {
     // Arrange
-    const { renders, clock, down, moveQuiet, up } = mountPreview({ mode: 'onRelease' });
+    const { editor, renders, clock, down, moveQuiet, up } = mountPreview({ mode: 'onRelease' });
     down(2);
 
     // Act
     moveQuiet(6);
+    expect(editor.playback.frame).toBe(6);
     up();
+    expect(renders()).toEqual([]);
     clock.advance(DISPLAY_FRAME_MS);
 
     // Assert
@@ -390,10 +415,50 @@ describe('playback.livePreview timers and endings (review follow-ups)', () => {
     // Act: the last display frame is still pending when the pointer is released.
     moveQuiet(6);
     up();
+    expect(renders()).toEqual(['render:2']);
     clock.advance(DISPLAY_FRAME_MS);
 
     // Assert
-    expect(renders().filter((entry) => entry === 'render:6')).toEqual(['render:6']);
+    expect(renders()).toEqual(['render:2', 'render:6']);
+  });
+
+  it('cancels the trailing timer while release waits for the pending display frame', () => {
+    // Arrange
+    jest.useFakeTimers();
+    const { renders, clock, down, move, moveQuiet, up } = mountPreview({ mode: 'throttled', maxFps: 10 });
+    down(2);
+    move(3);
+    expect(jest.getTimerCount()).toBe(1);
+    moveQuiet(6);
+
+    // Act: wall time can pass before the manual display clock delivers its pending frame.
+    up();
+    jest.advanceTimersByTime(100);
+    const beforeDisplay = renders();
+    clock.advance(DISPLAY_FRAME_MS);
+
+    // Assert
+    expect(beforeDisplay).toEqual(['render:2']);
+    expect(renders()).toEqual(['render:2', 'render:6']);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  it('can repeat a frame already flushed by the trailing timer before release', () => {
+    // Arrange
+    jest.useFakeTimers();
+    const { renders, clock, down, move, moveQuiet, up } = mountPreview({ mode: 'throttled', maxFps: 10 });
+    down(2);
+    move(3);
+    moveQuiet(6);
+
+    // Act: the timer flushes the sought frame before its display frame and before release.
+    jest.advanceTimersByTime(100);
+    expect(renders()).toEqual(['render:2', 'render:6']);
+    up();
+    clock.advance(DISPLAY_FRAME_MS);
+
+    // Assert: identical output, but two scene renders of frame 6.
+    expect(renders()).toEqual(['render:2', 'render:6', 'render:6']);
   });
 
   it('holds again when a drag goes on after playback was started then paused', () => {

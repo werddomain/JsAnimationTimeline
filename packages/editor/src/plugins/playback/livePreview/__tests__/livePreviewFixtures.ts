@@ -16,7 +16,8 @@ import { createShortcutsPlugin } from '../../../interaction/shortcuts';
 import { createManualScheduler, placeAt } from '../../../layout/__tests__/layoutFixtures';
 import { LayoutPlugin } from '../../../layout/LayoutPlugin';
 import { ToolbarMainPlugin } from '../../../toolbar/main/ToolbarMainPlugin';
-import { LivePreviewPlugin } from '../LivePreviewPlugin';
+import { createLivePreviewPlugin } from '..';
+import type { LivePreviewPlugin } from '..';
 import type { ILivePreviewApi, ILivePreviewOptions } from '../types';
 
 /** Durée d'une image d'affichage pour l'horloge manuelle, en millisecondes. */
@@ -28,6 +29,7 @@ const FRAME_WIDTH = 15;
 
 export interface IPreviewHarness {
   readonly editor: IEditor;
+  readonly plugin: LivePreviewPlugin;
   readonly stage: IFakeStage;
   readonly clock: IManualClock;
   readonly preview: () => ILivePreviewApi;
@@ -82,9 +84,9 @@ export interface IPreviewShell {
 }
 
 /** Epics barre d'outils et playback, dans l'ordre demandé par la coquille. */
-function shellEpics(options: ILivePreviewOptions, shell: IPreviewShell): EditorPlugin[] {
+function shellEpics(plugin: LivePreviewPlugin, shell: IPreviewShell): EditorPlugin[] {
   const toolbar = shell.withToolbar === false ? [] : [epic('toolbar', [new ToolbarMainPlugin()])];
-  const playback = epic('playback', [new LivePreviewPlugin(options)]);
+  const playback = epic('playback', [plugin]);
   return shell.toolbarAfterPlayback === true ? [playback, ...toolbar] : [...toolbar, playback];
 }
 
@@ -94,6 +96,7 @@ export function mountPreview(options: ILivePreviewOptions = {}, shell: IPreviewS
   document.body.appendChild(container);
   const clock = createManualClock();
   const stage = createFakeStage();
+  const plugin = createLivePreviewPlugin(options);
   const editor = createEditor(container, {
     data: createStageDocument(),
     stage,
@@ -101,7 +104,7 @@ export function mountPreview(options: ILivePreviewOptions = {}, shell: IPreviewS
     defaultPlugins: [
       new LayoutPlugin({ scrollSync: { scheduler: createManualScheduler() }, ruler: { frameWidth: FRAME_WIDTH } }),
       createShortcutsPlugin(),
-      ...shellEpics(options, shell)
+      ...shellEpics(plugin, shell)
     ]
   });
   mountedEditors.push(editor);
@@ -111,6 +114,7 @@ export function mountPreview(options: ILivePreviewOptions = {}, shell: IPreviewS
   stage.log.length = 0;
   return {
     editor,
+    plugin,
     stage,
     clock,
     preview: () => editor.getService('playback.livePreview') as ILivePreviewApi,

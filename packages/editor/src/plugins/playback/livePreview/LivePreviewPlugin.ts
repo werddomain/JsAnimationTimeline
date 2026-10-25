@@ -1,33 +1,26 @@
 // packages/editor/src/plugins/playback/livePreview/LivePreviewPlugin.ts
 /**
- * Plugin : playback.livePreview
- * Epic : playback
- * Dépend de : playback, layout.playhead
- * Écoute : playhead:scrubStart, playhead:scrubEnd, frame:render, playback:play, playback:pause, playback:complete
- * Émet : playback:previewChanged
+ * Plugin: playback.livePreview; epic: playback.
+ * Requires playback and layout.playhead. The toolbar.main service is optional.
+ * Listens to scrub start/end, frame renders and playback play/pause/complete;
+ * emits playback:previewChanged.
  *
- * Réglage de l'aperçu de la scène pendant le glisser de la tête de lecture,
- * pour les scènes lentes (canvas chargé, three.js, appareil distant...) :
- * en direct (par défaut), limité à `maxFps` rendus par seconde, ou au
- * relâchement seulement (voir `LivePreviewMode`).
+ * While scrubbing, live mode renders each display frame, throttled mode limits
+ * scene renders using the editor clock, and onRelease mode waits for release.
+ * Stage holds affect only scene sync/render; the playhead and frame events keep
+ * following the pointer. Drag endings, playback start, mode changes and destroy
+ * release the hold. Pause or completion during the same drag opens it again.
  *
- * Un glisser (`playhead:scrubStart` ... `playhead:scrubEnd`) ouvre une
- * retenue `ctx.stage.hold()` hors du mode `'live'` : la tête, la grille et
- * `frame:render` suivent toujours, seul le rendu des scènes attend. En mode
- * `'throttled'`, chaque `frame:render` rend l'image courante si l'intervalle
- * est écoulé sur l'horloge de l'éditeur (`ctx.playback.now()`), sinon un
- * rendu de fin est programmé. La fin du glisser (toutes ses issues), le
- * début de la lecture, un changement de mode et `destroy` libèrent la
- * retenue, ce qui rend l'image courante. Si le relâchement arrive avant le
- * rendu d'affichage de la dernière image atteinte, la libération attend ce
- * `frame:render` : l'image n'est rendue qu'une fois. En mode `'throttled'`,
- * le rendu de fin a pu la rendre déjà : même sortie, rendue deux fois. Après
- * une lecture arrêtée pendant le même glisser (pause ou fin), la retenue est
- * rouverte. Les calques masqués dans l'éditeur (œil) le restent : c'est la scène qui les cache (`editorVisible`).
+ * If release precedes the pending display frame, release waits for frame:render
+ * and cancels the trailing timer so it cannot render that frame in between.
+ * In throttled mode, a timer that already fired BEFORE release may have flushed
+ * the sought frame before its display frame. That display frame can render the
+ * same output again: throttling does not guarantee unique scene renders.
+ * Hidden editor layers still rely on the scene honoring editorVisible.
  *
- * Une liste « Aperçu » dans le groupe `playback` de la barre d'outils change
- * le mode (désactivable par `toolbar: false` ; absente, sans erreur, si
- * `toolbar.main` n'est pas monté : ce service n'est pas une dépendance).
+ * The optional French Aperçu control is added immediately when toolbar.main is
+ * available, or retried once at editor:ready for a later toolbar epic. Without
+ * that service, or with toolbar: false, the plugin works without a control.
  */
 
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
@@ -86,8 +79,7 @@ export class LivePreviewPlugin implements EditorPlugin {
       cleanups.push(ctx.events.on('playback:complete', () => this.open()));
       cleanups.push(ctx.events.on('frame:render', () => this.onFrame()));
       cleanups.push(ctx.services.provide(LIVE_PREVIEW_PLUGIN_ID, this.createService()));
-      // Barre d'outils facultative : sans `toolbar.main`, pas de contrôle. Si
-      // son epic est enregistrée après celle-ci, un nouvel essai à `editor:ready`.
+      // Retry once after all epics initialize; toolbar.main remains optional.
       if (this.toolbar && !this.addToolbarControl(ctx, cleanups)) {
         const off = ctx.events.on('editor:ready', () => {
           off();
@@ -148,6 +140,11 @@ export class LivePreviewPlugin implements EditorPlugin {
   private onScrubEnd(): void {
     const ctx = this.ctx;
     if (this.session !== null && ctx !== null && ctx.playback.frame !== this.renderedFrame) {
+      // A trailing flush must not overtake the pending display frame after release.
+      if (this.session.timer !== null) {
+        clearTimeout(this.session.timer);
+        this.session.timer = null;
+      }
       this.releasePending = true;
       return;
     }
