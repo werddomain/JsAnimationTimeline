@@ -51,9 +51,11 @@ export class EasingPlugin implements EditorPlugin {
   };
 
   destroy(): void {
+    // Restoring focus may synchronously call a previously captured service.
+    this.ctx = undefined;
     this.close();
     const cleanups = this.cleanups; this.cleanups = [];
-    cleanups.reverse().forEach((cleanup) => cleanup()); this.ctx = undefined;
+    cleanups.reverse().forEach((cleanup) => cleanup());
   }
 
   private context(): IEditorContext {

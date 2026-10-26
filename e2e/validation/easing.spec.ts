@@ -130,3 +130,60 @@ test('preserves an imported custom curve until a preset is explicitly applied an
   expect((await snapshot(page)).document).toEqual(before.document);
   expect((await snapshot(page)).easing).toBe(curve);
 });
+
+test('disposes a dialog invalidated by destruction during its initial browser focus', async ({ page }) => {
+  const result = await page.evaluate(() => {
+    const fixture = window.easingFixture;
+    if (fixture === undefined) throw new Error('Missing W3 fixture');
+    const { editor } = fixture;
+    const service = editor.getService('tweens.easing');
+    const trigger = document.getElementById('open-easing');
+    if (service === undefined || trigger === null) throw new Error('Missing W3 controls');
+    trigger.focus();
+    let commands = 0;
+    editor.on('command:before', () => { commands++; });
+    const destroyOnFocus = (event: FocusEvent): void => {
+      if (event.target instanceof HTMLSelectElement && event.target.closest('.jt-easing-dialog') !== null) editor.destroy();
+    };
+    document.addEventListener('focusin', destroyOnFocus);
+    let opened: boolean;
+    try { opened = service.openAt('easing-layer', 6); }
+    finally { document.removeEventListener('focusin', destroyOnFocus); }
+    return { opened, destroyed: editor.isDestroyed, commands,
+      dialogs: document.querySelectorAll('.jt-easing-dialog').length,
+      portals: document.querySelectorAll('.jt-easing-portal').length };
+  });
+  expect(result).toEqual({ opened: false, destroyed: true, commands: 0, dialogs: 0, portals: 0 });
+  await expect(page.locator('#editor-host .JsTimeLine')).toHaveCount(0);
+});
+
+test('refuses a captured service while browser focus is restored during destruction', async ({ page }) => {
+  const result = await page.evaluate(() => {
+    const fixture = window.easingFixture;
+    if (fixture === undefined) throw new Error('Missing W3 fixture');
+    const { editor } = fixture;
+    const service = editor.getService('tweens.easing');
+    const trigger = document.getElementById('open-easing');
+    if (service === undefined || trigger === null) throw new Error('Missing W3 controls');
+    trigger.focus();
+    const opened = service.openAt('easing-layer', 6);
+    let commands = 0;
+    let historyChanges = 0;
+    let focusCalls = 0;
+    let refusal: string | undefined;
+    editor.on('command:before', () => { commands++; });
+    editor.on('history:changed', () => { historyChanges++; });
+    trigger.addEventListener('focus', () => {
+      focusCalls++;
+      try { service.openAt('easing-layer', 6); }
+      catch (error) { refusal = error instanceof Error ? error.message : String(error); }
+    }, { once: true });
+    editor.destroy();
+    return { opened, destroyed: editor.isDestroyed, commands, historyChanges, focusCalls, refusal,
+      dialogs: document.querySelectorAll('.jt-easing-dialog').length,
+      portals: document.querySelectorAll('.jt-easing-portal').length };
+  });
+  expect(result).toMatchObject({ opened: true, destroyed: true, commands: 0, historyChanges: 0, focusCalls: 1, dialogs: 0, portals: 0 });
+  expect(result.refusal).toContain('tweens.easing: used before init or after destroy');
+  await expect(page.locator('#editor-host .JsTimeLine')).toHaveCount(0);
+});

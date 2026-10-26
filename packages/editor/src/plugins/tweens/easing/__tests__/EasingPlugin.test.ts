@@ -242,3 +242,65 @@ describe('easing initial-focus reentrance', () => {
     editor.destroy();
   });
 });
+
+describe('easing destruction focus reentrance', () => {
+  it('refuses a captured service reopening while destruction restores trigger focus', () => {
+    const { editor, service } = setup();
+    const trigger = document.createElement('button');
+    document.body.append(trigger);
+    trigger.focus();
+    expect(service.openAt('a', 1)).toBe(true);
+    let reopened: boolean | undefined;
+    let refusal: unknown;
+    trigger.addEventListener('focus', () => {
+      try { reopened = service.openAt('a', 1); }
+      catch (error) { refusal = error; }
+    }, { once: true });
+
+    editor.destroy();
+
+    expect(editor.isDestroyed).toBe(true);
+    expect(reopened).toBeUndefined();
+    expect(refusal).toBeInstanceOf(Error);
+    expect((refusal as Error).message).toContain('tweens.easing');
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(0);
+    expect(document.querySelectorAll('.jt-easing-portal')).toHaveLength(0);
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('refuses captured service reads and setters before focus restoration can execute a command', () => {
+    const { editor, service, context } = setup();
+    const trigger = document.createElement('button');
+    document.body.append(trigger);
+    trigger.focus();
+    expect(service.openAt('a', 1)).toBe(true);
+    const before = context.document;
+    const commands: string[] = [];
+    const historyChanges: boolean[] = [];
+    const refusals: unknown[] = [];
+    context.events.onCancellable('command:before', (event) => { commands.push(event.payload.command.label); });
+    editor.on('history:changed', () => { historyChanges.push(context.commands.canUndo); });
+    trigger.addEventListener('focus', () => {
+      for (const attempt of [() => service.canSetAt('a', 1), () => service.setAt('a', 1, 'ease-in')]) {
+        try { attempt(); }
+        catch (error) { refusals.push(error); }
+      }
+    }, { once: true });
+
+    editor.destroy();
+
+    expect(refusals).toHaveLength(2);
+    refusals.forEach((error) => {
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toContain('tweens.easing');
+    });
+    expect(context.document).toBe(before);
+    expect(commands).toEqual([]);
+    expect(historyChanges).toEqual([]);
+    expect(context.commands.canUndo).toBe(false);
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.querySelector('.jt-easing-portal')).toBeNull();
+    expect(() => service.openAt('a', 1)).toThrow('tweens.easing');
+    expect(() => service.setAt('a', 1, 'ease')).toThrow('tweens.easing');
+  });
+});
