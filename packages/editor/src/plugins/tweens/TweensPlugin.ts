@@ -1,31 +1,27 @@
 // packages/editor/src/plugins/tweens/TweensPlugin.ts
 /**
- * Plugin : tweens
- * Epic : tweens
- * Dépend de : —
- * Écoute : —
- * Émet : —
+ * Plugin: tweens
+ * Epic: tweens
+ * Depends on: —
+ * Listens: —
+ * Emits: —
  *
- * Epic des interpolations. Il ne fait rien lui-même : il regroupe ses
- * plugins de fonctionnalité, enregistrés avec lui par l'hôte (et toujours
- * initialisés après lui) :
- * - `tweens.motion` : créer et supprimer les interpolations de mouvement.
- *
- * Les tâches suivantes (W2 `tweens.propertyKeyframes`, W3 `tweens.easing`)
- * ajoutent leur plugin à `children`.
+ * Groups motion creation/removal, property-keyframe controls and span easing.
+ * Each child owns its own commands, services and lifecycle.
  */
-
 import type { EditorPlugin } from '../../core/context/IEditorContext';
 import { MotionTweenPlugin } from './motion/MotionTweenPlugin';
+import { PropertyKeyframesPlugin } from './propertyKeyframes/PropertyKeyframesPlugin';
+import { EasingPlugin } from './easing/EasingPlugin';
 
-/** Epic `tweens` : interpolations de mouvement et leurs fonctionnalités. */
+/** Registers all tween features after the epic itself. */
 export class TweensPlugin implements EditorPlugin {
   readonly id = 'tweens';
   readonly dependencies: readonly string[] = [];
   readonly children: readonly EditorPlugin[];
 
   constructor() {
-    this.children = [new MotionTweenPlugin()];
+    this.children = [new MotionTweenPlugin(), new PropertyKeyframesPlugin(), new EasingPlugin()];
   }
 
   init(): void {}

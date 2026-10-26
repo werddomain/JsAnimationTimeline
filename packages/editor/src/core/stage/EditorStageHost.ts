@@ -43,7 +43,7 @@
  *   scènes sur l'image d'arrêt. `destroy` abandonne les retenues sans rendu.
  */
 
-import { isRefTarget, StageHost } from '@werddomain/timeline-runtime';
+import { StageHost } from '@werddomain/timeline-runtime';
 import type {
   IStage,
   IStageHostClock,
@@ -60,6 +60,7 @@ import { isLayerEditorVisible } from '../playback/FrameSampler';
 import type { IStageRenderer } from '../playback/PlaybackController';
 import type { Store } from '../store/Store';
 import { StageReportFeed } from './reportFeed';
+import { readTargetInfo } from './targetInfo';
 // Import pour effet : garde l'augmentation de TimelineEventMap visible ici.
 import './stageEvents';
 import type { IStageHold, StageErrorHandler } from './types';
@@ -81,14 +82,6 @@ const NO_REPORTS: readonly IStageReport[] = Object.freeze([]);
 /** Retenue inerte (sans scène, ou après la destruction). */
 const INERT_HOLD: IStageHold = Object.freeze({ active: false, flush: () => {}, release: () => {} });
 const NO_LAYERS: readonly string[] = Object.freeze([]);
-
-/** Scène qui anime `target` : celle nommée par `target.stage`, sinon la première qui l'accepte. */
-function routeOf(stages: readonly IStage[], target: LayerTarget): IStage | undefined {
-  if (isRefTarget(target) && target.stage !== undefined) {
-    return stages.find((stage) => stage.id === target.stage);
-  }
-  return stages.find((stage) => stage.accepts(target));
-}
 
 function sameList(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((id, index) => id === b[index]);
@@ -230,7 +223,13 @@ export class EditorStageHost implements IStageRenderer {
   }
 
   describe(target: LayerTarget): ITargetInfo | undefined {
-    return this.guard(() => routeOf(this.stages, target)?.targets?.describe?.(target), undefined);
+    return this.guard(() => readTargetInfo(this.stages, target), undefined);
+  }
+
+  /** Internal edit query: report failures without treating them as absent capabilities. */
+  describeForEdit(target: LayerTarget): ITargetInfo | undefined {
+    try { return readTargetInfo(this.stages, target); }
+    catch (error) { this.onError(error); throw error; }
   }
 
   /** Se désabonne, puis relâche chaque calque et détache chaque scène, quoi qu'il arrive. Idempotent. */
