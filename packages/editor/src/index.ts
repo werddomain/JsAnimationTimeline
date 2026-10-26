@@ -402,3 +402,7 @@ export type { IPropertyEditContext, ITargetPropertyQuery } from './model/propert
 // Property-keyframe controls share the core property-edit command.
 export { PROPERTY_KEYFRAMES_PLUGIN_ID, PropertyKeyframesPlugin } from './plugins/tweens/propertyKeyframes';
 export type { IPropertyKeyframesService } from './plugins/tweens/propertyKeyframes';
+
+// Optional property inspector, backed by the property-keyframe service.
+export { PROPERTIES_PANEL_PLUGIN_ID, PropertiesPanelPlugin, createPropertiesPanelPlugin } from './plugins/properties/panel';
+export type { IPropertiesPanelService } from './plugins/properties/panel';

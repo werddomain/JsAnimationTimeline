@@ -1,0 +1,38 @@
+<!-- demo/runtime/fixtures/properties-panel.html -->
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
+    <title>Panneau de propriétés — validation permanente</title>
+  </head>
+  <body class="JsTimeLine properties-panel-fixture">
+    <main>
+      <header>
+        <a href="../index.html">← Démos de validation</a>
+        <p class="eyebrow">S1 · Éditeur v2</p>
+        <h1>Inspecter, ajuster, animer.</h1>
+        <p>Sélectionnez un calque, placez la tête de lecture puis appliquez une valeur. Le panneau est optionnel et les valeurs affichées sont celles du runtime.</p>
+      </header>
+      <section class="preview" aria-label="Scène animée">
+        <div id="panel-scene"><div id="panel-logo">Logo</div><div id="panel-still">Fixe</div><div id="panel-locked">Verrouillé</div></div>
+        <div class="object-preview"><span>Objet audio · scène personnalisée</span><strong><output id="panel-volume">0.5</output> dB</strong></div>
+      </section>
+      <section aria-label="Éditeur avec scène HTML et objet">
+        <h2>01 / Une scène, plusieurs cibles</h2>
+        <p class="section-note">Le logo utilise les propriétés du registre. L’objet audio expose uniquement « Volume audio ». Le dossier verrouillé reste consultable.</p>
+        <div id="panel-editor" class="editor-host"></div>
+      </section>
+      <p id="panel-metrics" aria-live="off"></p>
+      <section aria-label="Éditeur sans scène">
+        <h2>02 / Timeline seule</h2>
+        <p class="section-note">Un second éditeur indépendant, avec <code>stage: false</code>, utilise le même panneau et son propre historique.</p>
+        <div id="panel-secondary" class="editor-host"></div>
+      </section>
+    </main>
+    <script type="module" src="/src/fixtures/propertiesPanel.ts"></script>
+  </body>
+</html>
+
+
