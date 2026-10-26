@@ -1,0 +1,39 @@
+<!-- demo/runtime/fixtures/property-keyframes.html -->
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clés de propriété — validation permanente</title>
+  </head>
+  <body class="JsTimeLine property-keyframes-fixture">
+    <main>
+      <h1>Clés de propriété</h1>
+      <p>Une propriété à la fois, avec les mêmes commandes annulables depuis l’API et le service.</p>
+      <section id="keyframes-scene" aria-label="Scène animée">
+        <div id="keyframes-logo">Logo</div>
+        <div id="keyframes-still">Fixe</div>
+        <div id="keyframes-locked">Verrouillé</div>
+      </section>
+      <p>Volume de l’objet : <output id="keyframes-volume">0</output></p>
+      <form id="keyframes-form" aria-label="Écrire une propriété">
+        <label>Calque <select id="edit-layer">
+          <option value="logo">Logo</option><option value="still">Fixe</option>
+          <option value="object">Objet</option><option value="locked">Verrouillé</option>
+        </select></label>
+        <label>Propriété <select id="edit-property">
+          <option value="x">Position X</option><option value="y">Position Y</option><option value="volume">Volume</option>
+        </select></label>
+        <label>Valeur <input id="edit-value" type="number" step="any" value="75" required /></label>
+        <label>Image <input id="edit-frame" type="number" min="1" max="20" step="1" value="6" required /></label>
+        <button id="write-api" type="submit">Écrire via l’API</button>
+        <button id="write-service" type="submit">Écrire via le service</button>
+      </form>
+      <p id="keyframes-status" role="status">Aucune modification.</p>
+      <p>Propriétés proposées : <output id="keyframes-capabilities"></output></p>
+      <section id="keyframes-editor" aria-label="Timeline de validation"></section>
+      <p id="keyframes-renders" aria-live="off"></p>
+    </main>
+    <script type="module" src="/src/fixtures/propertyKeyframes.ts"></script>
+  </body>
+</html>
