@@ -17,6 +17,7 @@
       .editor-host { width: 100%; height: 350px; border: 1px solid #666; color: #252525; }
       #stage { position: relative; height: 68px; margin: 8px 0; border: 1px solid #555; overflow: hidden; }
       #target-object { position: absolute; left: 12px; top: 12px; width: 40px; height: 40px; background: #b5a0ff; }
+      #child-object { position: absolute; left: 70px; top: 12px; width: 40px; height: 40px; background: #9cce83; }
       #fatal { color: #ff9c9c; white-space: pre-wrap; }
       #outside { min-height: 36px; }
       @media (max-width: 500px) { body { padding: 4px; } h1 { font-size: 18px; } .editor-host { height: 380px; } }
@@ -30,7 +31,7 @@
       <button id="destroy" type="button">Détruire le premier éditeur</button>
       <label>Champ natif <input id="native-input" value="Menu du navigateur"></label>
     </div>
-    <div id="stage" aria-label="Scène de validation"><div id="target-object"></div></div>
+    <div id="stage" aria-label="Scène de validation"><div id="target-object"></div><div id="child-object"></div></div>
     <h2>Premier éditeur</h2>
     <div id="primary" class="editor-host"></div>
     <h2>Second éditeur indépendant</h2>

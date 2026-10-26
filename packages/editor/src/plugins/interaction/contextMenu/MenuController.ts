@@ -14,6 +14,7 @@ export class MenuController {
   private menu: HTMLElement | undefined;
   private restore: HTMLElement | undefined;
   private cleanups: Array<() => void> = [];
+  private generation = 0;
 
   constructor(private readonly root: HTMLElement) {}
 
@@ -46,9 +47,9 @@ export class MenuController {
       const onClick = (): void => {
         const fresh = actions().find((action) => action.id === spec.id);
         if (fresh?.enabled !== true) return;
-        this.close(true);
-        // Restoring focus can synchronously destroy or detach the editor.
-        if (!this.root.isConnected) return;
+        const closed = this.close(true);
+        // Focus restoration can invalidate selection/document or open another menu.
+        if (closed !== this.generation || !this.root.isConnected) return;
         fresh.run();
       };
       button.addEventListener('click', onClick);
@@ -79,7 +80,9 @@ export class MenuController {
     menu.style.left = `${positioned.x}px`;
     menu.style.top = `${positioned.y}px`;
     const outside = (event: Event): void => {
-      if (event.target instanceof Node && !menu.contains(event.target)) this.close(false);
+      // A focus handler can open a newer menu before the older focusin bubbles.
+      const target = event.type === 'focusin' ? doc.activeElement : event.target;
+      if (target instanceof Node && !menu.contains(target)) this.close(false);
     };
     const scroll = (event: Event): void => {
       if (event.target === menu) return;
@@ -90,7 +93,7 @@ export class MenuController {
       if (previous !== undefined && current?.x === previous.x && current.y === previous.y) return;
       this.close(true);
     };
-    const resize = (): void => this.close(true);
+    const resize = (): void => { this.close(true); };
     doc.addEventListener('pointerdown', outside, true);
     doc.addEventListener('contextmenu', outside, true);
     doc.addEventListener('scroll', scroll, true);
@@ -107,7 +110,9 @@ export class MenuController {
   }
 
   /** Never move outside focus back into an editor. */
-  close(restoreFocus: boolean): void {
+  close(restoreFocus: boolean): number {
+    // Capture before focus: reentrant close/open invalidations advance the token.
+    const closed = ++this.generation;
     const hadFocus = this.menu?.contains(this.root.ownerDocument.activeElement) === true;
     const restore = this.restore;
     this.cleanups.splice(0).forEach((cleanup) => cleanup());
@@ -116,6 +121,7 @@ export class MenuController {
     this.menu = undefined;
     this.restore = undefined;
     if (restoreFocus && hadFocus && restore?.isConnected) restore.focus({ preventScroll: true });
+    return closed;
   }
 
   private keydown(event: KeyboardEvent, buttons: readonly HTMLButtonElement[]): void {

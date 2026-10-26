@@ -289,6 +289,36 @@ test.describe('I1 context menus', () => {
     expect(await state(page)).toMatchObject({ document: original, canUndo: false });
   });
 
+  test('protects a selected child and folder subtree from other-layer flags with exact undo', async ({ page }) => {
+    const initial = (await state(page)).document;
+    await row(page, 'folder').click({ button: 'right' });
+    await action(page, 'Déverrouiller le calque').click();
+    const before = (await state(page)).document;
+    const folderBefore = before.layers.find((node) => node.id === 'folder');
+    for (const selected of ['child', 'folder']) {
+      for (const label of ['Masquer les autres calques', 'Verrouiller les autres calques']) {
+        await row(page, selected).click({ button: 'right' });
+        await action(page, label).click();
+        expect((await state(page)).document.layers.find((node) => node.id === 'folder')).toEqual(folderBefore);
+        await expect(page.locator('#child-object')).toBeVisible();
+        const flag = label.startsWith('Masquer') ? 'visible' : 'locked';
+        expect((await layer(page, 'second'))[flag]).toBe(flag === 'locked');
+        if (selected === 'child') {
+          await cell(page, 'child', 3, { right: true });
+          await expect(action(page, 'Insérer une image clé')).not.toHaveAttribute('aria-disabled', 'true');
+          await action(page, 'Insérer une image clé').click();
+          const folderAfter = (await state(page)).document.layers.find((node) => node.id === 'folder');
+          expect(folderAfter).toMatchObject({ children: [{ id: 'child', spans: expect.arrayContaining([expect.objectContaining({ start: 3 })]) }] });
+          await undo(page);
+        }
+        await undo(page); // Each other-layer flag batch is exactly one entry.
+        expect((await state(page)).document).toEqual(before);
+      }
+    }
+    await undo(page); // Only the explicit initial unlock remains.
+    expect(await state(page)).toMatchObject({ document: initial, canUndo: false });
+  });
+
   test('keeps native input menus and keyboard focus, then dismisses outside and on scroll', async ({ page }) => {
     await row(page, 'target').click({ button: 'right' });
     await action(page, 'Renommer le calque').click();

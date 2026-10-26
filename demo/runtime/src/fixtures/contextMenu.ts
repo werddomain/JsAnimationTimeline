@@ -23,7 +23,7 @@ function initialDocument(): ITimelineDocument {
         ] } }
       ] },
       staticLayer('locked', { locked: true }),
-      { id: 'folder', type: 'folder', name: 'Dossier verrouillé', locked: true, children: [staticLayer('child')] },
+      { id: 'folder', type: 'folder', name: 'Dossier verrouillé', locked: true, children: [staticLayer('child', { target: { selector: '#child-object' } })] },
       staticLayer('last', { visible: false })
     ]
   };

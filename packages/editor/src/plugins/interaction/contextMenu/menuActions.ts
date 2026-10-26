@@ -61,12 +61,20 @@ function frameActions(ctx: IEditorContext, cell: Extract<ContextMenuTarget, { ki
   return items;
 }
 
-/** Changed flags only: false from a service then means a real refusal. */
+/** Protect the logical selection, including ancestors and selected-folder descendants. */
 function otherIds(ctx: IEditorContext, flag: 'visible' | 'locked', value: boolean): string[] {
   const selected = new Set(ctx.services.require('layers.selection').selected());
-  return flattenLayers(ctx.document.layers).map(({ node }) => node)
-    .filter((node) => !selected.has(node.id) && (flag === 'visible' ? resolveVisible(node) : resolveLocked(node)) !== value)
-    .map((node) => node.id);
+  const visits = flattenLayers(ctx.document.layers);
+  const protectedIds = new Set(selected);
+  visits.forEach(({ node, parentIds }) => {
+    if (selected.has(node.id)) parentIds.forEach((id) => protectedIds.add(id));
+  });
+  // Protecting an ancestor must not exclude unselected sibling branches.
+  // Changed flags only: false from a service then means a real refusal.
+  return visits.filter(({ node, parentIds }) =>
+    !protectedIds.has(node.id) && !parentIds.some((id) => selected.has(id)) &&
+    (flag === 'visible' ? resolveVisible(node) : resolveLocked(node)) !== value
+  ).map(({ node }) => node.id);
 }
 
 /** Own the group only when no other operation already owns it. */

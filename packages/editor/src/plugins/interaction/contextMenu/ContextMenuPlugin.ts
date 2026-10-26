@@ -49,7 +49,7 @@ export class ContextMenuPlugin implements EditorPlugin {
       this.cleanups.push(() => ctx.container.removeEventListener('contextmenu', contextmenu));
       ctx.container.addEventListener('keydown', keydown);
       this.cleanups.push(() => ctx.container.removeEventListener('keydown', keydown));
-      const invalidate = (): void => controller.close(true);
+      const invalidate = (): void => { controller.close(true); };
       this.cleanups.push(ctx.events.on('document:changed', invalidate));
       this.cleanups.push(ctx.events.on('document:loaded', invalidate));
       this.cleanups.push(ctx.events.on('frames:selectionChanged', invalidate));

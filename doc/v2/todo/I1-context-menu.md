@@ -26,11 +26,11 @@ Vite inputs and final review. W2/W3 were integrated from the actual base at
   delegate to the corresponding services. Rename and deletion remain permitted
   on locked layers. Layer/ancestor locks protect image mutations through the
   existing service verdicts.
-- Show/hide/lock-other actions exclude selected node IDs and visit the other
-  document nodes recursively, following the legacy scope. Unchanged flags are
-  filtered before beginning a command group. A real refusal rolls back the
-  whole batch; success creates one undo entry. An existing group is never
-  joined, ended or cancelled by I1.
+- Show/hide/lock-other actions protect selected nodes, all their ancestors
+  and the complete subtree of each selected folder. Unselected sibling
+  branches remain eligible. Unchanged flags are filtered before beginning
+  a command group. A real refusal rolls back the whole batch; success creates
+  one undo entry. An existing group is never joined, ended or cancelled by I1.
 - Shift+F10 and ContextMenu open the same menu. ARIA menu/menuitem semantics,
   arrows, Home/End, Enter/Space and Escape support keyboard use. Disabled
   reasons use `aria-description`; activation rereads the current services.
@@ -130,8 +130,9 @@ ancestor locks use W3's current availability and accessible disabled reason.
 
 A separate lifecycle RED confirmed that restoring focus could synchronously
 remove the editor before the captured action ran. After closing the menu,
-activation now checks that its editor root remains connected. The regression
-also verifies that no menu portal or retained event handler remains.
+activation checks that its editor root remains connected. The review follow-up
+below additionally cancels activation when restoration invalidates the target.
+The regression verifies that no menu portal or retained event handler remains.
 
 Final focused evidence in the artifact folder above:
 
@@ -157,3 +158,54 @@ The parent owns the accompanying changes to `demo/runtime/index.html` and
 
 Editor, demo/runtime and e2e typechecks and scoped ESLint pass. No commit, PR,
 complete repository gate or recursive review was performed in this pass.
+
+## Review corrections after checkpoint 22a9775, 2026-10-26
+
+Two P2 findings were reproduced before changing production code:
+
+- Selecting an inner child and hiding or locking other layers also modified
+  its parent folders, so inherited flags affected the selected child itself.
+  The exclusion set now includes every selected node's ancestors and the
+  descendants of selected folders. It does not exclude unselected siblings
+  merely because their parent is protected. Nested unit regressions cover
+  show/hide/lock and verify an image edit on the protected child succeeds,
+  with exact undo for both that edit and the single flag batch.
+- Focus restoration could synchronously select B after opening Delete on A,
+  while the editor stayed connected; the previously resolved action then
+  deleted B. Every close now advances a generation before restoring focus and
+  returns that captured token. Activation requires an unchanged token after
+  restoration. Selection/document invalidation or a new menu cancels the old
+  activation; it never resolves the action again against a new selection.
+  Focus-only changes with identical selected IDs remain valid.
+
+Opening another menu from a focus handler also exposed a bubbling older
+`focusin` notification that closed the newly opened menu. Focus dismissal
+now checks the current DOM active element, preserving that newer menu.
+
+Evidence in the same artifact directory:
+
+- `i1-review-red.log`: eight failing assertions and two passes before the
+  production corrections; actual wrong inherited flags, deletion of B,
+  deletion after document change, and execution after a new menu opened.
+- `i1-review-browser-red.log`: the real right-click hide-other action changes
+  the selected child's folder to `visible: false`.
+- `i1-review-focus-red.log`: the newer-menu focus regression fails while the
+  other nine review regressions pass.
+- `i1-review-green.log` and `i1-review-coverage.log`: 43 passing unit tests,
+  98.68% statements, 92.63% branches, 100% functions, 99.19% lines. Each
+  production module remains above 80% in every metric.
+- `i1-review-browser-green.log`: 17 Chromium tests pass, one worker, no
+  retries, `CI=1`, ports 9354/9355, strict per-page collectors empty.
+- `i1-review-build.log`, `i1-review-typechecks.log` and `i1-review-lint.log`:
+  demo rebuild, editor/demo/e2e typechecks and scoped ESLint pass.
+
+The I1 fixture gives its existing child a real HTML target while retaining
+the initially locked ancestor. The new browser test unlocks that ancestor
+through its real menu, selects either the child or folder, hides/locks others,
+checks actual child visibility and image editing, and undoes each batch to
+the exact baseline. The initial unlock is then undone to the initial document.
+Viewport captures remain under `i1-review-playwright` at the four widths.
+
+This pass changes only context-menu production/tests, its fixture, its
+Playwright suite and this record. No shared integration file, commit, PR or
+complete repository gate was changed or run by the worker.
