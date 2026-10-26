@@ -18,6 +18,7 @@ import { FramesPlugin } from '../../plugins/frames/FramesPlugin';
 import { TweensPlugin } from '../../plugins/tweens/TweensPlugin';
 import { LayersPlugin } from '../../plugins/layers/LayersPlugin';
 import { createShortcutsPlugin } from '../../plugins/interaction/shortcuts';
+import { ContextMenuPlugin } from '../../plugins/interaction/contextMenu/ContextMenuPlugin';
 import { ToolbarPlugin } from '../../plugins/toolbar/ToolbarPlugin';
 import { PlaybackPlugin } from '../../plugins/playback/PlaybackPlugin';
 import { createPersistenceJsonPlugin } from '../../plugins/persistence/json';
@@ -31,6 +32,7 @@ export function defaultPlugins(): EditorPlugin[] {
     new FramesPlugin(),
     new TweensPlugin(),
     createShortcutsPlugin(),
+    new ContextMenuPlugin(),
     new ToolbarPlugin(),
     new PlaybackPlugin(),
     createPersistenceJsonPlugin(),

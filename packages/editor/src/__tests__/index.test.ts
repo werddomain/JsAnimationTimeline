@@ -173,6 +173,8 @@ const V2_NAMES = [
   'LIVE_PREVIEW_PLUGIN_ID',
   'LivePreviewPlugin',
   'createLivePreviewPlugin',
+  'CONTEXT_MENU_PLUGIN_ID',
+  'ContextMenuPlugin',
   'EASING_PLUGIN_ID',
   'EasingPlugin',
   'createEasingPlugin',

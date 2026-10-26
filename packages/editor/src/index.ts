@@ -387,6 +387,9 @@ export {
 } from './plugins/toolbar';
 export type { ToolbarEditKeyframeEvent } from './plugins/toolbar';
 
+// Context menus for existing frame and layer commands.
+export { CONTEXT_MENU_PLUGIN_ID, ContextMenuPlugin } from './plugins/interaction/contextMenu/ContextMenuPlugin';
+export type { ContextMenuTarget, IContextMenuAction, IMenuPosition } from './plugins/interaction/contextMenu/types';
 // Tween easing presets and their undoable command.
 export { EASING_PLUGIN_ID, EasingPlugin, createEasingPlugin, createSetEasingCommand, setSpanEasing } from './plugins/tweens/easing';
 export type { IEasingAvailability, IEasingService } from './plugins/tweens/easing';
