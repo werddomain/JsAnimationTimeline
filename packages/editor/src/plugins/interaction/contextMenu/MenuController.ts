@@ -43,16 +43,20 @@ export class MenuController {
           button.title = spec.reason;
         }
       }
-      button.addEventListener('click', () => {
+      const onClick = (): void => {
         const fresh = actions().find((action) => action.id === spec.id);
         if (fresh?.enabled !== true) return;
         this.close(true);
         fresh.run();
-      });
+      };
+      button.addEventListener('click', onClick);
+      this.cleanups.push(() => button.removeEventListener('click', onClick));
       menu.append(button);
       return button;
     });
-    menu.addEventListener('keydown', (event) => this.keydown(event, buttons));
+    const onKeyDown = (event: KeyboardEvent): void => this.keydown(event, buttons);
+    menu.addEventListener('keydown', onKeyDown);
+    this.cleanups.push(() => menu.removeEventListener('keydown', onKeyDown));
     portal.append(menu);
     doc.body.append(portal);
     const view = doc.defaultView;

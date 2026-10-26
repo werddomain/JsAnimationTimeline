@@ -86,3 +86,30 @@ Editor, demo/runtime and e2e typechecks passed. Browser coverage in this pass
 is Chromium only. General, security and TypeScript reviews, the complete
 repository gate and PR creation remain the parent's responsibility. This
 record does not claim those reviews or completion of the pending W3 action.
+
+## Detached DOM cleanup, 2026-10-26
+
+The parent checkpoint `5f6f4bb40330865cf2b93a1b8fc1211447d86b92`
+included the newly reproduced stale-DOM regression. Removed menu elements
+still retained their click/keydown handlers: an old button reference could
+invoke an action, attempt focus navigation or close a subsequently opened menu.
+`MenuController.close()` now unregisters both element handlers through the
+same cleanup list as its document/window subscriptions.
+
+The added keyboard regression verifies that stale Home/Escape events are not
+handled, never attempt focus and leave the current menu/focus intact. Evidence
+in the same artifact folder:
+
+- `i1-stale-dom-red.log`: original click regression, one failure.
+- `i1-stale-dom-focus-red.log`: click and keyboard regressions, two failures.
+- `i1-stale-dom-green-coverage.log`: 28 tests pass. Coverage is 98.61%
+  statements, 92.24% branches, 100% functions and 99.15% lines; every production
+  module remains above 80% in every metric.
+- `i1-stale-dom-browser.log`: 14 Chromium tests pass, one worker, no retries,
+  with strict per-page collectors. New viewport captures are under
+  `i1-stale-dom-playwright`.
+- `i1-stale-dom-build.log`, `i1-stale-dom-typecheck.log` and
+  `i1-stale-dom-lint.log`: demo rebuild, editor typecheck and scoped lint pass.
+
+Only MenuController, its test and this record changed after that checkpoint.
+No commit or PR was created. The optional easing entry remains pending W3.

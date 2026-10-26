@@ -155,6 +155,26 @@ it('removes detached menu listeners so stale DOM references cannot invoke action
   expect(run).not.toHaveBeenCalled();
 });
 
+it('ignores stale keydown without attempting focus or closing a newly opened menu', () => {
+  const root = document.createElement('div');
+  document.body.append(root);
+  const controller = new MenuController(root);
+  const actions = () => [{ id: 'a', label: 'Action', enabled: true, run: jest.fn() }];
+  controller.open({ x: 20, y: 20 }, root, actions);
+  const stale = active();
+  const focus = jest.spyOn(stale, 'focus');
+  controller.close(false);
+  controller.open({ x: 20, y: 20 }, root, actions);
+  const current = active();
+  expect(key(stale, 'Home').defaultPrevented).toBe(false);
+  expect(focus).not.toHaveBeenCalled();
+  expect(active()).toBe(current);
+  expect(key(stale, 'Escape').defaultPrevented).toBe(false);
+  expect(current.isConnected).toBe(true);
+  expect(active()).toBe(current);
+  controller.close(false);
+});
+
 it('retains native input, textarea, select and contenteditable menus', () => {
   const h = mount(doc([layer('a')]));
   for (const name of ['input', 'textarea', 'select', 'div']) {
