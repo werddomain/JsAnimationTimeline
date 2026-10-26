@@ -105,7 +105,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **K3** | 4 | 7 | Plugin `frames.clipboard` (Ctrl+C / Ctrl+V) | K1, G2, I2 | E1 | `plugins/frames/clipboard/` | ☑ |
 | **W1** | 4 | 7 | Plugin `tweens.motion` : créer un motion tween depuis 1 ou 2 images clés, le supprimer (la suppression fonctionne sur plusieurs calques à la fois) | K1, G2, C6 | W2, W3, T2, I1 | `plugins/tweens/motion/` | ☑ |
 | **W2** | 4 | 8 | Plugin `tweens.propertyKeyframes` + API `editor.setProperty()` (crée les losanges ; nom vérifié dans le registre et dans les propriétés de l'objet) | W1, C7 | S1 | `plugins/tweens/propertyKeyframes/` | ☑ |
-| **W3** | 4 | 8 | Plugin `tweens.easing` (préréglages, remplace `TweenPropertiesDialog`) | W1 | E1 | `plugins/tweens/easing/` | ☐ |
+| **W3** | 4 | 8 | Plugin `tweens.easing` (préréglages, remplace `TweenPropertiesDialog`) | W1 | E1 | `plugins/tweens/easing/` | ☑ |
 | **T1** | 5 | 5 | Plugin `toolbar.main` (zone « Scene 1 », API d'ajout de boutons) | L1 | C5, T2, T3, T4, P1 | `plugins/toolbar/main/` | ☑ |
 | **T2** | 5 | 8 | Plugin `toolbar.keyframeActions` (les 4 boutons du cahier) | T1, K2, W1 | E1 | `plugins/toolbar/keyframeActions/` | ☑ |
 | **T3** | 5 | 6 | Plugin `toolbar.timeSettings` (fps et durée, en commandes) | T1, C3 | E1 | `plugins/toolbar/timeSettings/` | ☑ |
