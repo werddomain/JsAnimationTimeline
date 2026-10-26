@@ -171,7 +171,9 @@ const V2_NAMES = [
   'LIVE_PREVIEW_MODES',
   'LIVE_PREVIEW_PLUGIN_ID',
   'LivePreviewPlugin',
-  'createLivePreviewPlugin'
+  'createLivePreviewPlugin',
+  'CONTEXT_MENU_PLUGIN_ID',
+  'ContextMenuPlugin'
 ];
 
 describe('editor package entry point', () => {
