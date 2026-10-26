@@ -230,23 +230,31 @@ export class EditorStageHost implements IStageRenderer {
   }
 
   describe(target: LayerTarget): ITargetInfo | undefined {
-    return this.guard(() => {
-      const stage = routeOf(this.stages, target);
-      if (stage === undefined) return undefined;
-      const description = stage.targets?.describe?.(target);
-      if (description?.properties !== undefined) return description;
-      // Only the routed stage can supply metadata for an unscoped ref.
-      // Another stage may publish the same ref with different capabilities.
-      const targets = stage.targets?.list() ?? [];
-      const listed = targets.find(({ target: candidate }) => {
-        if (sameTarget(candidate, target)) return true;
-        return isRefTarget(candidate) && isRefTarget(target) &&
-          candidate.ref === target.ref &&
-          (candidate.stage ?? stage.id) === (target.stage ?? stage.id);
-      });
-      if (description === undefined) return listed;
-      return listed?.properties === undefined ? description : { ...description, properties: listed.properties };
-    }, undefined);
+    return this.guard(() => this.readTargetInfo(target), undefined);
+  }
+
+  /** Internal edit query: report failures without treating them as absent capabilities. */
+  describeForEdit(target: LayerTarget): ITargetInfo | undefined {
+    try { return this.readTargetInfo(target); }
+    catch (error) { this.onError(error); throw error; }
+  }
+
+  private readTargetInfo(target: LayerTarget): ITargetInfo | undefined {
+    const stage = routeOf(this.stages, target);
+    if (stage === undefined) return undefined;
+    const description = stage.targets?.describe?.(target);
+    if (description?.properties !== undefined) return description;
+    // Only the routed stage can supply metadata for an unscoped ref.
+    // Another stage may publish the same ref with different capabilities.
+    const targets = stage.targets?.list() ?? [];
+    const listed = targets.find(({ target: candidate }) => {
+      if (sameTarget(candidate, target)) return true;
+      return isRefTarget(candidate) && isRefTarget(target) &&
+        candidate.ref === target.ref &&
+        (candidate.stage ?? stage.id) === (target.stage ?? stage.id);
+    });
+    if (description === undefined) return listed;
+    return listed?.properties === undefined ? description : { ...description, properties: listed.properties };
   }
 
   /** Se désabonne, puis relâche chaque calque et détache chaque scène, quoi qu'il arrive. Idempotent. */

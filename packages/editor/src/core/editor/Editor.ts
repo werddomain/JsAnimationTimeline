@@ -29,6 +29,7 @@ import type { IEditorStage } from '../stage/types';
 import { ROOT_SLOT } from '../plugin/SlotRegistry';
 import type { Store } from '../store/Store';
 import { SetPropertyCommand } from '../../model/properties/SetPropertyCommand';
+import { PropertyOperationError } from '../../model/properties/propertyValue';
 import type { EditorLifecycle } from './EditorLifecycle';
 import type { IEditor, SetPropertyOptions } from './types';
 
@@ -133,12 +134,14 @@ export class Editor implements IEditor {
 
   setProperty(layerId: string, name: string, value: number, options: SetPropertyOptions = {}): boolean {
     this.assertActive('setProperty');
-    const { registry, stageFacade, playbackFacade, commands } = this.parts;
+    const { registry, stageHost, playbackFacade, commands } = this.parts;
     const frame = options.frame === undefined ? playbackFacade.frame : options.frame;
     return commands.execute(new SetPropertyCommand(layerId, name, value, frame, {
       registry,
-      describe: (target) => stageFacade.describe(target),
-      listTargets: () => stageFacade.listTargets()
+      describe: (target) => {
+        try { return stageHost.describeForEdit(target); }
+        catch { throw new PropertyOperationError('Les propriétés de la cible sont indisponibles.'); }
+      }
     }));
   }
 

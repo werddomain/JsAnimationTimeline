@@ -171,3 +171,59 @@ it('fills missing permissions from the routed list when describe only supplies a
   expect(editor.undo()).toBe(true);
   expect(editor.document).toEqual({ ...data, layers: [{ ...layerOf(data, 'logo'), target: { ref: 'a' } }] });
 });
+
+it('does not borrow permissions from an unrouted scene when routed metadata is absent', () => {
+  const first = createObjectStage({ id: 'first', unscoped: true,
+    objects: [{ id: 'a', label: 'First', object: { x: 0 } }], apply: () => {} });
+  const second = createObjectStage({ id: 'second', unscoped: true,
+    objects: [{ id: 'a', label: 'Second', object: { x: 0 }, properties: [] }], apply: () => {} });
+  const data = stillDocument();
+  const editor = createEditor(createContainer(), { defaultPlugins: false,
+    stage: [{ ...first, targets: { list: () => [] } },
+      { ...second, targets: { list: () => [{ target: { ref: 'a' }, label: 'Other', properties: [] }] } }],
+    data: { ...data, layers: [{ ...layerOf(data, 'logo'), target: { ref: 'a' } }] } });
+  const before = editor.document;
+  expect(editor.setProperty('logo', 'x', 3)).toBe(true);
+  expect(editor.undo()).toBe(true);
+  expect(editor.document).toEqual(before);
+  expect(editor.redo()).toBe(true);
+});
+
+it.each(['list', 'describe'] as const)('refuses failed %s metadata queries atomically and retains redo for a healthy retry', (query) => {
+  let fails = false;
+  const errors: unknown[] = [];
+  const stage = createObjectStage({ id: 'canvas', unscoped: true,
+    objects: [{ id: 'a', label: 'Object', object: { x: 0 }, properties: ['x'] }], apply: () => {} });
+  const data = stillDocument();
+  const editor = createEditor(createContainer(), { defaultPlugins: false, onStageError: (error) => errors.push(error),
+    stage: { ...stage, targets: { list: () => {
+      if (fails && query === 'list') throw new Error('Metadata unavailable');
+      return stage.targets?.list() ?? [];
+    }, describe: (target) => {
+      if (fails && query === 'describe') throw new Error('Metadata unavailable');
+      return query === 'list' ? undefined : stage.targets?.describe?.(target);
+    } } },
+    data: { ...data, layers: [{ ...layerOf(data, 'logo'), target: { ref: 'a' } }] } });
+  const reasons: string[] = [];
+  editor.on('command:refused', ({ reason }) => reasons.push(reason));
+  const original = editor.document;
+  fails = true;
+  expect(editor.setProperty('logo', 'x', 9)).toBe(false);
+  expect(editor.document).toBe(original);
+  expect(editor.canUndo).toBe(false);
+  expect(reasons).toHaveLength(1);
+  expect(errors).toHaveLength(1);
+  fails = false;
+  expect(editor.setProperty('logo', 'x', 9)).toBe(true);
+  const changed = editor.document;
+  expect(editor.undo()).toBe(true);
+  const undone = editor.document;
+  fails = true;
+  expect(editor.redo()).toBe(false);
+  expect(editor.document).toBe(undone);
+  expect(editor.canRedo).toBe(true);
+  expect(editor.canUndo).toBe(false);
+  fails = false;
+  expect(editor.redo()).toBe(true);
+  expect(editor.document).toEqual(changed);
+});

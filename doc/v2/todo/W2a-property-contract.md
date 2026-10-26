@@ -95,3 +95,11 @@ The fixture's page-cache test models persisted transitions explicitly and checks
 all three editors remain usable, then a nonpersisted departure destroys them.
 This does not claim native BFCache coverage. The strict error collectors retain
 failed-request URLs and capture an independent error array for each page.
+
+Final ECC review reproduced two additional edge cases, covered by failing tests
+before correction. The public edit now uses one strict internal metadata query
+within the routed stage, without a second global list fallback. A throwing
+list/description query reports its stage error and refuses the edit atomically;
+failed redo keeps its entry available for a healthy retry. The public read-only
+stage description retains its existing guarded behavior. Absent metadata still
+permits registry properties; failed metadata never grants them.
