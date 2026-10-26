@@ -18,6 +18,12 @@ import type { FrameListener, IEditorPlayback, IFrameSample } from '../playback/t
 import type { EditorStageOption, IEditorStage, StageErrorHandler } from '../stage/types';
 import type { StoreWarningHandler } from '../store/Store';
 
+/** Options for a property edit. */
+export interface SetPropertyOptions {
+  /** Absolute integer frame in 1..totalFrames; defaults to the current integer frame. */
+  readonly frame?: number;
+}
+
 /** Options de `createEditor()`. */
 export interface EditorOptions {
   /**
@@ -111,6 +117,15 @@ export interface IEditor {
 
   /** Exécute une commande (voie de modification du document) ; `true` si le document a changé. */
   execute(command: ICommand): boolean;
+  /**
+   * Edits one registered property through an undoable command, with or without plugins.
+   * Tween spans receive a key at the requested frame; static spans use span.start.
+   * Existing identical keys return false; a new explicit key is a document change
+   * even when it equals the evaluated value. Business refusals return false and
+   * emit command:refused (invalid input, blank/missing content, locks or target policy).
+   * Values are stored verbatim; runtime bounds and nonlinear time easing still apply.
+   */
+  setProperty(layerId: string, name: string, value: number, options?: SetPropertyOptions): boolean;
   /** Annule la dernière entrée de l'historique ; `false` s'il n'y en a pas. */
   undo(): boolean;
   /** Rétablit la dernière entrée annulée ; `false` s'il n'y en a pas. */

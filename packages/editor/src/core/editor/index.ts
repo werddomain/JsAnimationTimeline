@@ -7,4 +7,4 @@
 export { EDITOR_ROOT_CLASS, createEditor } from './createEditor';
 export { defaultPlugins } from './defaultPlugins';
 export { DEFAULT_FPS, DEFAULT_TOTAL_FRAMES, createEmptyDocument } from './emptyDocument';
-export type { EditorOptions, IEditor } from './types';
+export type { EditorOptions, IEditor, SetPropertyOptions } from './types';

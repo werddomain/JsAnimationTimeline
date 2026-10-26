@@ -44,7 +44,7 @@ export {
   createEmptyDocument,
   defaultPlugins
 } from './core/editor';
-export type { EditorOptions, IEditor } from './core/editor';
+export type { EditorOptions, IEditor, SetPropertyOptions } from './core/editor';
 
 // Contrat des plugins.
 export type {
@@ -386,3 +386,9 @@ export {
   createKeyframeActionsPlugin
 } from './plugins/toolbar';
 export type { ToolbarEditKeyframeEvent } from './plugins/toolbar';
+
+// Core property-writing contract, usable without UI plugins.
+export { SetPropertyCommand } from './model/properties/SetPropertyCommand';
+export { applyPropertyValue, PropertyOperationError } from './model/properties/propertyValue';
+export { getTargetPropertyNames } from './model/properties/targetProperties';
+export type { IPropertyEditContext, ITargetPropertyQuery } from './model/properties/targetProperties';

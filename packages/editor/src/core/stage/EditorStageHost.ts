@@ -43,7 +43,7 @@
  *   scènes sur l'image d'arrêt. `destroy` abandonne les retenues sans rendu.
  */
 
-import { isRefTarget, StageHost } from '@werddomain/timeline-runtime';
+import { isRefTarget, sameTarget, StageHost } from '@werddomain/timeline-runtime';
 import type {
   IStage,
   IStageHostClock,
@@ -230,7 +230,23 @@ export class EditorStageHost implements IStageRenderer {
   }
 
   describe(target: LayerTarget): ITargetInfo | undefined {
-    return this.guard(() => routeOf(this.stages, target)?.targets?.describe?.(target), undefined);
+    return this.guard(() => {
+      const stage = routeOf(this.stages, target);
+      if (stage === undefined) return undefined;
+      const description = stage.targets?.describe?.(target);
+      if (description?.properties !== undefined) return description;
+      // Only the routed stage can supply metadata for an unscoped ref.
+      // Another stage may publish the same ref with different capabilities.
+      const targets = stage.targets?.list() ?? [];
+      const listed = targets.find(({ target: candidate }) => {
+        if (sameTarget(candidate, target)) return true;
+        return isRefTarget(candidate) && isRefTarget(target) &&
+          candidate.ref === target.ref &&
+          (candidate.stage ?? stage.id) === (target.stage ?? stage.id);
+      });
+      if (description === undefined) return listed;
+      return listed?.properties === undefined ? description : { ...description, properties: listed.properties };
+    }, undefined);
   }
 
   /** Se désabonne, puis relâche chaque calque et détache chaque scène, quoi qu'il arrive. Idempotent. */
