@@ -44,7 +44,7 @@ export {
   createEmptyDocument,
   defaultPlugins
 } from './core/editor';
-export type { EditorOptions, IEditor } from './core/editor';
+export type { EditorOptions, IEditor, SetPropertyOptions } from './core/editor';
 
 // Contrat des plugins.
 export type {
@@ -390,3 +390,8 @@ export type { ToolbarEditKeyframeEvent } from './plugins/toolbar';
 // Tween easing presets and their undoable command.
 export { EASING_PLUGIN_ID, EasingPlugin, createEasingPlugin, createSetEasingCommand, setSpanEasing } from './plugins/tweens/easing';
 export type { IEasingAvailability, IEasingService } from './plugins/tweens/easing';
+// Core property-writing contract, usable without UI plugins.
+export { SetPropertyCommand } from './model/properties/SetPropertyCommand';
+export { applyPropertyValue, PropertyOperationError } from './model/properties/propertyValue';
+export { getTargetPropertyNames } from './model/properties/targetProperties';
+export type { IPropertyEditContext, ITargetPropertyQuery } from './model/properties/targetProperties';

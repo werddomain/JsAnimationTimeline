@@ -17,6 +17,7 @@ import type {
   IEditorContext,
   IPlugin,
   PluginEventName,
+  SetPropertyOptions,
   TimelineEventMap
 } from '..';
 import * as legacy from '../legacy/JsTimeLine';
@@ -176,7 +177,11 @@ const V2_NAMES = [
   'EasingPlugin',
   'createEasingPlugin',
   'createSetEasingCommand',
-  'setSpanEasing'
+  'setSpanEasing',
+  'SetPropertyCommand',
+  'applyPropertyValue',
+  'PropertyOperationError',
+  'getTargetPropertyNames'
 ];
 
 describe('editor package entry point', () => {
@@ -227,6 +232,7 @@ describe('editor package entry point', () => {
     assertType<Equals<EditorPlugin, IPlugin<IEditorContext>>>(true);
     assertType<Equals<keyof TimelineEventMap & 'document:changed', 'document:changed'>>(true);
     assertType<Equals<Extract<PluginEventName, CoreEventName>, never>>(true);
+    assertType<Equals<Parameters<IEditor['setProperty']>[3], SetPropertyOptions | undefined>>(true);
     expect(true).toBe(true);
   });
 });

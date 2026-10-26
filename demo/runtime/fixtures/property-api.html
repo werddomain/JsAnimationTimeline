@@ -1,0 +1,23 @@
+<!-- demo/runtime/fixtures/property-api.html -->
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contrat des propriétés — validation permanente</title>
+  </head>
+  <body>
+    <h1>Contrat des propriétés</h1>
+    <p>Éditeurs sans extensions par défaut : scène HTML, scène d’objets et lecture sans scène.</p>
+    <section id="property-stage" aria-label="Scène animée">
+      <div id="property-logo">Logo animé</div>
+      <div id="property-still">Objet fixe</div>
+      <div id="property-locked">Objet verrouillé</div>
+    </section>
+    <section id="property-editor" aria-label="Éditeur HTML"></section>
+    <section id="property-stage-free" aria-label="Éditeur sans scène"></section>
+    <section id="property-object-editor" aria-label="Éditeur d’objet"></section>
+    <output id="property-volume" aria-label="Volume de l’objet">0</output>
+    <script type="module" src="/src/fixtures/propertyApi.ts"></script>
+  </body>
+</html>
