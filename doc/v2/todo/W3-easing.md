@@ -1,3 +1,4 @@
+<!-- doc/v2/todo/W3-easing.md -->
 # W3 — Span easing presets
 
 W3 adds the `tweens.easing` plugin to the v2 editor. The French preset dialog replaces the easing interaction of the legacy tween dialog for v2 callers; legacy sources remain unchanged. The plugin is registered with the tweens epic and exposed by the editor package.
@@ -35,7 +36,7 @@ Final focused results:
 
 - **33 unit/integration tests** across commands, service, dialog lifecycle and exports.
 - W3 coverage excluding tests: **97.93% statements, 89.58% branches, 100% functions, 99.49% lines**.
-- **7 Chromium scenarios**, including real keyboard preset selection and Apply, changed middle-frame computed HTML and `editor.sample`, unchanged endpoints/tracks, exact undo/redo, Cancel/Escape/focus, and a lock changed while the dialog is open.
+- **8 Chromium scenarios**, including real keyboard preset selection and Apply, changed middle-frame computed HTML and `editor.sample`, unchanged endpoints/tracks, exact undo/redo, Cancel/Escape/focus, a lock changed while the dialog is open, and preservation of an imported custom curve until an explicit preset choice followed by exact undo.
 - Responsive dialog captures at **320, 768, 1024 and 1440 px**.
 - Per-page error collectors check page errors, console warnings/errors and failed-request URLs without filtering.
 - Editor, runtime-demo and E2E typechecks; scoped lint with zero warnings.

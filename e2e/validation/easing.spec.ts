@@ -3,6 +3,7 @@
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import type { Easing } from '@werddomain/timeline-runtime';
 import type {} from '../../demo/runtime/src/fixtures/easing';
 import { RUNTIME_DEMO_URL } from '../runtime/demoUrl';
 
@@ -97,3 +98,35 @@ for (const width of [320, 768, 1024, 1440]) {
 }
 
 
+
+test('preserves an imported custom curve until a preset is explicitly applied and supports exact undo', async ({ page }) => {
+  const curve: Easing = 'cubic-bezier(0.2, 0.4, 0.6, 0.8)';
+  await page.evaluate((easing: Easing) => {
+    const fixture = window.easingFixture;
+    if (fixture === undefined) throw new Error('Missing W3 fixture');
+    const editor = fixture.editor;
+    editor.load({ ...editor.document, layers: editor.document.layers.map((layer) => layer.type === 'layer'
+      ? { ...layer, spans: layer.spans.map((span) => span.kind === 'tween' ? { ...span, easing } : span) }
+      : layer) });
+  }, curve);
+  const before = await snapshot(page);
+  const trigger = page.getByRole('button', { name: 'Modifier l’accélération' });
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: 'Accélération de l’interpolation' });
+  const preset = dialog.getByRole('combobox', { name: 'Préréglage' });
+  await expect(preset).toHaveValue('');
+  await expect(dialog.getByText(`Courbe personnalisée : ${curve}`, { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Appliquer', exact: true })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await expect(trigger).toBeFocused();
+  expect((await snapshot(page)).document).toEqual(before.document);
+  expect((await snapshot(page)).undo).toBe(false);
+  await trigger.click();
+  await preset.selectOption('ease-out');
+  await dialog.getByRole('button', { name: 'Appliquer', exact: true }).click();
+  expect((await snapshot(page)).easing).toBe('ease-out');
+  expect((await snapshot(page)).tracks).toEqual(before.tracks);
+  await page.getByRole('button', { name: 'Annuler la modification', exact: true }).click();
+  expect((await snapshot(page)).document).toEqual(before.document);
+  expect((await snapshot(page)).easing).toBe(curve);
+});
