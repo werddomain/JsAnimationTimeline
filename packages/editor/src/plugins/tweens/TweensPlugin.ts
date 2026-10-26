@@ -11,12 +11,13 @@
  * initialisés après lui) :
  * - `tweens.motion` : créer et supprimer les interpolations de mouvement.
  *
- * Les tâches suivantes (W2 `tweens.propertyKeyframes`, W3 `tweens.easing`)
- * ajoutent leur plugin à `children`.
+ * W2 adds `tweens.propertyKeyframes`; W3 adds `tweens.easing`
+ * as independent children of this epic.
  */
 
 import type { EditorPlugin } from '../../core/context/IEditorContext';
 import { MotionTweenPlugin } from './motion/MotionTweenPlugin';
+import { PropertyKeyframesPlugin } from './propertyKeyframes/PropertyKeyframesPlugin';
 
 /** Epic `tweens` : interpolations de mouvement et leurs fonctionnalités. */
 export class TweensPlugin implements EditorPlugin {
@@ -25,7 +26,7 @@ export class TweensPlugin implements EditorPlugin {
   readonly children: readonly EditorPlugin[];
 
   constructor() {
-    this.children = [new MotionTweenPlugin()];
+    this.children = [new MotionTweenPlugin(), new PropertyKeyframesPlugin()];
   }
 
   init(): void {}
