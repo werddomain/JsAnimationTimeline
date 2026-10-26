@@ -395,3 +395,7 @@ export { SetPropertyCommand } from './model/properties/SetPropertyCommand';
 export { applyPropertyValue, PropertyOperationError } from './model/properties/propertyValue';
 export { getTargetPropertyNames } from './model/properties/targetProperties';
 export type { IPropertyEditContext, ITargetPropertyQuery } from './model/properties/targetProperties';
+
+// Property-keyframe controls share the core property-edit command.
+export { PROPERTY_KEYFRAMES_PLUGIN_ID, PropertyKeyframesPlugin } from './plugins/tweens/propertyKeyframes';
+export type { IPropertyKeyframesService } from './plugins/tweens/propertyKeyframes';

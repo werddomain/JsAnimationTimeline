@@ -1,0 +1,21 @@
+// demo/runtime/src/fixtures/propertyKeyframes.less
+.JsTimeLine.property-keyframes-fixture {
+  & { margin: 0; padding: 24px; width: auto; height: auto; overflow: visible; font-family: "Segoe UI", sans-serif; color: #172840; background: #f2f5f9; }
+  main { max-width: 1100px; margin: auto; }
+  h1 { font-size: 26px; }
+  #keyframes-scene { height: 125px; position: relative; overflow: hidden; background: #e2eaf5; border: 1px solid #b8c9de; border-radius: 6px; }
+  #keyframes-scene > div { position: absolute; left: 20px; padding: 6px 10px; border-radius: 5px; }
+  #keyframes-logo { top: 10px; background: #725ad3; color: #fff; }
+  #keyframes-still { top: 55px; background: #f2c360; }
+  #keyframes-locked { top: 95px; color: #3e586f; }
+  #keyframes-form { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+  label { display: grid; gap: 4px; font-size: 13px; }
+  input { width: 80px; }
+  input, select, #keyframes-form button { font: inherit; padding: 6px; }
+  #keyframes-form button { color: #fff; background: #5141a0; border: 1px solid #5141a0; border-radius: 4px; cursor: pointer; }
+  #keyframes-editor { height: 310px; border: 1px solid #bac8d8; }
+  #keyframes-editor > .JsTimeLine { height: 100%; width: 100%; --jt-layers-width: 290px; }
+  #keyframes-status { min-height: 24px; }
+  #keyframes-renders { font-variant-numeric: tabular-nums; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid #6750bb; outline-offset: 3px; }
+}

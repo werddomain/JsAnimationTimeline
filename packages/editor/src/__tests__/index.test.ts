@@ -181,7 +181,9 @@ const V2_NAMES = [
   'SetPropertyCommand',
   'applyPropertyValue',
   'PropertyOperationError',
-  'getTargetPropertyNames'
+  'getTargetPropertyNames',
+  'PROPERTY_KEYFRAMES_PLUGIN_ID',
+  'PropertyKeyframesPlugin'
 ];
 
 describe('editor package entry point', () => {

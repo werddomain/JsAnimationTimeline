@@ -44,6 +44,7 @@ export default defineConfig({
         validationPhase7: fileURLToPath(new URL('validation-phase7.html', import.meta.url)),
         easingFixture: fileURLToPath(new URL('fixtures/easing.html', import.meta.url)),
         propertyApi: fileURLToPath(new URL('fixtures/property-api.html', import.meta.url)),
+        propertyKeyframes: fileURLToPath(new URL('fixtures/property-keyframes.html', import.meta.url)),
       },
     },
   },
