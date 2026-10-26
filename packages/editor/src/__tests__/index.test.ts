@@ -171,7 +171,12 @@ const V2_NAMES = [
   'LIVE_PREVIEW_MODES',
   'LIVE_PREVIEW_PLUGIN_ID',
   'LivePreviewPlugin',
-  'createLivePreviewPlugin'
+  'createLivePreviewPlugin',
+  'EASING_PLUGIN_ID',
+  'EasingPlugin',
+  'createEasingPlugin',
+  'createSetEasingCommand',
+  'setSpanEasing'
 ];
 
 describe('editor package entry point', () => {

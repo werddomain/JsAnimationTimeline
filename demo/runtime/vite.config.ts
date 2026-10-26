@@ -42,6 +42,7 @@ export default defineConfig({
         validationPhase4: fileURLToPath(new URL('validation-phase4.html', import.meta.url)),
         validationPhase5: fileURLToPath(new URL('validation-phase5.html', import.meta.url)),
         validationPhase7: fileURLToPath(new URL('validation-phase7.html', import.meta.url)),
+        easingFixture: fileURLToPath(new URL('fixtures/easing.html', import.meta.url)),
       },
     },
   },

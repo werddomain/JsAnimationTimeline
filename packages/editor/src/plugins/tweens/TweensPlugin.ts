@@ -9,14 +9,15 @@
  * Epic des interpolations. Il ne fait rien lui-même : il regroupe ses
  * plugins de fonctionnalité, enregistrés avec lui par l'hôte (et toujours
  * initialisés après lui) :
- * - `tweens.motion` : créer et supprimer les interpolations de mouvement.
+ * - `tweens.motion`: create and remove motion tweens;
+ * - `tweens.easing`: edit span easing through an undoable command.
  *
- * Les tâches suivantes (W2 `tweens.propertyKeyframes`, W3 `tweens.easing`)
- * ajoutent leur plugin à `children`.
+ * W2 adds the property-keyframe plugin to this epic separately.
  */
 
 import type { EditorPlugin } from '../../core/context/IEditorContext';
 import { MotionTweenPlugin } from './motion/MotionTweenPlugin';
+import { EasingPlugin } from './easing/EasingPlugin';
 
 /** Epic `tweens` : interpolations de mouvement et leurs fonctionnalités. */
 export class TweensPlugin implements EditorPlugin {
@@ -25,7 +26,7 @@ export class TweensPlugin implements EditorPlugin {
   readonly children: readonly EditorPlugin[];
 
   constructor() {
-    this.children = [new MotionTweenPlugin()];
+    this.children = [new MotionTweenPlugin(), new EasingPlugin()];
   }
 
   init(): void {}
