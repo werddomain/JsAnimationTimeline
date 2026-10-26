@@ -25,7 +25,7 @@ export const EASING_PLUGIN_ID = 'tweens.easing';
 
 /** Easing service owner; lifecycle cleanup also covers partially failed initialization. */
 export class EasingPlugin implements EditorPlugin {
-  readonly id = EASING_PLUGIN_ID;
+  readonly id = 'tweens.easing';
   readonly dependencies: readonly string[] = ['tweens.motion'];
   private ctx: IEditorContext | undefined;
   private dialog: IEasingDialog | undefined;
