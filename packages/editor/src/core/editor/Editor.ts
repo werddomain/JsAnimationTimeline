@@ -28,8 +28,10 @@ import type { EditorStageHost } from '../stage/EditorStageHost';
 import type { IEditorStage } from '../stage/types';
 import { ROOT_SLOT } from '../plugin/SlotRegistry';
 import type { Store } from '../store/Store';
+import { SetPropertyCommand } from '../../model/properties/SetPropertyCommand';
+import { PropertyOperationError } from '../../model/properties/propertyValue';
 import type { EditorLifecycle } from './EditorLifecycle';
-import type { IEditor } from './types';
+import type { IEditor, SetPropertyOptions } from './types';
 
 /** Pièces d'un éditeur, créées par `createEditor()`. */
 export interface IEditorParts {
@@ -128,6 +130,19 @@ export class Editor implements IEditor {
   execute(command: ICommand): boolean {
     this.assertActive('execute');
     return this.parts.commands.execute(command);
+  }
+
+  setProperty(layerId: string, name: string, value: number, options: SetPropertyOptions = {}): boolean {
+    this.assertActive('setProperty');
+    const { registry, stageHost, playbackFacade, commands } = this.parts;
+    const frame = options.frame === undefined ? playbackFacade.frame : options.frame;
+    return commands.execute(new SetPropertyCommand(layerId, name, value, frame, {
+      registry,
+      describe: (target) => {
+        try { return stageHost.describeForEdit(target); }
+        catch { throw new PropertyOperationError('Les propriétés de la cible sont indisponibles.'); }
+      }
+    }));
   }
 
   undo(): boolean {
