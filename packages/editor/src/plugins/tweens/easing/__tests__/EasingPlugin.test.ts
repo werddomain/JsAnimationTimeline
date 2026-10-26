@@ -192,3 +192,53 @@ it('closes on layer selection changes and accepts valid custom curves through th
   expect((editor.document.layers[0] as ILayer).spans[0].easing).toBe('cubic-bezier(.2, -.5, .8, 1.5)');
   editor.destroy();
 });
+
+describe('easing initial-focus reentrance', () => {
+  it('discards a dialog when initial focus destroys the editor', () => {
+    const { editor, service } = setup();
+    document.addEventListener('focusin', () => editor.destroy(), { once: true });
+
+    const opened = service.openAt('a', 1);
+
+    expect(editor.isDestroyed).toBe(true);
+    expect(opened).toBe(false);
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(0);
+    expect(document.querySelector('.jt-easing-portal')).toBeNull();
+  });
+
+  it('discards a dialog when initial focus changes the document', () => {
+    const { editor, service } = setup();
+    document.addEventListener('focusin', () => {
+      editor.execute(createSetLockedCommand(editor.document, 'a', true));
+    }, { once: true });
+
+    const opened = service.openAt('a', 1);
+
+    expect(opened).toBe(false);
+    expect(dialog()).toBeNull();
+    expect((editor.document.layers[0] as ILayer).locked).toBe(true);
+    expect((editor.document.layers[0] as ILayer).spans[0].easing).toBeUndefined();
+    editor.destroy();
+  });
+
+  it('retains only the newest opening when initial focus opens another dialog', () => {
+    const { editor, service } = setup();
+    let nestedOpened = false;
+    let nestedSelect: HTMLSelectElement | undefined;
+    document.addEventListener('focusin', () => {
+      nestedOpened = service.openAt('a', 6);
+      nestedSelect = document.activeElement as HTMLSelectElement;
+    }, { once: true });
+
+    const opened = service.openAt('a', 1);
+
+    expect(opened).toBe(false);
+    expect(nestedOpened).toBe(true);
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+    expect(preset()).toBe(nestedSelect);
+    expect(document.activeElement).toBe(nestedSelect);
+    service.close();
+    expect(dialog()).toBeNull();
+    editor.destroy();
+  });
+});

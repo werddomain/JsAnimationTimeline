@@ -26,16 +26,16 @@ The runtime continues to remap time across the **entire span** before reading ea
 
 The dialog has an associated title/description, a labelled native preset select, `role="dialog"` and `aria-modal="true"`. Initial focus goes to the select; Tab and Shift+Tab wrap within enabled controls. Escape and Cancel discard the choice. The connected prior focus is restored when this dialog owns focus; destroying another editor cannot steal focus from an active dialog.
 
-Each editor owns its portal, service and listeners. The portal uses the host's `ownerDocument` and `defaultView`, and retains `.JsTimeLine` styling outside clipped editor containers. Any document load/change or frame/layer selection change closes pending confirmation. Confirm and command execution validate the current tween and locks again. Initialization failure and destruction remove subscriptions, DOM nodes and handlers.
+Each editor owns its portal, service and listeners. The portal uses the host's `ownerDocument` and `defaultView`, and retains `.JsTimeLine` styling outside clipped editor containers. Any document load/change or frame/layer selection change closes pending confirmation. Confirm and command execution validate the current tween and locks again. An opening token is invalidated by close, destruction, document changes and selection changes. If initial focus synchronously invalidates or reopens the dialog, the older opening disposes its local portal and returns false without replacing a newer dialog. Initialization failure and destruction remove subscriptions, DOM nodes and handlers.
 
 ## Validation evidence
 
-Tests were authored first. No-op typed contracts produced a meaningful unit RED: **23 failed, 1 passed**. The built default-plugin browser fixture then produced browser RED: the expected focused preset combobox did not exist after the fixture's open button. A later multi-editor focus-steal regression was also reproduced as RED before correction.
+Tests were authored first. No-op typed contracts produced a meaningful unit RED: **23 failed, 1 passed**. The built default-plugin browser fixture then produced browser RED: the expected focused preset combobox did not exist after the fixture's open button. A later multi-editor focus-steal regression was also reproduced as RED before correction. Review then identified initial-focus reentrance: three new tests failed before the fix when focus destroyed the editor, changed its document, or opened a newer dialog.
 
 Final focused results:
 
-- **33 unit/integration tests** across commands, service, dialog lifecycle and exports.
-- W3 coverage excluding tests: **97.93% statements, 89.58% branches, 100% functions, 99.49% lines**.
+- **36 unit/integration tests** across commands, service, dialog lifecycle and exports.
+- W3 coverage excluding tests: **97.60% statements, 89.42% branches, 100% functions, 99.52% lines**.
 - **8 Chromium scenarios**, including real keyboard preset selection and Apply, changed middle-frame computed HTML and `editor.sample`, unchanged endpoints/tracks, exact undo/redo, Cancel/Escape/focus, a lock changed while the dialog is open, and preservation of an imported custom curve until an explicit preset choice followed by exact undo.
 - Responsive dialog captures at **320, 768, 1024 and 1440 px**.
 - Per-page error collectors check page errors, console warnings/errors and failed-request URLs without filtering.

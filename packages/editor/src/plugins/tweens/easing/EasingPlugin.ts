@@ -29,6 +29,7 @@ export class EasingPlugin implements EditorPlugin {
   readonly dependencies: readonly string[] = ['tweens.motion'];
   private ctx: IEditorContext | undefined;
   private dialog: IEasingDialog | undefined;
+  private openingToken = 0;
   private cleanups: Array<() => void> = [];
 
   readonly init = (ctx: IEditorContext): void => {
@@ -39,7 +40,7 @@ export class EasingPlugin implements EditorPlugin {
         canSetAt: (layerId, frame) => this.canSetAt(layerId, frame),
         setAt: (layerId, frame, easing) => this.setAt(layerId, frame, easing),
         openAt: (layerId, frame) => this.openAt(layerId, frame),
-        close: () => this.close()
+        close: () => { this.close(); }
       };
       this.cleanups.push(ctx.services.provide(EASING_PLUGIN_ID, service));
       this.cleanups.push(ctx.events.on('document:changed', () => this.close()));
@@ -80,8 +81,9 @@ export class EasingPlugin implements EditorPlugin {
     if (!this.canSetAt(layerId, frame).enabled) return false;
     const span = ctx.services.require('tweens.motion').tweenAt(layerId, frame);
     if (span === undefined) return false;
-    this.close();
-    this.dialog = createEasingDialog({ owner: ctx.container, easing: span.easing,
+    const token = this.close();
+    if (this.ctx !== ctx || this.openingToken !== token) return false;
+    const dialog = createEasingDialog({ owner: ctx.container, easing: span.easing,
       apply: (preset) => {
         const current = ctx.services.require('tweens.motion').tweenAt(layerId, frame);
         if (current?.id !== span.id) return false;
@@ -89,12 +91,24 @@ export class EasingPlugin implements EditorPlugin {
         // An identical choice is a successful confirmation with no history entry.
         if (!this.canSetAt(layerId, frame).enabled) return false;
         return ctx.commands.execute(command) || (current.easing ?? 'linear') === preset;
-      }, close: () => this.close()
+      }, close: () => { this.close(); }
     });
+    // Initial focus may synchronously destroy, change or reopen the editor.
+    if (this.ctx !== ctx || this.openingToken !== token) {
+      dialog.destroy();
+      return false;
+    }
+    this.dialog = dialog;
     return true;
   }
 
-  private close(): void { const dialog = this.dialog; this.dialog = undefined; dialog?.destroy(); }
+  private close(): number {
+    const token = ++this.openingToken;
+    const dialog = this.dialog;
+    this.dialog = undefined;
+    dialog?.destroy();
+    return token;
+  }
 }
 
 export function createEasingPlugin(): EasingPlugin { return new EasingPlugin(); }
