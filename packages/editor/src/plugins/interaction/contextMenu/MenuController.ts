@@ -47,6 +47,8 @@ export class MenuController {
         const fresh = actions().find((action) => action.id === spec.id);
         if (fresh?.enabled !== true) return;
         this.close(true);
+        // Restoring focus can synchronously destroy or detach the editor.
+        if (!this.root.isConnected) return;
         fresh.run();
       };
       button.addEventListener('click', onClick);

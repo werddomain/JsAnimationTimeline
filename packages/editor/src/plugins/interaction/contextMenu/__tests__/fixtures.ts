@@ -14,12 +14,17 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-export function mount(data: ITimelineDocument, plugins: readonly EditorPlugin[] = []) {
+export function mount(data: ITimelineDocument, plugins: readonly EditorPlugin[] = [], options: { readonly withoutEasing?: boolean } = {}) {
   const host = document.createElement('div');
   document.body.append(host);
   let ctx: IEditorContext | undefined;
   const capture: EditorPlugin = { id: 'test.contextMenuCapture', dependencies: [], init: (value) => { ctx = value; }, destroy: () => undefined };
-  const defaults = defaultPlugins().filter((plugin) => plugin.id !== 'interaction.contextMenu');
+  const defaults = defaultPlugins().filter((plugin) => plugin.id !== 'interaction.contextMenu').map((plugin): EditorPlugin => {
+    if (options.withoutEasing !== true || plugin.id !== 'tweens') return plugin;
+    return { id: plugin.id, dependencies: plugin.dependencies,
+      children: plugin.children?.filter((child) => child.id !== 'tweens.easing'),
+      init: (ctx) => plugin.init(ctx), destroy: () => plugin.destroy() };
+  });
   const editor = createEditor(host, { data, defaultPlugins: defaults, plugins: [...plugins, capture, new ContextMenuPlugin()] });
   editors.push(editor);
   const list = editor.getService('layers.list');

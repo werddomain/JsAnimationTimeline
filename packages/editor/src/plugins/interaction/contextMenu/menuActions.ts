@@ -13,6 +13,7 @@ import type {} from '../../layers/visibility/VisibilityPlugin';
 import type {} from '../../layers/lock/LockPlugin';
 import type {} from '../../layers/groups/types';
 import type {} from '../../layers/toolbar/types';
+import type {} from '../../tweens/easing/types';
 
 const GROUP_REASON = 'Une commande est déjà en cours.';
 const NO_OTHER_REASON = 'Aucun autre calque à modifier.';
@@ -23,7 +24,7 @@ function action(ctx: IEditorContext, id: string, label: string, state: IActionAv
 }
 
 /** Read the same deletion resolver used by the keyframe toolbar (T2). */
-function frameActions(ctx: IEditorContext): IContextMenuAction[] {
+function frameActions(ctx: IEditorContext, cell: Extract<ContextMenuTarget, { kind: 'frames' }>['cell']): IContextMenuAction[] {
   const selection = ctx.services.require('frames.selection');
   const keyframes = ctx.services.require('frames.keyframes');
   const motion = ctx.services.require('tweens.motion');
@@ -44,6 +45,11 @@ function frameActions(ctx: IEditorContext): IContextMenuAction[] {
     action(ctx, 'insertBlankKeyframe', 'Insérer une image clé vide', state.insert, () => keyframes.insertBlankKeyframe()),
     action(ctx, 'delete', state.delete.label, state.delete, () => state.delete.action === 'removeTween' ? motion.remove() : keyframes.deleteKeyframe())
   ];
+  // Easing applies only to the context span, even when several cells are selected.
+  const easing = ctx.services.get('tweens.easing');
+  if (easing !== undefined && motion.tweenAt(cell.rowId, cell.frame) !== undefined) {
+    items.push(action(ctx, 'easing', 'Modifier l’accélération', easing.canSetAt(cell.rowId, cell.frame), () => easing.openAt(cell.rowId, cell.frame)));
+  }
   const clipboard = ctx.services.get('frames.clipboard');
   if (clipboard !== undefined) {
     const cells = selection.cells();
@@ -120,5 +126,5 @@ function layerActions(ctx: IEditorContext, rowId: string): IContextMenuAction[] 
 
 /** Build current actions; no cached service verdict may authorize activation. */
 export function contextMenuActions(ctx: IEditorContext, target: ContextMenuTarget): readonly IContextMenuAction[] {
-  return target.kind === 'frames' ? frameActions(ctx) : layerActions(ctx, target.rowId);
+  return target.kind === 'frames' ? frameActions(ctx, target.cell) : layerActions(ctx, target.rowId);
 }

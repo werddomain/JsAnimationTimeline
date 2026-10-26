@@ -182,3 +182,23 @@ Les pages des phases 3 et 7 conservent les démonstrations validées et leurs te
 les pages des phases 4 et 5 conservent leurs supports de revue. Les autres
 scénarios de la tâche E1 et les fonctionnalités restantes du plan restent à faire.
 Les sorties de test et les paquets NuGet locaux ne sont pas publiés ni versionnés.
+
+## Compléments réutilisables des phases 4 et 5
+
+La page d’accueil du runtime donne aussi accès aux quatre compléments ci-dessous.
+Ils utilisent les mêmes commandes de construction, les mêmes ports et
+`npm run test:validation`. Avec les ports de l’exemple, ajouter le chemin indiqué
+à `http://localhost:9311/`.
+
+| Démonstration | Chemin de page | Test Playwright conservé |
+|---|---|---|
+| Contrat public de propriétés sans plugins | `fixtures/property-api.html` | `e2e/validation/property-api.spec.ts` |
+| API et service, vrais losanges, scènes HTML et objet | `fixtures/property-keyframes.html` | `e2e/validation/property-keyframes.spec.ts` |
+| Accélération, courbes importées, clavier et cycle de vie | `fixtures/easing.html` | `e2e/validation/easing.spec.ts` |
+| Menus des images et calques, commandes et accélération | `fixtures/context-menu.html` | `e2e/validation/context-menu.spec.ts` |
+
+Les contrôles de chaque page servent de support de démonstration ; les tests
+vérifient les commandes réelles, leur annulation et leur rétablissement. Les
+scénarios de transitions persistées sont modélisés et ne prouvent pas un passage
+natif par le cache arrière/avant du navigateur. La couverture navigateur décrite
+ici reste celle de Chromium ; la tâche E1 complète les scénarios de bout en bout.

@@ -8,7 +8,7 @@
  * Emits: none
  *
  * Scoped context menus delegate to the existing v2 services. Clipboard,
- * rename, visibility and lock are optional. W3 easing is integrated later.
+ * rename, visibility, lock and W3 easing are optional.
  */
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import { isEditableTarget } from '../shortcuts/ShortcutScope';

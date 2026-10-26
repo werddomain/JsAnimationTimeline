@@ -129,6 +129,63 @@ test.describe('I1 context menus', () => {
     expect((await state(page)).document).toEqual(original);
   });
 
+  test('opens optional easing from the clicked tween, applies the preset and restores exact history', async ({ page }) => {
+    await cell(page, 'target', 1);
+    await cell(page, 'target', 9, { modifier: 'Control' });
+    await cell(page, 'target', 1, { right: true });
+    await action(page, 'Créer une interpolation de mouvement').click();
+    await cell(page, 'target', 3);
+    await cell(page, 'second', 3, { modifier: 'Control' });
+    const before = await state(page);
+    const originalTween = await layer(page, 'target');
+    await cell(page, 'target', 3, { right: true });
+    await action(page, 'Modifier l’accélération').click();
+    await expect(menu(page)).toHaveCount(0);
+    const dialog = page.getByRole('dialog', { name: 'Accélération de l’interpolation' });
+    const preset = dialog.getByRole('combobox', { name: 'Préréglage' });
+    await expect(preset).toBeFocused();
+    expect((await state(page)).cells).toEqual(before.cells);
+    await preset.selectOption('ease-in');
+    await dialog.getByRole('button', { name: 'Appliquer', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator('#primary .JsTimeLine')).toBeFocused();
+    const changed = await state(page);
+    expect((await layer(page, 'target')).spans[0].easing).toBe('ease-in');
+    expect((await layer(page, 'target')).spans[0].tracks).toEqual(originalTween.spans[0].tracks);
+    expect(changed.document.layers.slice(1)).toEqual(before.document.layers.slice(1));
+    await expect.poll(async () => (await state(page)).sample?.x).toBeLessThan(Number(before.sample?.x));
+    await expect.poll(() => page.locator('#target-object').evaluate((element) => new DOMMatrixReadOnly(getComputedStyle(element).transform).m41)).toBeCloseTo(Number(changed.sample?.x), 4);
+    await undo(page);
+    expect((await state(page)).document).toEqual(before.document);
+    await redo(page);
+    expect((await state(page)).document).toEqual(changed.document);
+    await cell(page, 'target', 3, { right: true });
+    await action(page, 'Modifier l’accélération').click();
+    await preset.selectOption('ease-out');
+    await dialog.getByRole('button', { name: 'Annuler', exact: true }).click();
+    expect((await state(page)).document).toEqual(changed.document);
+    await cell(page, 'target', 3, { right: true });
+    await action(page, 'Modifier l’accélération').click();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    expect((await state(page)).document).toEqual(changed.document);
+  });
+
+  test('finds the preserved demo supports from the runtime index', async ({ page }) => {
+    await page.goto(RUNTIME_DEMO_URL);
+    for (const [name, href] of [
+      ['API de propriétés', './fixtures/property-api.html'],
+      ['clés de propriété et losanges', './fixtures/property-keyframes.html'],
+      ['accélération des interpolations', './fixtures/easing.html'],
+      ['menus contextuels', './fixtures/context-menu.html']
+    ]) await expect(page.getByRole('link', { name, exact: true })).toHaveAttribute('href', href);
+    await page.getByRole('link', { name: 'menus contextuels', exact: true }).click();
+    await expect(page.locator('#primary .jt-grid')).toBeVisible();
+    await page.waitForFunction(() => window.contextMenuReview?.ready === true);
+    await row(page, 'target').click({ button: 'right' });
+    await expect(menu(page)).toBeVisible();
+  });
+
   test('distinguishes property, mixed and whole tween deletion with one-step undo', async ({ page }) => {
     const original = (await state(page)).document;
     await cell(page, 'motion', 6, { right: true });

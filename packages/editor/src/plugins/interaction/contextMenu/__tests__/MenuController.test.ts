@@ -175,6 +175,24 @@ it('ignores stale keydown without attempting focus or closing a newly opened men
   controller.close(false);
 });
 
+it('does not run a captured action when restoring focus synchronously removes its editor', () => {
+  const root = document.createElement('div');
+  root.tabIndex = -1;
+  document.body.append(root);
+  const controller = new MenuController(root);
+  const run = jest.fn();
+  controller.open({ x: 20, y: 20 }, root, () => [{ id: 'a', label: 'Action', enabled: true, run }]);
+  const stale = active();
+  root.addEventListener('focus', () => { root.remove(); controller.close(false); }, { once: true });
+  stale.click();
+  expect(root.isConnected).toBe(false);
+  expect(run).not.toHaveBeenCalled();
+  expect(document.querySelector('.jt-context-menu-portal')).toBeNull();
+  expect(key(stale, 'Home').defaultPrevented).toBe(false);
+  stale.click();
+  expect(run).not.toHaveBeenCalled();
+});
+
 it('retains native input, textarea, select and contenteditable menus', () => {
   const h = mount(doc([layer('a')]));
   for (const name of ['input', 'textarea', 'select', 'div']) {

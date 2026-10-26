@@ -3,8 +3,9 @@
 
 Base: `63e77d5ab8d3281437b555615a09eda23b54c594`, branch
 `v2/I1-context-menu`. The parent owns default registration, public exports,
-Vite inputs and final review. I1 remains pending the actual W3 base merge and
-its optional easing action; no future service declaration or cast was added.
+Vite inputs and final review. W2/W3 were integrated from the actual base at
+`0bc812de704fd5565900f74a4c48b59e6d73ec3d`; I1 now consumes the real optional
+`tweens.easing` service without a hard plugin dependency or duplicate contract.
 
 ## Behavior
 
@@ -16,6 +17,11 @@ its optional easing action; no future service declaration or cast was added.
   `frames.clipboard` (existing memory clipboard). Delete uses T2's
   `computeKeyframeActionsState`: property-only, mixed and whole-tween targets
   preserve the existing command semantics and French labels.
+- On a tween, optional `tweens.easing` adds `Modifier l’accélération`, using
+  its current `canSetAt` verdict and refusal reason. It targets only the span
+  under the context click, preserving any multiple selection. Without W3 or
+  outside a tween, the entry is absent. The menu closes and restores focus
+  before `openAt`, so the new dialog keeps focus.
 - Layer creation, deletion, folders, grouping, ungrouping and inline rename
   delegate to the corresponding services. Rename and deletion remain permitted
   on locked layers. Layer/ancestor locks protect image mutations through the
@@ -30,7 +36,7 @@ its optional easing action; no future service declaration or cast was added.
   reasons use `aria-description`; activation rereads the current services.
   Closing restores connected focus only while focus still belongs to this
   menu. Restoration happens before invoking actions that move focus, such as
-  inline rename or the future W3 dialog.
+  inline rename or the W3 dialog.
 - Outside presses/focus, actual scrolling, resize, document/selection
   invalidation and destruction remove the portal and listeners. All menu
   styles remain under `.JsTimeLine`, including the viewport-bounded portal.
@@ -85,7 +91,7 @@ with an explicit floating-point tolerance.
 Editor, demo/runtime and e2e typechecks passed. Browser coverage in this pass
 is Chromium only. General, security and TypeScript reviews, the complete
 repository gate and PR creation remain the parent's responsibility. This
-record does not claim those reviews or completion of the pending W3 action.
+record does not claim those reviews.
 
 ## Detached DOM cleanup, 2026-10-26
 
@@ -111,5 +117,43 @@ in the same artifact folder:
 - `i1-stale-dom-build.log`, `i1-stale-dom-typecheck.log` and
   `i1-stale-dom-lint.log`: demo rebuild, editor typecheck and scoped lint pass.
 
-Only MenuController, its test and this record changed after that checkpoint.
-No commit or PR was created. The optional easing entry remains pending W3.
+That cleanup pass changed only MenuController, its test and this record. The
+parent committed it as `ff432da` before integrating the actual W3 base.
+
+## Optional W3 integration, 2026-10-26
+
+The action imports the real W3 type augmentation and obtains its service
+through `services.get('tweens.easing')`. It never requires or declares a future
+service. A two-tween multiple-selection regression clicks the second tween and
+proves the first is unchanged, while preserving all selected cells. Layer and
+ancestor locks use W3's current availability and accessible disabled reason.
+
+A separate lifecycle RED confirmed that restoring focus could synchronously
+remove the editor before the captured action ran. After closing the menu,
+activation now checks that its editor root remains connected. The regression
+also verifies that no menu portal or retained event handler remains.
+
+Final focused evidence in the artifact folder above:
+
+- `i1-easing-red.log`: four meaningful failures (missing action/availability
+  and focus-restoration lifecycle), with 15 passes.
+- `i1-easing-green.log`: 33 unit tests pass.
+- `i1-easing-coverage.log`: 98.64% statements, 92.43% branches, 100% functions,
+  99.16% lines. Each production module exceeds 80% in every metric.
+- `i1-easing-browser.log`: 16 Chromium tests pass on ports 9354/9355, with
+  `CI=1`, one worker, no retries and empty per-page problem collectors.
+- `i1-easing-build.log`: the runtime demonstration rebuild passes.
+
+The new real-browser path opens the context menu on a tween while multiple
+cells are selected, enters W3's dialog, applies `ease-in`, compares runtime
+sampling with the rendered transform, preserves tracks/other layers and
+restores exact documents with undo/redo. Cancel and Escape preserve the
+document and focus. No W3 fixture was changed.
+
+The navigation regression starts from the runtime index, verifies the four
+preserved support links and enters the context-menu fixture through its link.
+The parent owns the accompanying changes to `demo/runtime/index.html` and
+`doc/v2/validation/README.md`; those shared files belong in the final review.
+
+Editor, demo/runtime and e2e typechecks and scoped ESLint pass. No commit, PR,
+complete repository gate or recursive review was performed in this pass.
