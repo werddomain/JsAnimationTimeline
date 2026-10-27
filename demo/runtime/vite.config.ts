@@ -46,6 +46,7 @@ export default defineConfig({
         easingFixture: fileURLToPath(new URL('fixtures/easing.html', import.meta.url)),
         propertyApi: fileURLToPath(new URL('fixtures/property-api.html', import.meta.url)),
         propertyKeyframes: fileURLToPath(new URL('fixtures/property-keyframes.html', import.meta.url)),
+        propertiesPanel: fileURLToPath(new URL('fixtures/properties-panel.html', import.meta.url)),
       },
     },
   },

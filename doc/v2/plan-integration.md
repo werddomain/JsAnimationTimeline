@@ -113,7 +113,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **P1** | 5 | 7 | Plugin `playback.controls` (lecture, pause, boucle, vitesse via `ctx.playback`, avec ou sans scène) | T1, I2, C6 | E1 | `plugins/playback/controls/` | ☑ |
 | **P2** | 5 | 8 | Plugin `playback.livePreview` (réglage de l'aperçu : fréquence limitée ou application au relâchement pour les scènes lentes, calques masqués dans l'éditeur) | C7, L2 | E1 | `plugins/playback/livePreview/` | ☑ |
 | **I1** | 5 | 9 | Plugin `interaction.contextMenu` (repris, actions branchées sur les commandes) | K2, W1, Y8 | E1 | `plugins/interaction/contextMenu/` | ☑ |
-| **S1** | 6 | 9 | Plugin optionnel `properties.panel` (propriétés du registre filtrées par l'objet ciblé, valeurs lues avec `editor.sample()`) | W2, Y5, C7 | E1 | `plugins/properties/panel/` | ☐ |
+| **S1** | 6 | 9 | Plugin optionnel `properties.panel` (propriétés du registre filtrées par l'objet ciblé, valeurs lues avec `editor.sample()`) | W2, Y5, C7 | E1 | `plugins/properties/panel/` | ☑ |
 | **S2** | 6 | 5 | Plugin `persistence.json` (import/export, lecture des fichiers v1 via le migrateur, contrôle de forme de F06, cibles transmises telles quelles) | C4, R4, F06 | E1, B3 | `plugins/persistence/` | ☑ |
 | **E1** | 6 | 10 | Démo de l'éditeur v2, dont une page « timeline seule + votre scène » (canvas + audio, et `stage: false`) + scénarios Playwright 1 à 10 et 9b | T2, T3, T4, P1, P2, C5, Y2, Y3, Y4, Y6, K3, W3, I1, S1, S2, C7, R8 | B3, Z1 | `demo/editor/`, `e2e/editor/` | ☐ |
 | **X1** | 7 | 4 | Package `export-css` (`@keyframes` + avertissements ; calques sans sélecteur et propriétés non CSS ignorés avec un avertissement) | R2 | X2 | `packages/export-css/` | ☑ |
