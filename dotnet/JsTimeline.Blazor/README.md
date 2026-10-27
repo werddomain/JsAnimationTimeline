@@ -75,9 +75,43 @@ Limites :
   dans un champ et n'en créer un nouveau que quand il change.
 - Seule la scène HTML est prise en charge pour l'instant.
 
-## Scène écrite en C# (préparation de B3)
+## Éditeur Blazor
 
-Le dossier `Stage/` contient le contrat qu'utilisera le paramètre `Stage` du futur composant d'éditeur :
+Le build ES de l’éditeur importe `@werddomain/timeline-runtime`. Définir une carte d’import avant
+le chargement du composant, par exemple dans la page hôte Razor (le double `@` échappe Razor) :
+
+```html
+<script type="importmap">
+{"imports":{"@@werddomain/timeline-runtime":"./_content/JsTimeline.Blazor/js/timeline-runtime.mjs"}}
+</script>
+```
+
+Importer `JsTimeline.Blazor.Editor` et lier un document conservé dans un champ :
+
+```razor
+<TimelineEditor @bind-Data="document" Stage="stage" OnReady="EditorReady" OnError="ReportError" />
+```
+
+`DataChanged` reçoit les modifications, y compris les annulations et rétablissements. Une nouvelle
+instance de `Data` fournie par le parent remplace le document et vide l'historique. Utiliser une
+référence stable tant que le document ne change pas. `OnFrame` reçoit les changements d'image.
+
+`Stage` vaut `TimelineStageOption.Html()` par défaut ; choisir `None()`, `JsModule(path)` (module
+exportant `createStage()`) ou `DotNet(stage, mode)` pour une autre scène. Changer de scène recrée
+l'éditeur et son historique. Fournir les styles `_content/JsTimeline.Blazor/css/timeline-editor.css`.
+
+Avec une référence au composant, `ImportAsync(json)` valide et importe par une commande annulable ;
+`UndoAsync()` la restaure. `ExportAsync()` retourne le JSON courant ; `RedoAsync()` et
+`RefreshTargetsAsync()` complètent ces opérations. Ces méthodes exigent que `OnReady` ait été appelé.
+`OnError` reçoit les erreurs de création, chargement et scène ; sans gestionnaire elles sont levées.
+Un document refusé n'est pas réessayé à chaque rendu : fournir une nouvelle instance pour réessayer.
+Les notifications retardées sont ignorées après un remplacement de document ou de scène. Un gestionnaire
+`DataChanged` déjà commencé ne peut pas être annulé : après une attente asynchrone, il doit éviter de
+republier une ancienne valeur si le parent a remplacé le document entre-temps.
+
+## Scène écrite en C#
+
+Le dossier `Stage/` contient le contrat du paramètre `Stage` de l'éditeur :
 
 - `ITimelineStage` : `Id`, `Targets` (objets proposés aux calques, ciblés par `{ "ref": ..., "stage": Id }`),
   `Properties` (nombres lus par la scène, avec une interpolation par nom : `Linear`, `Step`, `Floor`, `Round`)
@@ -96,8 +130,7 @@ Le dossier `Stage/` contient le contrat qu'utilisera le paramètre `Stage` du fu
   secondes au plus) l'appel en cours, pour qu'une scène rebranchée ne le chevauche pas. Une exception de
   `RenderAsync` est signalée à la timeline et la lecture continue.
 - `TimelineStageOption` décrit les choix : `Html()` (défaut), `JsModule("./js/maScene.js")`, `DotNet(scène)` et
-  `None()`. Ces méthodes sont la seule façon d'en créer un, donc un choix est toujours valide. Aucun composant
-  ne les utilise encore ; `TimelinePlayer` reste en HTML.
+  `None()`. Ces méthodes sont la seule façon d'en créer un, donc un choix est toujours valide. `TimelineEditor` accepte ces choix ; `TimelinePlayer` reste en HTML.
 
 Côté navigateur, `_content/JsTimeline.Blazor/stage/dotnetStage.js` fait d'une scène .NET une `IStage` du
 runtime, utilisable avec `createEditor({ stage })` ou `createPlayer({ stage })`.

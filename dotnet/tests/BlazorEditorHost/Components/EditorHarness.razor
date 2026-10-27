@@ -1,0 +1,49 @@
+@* dotnet/tests/BlazorEditorHost/Components/EditorHarness.razor *@
+@using Microsoft.AspNetCore.Components.Web
+@using JsTimeline.Blazor.Editor
+@using JsTimeline.Blazor.Model
+@using JsTimeline.Blazor.Stage
+@using Microsoft.AspNetCore.Components
+@inject NavigationManager Navigation
+
+<TimelineEditor @ref="editor" @bind-Data="document" Stage="stage" OnReady="Ready" OnError="Error" />
+<button @onclick="Import">Import</button><button @onclick="Undo">Undo</button>
+<button @onclick="Replace">Replace</button><button @onclick="Export">Export</button>
+<output data-testid="ready">@ready</output><output data-testid="frames">@document.Settings.TotalFrames</output>
+<output data-testid="error">@error</output><output data-testid="export">@export</output>
+<output data-testid="module-stage"></output><output data-testid="dotnet-stage">@rendered</output>
+
+@code {
+    private TimelineEditor editor = default!;
+    private TimelineDocument document = Document(24);
+    private TimelineStageOption stage = TimelineStageOption.Html();
+    private int ready;
+    private int rendered;
+    private string error = "";
+    private string export = "";
+    protected override void OnInitialized()
+    {
+        var query = new Uri(Navigation.Uri).Query;
+        stage = query switch {
+            "?scene=JsModule" => TimelineStageOption.JsModule("./scene.js"),
+            "?scene=DotNet" => TimelineStageOption.DotNet(new RecordingStage(() => InvokeAsync(() => { rendered++; StateHasChanged(); }))),
+            "?scene=None" => TimelineStageOption.None(),
+            _ => TimelineStageOption.Html()
+        };
+    }
+    private static TimelineDocument Document(int frames) => new() { Version = "2.0.0", Settings = new TimelineSettings { Fps = 24, TotalFrames = frames }, Layers = [] };
+    private void Ready() => ready++;
+    private void Error(Exception value) => error = value.Message;
+    private async Task Import() => await editor.ImportAsync(TimelineJson.Serialize(Document(48)));
+    private async Task Undo() => await editor.UndoAsync();
+    private void Replace() => document = Document(72);
+    private async Task Export() => export = await editor.ExportAsync();
+    private sealed class RecordingStage(Func<Task> render) : ITimelineStage
+    {
+        public string Id => "dotnet";
+        public IReadOnlyList<TimelineStageTarget> Targets => [];
+        public IReadOnlyList<TimelineStageProperty> Properties => [];
+        public Task RenderAsync(TimelineStageFrame frame, CancellationToken cancellationToken) => render();
+    }
+}
+

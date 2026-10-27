@@ -16,7 +16,7 @@ export default defineConfig({
   // Layout: e2e/<area>/*.spec.ts (demo, runtime, editor, export-css, ...).
   testDir: './',
   testMatch: '**/*.spec.ts',
-  testIgnore: '**/node_modules/**',
+  testIgnore: ['**/node_modules/**', '**/blazor/**'],
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],
