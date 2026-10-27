@@ -227,3 +227,24 @@ it.each(['list', 'describe'] as const)('refuses failed %s metadata queries atomi
   expect(editor.redo()).toBe(true);
   expect(editor.document).toEqual(changed);
 });
+
+it('preserves a document loaded by stage metadata during setProperty', () => {
+  const stage = createObjectStage({ id: 'canvas', unscoped: true,
+    objects: [{ id: 'a', label: 'Object', object: { x: 0 }, properties: ['x'] }], apply: () => {} });
+  const data = stillDocument();
+  const initial = { ...data, layers: [{ ...layerOf(data, 'logo'), target: { ref: 'a' } }] };
+  const loaded = { ...initial, settings: { ...initial.settings, fps: 12 } };
+  let trigger = false;
+  const editor = createEditor(createContainer(), { defaultPlugins: false, data: initial,
+    stage: { ...stage, targets: { list: () => stage.targets?.list() ?? [], describe: (target) => {
+      if (trigger) { trigger = false; editor.load(loaded); }
+      return stage.targets?.describe?.(target);
+    } } } });
+  const reasons: string[] = [];
+  editor.on('command:refused', ({ reason }) => reasons.push(reason));
+  trigger = true;
+  expect(editor.setProperty('logo', 'x', 9)).toBe(false);
+  expect(editor.document).toBe(loaded);
+  expect(editor.canUndo).toBe(false);
+  expect(reasons).toHaveLength(1);
+});

@@ -241,3 +241,76 @@ it('does not require plugins for the existing core stage-free property API', () 
   expect(editor.undo()).toBe(true);
   expect(layerOf(editor.document, 'main').spans).toEqual(layerOf(data(), 'main').spans);
 });
+
+it.each(['editor', 'service'] as const)('does not commit an in-flight %s edit after destruction in metadata', (mode) => {
+  const capture = captureContext();
+  const stage = createObjectStage({ id: 'canvas', unscoped: true,
+    objects: [{ id: 'main', label: 'Main', object: {}, properties: ['x'] }], apply: () => {} });
+  let trigger = false;
+  const { editor, service } = setup({ plugins: [capture.plugin], stage: { ...stage,
+    targets: { list: () => stage.targets?.list() ?? [], describe: (target) => {
+      if (trigger) { trigger = false; editor.destroy(); }
+      return stage.targets?.describe?.(target);
+    } } } });
+  const before = capture.context().document;
+  const changes: string[] = [];
+  editor.on('document:changed', () => changes.push('document'));
+  editor.on('history:changed', () => changes.push('history'));
+  trigger = true;
+  const result = mode === 'editor' ? editor.setProperty('main', 'x', 75, { frame: 6 }) :
+    service.setProperty('main', 'x', 75, { frame: 6 });
+  expect(result).toBe(false);
+  expect(capture.context().document).toBe(before);
+  expect(changes).toEqual([]);
+});
+
+it('does not emit a history change during ordinary destruction', () => {
+  const { editor } = setup();
+  const changes: string[] = [];
+  editor.on('history:changed', () => changes.push('history'));
+  editor.destroy();
+  expect(changes).toEqual([]);
+});
+
+it.each(['execute', 'editor', 'service'] as const)('does not start an outer %s transform after destruction in command:before', (mode) => {
+  const capture = captureContext();
+  let trigger = false;
+  let transformations = 0;
+  const beforeDestroy = {
+    id: 'beforeDestroy', dependencies: [],
+    init: (ctx: ReturnType<typeof capture.context>) => {
+      ctx.events.onCancellable('command:before', () => {
+        if (trigger) { trigger = false; editor.destroy(); }
+      });
+    },
+    destroy: () => {}
+  };
+  const { editor, service } = setup({ plugins: [capture.plugin, beforeDestroy] });
+  const before = capture.context().document;
+  const changes: string[] = [];
+  editor.on('document:changed', () => changes.push('document'));
+  editor.on('history:changed', () => changes.push('history'));
+  trigger = true;
+  const result = mode === 'execute' ? editor.execute({ label: 'Outer',
+    do: (doc) => { transformations++; return { ...doc }; }, undo: (doc) => doc }) :
+    mode === 'editor' ? editor.setProperty('main', 'x', 75, { frame: 6 }) :
+      service.setProperty('main', 'x', 75, { frame: 6 });
+  expect(result).toBe(false);
+  expect(transformations).toBe(0);
+  expect(capture.context().document).toBe(before);
+  expect(changes).toEqual([]);
+});
+
+it('allows commands started in stage teardown after pending work is invalidated', () => {
+  const capture = captureContext();
+  const stage = createObjectStage({ id: 'canvas', unscoped: true,
+    objects: [{ id: 'main', label: 'Main', object: {}, properties: ['x'] }], apply: () => {} });
+  let result: boolean | undefined;
+  const { editor } = setup({ plugins: [capture.plugin], stage: { ...stage,
+    detach: () => { result = editor.execute({ label: 'Teardown',
+      do: (doc) => ({ ...doc, settings: { ...doc.settings, fps: 30 } }), undo: (doc) => doc }); }
+  } });
+  editor.destroy();
+  expect(result).toBe(true);
+  expect(capture.context().document.settings.fps).toBe(30);
+});
