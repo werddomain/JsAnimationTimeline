@@ -126,6 +126,34 @@ test.describe('public setProperty contract without default plugins', () => {
     expect(await page.evaluate(() => window.propertyApi?.object.volume)).toBe(0.7);
   });
 
+  test('preserves a document and nested history loaded during stage metadata', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const fixture = window.propertyApi as IPropertyApiFixture;
+      const { objectEditor } = fixture;
+      const current = objectEditor.document;
+      const loaded = { ...structuredClone(current), settings: { ...current.settings, fps: 12 } };
+      const refusals: string[] = [];
+      const changes: string[] = [];
+      objectEditor.on('command:refused', ({ reason }) => refusals.push(reason));
+      objectEditor.on('document:changed', ({ cause }) => changes.push(cause));
+      fixture.loadObjectOnMetadata(loaded);
+      const outer = objectEditor.setProperty('object', 'volume', 0.9);
+      const after = objectEditor.document;
+      const fps = after.settings.fps;
+      const nestedValue = objectEditor.sample(1).layer('object')?.values.volume;
+      const undo = objectEditor.undo();
+      const restoredLoaded = JSON.stringify(objectEditor.document) === JSON.stringify(loaded);
+      const extraUndo = objectEditor.undo();
+      const redo = objectEditor.redo();
+      const redoneValue = objectEditor.sample(1).layer('object')?.values.volume;
+      return { outer, fps, nestedValue, undo, restoredLoaded, extraUndo, redo, redoneValue,
+        refusals: refusals.length, changes };
+    });
+    expect(result).toEqual({ outer: false, fps: 12, nestedValue: 0.4, undo: true,
+      restoredLoaded: true, extraUndo: false, redo: true, redoneValue: 0.4,
+      refusals: 1, changes: ['execute', 'undo', 'redo'] });
+  });
+
   test('keeps all fixture editors active across modeled persisted transitions and cleans up on final departure', async ({ page }) => {
     const result = await page.evaluate(() => {
       const fixture = window.propertyApi as IPropertyApiFixture;

@@ -12,11 +12,9 @@
 import type { PropertyDescriptor } from '@werddomain/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import type { SetPropertyOptions } from '../../../core/editor/types';
-import { readTargetInfo } from '../../../core/stage/targetInfo';
+import { createStagePropertyEditContext } from '../../../core/stage/propertyEditContext';
 import { SetPropertyCommand } from '../../../model/properties/SetPropertyCommand';
-import { PropertyOperationError } from '../../../model/properties/propertyValue';
 import { getTargetPropertyNames } from '../../../model/properties/targetProperties';
-import type { IPropertyEditContext } from '../../../model/properties/targetProperties';
 import { findLayer } from '../../../model/spans/layerAccess';
 import type { IPropertyKeyframesService } from './types';
 
@@ -50,24 +48,14 @@ export class PropertyKeyframesPlugin implements EditorPlugin {
     const ctx = this.requireContext();
     const layer = findLayer(ctx.document, layerId);
     if (layer === undefined) return Object.freeze([]);
-    const names = new Set(getTargetPropertyNames(layer.target, this.editContext(ctx)));
+    const names = new Set(getTargetPropertyNames(layer.target, createStagePropertyEditContext(ctx.registry, ctx.stage.stages)));
     return Object.freeze(ctx.registry.list().filter(({ name }) => names.has(name)));
   }
 
   private setProperty(layerId: string, name: string, value: number, options: SetPropertyOptions = {}): boolean {
     const ctx = this.requireContext();
     const frame = options.frame === undefined ? ctx.playback.frame : options.frame;
-    return ctx.commands.execute(new SetPropertyCommand(layerId, name, value, frame, this.editContext(ctx)));
-  }
-
-  private editContext(ctx: IEditorContext): IPropertyEditContext {
-    return {
-      registry: ctx.registry,
-      describe: (target) => {
-        try { return readTargetInfo(ctx.stage.stages, target); }
-        catch { throw new PropertyOperationError('Les propriétés de la cible sont indisponibles.'); }
-      }
-    };
+    return ctx.commands.execute(new SetPropertyCommand(layerId, name, value, frame, createStagePropertyEditContext(ctx.registry, ctx.stage.stages)));
   }
 
   private requireContext(): IEditorContext {

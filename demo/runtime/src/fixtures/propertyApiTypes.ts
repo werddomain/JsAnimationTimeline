@@ -1,6 +1,6 @@
 // demo/runtime/src/fixtures/propertyApiTypes.ts
 import type { IEditor } from '@werddomain/timeline-editor';
-import type { ITargetInfo } from '@werddomain/timeline-runtime';
+import type { ITargetInfo, ITimelineDocument } from '@werddomain/timeline-runtime';
 
 /** Public API handles for the permanent property contract browser fixture. */
 export interface IPropertyApiFixture {
@@ -12,6 +12,7 @@ export interface IPropertyApiFixture {
   readonly refusals: readonly string[];
   readonly changes: readonly string[];
   seek(frame: number): Promise<void>;
+  loadObjectOnMetadata(document: ITimelineDocument): void;
   setObjectProperties(properties: ITargetInfo['properties']): void;
 }
 

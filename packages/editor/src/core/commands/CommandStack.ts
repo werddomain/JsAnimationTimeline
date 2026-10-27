@@ -19,9 +19,11 @@
  *    appelle `command.do(doc)` ; une `CommandRefusedError` émet
  *    `command:refused` { reason } et retourne `false` ; toute autre erreur est
  *    propagée (document et historique inchangés) ;
- * 3. si `do` retourne la même référence, c'est un no-op : `false`, rien n'est
+ * 3. si le document ou l'historique a changé pendant `do`, refuse la
+ *    commande périmée sans annuler les effets imbriqués ;
+ * 4. si `do` retourne la même référence, c'est un no-op : `false`, rien n'est
  *    enregistré ;
- * 4. sinon l'historique est mis à jour (la pile « rétablir » est vidée), le
+ * 5. sinon l'historique est mis à jour (la pile « rétablir » est vidée), le
  *    document est écrit (`document:changed`, cause `execute`), puis
  *    `history:changed` est émis. Les deux états sont à jour avant la
  *    première émission. Un gestionnaire de `document:changed` peut donc
@@ -102,6 +104,8 @@ export class CommandStack {
   private undoEntries: readonly ICommand[] = [];
   private redoEntries: readonly ICommand[] = [];
   private group: IGroupState | undefined;
+  private generation = 0;
+  private lifecycleGeneration = 0;
 
   /**
    * @internal Réservé à `Store.createCommandStack()`, qui fournit le
@@ -142,8 +146,13 @@ export class CommandStack {
 
   /** Exécute `command` ; retourne `true` si le document a changé. */
   execute(command: ICommand): boolean {
+    const lifecycleGeneration = this.lifecycleGeneration;
     if (!this.bus.emitCancellable('command:before', { command, document: this.writer.document })) {
       this.bus.emit('command:refused', { command, reason: CANCELLED_REASON });
+      return false;
+    }
+    if (lifecycleGeneration !== this.lifecycleGeneration) {
+      this.bus.emit('command:refused', { command, reason: 'La commande a été annulée car l’éditeur a été détruit.' });
       return false;
     }
     // Relu après le veto : un gestionnaire a pu modifier le document (réentrance).
@@ -151,6 +160,7 @@ export class CommandStack {
     const next = this.apply(command, () => command.do(current));
     if (next === undefined || next === current) return false;
     if (this.group !== undefined) {
+      this.generation++;
       this.group = { ...this.group, commands: [...this.group.commands, command] };
       this.writer.commit(next, { cause: 'execute', label: command.label });
       return true;
@@ -167,6 +177,7 @@ export class CommandStack {
     if (command === undefined) return false;
     const next = this.apply(command, () => command.undo(this.writer.document));
     if (next === undefined) return false;
+    this.generation++;
     this.undoEntries = this.undoEntries.slice(0, -1);
     this.redoEntries = [...this.redoEntries, command];
     this.commitAndNotify(next, 'undo', command.label);
@@ -180,14 +191,22 @@ export class CommandStack {
     if (command === undefined) return false;
     const next = this.apply(command, () => command.do(this.writer.document));
     if (next === undefined) return false;
+    this.generation++;
     this.redoEntries = this.redoEntries.slice(0, -1);
     this.undoEntries = this.capped([...this.undoEntries, command]);
     this.commitAndNotify(next, 'redo', command.label);
     return true;
   }
 
+  /** @internal Invalide les transformations en cours sans modifier l'historique. */
+  invalidatePending(): void {
+    this.lifecycleGeneration++;
+    this.generation++;
+  }
+
   /** Vide l'historique, abandonne un regroupement en cours et émet `history:changed`. */
   clear(): void {
+    this.generation++;
     this.undoEntries = [];
     this.redoEntries = [];
     this.group = undefined;
@@ -201,6 +220,7 @@ export class CommandStack {
         `CommandStack : impossible de démarrer le regroupement « ${label} », « ${this.group.label} » est déjà en cours.`
       );
     }
+    this.generation++;
     this.group = { label, snapshot: this.writer.document, commands: [] };
     this.emitHistoryChanged();
   }
@@ -227,10 +247,16 @@ export class CommandStack {
     this.commitAndNotify(group.snapshot, 'group-cancel', group.label);
   }
 
-  /** Appelle `transform` ; traduit une `CommandRefusedError` en refus (`undefined`). */
+  /** Refuse une transformation périmée et traduit une `CommandRefusedError`. */
   private apply(command: ICommand, transform: () => ITimelineDocument): ITimelineDocument | undefined {
+    const generation = this.generation;
     try {
-      return transform();
+      const next = transform();
+      if (generation !== this.generation) {
+        this.bus.emit('command:refused', { command, reason: 'La commande a été annulée car le document ou son historique a changé.' });
+        return undefined;
+      }
+      return next;
     } catch (error) {
       if (!(error instanceof CommandRefusedError)) throw error;
       this.bus.emit('command:refused', { command, reason: error.reason });
@@ -240,6 +266,7 @@ export class CommandStack {
 
   /** Ajoute une entrée annulable (plafonnée) et vide la pile « rétablir ». */
   private record(command: ICommand): void {
+    this.generation++;
     this.undoEntries = this.capped([...this.undoEntries, command]);
     this.redoEntries = [];
   }
@@ -268,6 +295,7 @@ export class CommandStack {
     if (group === undefined) {
       throw new Error(`CommandStack : « ${operation} » appelé sans regroupement en cours (beginGroup).`);
     }
+    this.generation++;
     this.group = undefined;
     return group;
   }

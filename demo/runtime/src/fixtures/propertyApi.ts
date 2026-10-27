@@ -63,12 +63,21 @@ const objectStage = createObjectStage({
     element('property-volume').textContent = String(target.volume);
   }
 });
+let loadOnMetadata: ITimelineDocument | undefined;
 const objectEditor = createEditor(element('property-object-editor'), {
   defaultPlugins: false,
   stage: {
     ...objectStage,
     // Exercise the real stage's list/subscribe fallback for an unscoped ref.
-    targets: { ...objectStage.targets, list: () => objectStage.targets?.list() ?? [], describe: undefined }
+    targets: { ...objectStage.targets, list: () => {
+      const loaded = loadOnMetadata;
+      if (loaded !== undefined) {
+        loadOnMetadata = undefined;
+        objectEditor.load(loaded);
+        objectEditor.setProperty('object', 'volume', 0.4);
+      }
+      return objectStage.targets?.list() ?? [];
+    }, describe: undefined }
   },
   registry, data: plainData
 });
@@ -83,6 +92,9 @@ const fixture: IPropertyApiFixture = {
     editor.playback.seek(frame);
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  },
+  loadObjectOnMetadata(document: ITimelineDocument): void {
+    loadOnMetadata = document;
   },
   setObjectProperties(properties: ITargetInfo['properties']): void {
     objectStage.remove('object');
