@@ -1,7 +1,7 @@
 // e2e/playwright.config.ts
 import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
-import { editorPort } from '../tools/devPorts';
+import { editorPort, portFromEnv } from '../tools/devPorts';
 import { RUNTIME_DEMO_URL } from './runtime/demoUrl';
 
 const isCI = Boolean(process.env.CI);
@@ -31,6 +31,13 @@ export default defineConfig({
       command: 'npm run preview:demo --workspace packages/editor',
       cwd: REPO_ROOT,
       url: BASE_URL,
+      reuseExistingServer,
+      timeout: 60_000,
+    },
+    {
+      command: 'npm run preview:demo --workspace demo/editor',
+      cwd: REPO_ROOT,
+      url: `http://localhost:${portFromEnv('E2E_V2_EDITOR_PORT', 9002)}`,
       reuseExistingServer,
       timeout: 60_000,
     },

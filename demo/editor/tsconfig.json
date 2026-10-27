@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "baseUrl": ".",
+    "types": [],
+    "paths": {
+      "@werddomain/timeline-runtime": ["../../packages/runtime/src/index.ts"],
+      "@werddomain/timeline-editor": ["../../packages/editor/src/index.ts"],
+      "@werddomain/timeline-export-css": ["../../packages/export-css/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

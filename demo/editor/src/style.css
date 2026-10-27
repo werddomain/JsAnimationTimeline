@@ -1,0 +1,14 @@
+/* demo/editor/src/style.css */
+:root { font-family: Georgia, serif; color: #24373b; background: #f3f0e9; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 1500px; margin: auto; padding: 32px; }
+header { margin-bottom: 28px; } h1 { font-size: clamp(2rem, 5vw, 3.5rem); margin: .25em 0; }
+h2 { font-size: 1.1rem; } p, nav, label, button, select { font-family: system-ui, sans-serif; }
+.eyebrow { text-transform: uppercase; letter-spacing: .13em; color: #a43d24; font-size: .75rem; font-weight: bold; }
+a { color: #a43d24; } section { margin: 18px 0; } .scene, canvas { display: block; background: #e3e8df; border: 1px solid #bccdc3; max-width: 100%; }
+.scene { height: 160px; position: relative; overflow: hidden; } #logo, #orb { position: absolute; top: 45px; width: 65px; height: 65px; display: grid; place-items: center; }
+#logo { left: 35px; color: white; background: #a43d24; font: bold 18px system-ui; } #orb { left: 35px; top: 105px; width: 30px; height: 30px; border-radius: 50%; background: #218779; }
+#editor-host { height: 430px; } button, select { padding: .5em; } canvas { margin-top: 16px; }
+
+#editor-host > .JsTimeLine { width: 100%; height: 100%; }

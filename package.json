@@ -9,6 +9,7 @@
     "packages/export-css",
     "tools/conventions",
     "demo/runtime",
+    "demo/editor",
     "dotnet/JsTimeline.Blazor.JsTests",
     "e2e"
   ],
