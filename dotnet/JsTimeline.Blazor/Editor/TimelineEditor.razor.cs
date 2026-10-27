@@ -79,9 +79,19 @@ public sealed partial class TimelineEditor : ComponentBase, IAsyncDisposable
         if (!ReferenceEquals(Data, _appliedData) && !ReferenceEquals(Data, _refusedData))
         {
             var data = Data;
+            var revision = _revision;
+            string json;
+            try { json = TimelineJson.Serialize(data); }
+            catch (Exception error)
+            {
+                _refusedData = data;
+                try { await _editor.InvokeVoidAsync("setRevision", revision); }
+                catch (Exception syncError) { return new AggregateException(error, syncError); }
+                return error;
+            }
             try
             {
-                await _editor.InvokeVoidAsync("load", TimelineJson.Serialize(data), _revision);
+                await _editor.InvokeVoidAsync("load", json, revision);
                 _appliedData = data;
                 _refusedData = null;
             }
@@ -194,14 +204,3 @@ public sealed partial class TimelineEditor : ComponentBase, IAsyncDisposable
         if (!_creating) { try { await ReleaseAsync(); } catch (Exception error) when (error is JSDisconnectedException or JSException or OperationCanceledException) { } finally { _receiver?.Dispose(); } }
     }
 }
-
-
-
-
-
-
-
-
-
-
-

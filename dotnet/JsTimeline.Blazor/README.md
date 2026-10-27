@@ -99,6 +99,8 @@ référence stable tant que le document ne change pas. `OnFrame` reçoit les cha
 `Stage` vaut `TimelineStageOption.Html()` par défaut ; choisir `None()`, `JsModule(path)` (module
 exportant `createStage()`) ou `DotNet(stage, mode)` pour une autre scène. Changer de scène recrée
 l'éditeur et son historique. Fournir les styles `_content/JsTimeline.Blazor/css/timeline-editor.css`.
+Le chemin de `JsModule` charge et exécute du code JavaScript dans la page : il doit provenir
+d'une configuration fiable ou d'une liste explicite de modules autorisés, jamais d'une saisie non fiable.
 
 Avec une référence au composant, `ImportAsync(json)` valide et importe par une commande annulable ;
 `UndoAsync()` la restaure. `ExportAsync()` retourne le JSON courant ; `RedoAsync()` et

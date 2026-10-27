@@ -49,6 +49,7 @@ public sealed class TimelineEditorTests : BunitContext
         var next = Document(48);
         cut.Render(p => p.Add(x => x.Data, next));
         cut.WaitForAssertion(() => Assert.Equal(TimelineJson.Serialize(next), Assert.Single(_editor.Invocations["load"]).Arguments[0]));
+        Assert.Empty(_editor.Invocations["setRevision"]);
     }
 
     [Fact]
@@ -161,13 +162,25 @@ public sealed class TimelineEditorTests : BunitContext
         await cut.Instance.StageError("old stage", 1);
         Assert.Equal(0, frames);
         Assert.Equal(0, errors);
+    }    [Fact]
+    public async Task Refused_document_keeps_editor_notifications_enabled()
+    {
+        _editor.SetupVoid("load", _ => true).SetException(new JSException("invalid"));
+        var frames = 0;
+        var cut = Render<TimelineEditor>(p => p.Add(x => x.Data, Document()).Add(x => x.OnError, (Exception _) => { }).Add(x => x.OnFrame, (int _) => frames++));
+        cut.Render(p => p.Add(x => x.Data, Document(48)));
+        Assert.Equal(2L, Assert.Single(_editor.Invocations["load"]).Arguments[1]);
+        await cut.Instance.FrameChanged(3, 2);
+        Assert.Equal(1, frames);
+    }    [Fact]
+    public async Task Serialization_failure_keeps_the_old_editor_notifying()
+    {
+        var frames = 0;
+        var cut = Render<TimelineEditor>(p => p.Add(x => x.Data, Document()).Add(x => x.OnError, (Exception _) => { }).Add(x => x.OnFrame, (int _) => frames++));
+        var invalid = Document() with { Layers = [new Layer { Id = "l", Name = "L", Target = new LayerTarget { Selector = "#x", Ref = "x" }, Spans = [] }] };
+        cut.Render(p => p.Add(x => x.Data, invalid));
+        Assert.Equal(2L, Assert.Single(_editor.Invocations["setRevision"]).Arguments[0]);
+        Assert.Empty(_editor.Invocations["load"]);
+        await cut.Instance.FrameChanged(3, 2);
+        Assert.Equal(1, frames);
     }}
-
-
-
-
-
-
-
-
-

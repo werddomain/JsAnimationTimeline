@@ -20,7 +20,8 @@ export async function createTimelineEditor(root, json, kind, path, dotnetStage, 
   ];
   const persistence = editor.getService('persistence.json');
   return {
-    load: (value, nextRevision) => { editor.load(JSON.parse(value)); revision = nextRevision; },
+    setRevision: nextRevision => { revision = nextRevision; },
+    load: (value, nextRevision) => { revision = nextRevision; editor.load(JSON.parse(value)); },
     importDocument: value => persistence.importDocument(value).applied,
     exportJson: () => persistence.exportJson(),
     undo: () => editor.undo(),
@@ -29,6 +30,3 @@ export async function createTimelineEditor(root, json, kind, path, dotnetStage, 
     destroy: () => { if (!destroyed) { destroyed = true; off.forEach(unsubscribe => unsubscribe()); editor.destroy(); } },
   };
 }
-
-
-
