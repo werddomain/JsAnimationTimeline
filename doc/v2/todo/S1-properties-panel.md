@@ -8,13 +8,13 @@ The optional `properties.panel` plugin adds a persistent inspector beside the ti
 - Dependencies: `layout.shell`, `layers.selection`, `tweens.propertyKeyframes`. Rendering uses the existing `ROOT_SLOT`; the inspector is the root's second child. The plugin owns its root class, DOM, handlers and service. No new core, slot or runtime contract is introduced.
 - Normal inspection uses exactly one layer selection and the integer playback frame. Frame-grid selection is independent. Folders, missing selection and multiple selection have French explanatory states.
 - `focusAt(layerId, frame): boolean` validates the real layer and integer frame, explicitly selects the layer, verifies the accepted selection, seeks and focuses the inspector. `toolbar:editKeyframe` calls this method; `inTween` never grants access. Synchronous callbacks after selection, seek, metadata/sample reads and focus can invalidate the operation.
-- Property discovery and writes exclusively use W2 `propertiesFor()` and `setProperty(..., { frame })`. Fresh descriptors reflect routed target permissions. Absent target metadata retains the existing W2 registry fallback; an explicitly empty permission list permits no properties. No target object is resolved by the panel.
+- Property discovery uses W2 `propertiesFor()`. Edits execute the same `SetPropertyCommand` and shared `createStagePropertyEditContext` as W2, inside a local initial-confirmation guard. Fresh descriptors reflect routed target permissions. Absent target metadata retains the existing W2 registry fallback; an explicitly empty permission list permits no properties. No target object is resolved by the panel.
 - Values come from `ctx.playback.sample(frame).layer(layerId)`, exactly as `editor.sample(frame)`. Missing own properties use the descriptor default with a visible origin note. Built-in labels have French fallbacks; nonblank custom registry labels and units are preserved. Blank custom labels fall back to the property name to keep inputs accessible. Own-property checks support names such as `toString`.
 - Fields show evaluated values and a stored-key note when present. Nonlinear easing is never inverted. Numeric input accepts finite numbers; it adds no clamp or HTML min/max. Runtime evaluation remains authoritative, including existing static/tween semantics.
 - Input creates a draft even when its number equals the sample. Only Apply or Enter submits it. Focus, untouched Enter and blur do not write. Escape restores the latest display. A new explicit key equal to the sample changes history; an identical existing key does not. Static edits retain the static span and write at its start through W2.
 - Playing, direct/inherited locks and blank/missing content remain inspectable but readonly. Pause and natural completion refresh the panel through existing playback events. There is no panel timer.
 - Document, selected IDs, integer frame, playback and stage metadata changes invalidate drafts. A focus-only event with the same selected IDs preserves a draft. Direct subscriptions to each stage's `targets.subscribe` handle capability-only changes that do not emit `stage:targetsChanged`.
-- Context tickets are checked after developer metadata/interpolation callbacks and before writing. Nested refreshes cannot repaint an obsolete target. Removed controls lose their handlers; retained services reject use after destruction. Ordinary refresh and commit preserve an existing input's focus.
+- Context tickets are checked after preliminary metadata/interpolation callbacks and before/after the initial `do`. Nested refreshes cannot repaint an obsolete target. Removed controls lose their handlers; retained services reject use after destruction. Ordinary refresh and commit preserve an existing input's focus.
 - The plugin's scoped LESS reserves a right column (default 280px, `--jt-properties-width`) and places the inspector below the timeline below 768px. Both the inspector and narrow toolbar can scroll.
 
 ## Permanent validation assets
@@ -56,9 +56,9 @@ The parent owns shared exports, exact export tests, Vite input, demo navigation,
 
 
 
-## Review follow-up — second-query reentrancy (RED pending C3b)
+## Review follow-up — second-query reentrancy (initial RED)
 
-The earlier GREEN evidence above covers the initial S1 implementation. General review identified a second callback boundary inside W2's `SetPropertyCommand.do`, after S1's preliminary confirmation guard. The following permanent regressions now reproduce the outstanding defect against S1 HEAD `612a5df` without changing panel production code.
+The earlier GREEN evidence above covers the initial S1 implementation. General review identified a second callback boundary inside W2's `SetPropertyCommand.do`, after S1's preliminary confirmation guard. The following permanent regressions first reproduced the defect against S1 HEAD `612a5df`, with panel production code unchanged during the RED step.
 
 - Seven Jest cases arm a one-shot metadata callback on the second query after Enter. A trace verifies the order `panel-query → command:before → command-query`.
 - Cases cover selection clear, seek to frame 9, play, loading a distinct document, selection clear/reselect, play/pause and destruction. They preserve the callback's visible effects and require the document and command history to have no outer edit. Retained context readers expose accidental writes even after destruction.
@@ -67,7 +67,7 @@ The earlier GREEN evidence above covers the initial S1 implementation. General r
 - The fixture's `armSecondPropertyRead` only arms a one-shot callback; unarmed runs retain ordinary metadata behavior. It counts fired callbacks so the tests require the intended boundary to be reached.
 - Actual RED: 7/7 Jest regressions and 6/6 Chromium regressions fail because a key is still inserted at frame 6. The load case additionally demonstrates that the replacement document (30 fps, 24 frames, replacement layer names) is overwritten with the old document (24 fps, 20 frames).
 - Evidence: `phase6-validation/s1-second-query-jest-red.log` and `s1-second-query-playwright-red.log`. Fixture/demo and E2E typechecks plus scoped lint pass. The fixture builds successfully.
-- Production correction is intentionally deferred until the parent integrates C3b's shared command helper and global protection. No panel production file was modified during this RED step.
+- No panel production file was modified during this RED step; the integrated correction is described below.
 
 ```powershell
 npm test --workspace packages/editor -- --runInBand --runTestsByPath src/plugins/properties/panel/__tests__/PropertiesPanelPlugin.test.ts --testNamePattern=second-query
@@ -78,3 +78,23 @@ $env:E2E_RUNTIME_PORT='9351'
 npm run e2e --workspace e2e -- validation/properties-panel.spec.ts --grep=second-query --workers=1 --retries=0
 ```
 
+## Integrated local guard after C3b
+
+C3b's global command generation guard and `createStagePropertyEditContext` are now integrated. The panel adds a local `GuardedPropertyCommand` around the same `SetPropertyCommand`, using that shared strict metadata context. It does not duplicate the property-writing or permission policy.
+
+- The UI ticket is checked before and after the initial `do`. A stale ticket throws `CommandRefusedError` inside the command boundary, so the stack records no outer edit while preserving callbacks and their observable events.
+- A separate context generation tracks observable document, playback, playhead and selected-ID changes. It catches selection and play/pause round trips; identical selected IDs and focus-only selection events remain accepted. Metadata revisions and the existing live-state check remain in force.
+- The original draft is also invalidated if those observable round trips occur during the preliminary metadata query.
+- After the first successful `do`, redo and undo delegate directly to `SetPropertyCommand`. They keep the normal current permission checks and can run after the UI selection/frame has changed.
+- Nested property edits, loaded replacement documents, destruction, emitted selection/play/pause/load events and refusals are covered. The wrapper does not restore an old UI state or roll back callback effects.
+- Contract limit: a seek away and back that is coalesced without an observable playhead event, and leaves the final frame unchanged, cannot be distinguished through the existing playback contract. No detection of that unobservable round trip is claimed.
+
+After C3b alone, the local regressions still showed nine failures (five command-time UI changes and four `command:before` changes). The local guard resolves them. Final focused validation:
+
+- Jest: **64/64 pass**, including positive identical-selection/focus-only cases, later edits, exact undo/redo after selection/frame changes and preservation of an inner command.
+- Coverage of panel TypeScript: **96.57% statements, 91.74% branches, 98.30% functions, 99.61% lines**. `GuardedPropertyCommand.ts` has 100% in all four measures.
+- Chromium: **20/20 pass**, no retries and no collected page errors, console warnings/errors or failed requests. The original 14 scenarios remain alongside the six second-query regressions.
+- Editor/demo/E2E typechecks, scoped ESLint, editor build and permanent fixture build pass.
+- Evidence: `phase6-validation/s1-after-c3b-red.log`, `s1-local-guard-jest-green.log`, `s1-local-guard-playwright-green.log` and `s1-local-guard-coverage-final.json`.
+
+These results are scoped to S1. Full repository gates and independent reviews remain the parent's responsibility.

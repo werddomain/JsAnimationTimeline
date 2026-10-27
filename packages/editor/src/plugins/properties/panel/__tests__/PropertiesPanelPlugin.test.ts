@@ -564,6 +564,15 @@ describe('property commands invalidate the original draft during their own metad
       ctx.events.onCancellable('command:before', () => { trace.push('command'); });
       ctx.events.on('document:changed', ({ cause }) => { changes.push(cause); });
       service.focusAt('main', 6);
+      const selections: string[][] = [];
+      const playback: string[] = [];
+      const refusals: string[] = [];
+      let loads = 0;
+      ctx.events.on('layers:selectionChanged', ({ ids }) => { selections.push([...ids]); });
+      ctx.events.on('playback:play', () => { playback.push('play'); });
+      ctx.events.on('playback:pause', () => { playback.push('pause'); });
+      ctx.events.on('document:loaded', () => { ++loads; });
+      ctx.events.on('command:refused', ({ reason }) => { refusals.push(reason); });
       const field = input(editor);
       draft(field, '75');
       // First query: S1's confirmation guard. Second query: SetPropertyCommand.do.
@@ -597,6 +606,12 @@ describe('property commands invalidate the original draft during their own metad
         expect(ctx.commands.canUndo).toBe(false);
         expect(ctx.commands.canRedo).toBe(false);
         if (change === 'destroy') return;
+        expect(refusals).toHaveLength(1);
+        expect(refusals[0].length).toBeGreaterThan(0);
+        expect(loads).toBe(change === 'load' ? 1 : 0);
+        expect(selections).toEqual(change === 'selection-roundtrip' ? [[], ['main']] :
+          change === 'selection' || change === 'load' ? [[]] : []);
+        expect(playback).toEqual(change === 'playback-roundtrip' ? ['play', 'pause'] : change === 'playback' ? ['play'] : []);
         editor.playback.pause();
         expect(service.focusAt('main', 6)).toBe(true);
         const recovered = editor.document;
@@ -616,4 +631,97 @@ describe('property commands invalidate the original draft during their own metad
       }
     }
   );
+});
+
+describe('the initial property command context boundary', () => {
+  it.each(['selection', 'frame', 'playback', 'load', 'destroy'] as const)(
+    'refuses stale context changed by command:before (%s)', (change) => {
+      const { editor, service, ctx, selection } = metadataSetup();
+      const before = editor.document;
+      const loaded: ITimelineDocument = { ...before, settings: { fps: 30, totalFrames: 24 } };
+      let armed = true;
+      ctx.events.onCancellable('command:before', () => {
+        if (!armed) return;
+        armed = false;
+        if (change === 'selection') selection.clear();
+        else if (change === 'frame') editor.playback.seek(9);
+        else if (change === 'playback') editor.playback.play();
+        else if (change === 'load') editor.load(loaded);
+        else editor.destroy();
+      });
+      try {
+        service.focusAt('main', 6);
+        draft(input(editor), '75');
+        enter(input(editor));
+        expect(armed).toBe(false);
+        expect(ctx.document).toBe(change === 'load' ? loaded : before);
+        expect(ctx.commands.canUndo).toBe(false);
+      } finally { editor.destroy(); }
+    }
+  );
+
+  it.each(['identical-selection', 'focus-only-event'] as const)(
+    'allows the second query to report %s and keeps undo/redo independent of UI context', (change) => {
+      const { editor, service, ctx, selection, onQuery } = metadataSetup();
+      try {
+        service.focusAt('main', 6);
+        const before = editor.document;
+        draft(input(editor), '75');
+        onQuery(() => onQuery(() => {
+          if (change === 'identical-selection') selection.select(['main']);
+          else ctx.events.emit('layers:selectionChanged', { ids: ['main'], previous: ['main'], focused: 'main' });
+        }));
+        enter(input(editor));
+        const changed = editor.document;
+        expect(editor.sample(6).layer('main')?.values.x).toBe(75);
+        selection.clear();
+        editor.playback.seek(9);
+        expect(editor.undo()).toBe(true);
+        expect(editor.document).toEqual(before);
+        expect(editor.redo()).toBe(true);
+        expect(editor.document).toEqual(changed);
+      } finally { editor.destroy(); }
+    }
+  );
+
+  it('preserves an inner property command and records no outer edit on the second query', () => {
+    const { editor, service, onQuery } = metadataSetup();
+    try {
+      service.focusAt('main', 6);
+      const before = editor.document;
+      let nested: ITimelineDocument | undefined;
+      draft(input(editor), '75');
+      onQuery(() => onQuery(() => {
+        expect(editor.setProperty('main', 'x', 33, { frame: 5 })).toBe(true);
+        nested = editor.document;
+      }));
+      enter(input(editor));
+      expect(editor.document).toBe(nested);
+      const layer = editor.document.layers[0];
+      expect(layer.type === 'layer' && layer.spans[0].tracks?.x).toEqual([
+        { frame: 1, value: 0 }, { frame: 5, value: 33 }, { frame: 11, value: 100 }
+      ]);
+      expect(editor.undo()).toBe(true);
+      expect(editor.document).toEqual(before);
+      expect(editor.canUndo).toBe(false);
+      expect(editor.redo()).toBe(true);
+      expect(editor.document).toEqual(nested);
+    } finally { editor.destroy(); }
+  });
+});
+
+it.each(['selection', 'playback'] as const)('rejects observable %s round trips during the preliminary query too', (change) => {
+  const { editor, service, selection, onQuery } = metadataSetup();
+  try {
+    service.focusAt('main', 6);
+    const before = editor.document;
+    draft(input(editor), '75');
+    onQuery(() => {
+      if (change === 'selection') { selection.clear(); selection.select(['main']); }
+      else { editor.playback.play(); editor.playback.pause(); }
+    });
+    enter(input(editor));
+    expect(editor.document).toBe(before);
+    expect(editor.canUndo).toBe(false);
+  } finally { editor.destroy(); }
 });

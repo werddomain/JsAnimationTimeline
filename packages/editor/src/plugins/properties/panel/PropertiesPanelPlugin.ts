@@ -4,10 +4,13 @@
  * Epic: properties (optional)
  * Depends on: layout.shell, layers.selection, tweens.propertyKeyframes
  * Listens: document changes, layer selection, playback, stage metadata, toolbar:editKeyframe
- * Emits: none (edits use the W2 command service)
+ * Emits: none (edits use the shared W2 command and metadata policy)
  */
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import { assertFrame, findLayer } from '../../../model/spans/layerAccess';
+import { SetPropertyCommand } from '../../../model/properties/SetPropertyCommand';
+import { createStagePropertyEditContext } from '../../../core/stage/propertyEditContext';
+import { GuardedPropertyCommand } from './GuardedPropertyCommand';
 import type {} from '../../toolbar/keyframeActions/types';
 import { PanelView } from './PanelView';
 import { readPanelState, samePanelContext } from './panelState';
@@ -28,6 +31,7 @@ export class PropertiesPanelPlugin implements EditorPlugin {
   private revision = 0;
   private focusToken = 0;
   private refreshVersion = 0;
+  private contextGeneration = 0;
 
   readonly init = (ctx: IEditorContext): void => {
     this.ctx = ctx;
@@ -37,10 +41,14 @@ export class PropertiesPanelPlugin implements EditorPlugin {
       const service: IPropertiesPanelService = Object.freeze({ focusAt: (id: string, frame: number) => this.focusAt(id, frame) });
       this.cleanups.push(ctx.services.provide(PROPERTIES_PANEL_PLUGIN_ID, service));
       const refresh = (): void => this.refresh();
-      this.cleanups.push(ctx.events.on('document:changed', refresh), ctx.events.on('document:loaded', refresh),
-        ctx.events.on('layers:selectionChanged', refresh), ctx.events.on('playhead:changed', refresh),
-        ctx.events.on('playback:play', refresh), ctx.events.on('playback:pause', refresh),
-        ctx.events.on('playback:complete', refresh), ctx.events.on('stage:targetsChanged', () => this.metadataChanged()),
+      const invalidate = (): void => { ++this.contextGeneration; this.refresh(); };
+      this.cleanups.push(ctx.events.on('document:changed', invalidate), ctx.events.on('document:loaded', invalidate),
+        ctx.events.on('layers:selectionChanged', ({ ids, previous }) => {
+          if (ids.length !== previous.length || ids.some((id, i) => id !== previous[i])) invalidate();
+          else refresh();
+        }), ctx.events.on('playhead:changed', invalidate),
+        ctx.events.on('playback:play', invalidate), ctx.events.on('playback:pause', invalidate),
+        ctx.events.on('playback:complete', invalidate), ctx.events.on('stage:targetsChanged', () => this.metadataChanged()),
         ctx.events.on('toolbar:editKeyframe', ({ layerId, frame }) => { this.focusAt(layerId, frame); }));
       for (const stage of ctx.stage.stages) {
         const remove = stage.targets?.subscribe?.(() => this.metadataChanged());
@@ -60,6 +68,7 @@ export class PropertiesPanelPlugin implements EditorPlugin {
     const ctx = this.ctx;
     this.ctx = undefined;
     ++this.focusToken;
+    ++this.contextGeneration;
     const view = this.view;
     this.view = undefined;
     view?.destroy();
@@ -90,12 +99,16 @@ export class PropertiesPanelPlugin implements EditorPlugin {
   private commit(ticket: IPanelState, name: string, value: number): void {
     const ctx = this.ctx;
     if (ctx === undefined) return;
+    const generation = this.contextGeneration;
     const fresh = readPanelState(ctx, this.revision);
     if (this.ctx !== ctx) return;
-    if (!this.isCurrent(ctx, fresh) || !samePanelContext(ticket, fresh) || fresh.reason !== '' || fresh.layerId === undefined ||
+    if (generation !== this.contextGeneration || !this.isCurrent(ctx, fresh) || !samePanelContext(ticket, fresh) || fresh.reason !== '' || fresh.layerId === undefined ||
         !fresh.fields.some(({ descriptor }) => descriptor.name === name)) { this.refresh(); return; }
-    // Re-querying W2 above and its command below both fail closed on metadata errors.
-    ctx.services.require('tweens.propertyKeyframes').setProperty(fresh.layerId, name, value, { frame: fresh.frame });
+    const command = new SetPropertyCommand(fresh.layerId, name, value, fresh.frame,
+      createStagePropertyEditContext(ctx.registry, ctx.stage.stages));
+    // Keep the same W2 command and strict metadata policy inside a local first-do guard.
+    ctx.commands.execute(new GuardedPropertyCommand(command, () =>
+      generation === this.contextGeneration && this.isCurrent(ctx, fresh)));
     this.refresh(true);
   }
 
@@ -135,4 +148,3 @@ export class PropertiesPanelPlugin implements EditorPlugin {
 }
 
 export function createPropertiesPanelPlugin(): PropertiesPanelPlugin { return new PropertiesPanelPlugin(); }
-
