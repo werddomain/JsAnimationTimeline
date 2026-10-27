@@ -15,6 +15,7 @@ module.exports = {
     // The tests run before any build: the runtime copied into wwwroot/js is read from its sources,
     // as one module shared with the editor.
     '^\\.\\./js/timeline-runtime\\.mjs$': '<rootDir>/../../packages/runtime/src/index.ts',
+    '^\\.\\./js/timeline-editor\\.mjs$': '<rootDir>/../../packages/editor/src/index.ts',
     '^@werddomain/timeline-runtime$': '<rootDir>/../../packages/runtime/src/index.ts',
     '^@werddomain/timeline-editor$': '<rootDir>/../../packages/editor/src/index.ts'
   }
