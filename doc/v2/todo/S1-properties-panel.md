@@ -55,3 +55,26 @@ npm run e2e --workspace e2e -- validation/properties-panel.spec.ts --workers=1 -
 The parent owns shared exports, exact export tests, Vite input, demo navigation, the plan checkbox, full repository gates and independent ECC reviews. This implementation role does not claim those reviews, commit or create a PR.
 
 
+
+## Review follow-up — second-query reentrancy (RED pending C3b)
+
+The earlier GREEN evidence above covers the initial S1 implementation. General review identified a second callback boundary inside W2's `SetPropertyCommand.do`, after S1's preliminary confirmation guard. The following permanent regressions now reproduce the outstanding defect against S1 HEAD `612a5df` without changing panel production code.
+
+- Seven Jest cases arm a one-shot metadata callback on the second query after Enter. A trace verifies the order `panel-query → command:before → command-query`.
+- Cases cover selection clear, seek to frame 9, play, loading a distinct document, selection clear/reselect, play/pause and destruction. They preserve the callback's visible effects and require the document and command history to have no outer edit. Retained context readers expose accidental writes even after destruction.
+- Each nondestructive case also verifies that a later ordinary edit, undo and redo remain possible.
+- Six additional Chromium cases use the real object stage's `targets.describe` through the permanent fixture. They reproduce all nondestructive cases with real Enter events, the public editor API and the same strict per-page browser problem arrays. The original 14 scenarios remain present.
+- The fixture's `armSecondPropertyRead` only arms a one-shot callback; unarmed runs retain ordinary metadata behavior. It counts fired callbacks so the tests require the intended boundary to be reached.
+- Actual RED: 7/7 Jest regressions and 6/6 Chromium regressions fail because a key is still inserted at frame 6. The load case additionally demonstrates that the replacement document (30 fps, 24 frames, replacement layer names) is overwritten with the old document (24 fps, 20 frames).
+- Evidence: `phase6-validation/s1-second-query-jest-red.log` and `s1-second-query-playwright-red.log`. Fixture/demo and E2E typechecks plus scoped lint pass. The fixture builds successfully.
+- Production correction is intentionally deferred until the parent integrates C3b's shared command helper and global protection. No panel production file was modified during this RED step.
+
+```powershell
+npm test --workspace packages/editor -- --runInBand --runTestsByPath src/plugins/properties/panel/__tests__/PropertiesPanelPlugin.test.ts --testNamePattern=second-query
+npm run build:demo --workspace demo/runtime
+$env:CI='1'
+$env:E2E_EDITOR_PORT='9350'
+$env:E2E_RUNTIME_PORT='9351'
+npm run e2e --workspace e2e -- validation/properties-panel.spec.ts --grep=second-query --workers=1 --retries=0
+```
+

@@ -271,3 +271,56 @@ for (const width of [320, 768, 1024, 1440]) {
   });
 }
 
+
+for (const change of ['selection', 'frame', 'playback', 'load', 'selection-roundtrip', 'playback-roundtrip'] as const) {
+  test('refuses second-query ' + change + ' without overwriting the callback state', async ({ page }) => {
+    await focus(page, 'object', 6);
+    await field(page, 'volume').fill('0.75');
+    const expected = await page.evaluate((change) => {
+      const fixture = window.propertiesPanel as IPropertiesPanelFixture;
+      const { editor } = fixture;
+      const before = editor.document;
+      const loaded = { ...before, settings: { fps: 30, totalFrames: 24 },
+        layers: before.layers.map((node) => ({ ...node, name: 'Document de remplacement' })) };
+      fixture.armSecondPropertyRead(() => {
+        const selection = editor.getService('layers.selection');
+        if (change === 'selection') selection?.clear();
+        else if (change === 'frame') editor.playback.seek(9);
+        else if (change === 'playback') editor.playback.play();
+        else if (change === 'load') editor.load(loaded);
+        else if (change === 'selection-roundtrip') { selection?.clear(); selection?.select(['object']); }
+        else { editor.playback.play(); editor.playback.pause(); }
+      });
+      return change === 'load' ? loaded : before;
+    }, change);
+    await field(page, 'volume').press('Enter');
+    const result = await page.evaluate(() => {
+      const fixture = window.propertiesPanel as IPropertiesPanelFixture;
+      const { editor } = fixture;
+      return { callbacks: fixture.secondReadCallbackRuns, document: editor.document, changes: fixture.changes,
+        undo: editor.canUndo, redo: editor.canRedo, frame: editor.playback.frame, playing: editor.playback.playing,
+        selected: editor.getService('layers.selection')?.selected() };
+    });
+    expect(result.callbacks).toBe(1);
+    if (change === 'selection' || change === 'load') expect(result.selected).toEqual([]);
+    if (change === 'frame') expect(result.frame).toBe(9);
+    if (change === 'playback') expect(result.playing).toBe(true);
+    if (change === 'selection-roundtrip') expect(result.selected).toEqual(['object']);
+    if (change === 'playback-roundtrip') expect(result.playing).toBe(false);
+    expect(result.document).toEqual(expected);
+    expect(result.changes).toEqual([]);
+    expect([result.undo, result.redo]).toEqual([false, false]);
+    await expect(diamond(page, 'object')).toHaveCount(0);
+    await page.evaluate(() => window.propertiesPanel?.editor.playback.pause());
+    await focus(page, 'object', 6);
+    await field(page, 'volume').fill('0.9');
+    await field(page, 'volume').press('Enter');
+    await expect(diamond(page, 'object')).toBeVisible();
+    const changed = await page.evaluate(() => window.propertiesPanel?.editor.toJSON());
+    expect(await page.evaluate(() => window.propertiesPanel?.editor.undo())).toBe(true);
+    expect(await page.evaluate(() => window.propertiesPanel?.editor.toJSON())).toEqual(expected);
+    expect(await page.evaluate(() => window.propertiesPanel?.editor.redo())).toBe(true);
+    expect(await page.evaluate(() => window.propertiesPanel?.editor.toJSON())).toEqual(changed);
+  });
+}
+

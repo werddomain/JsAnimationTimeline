@@ -11,10 +11,11 @@ export interface IPropertiesPanelFixture {
   readonly metrics: IPropertiesPanelMetrics;
   readonly changes: readonly string[];
   readonly refusals: readonly string[];
+  readonly secondReadCallbackRuns: number;
+  armSecondPropertyRead(callback: () => void): void;
   seek(frame: number): Promise<void>;
   setCapabilities(properties: readonly string[]): void;
 }
 declare global {
   interface Window { propertiesPanel?: IPropertiesPanelFixture; }
 }
-

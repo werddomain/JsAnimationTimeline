@@ -50,9 +50,26 @@ const objects = createObjectStage({
     element('panel-volume').textContent = String(target.volume);
   }
 });
-const objectStage: IStage<{ volume: number }> = { ...objects, render(time, states): void {
-  objects.render?.(time, states); ++metrics.objectRenders; showMetrics();
-} };
+let pendingCommandQuery: (() => void) | undefined;
+let pendingCommandQueryReads = 0;
+let secondReadCallbackRuns = 0;
+const objectStage: IStage<{ volume: number }> = { ...objects,
+  targets: { ...objects.targets,
+    list: () => objects.targets?.list() ?? [],
+    describe(target) {
+      if (pendingCommandQuery !== undefined && --pendingCommandQueryReads === 0) {
+        const callback = pendingCommandQuery;
+        pendingCommandQuery = undefined;
+        ++secondReadCallbackRuns;
+        callback();
+      }
+      return objects.targets?.describe?.(target);
+    }
+  },
+  render(time, states): void {
+    objects.render?.(time, states); ++metrics.objectRenders; showMetrics();
+  }
+};
 const editor = createEditor(host, { data: data(), stage: [htmlStage, objectStage], plugins: [createPropertiesPanelPlugin()] });
 const secondary = createEditor(element('panel-secondary'), { data: data(), stage: false, plugins: [createPropertiesPanelPlugin()] });
 const service = editor.getService('properties.panel');
@@ -64,6 +81,12 @@ editor.on('document:changed', ({ cause }) => changes.push(cause));
 editor.on('command:refused', ({ reason }) => refusals.push(reason));
 const fixture: IPropertiesPanelFixture = {
   ready: true, editor, secondary, service, secondService, object, metrics, changes, refusals,
+  get secondReadCallbackRuns(): number { return secondReadCallbackRuns; },
+  armSecondPropertyRead(callback: () => void): void {
+    // Enter reads once in S1 and again inside the real W2 command.
+    pendingCommandQueryReads = 2;
+    pendingCommandQuery = callback;
+  },
   async seek(frame: number): Promise<void> {
     editor.playback.seek(frame);
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -78,4 +101,3 @@ window.propertiesPanel = fixture;
 window.addEventListener('pagehide', (event) => {
   if (!event.persisted) { editor.destroy(); secondary.destroy(); }
 });
-

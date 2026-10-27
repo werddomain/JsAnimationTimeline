@@ -547,3 +547,73 @@ it.each(['', '   '])('falls back to a usable accessible name for a blank custom 
   editor.destroy();
 });
 
+
+describe('property commands invalidate the original draft during their own metadata query', () => {
+  it.each(['selection', 'frame', 'playback', 'load', 'selection-roundtrip', 'playback-roundtrip', 'destroy'] as const)(
+    'refuses the outer property edit after second-query %s and preserves callback effects',
+    (change) => {
+      const { editor, service, selection, onQuery, ctx } = metadataSetup();
+      const trace: string[] = [];
+      const changes: string[] = [];
+      const before = editor.document;
+      const loaded: ITimelineDocument = { ...before,
+        settings: { fps: 30, totalFrames: 24 },
+        layers: before.layers.map((node) => ({ ...node, name: 'Loaded replacement' }))
+      };
+      let callbackRan = false;
+      ctx.events.onCancellable('command:before', () => { trace.push('command'); });
+      ctx.events.on('document:changed', ({ cause }) => { changes.push(cause); });
+      service.focusAt('main', 6);
+      const field = input(editor);
+      draft(field, '75');
+      // First query: S1's confirmation guard. Second query: SetPropertyCommand.do.
+      onQuery(() => {
+        trace.push('panel-query');
+        onQuery(() => {
+          trace.push('command-query');
+          callbackRan = true;
+          if (change === 'selection') selection.clear();
+          else if (change === 'frame') editor.playback.seek(9);
+          else if (change === 'playback') editor.playback.play();
+          else if (change === 'load') editor.load(loaded);
+          else if (change === 'selection-roundtrip') { selection.clear(); selection.select(['main']); }
+          else if (change === 'playback-roundtrip') { editor.playback.play(); editor.playback.pause(); }
+          else editor.destroy();
+        });
+      });
+      try {
+        enter(field);
+        expect(callbackRan).toBe(true);
+        expect(trace).toEqual(['panel-query', 'command', 'command-query']);
+        if (change === 'selection' || change === 'load') expect(selection.selected()).toEqual([]);
+        if (change === 'selection-roundtrip') expect(selection.selected()).toEqual(['main']);
+        if (change === 'frame') expect(ctx.playback.frame).toBe(9);
+        if (change === 'playback') expect(ctx.playback.playing).toBe(true);
+        if (change === 'playback-roundtrip') expect(ctx.playback.playing).toBe(false);
+        if (change === 'destroy') expect(editor.isDestroyed).toBe(true);
+        // Retained context readers expose accidental writes even after destruction.
+        expect(ctx.document).toBe(change === 'load' ? loaded : before);
+        expect(changes).toEqual([]);
+        expect(ctx.commands.canUndo).toBe(false);
+        expect(ctx.commands.canRedo).toBe(false);
+        if (change === 'destroy') return;
+        editor.playback.pause();
+        expect(service.focusAt('main', 6)).toBe(true);
+        const recovered = editor.document;
+        draft(input(editor), '98');
+        enter(input(editor));
+        const changed = editor.document;
+        expect(editor.sample(6).layer('main')?.values.x).toBe(98);
+        selection.clear();
+        editor.playback.seek(9);
+        expect(editor.undo()).toBe(true);
+        expect(editor.document).toEqual(recovered);
+        expect(editor.canUndo).toBe(false);
+        expect(editor.redo()).toBe(true);
+        expect(editor.document).toEqual(changed);
+      } finally {
+        editor.destroy();
+      }
+    }
+  );
+});
