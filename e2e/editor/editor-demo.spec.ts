@@ -335,3 +335,46 @@ test('shift and control select multiple layers without creating history', async 
   expect(await page.evaluate(() => window.editorDemo?.toJSON())).toEqual(before);
 });
 
+
+for (const mode of ['stage', 'manual'] as const) {
+  for (const layer of ['hero', 'music'] as const) {
+    test(`${mode}: deleting ${layer} clears its output during playback and undo restores it`, async ({ page }) => {
+      await page.goto(`${url}/scene.html`);
+      await page.locator('#mode').selectOption(mode);
+      await page.getByRole('button', { name: 'Activer le son' }).click();
+      await expect(page.locator('#sound-status')).toHaveText('Son activé');
+      await page.evaluate(() => {
+        const editor = window.editorDemo;
+        if (!editor) throw new Error('Editor missing');
+        editor.playback.seek(24); editor.playback.speed = 0.01; editor.playback.play();
+      });
+      await expect(page.locator('#status')).toContainText('sprite 5 · volume 0.73');
+      await page.locator(`.jt-layer-row[data-row-id="${layer}"] .jt-layer-row__name`).click();
+      await page.getByRole('button', { name: 'Supprimer la sélection', exact: true }).click();
+      if (layer === 'hero') await expect(page.locator('#status')).toContainText('position 0.0 · sprite 0');
+      else await expect(page.locator('#status')).toContainText('volume 0.00');
+      expect(await page.evaluate(() => window.editorDemo?.playback.playing)).toBe(true);
+      expect(await page.evaluate(() => window.editorDemo?.undo())).toBe(true);
+      await expect(page.locator('#status')).toContainText('sprite 5 · volume 0.73');
+      expect(await page.evaluate(() => window.editorDemo?.playback.playing)).toBe(true);
+    });
+  }
+  test(`${mode}: hiding music silences it during playback and undo restores it`, async ({ page }) => {
+    await page.goto(`${url}/scene.html`);
+    await page.locator('#mode').selectOption(mode);
+    await page.getByRole('button', { name: 'Activer le son' }).click();
+    await expect(page.locator('#sound-status')).toHaveText('Son activé');
+    await page.evaluate(() => {
+      const editor = window.editorDemo;
+      if (!editor) throw new Error('Editor missing');
+      editor.playback.seek(24); editor.playback.speed = 0.01; editor.playback.play();
+    });
+    await expect(page.locator('#status')).toContainText('volume 0.73');
+    await page.locator('.jt-layer-row[data-row-id="music"] .jt-layer-flag--visibility').click();
+    await expect(page.locator('#status')).toContainText('volume 0.00');
+    expect(await page.evaluate(() => window.editorDemo?.playback.playing)).toBe(true);
+    expect(await page.evaluate(() => window.editorDemo?.undo())).toBe(true);
+    await expect(page.locator('#status')).toContainText('volume 0.73');
+    expect(await page.evaluate(() => window.editorDemo?.playback.playing)).toBe(true);
+  });
+}

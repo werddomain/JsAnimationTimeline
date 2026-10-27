@@ -2,6 +2,7 @@
 import { createEditor, createPropertiesPanelPlugin } from '@werddomain/timeline-editor';
 import type { IEditor, IFrameSample } from '@werddomain/timeline-editor';
 import { defaultPropertyRegistry, floorInterpolator } from '@werddomain/timeline-runtime';
+import type { IStage } from '@werddomain/timeline-runtime';
 import { AudioTrack, createAudioStage } from '../../runtime/src/objectStage/audioStage';
 import { createCanvasStage, createSprite, drawScene } from '../../runtime/src/objectStage/canvasStage';
 import { OBJECT_STAGE_DOCUMENT } from '../../runtime/src/objectStage/document';
@@ -20,7 +21,13 @@ const drawing = context;
 const track = new AudioTrack();
 const sprite = createSprite();
 const canvasStage = createCanvasStage(drawing, [], sprite);
-const audioStage = createAudioStage(track, []);
+const audioObjectStage = createAudioStage(track, []);
+// Editor visibility also mutes the supplied audio stage; runtime playback is unchanged.
+const audioStage: IStage<AudioTrack> = { ...audioObjectStage,
+  render(time, states): void {
+    audioObjectStage.render?.(time, states.map((state) => ({ ...state, active: state.active && state.editorVisible })));
+  }
+};
 const data = { ...OBJECT_STAGE_DOCUMENT, layers: OBJECT_STAGE_DOCUMENT.layers.slice(0, 2) };
 const registry = defaultPropertyRegistry.clone()
   .register({ name: 'frameIndex', kind: 'value', unit: '', defaultValue: 0, interpolate: floorInterpolator })
@@ -34,8 +41,10 @@ function renderSample(sample: IFrameSample): void {
     sprite.visible = hero.active && hero.editorVisible;
     sprite.x = hero.values.x; sprite.y = hero.values.y;
     sprite.angle = hero.values.rotation; sprite.frame = hero.values.frameIndex;
+  } else {
+    Object.assign(sprite, createSprite());
   }
-  if (music !== undefined) track.setVolume(music.active && music.editorVisible ? music.values.volume : 0);
+  track.setVolume(music !== undefined && music.active && music.editorVisible ? music.values.volume : 0);
   drawScene(drawing, [sprite]);
   element('status').textContent = `Image ${sample.time.integerFrame} · position ${sprite.x.toFixed(1)} · sprite ${sprite.frame} · volume ${track.volume.toFixed(2)}`;
 }
