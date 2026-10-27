@@ -9,9 +9,11 @@
 <TimelineEditor @ref="editor" @bind-Data="document" Stage="stage" OnReady="Ready" OnError="Error" />
 <button @onclick="Import">Import</button><button @onclick="Undo">Undo</button>
 <button @onclick="Replace">Replace</button><button @onclick="Export">Export</button>
+<button @onclick="UseNone">Use None</button><button @onclick="UseDotNet">Use DotNet</button>
 <output data-testid="ready">@ready</output><output data-testid="frames">@document.Settings.TotalFrames</output>
 <output data-testid="error">@error</output><output data-testid="export">@export</output>
 <output data-testid="module-stage"></output><output data-testid="dotnet-stage">@rendered</output>
+<output data-testid="bound">@bound</output><output data-testid="released">@released</output>
 
 @code {
     private TimelineEditor editor = default!;
@@ -19,14 +21,19 @@
     private TimelineStageOption stage = TimelineStageOption.Html();
     private int ready;
     private int rendered;
+    private int bound;
+    private int released;
+    private RecordingStage recordingStage = default!;
     private string error = "";
     private string export = "";
     protected override void OnInitialized()
     {
+        recordingStage = new RecordingStage(OnStageFrame);
         var query = new Uri(Navigation.Uri).Query;
+        if (query == "?scene=DotNet") document = TimelineJson.Deserialize("""{"version":"2.0.0","settings":{"fps":24,"totalFrames":24},"layers":[{"id":"layer","type":"layer","name":"Target","target":{"ref":"hero","stage":"dotnet"},"spans":[{"id":"span","start":1,"end":24,"kind":"static"}]}]}""");
         stage = query switch {
             "?scene=JsModule" => TimelineStageOption.JsModule("./scene.js"),
-            "?scene=DotNet" => TimelineStageOption.DotNet(new RecordingStage(() => InvokeAsync(() => { rendered++; StateHasChanged(); }))),
+            "?scene=DotNet" => TimelineStageOption.DotNet(recordingStage),
             "?scene=None" => TimelineStageOption.None(),
             _ => TimelineStageOption.Html()
         };
@@ -38,12 +45,20 @@
     private async Task Undo() => await editor.UndoAsync();
     private void Replace() => document = Document(72);
     private async Task Export() => export = await editor.ExportAsync();
-    private sealed class RecordingStage(Func<Task> render) : ITimelineStage
+    private void UseNone() => stage = TimelineStageOption.None();
+    private void UseDotNet() => stage = TimelineStageOption.DotNet(recordingStage);
+    private Task OnStageFrame(TimelineStageFrame frame) => InvokeAsync(() => {
+        rendered++;
+        if (frame.Layers.Any(layer => layer.LayerId == "layer")) bound++;
+        released += frame.Released.Count(item => item.LayerId == "layer" && item.Target == LayerTarget.FromRef("hero", "dotnet"));
+        StateHasChanged();
+    });
+    private sealed class RecordingStage(Func<TimelineStageFrame, Task> render) : ITimelineStage
     {
         public string Id => "dotnet";
-        public IReadOnlyList<TimelineStageTarget> Targets => [];
+        public IReadOnlyList<TimelineStageTarget> Targets => [new("hero", "Hero")];
         public IReadOnlyList<TimelineStageProperty> Properties => [];
-        public Task RenderAsync(TimelineStageFrame frame, CancellationToken cancellationToken) => render();
+        public Task RenderAsync(TimelineStageFrame frame, CancellationToken cancellationToken) => render(frame);
     }
 }
 

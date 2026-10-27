@@ -38,3 +38,16 @@ for (const scene of ['Html', 'JsModule', 'DotNet', 'None']) {
   });
 }
 
+
+test('releases a .NET stage and reconnects it on the same editor', async ({ page }) => {
+  await page.goto('/?scene=DotNet');
+  await expect(page.getByTestId('ready')).toHaveText('1');
+  await expect(page.getByTestId('bound')).toHaveText('1');
+  await page.getByRole('button', { name: 'Use None' }).click();
+  await expect(page.getByTestId('ready')).toHaveText('2');
+  await expect(page.getByTestId('released')).toHaveText('1');
+  await page.getByRole('button', { name: 'Use DotNet' }).click();
+  await expect(page.getByTestId('ready')).toHaveText('3');
+  await expect(page.getByTestId('bound')).toHaveText('2');
+  await expect(page.getByTestId('error')).toBeEmpty();
+});
