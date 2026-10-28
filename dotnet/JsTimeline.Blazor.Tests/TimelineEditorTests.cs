@@ -65,6 +65,28 @@ public sealed class TimelineEditorTests : BunitContext
     }
 
     [Fact]
+    public async Task Reset_playback_is_rejected_before_the_editor_is_ready()
+    {
+        var js = new FakeJsRuntime(resolveImport: false);
+        Services.AddSingleton<IJSRuntime>(js);
+        var cut = Render<TimelineEditor>(p => p.Add(x => x.Data, Document()));
+        Assert.False(cut.Instance.IsReady);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => cut.Instance.ResetPlaybackAsync());
+        await cut.InvokeAsync(() => cut.Instance.DisposeAsync().AsTask());
+        await cut.InvokeAsync(() => js.Import.SetResult(js.Module));
+    }
+
+    [Fact]
+    public async Task Reset_playback_is_forwarded_and_rejected_after_disposal()
+    {
+        var cut = Render<TimelineEditor>(p => p.Add(x => x.Data, Document()));
+        await cut.Instance.ResetPlaybackAsync();
+        _editor.VerifyInvoke("resetPlayback", calledTimes: 1);
+        await cut.Instance.DisposeAsync();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => cut.Instance.ResetPlaybackAsync());
+    }
+
+    [Fact]
     public async Task Dispose_destroys_once()
     {
         var cut = Render<TimelineEditor>(p => p.Add(x => x.Data, Document()));

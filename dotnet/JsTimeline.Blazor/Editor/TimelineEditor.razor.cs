@@ -166,6 +166,8 @@ public sealed partial class TimelineEditor : ComponentBase, IAsyncDisposable
     public async Task<bool> ImportAsync(string json) => await RequireEditor().InvokeAsync<bool>("importDocument", json);
     /// <summary>Exports the current document as JSON.</summary>
     public async Task<string> ExportAsync() => await RequireEditor().InvokeAsync<string>("exportJson");
+    /// <summary>Pauses playback and returns to the first frame.</summary>
+    public async Task ResetPlaybackAsync() => await RequireEditor().InvokeVoidAsync("resetPlayback");
     /// <summary>Undoes the latest command.</summary>
     public async Task<bool> UndoAsync() => await RequireEditor().InvokeAsync<bool>("undo");
     /// <summary>Redoes the latest undone command.</summary>

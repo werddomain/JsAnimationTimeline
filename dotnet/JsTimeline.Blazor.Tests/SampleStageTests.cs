@@ -9,6 +9,17 @@ namespace JsTimeline.Blazor.Tests;
 public sealed class SampleStageTests : BunitContext
 {
     [Fact]
+    public void Reset_is_disabled_until_ready_and_then_invokes_the_parent()
+    {
+        var resets = 0;
+        var cut = Render<SceneDisplay>(p => p.Add(x => x.OnReset, () => resets++));
+        Assert.True(cut.Find("button").HasAttribute("disabled"));
+        cut.Render(p => p.Add(x => x.Ready, true));
+        cut.Find("button").Click();
+        Assert.Equal(1, resets);
+    }
+
+    [Fact]
     public async Task Applies_layers_after_releases_and_ignores_unknown_releases()
     {
         var cut = Render<SceneDisplay>();
