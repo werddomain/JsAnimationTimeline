@@ -16,7 +16,7 @@
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "build:demo": "npm run build:demo --workspaces --if-present",
-    "dev": "npm run dev --workspace packages/editor",
+    "dev": "npm run dev --workspace demo/editor",
     "dev:validation": "npm run dev --workspace demo/runtime",
     "preview:validation": "npm run preview:demo --workspace demo/runtime",
     "test": "npm test --workspaces --if-present",

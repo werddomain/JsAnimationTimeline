@@ -79,5 +79,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dist-demo
-          path: packages/editor/dist-demo
+          path: |
+            demo/editor/dist
+            demo/runtime/dist
           if-no-files-found: warn
