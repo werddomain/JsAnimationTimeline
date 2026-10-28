@@ -22,10 +22,11 @@ For development, run `npm run dev --workspace demo/editor` or `npm run dev --wor
 
 ## Using v2
 
-The workspaces are `packages/runtime`, `packages/editor`, and `packages/export-css`. The demos consume their source via Vite aliases; package publishing is not implied by this repository setup. Use a bundler configured to resolve the workspace packages. For example, an editor host can create an editor and release it when finished:
+The workspaces are `packages/runtime`, `packages/editor`, and `packages/export-css`. The demos consume their source via Vite aliases; package publishing is not implied by this repository setup. Build the packages with `npm run build`, then use a bundler configured to resolve the workspace packages and CSS imports. For example, an editor host can create an editor and release it when finished:
 
 ```ts
 import { createEditor, createPropertiesPanelPlugin } from '@werddomain/timeline-editor';
+import '@werddomain/timeline-editor/timeline-editor.css';
 
 const host = document.getElementById('editor-host');
 if (!host) throw new Error('Editor host missing');
