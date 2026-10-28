@@ -61,3 +61,37 @@ test('lecture et navigation entre les scènes restent opérationnelles', async (
   await expect(page.getByRole('alert')).toBeEmpty();
   expect(errors).toEqual([]);
 });
+
+test('réinitialiser la scène remet la tête et la scène à la première image', async ({ page }) => {
+  const warnings: string[] = [];
+  page.on('console', message => { if (message.type() === 'warning' || message.type() === 'error') warnings.push(`${message.type()}: ${message.text()}`); });
+  await page.goto('/scene');
+  const playhead = page.getByRole('slider', { name: 'Tête de lecture', exact: true });
+  await expect(playhead).toBeVisible();
+  await playhead.press('End');
+  await expect(page.getByTestId('stage-value')).toHaveText('100');
+  await page.getByRole('button', { name: 'Réinitialiser la scène' }).click();
+  await expect(playhead).toHaveAttribute('aria-valuenow', '1');
+  await expect(page.getByText('Image C# : 1', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('stage-value')).toHaveText('0');
+  await expect(page.getByTestId('stage-object')).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)');
+  await page.getByRole('button', { name: 'Réinitialiser la scène' }).click();
+  await expect(playhead).toHaveAttribute('aria-valuenow', '1');
+  await page.getByRole('button', { name: 'Lire', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+  await expect.poll(async () => Number(await playhead.getAttribute('aria-valuenow'))).toBeGreaterThan(1);
+  await page.getByRole('button', { name: 'Réinitialiser la scène' }).click();
+  await expect(page.getByRole('button', { name: 'Lire', exact: true })).toBeVisible();
+  await expect(playhead).toHaveAttribute('aria-valuenow', '1');
+  await expect(page.getByText('Image C# : 1', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('stage-value')).toHaveText('0');
+  const rows = page.locator('.jt-grid__row');
+  const originalRows = await rows.count();
+  await page.getByRole('button', { name: 'Nouveau calque', exact: true }).click();
+  await expect(rows).toHaveCount(originalRows + 1);
+  await page.getByRole('button', { name: 'Réinitialiser la scène' }).click();
+  await page.getByRole('button', { name: 'Annuler', exact: true }).click();
+  await expect(rows).toHaveCount(originalRows);
+  await expect(page.getByRole('alert')).toBeEmpty();
+  expect(warnings).toEqual([]);
+});

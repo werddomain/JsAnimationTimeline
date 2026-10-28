@@ -2,8 +2,10 @@
 @implements ITimelineStage
 <div class="scene"><div data-testid="stage-object" class="logo" style="transform: translateX(@((progress * 2).ToString(System.Globalization.CultureInfo.InvariantCulture))px)">Voyageur</div></div>
 <p>Image C# : @frame</p><p>Progression : <output data-testid="stage-value">@progress.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)</output></p>
-<button @onclick="Reset">Réinitialiser la scène</button>
+<button disabled="@(!Ready)" @onclick="OnReset">Réinitialiser la scène</button>
 @code {
+    [Parameter] public bool Ready { get; set; }
+    [Parameter] public EventCallback OnReset { get; set; }
     private readonly HashSet<(string, LayerTarget)> applied = [];
     private double progress;
     private int frame = 1;
@@ -23,5 +25,4 @@
         frame = state.IntegerFrame;
         StateHasChanged();
     });
-    private void Reset() { progress = 0; StateHasChanged(); }
 }
