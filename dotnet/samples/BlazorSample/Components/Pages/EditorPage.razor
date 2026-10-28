@@ -1,0 +1,20 @@
+@* dotnet/samples/BlazorSample/Components/Pages/EditorPage.razor *@
+@page "/"
+<Navigation />
+<main><h1>Éditeur HTML</h1>
+<p>Modifiez la timeline, puis importez une autre durée et annulez cette commande.</p>
+<div class="scene"><div id="logo" class="logo">Bonjour</div></div>
+<TimelineEditor @ref="editor" @bind-Data="document" OnReady="Ready" OnError="Error" />
+<button disabled="@(!ready)" @onclick="Import">Importer un exemple</button>
+<button disabled="@(!ready)" @onclick="Undo">Annuler</button>
+<p>Durée : @document.Settings.TotalFrames images</p><p role="alert">@error</p></main>
+@code {
+    private TimelineEditor editor = default!;
+    private TimelineDocument document = SampleDocuments.Html();
+    private bool ready;
+    private string error = "";
+    private void Ready() => ready = true;
+    private void Error(Exception value) => error = value.Message;
+    private async Task Import() { if (!await editor.ImportAsync(TimelineJson.Serialize(SampleDocuments.Html(48)))) error = "Import refusé."; }
+    private async Task Undo() => await editor.UndoAsync();
+}

@@ -1,0 +1,27 @@
+@* dotnet/samples/BlazorSample/Components/SceneDisplay.razor *@
+@implements ITimelineStage
+<div class="scene"><div data-testid="stage-object" class="logo" style="transform: translateX(@((progress * 2).ToString(System.Globalization.CultureInfo.InvariantCulture))px)">Voyageur</div></div>
+<p>Image C# : @frame</p><p>Progression : <output data-testid="stage-value">@progress.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)</output></p>
+<button @onclick="Reset">Réinitialiser la scène</button>
+@code {
+    private readonly HashSet<(string, LayerTarget)> applied = [];
+    private double progress;
+    private int frame = 1;
+    public string Id => "dotnet";
+    public IReadOnlyList<TimelineStageTarget> Targets => [new("hero", "Voyageur", Properties: ["progress"])];
+    public IReadOnlyList<TimelineStageProperty> Properties => [new("progress", Label: "Progression", Min: 0, Max: 100)];
+    public Task RenderAsync(TimelineStageFrame state, CancellationToken cancellationToken) => InvokeAsync(() => {
+        cancellationToken.ThrowIfCancellationRequested();
+        foreach (var released in state.Released)
+            if (applied.Remove((released.LayerId, released.Target))) progress = 0;
+        foreach (var layer in state.Layers)
+        {
+            if (layer.Target != LayerTarget.FromRef("hero", "dotnet")) continue;
+            applied.Add((layer.LayerId, layer.Target));
+            progress = layer.Active && layer.Visible && layer.Values.TryGetValue("progress", out var value) ? value : 0;
+        }
+        frame = state.IntegerFrame;
+        StateHasChanged();
+    });
+    private void Reset() { progress = 0; StateHasChanged(); }
+}
