@@ -8,26 +8,26 @@
  *
  * ```bash
  * # bash, zsh (pour cette commande seulement)
- * E2E_EDITOR_PORT=9100 E2E_RUNTIME_PORT=9101 npm run test:e2e
+ * E2E_V2_EDITOR_PORT=9100 E2E_RUNTIME_PORT=9101 npm run test:e2e
  * # PowerShell (pour toute la session du terminal)
- * $env:E2E_EDITOR_PORT='9100'; $env:E2E_RUNTIME_PORT='9101'; npm run test:e2e
+ * $env:E2E_V2_EDITOR_PORT='9100'; $env:E2E_RUNTIME_PORT='9101'; npm run test:e2e
  * # cmd (pour toute la session du terminal)
- * set E2E_EDITOR_PORT=9100&& set E2E_RUNTIME_PORT=9101&& npm run test:e2e
+ * set E2E_V2_EDITOR_PORT=9100&& set E2E_RUNTIME_PORT=9101&& npm run test:e2e
  * ```
  *
- * Sans variable, les ports par défaut restent 9000 (démo de l'éditeur) et
+ * Sans variable, les ports par défaut restent 9002 (démo de l'éditeur) et
  * 9001 (démo du runtime). Les serveurs démarrent avec `strictPort` : un port
  * déjà pris fait échouer le démarrage au lieu d'en choisir un autre.
  */
 
-/** Port par défaut de la démo de l'éditeur (packages/editor). */
-export const DEFAULT_EDITOR_PORT = 9000;
+/** Port par défaut de la démo de l'éditeur (demo/editor). */
+export const DEFAULT_EDITOR_PORT = 9002;
 
 /** Port par défaut de la démo du runtime (demo/runtime). */
 export const DEFAULT_RUNTIME_PORT = 9001;
 
 /** Variable d'environnement du port de la démo de l'éditeur. */
-export const EDITOR_PORT_ENV = 'E2E_EDITOR_PORT';
+export const EDITOR_PORT_ENV = 'E2E_V2_EDITOR_PORT';
 
 /** Variable d'environnement du port de la démo du runtime. */
 export const RUNTIME_PORT_ENV = 'E2E_RUNTIME_PORT';
@@ -67,7 +67,7 @@ function bothPorts(env: Env): { readonly editor: number; readonly runtime: numbe
   return { editor, runtime };
 }
 
-/** Port de la démo de l'éditeur (`E2E_EDITOR_PORT`, 9000 par défaut, différent de celui du runtime). */
+/** Port de la démo de l'éditeur (`E2E_V2_EDITOR_PORT`, 9002 par défaut, différent de celui du runtime). */
 export function editorPort(env: Env = process.env): number {
   return bothPorts(env).editor;
 }

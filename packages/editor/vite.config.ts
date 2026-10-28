@@ -17,7 +17,7 @@ const RUNTIME_SOURCE_ALIAS = {
 };
 
 // Build bibliothèque : ESM + UMD sans hash, déclarations générées par tsc (tsconfig.build.json).
-// Serveur de dev sur `E2E_EDITOR_PORT` (9000 par défaut, voir tools/devPorts.ts).
+// Serveur de dev sur `E2E_V2_EDITOR_PORT` (9002 par défaut, voir tools/devPorts.ts).
 export default defineConfig(({ command }) => ({
   resolve: command === 'serve' ? { alias: [RUNTIME_SOURCE_ALIAS] } : {},
   server: { port: editorPort(), strictPort: true },
