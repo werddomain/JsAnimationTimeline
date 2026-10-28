@@ -1,50 +1,84 @@
 <!-- README.md -->
 # JsAnimationTimeline
 
-A TypeScript monorepo for animation timelines, with a runtime, a plugin-based editor and CSS export. The editor v2 replaces the former `JsTimeLine` control. Existing v1 documents can be imported through the v2 persistence plugin.
+JsAnimationTimeline is a TypeScript monorepo for creating and playing frame-based animations. Version 2 includes a plugin-based timeline editor, a runtime player, and CSS export.
 
-## Getting started
+The official [GitHub Pages demo](https://kazo-ca.github.io/JsAnimationTimeline/) is the intended public address; it becomes available after the Pages workflow has successfully deployed. The demos currently use French labels.
+
+## Try the demos locally
+
+Use Node.js 22 and npm from the repository root:
 
 ```sh
 npm ci
-npm run build
-npm test
-npm run dev
+npm run build:demo
+node tools/pages/build.mjs
+npx playwright install chromium
+npx playwright test --config e2e/pages/playwright.config.ts
 ```
 
-`npm run dev` serves the editor demo at http://localhost:9002. `npm run dev:validation` serves the runtime and validation demos at http://localhost:9001. Set `E2E_V2_EDITOR_PORT` and `E2E_RUNTIME_PORT` to use other distinct ports.
+The assembled static site is in `dist/pages`. Serve that directory with a static HTTP server to open its landing page. It links to the v2 editor, an editor canvas/audio scene, the runtime player, and an object-stage example. The site contains the v2 demos, runtime validation pages, and fixtures; the legacy v1 demo is outside its scope. Historical v1 demo sources and tests are preserved in `archive/`. The Pages test serves the assembled site at both a domain root and a repository subpath.
 
-## Editor API
+For development, run `npm run dev --workspace demo/editor` or `npm run dev --workspace demo/runtime`. See [the editor demo](demo/editor/README.md) and [browser tests](e2e/README.md) for ports and further instructions.
+
+## Using v2
+
+The workspaces are `packages/runtime`, `packages/editor`, and `packages/export-css`. The demos consume their source via Vite aliases; package publishing is not implied by this repository setup. Build the packages with `npm run build`, then use a bundler configured to resolve the workspace packages and CSS imports. For example, an editor host can create an editor and release it when finished:
 
 ```ts
-import { createEditor } from '@werddomain/timeline-editor';
+import { createEditor, createPropertiesPanelPlugin } from '@werddomain/timeline-editor';
+import '@werddomain/timeline-editor/timeline-editor.css';
 
 const host = document.getElementById('editor-host');
 if (!host) throw new Error('Editor host missing');
-const editor = createEditor(host);
-
-// Dispose when the host is no longer needed.
-editor.destroy();
+const editor = createEditor(host, { plugins: [createPropertiesPanelPlugin()] });
+// Use editor.toJSON() or editor.playback as needed.
+// Call editor.destroy() when the host is removed.
 ```
 
-See `demo/editor/src/main.ts` for a document and optional properties plugin, and `demo/editor/src/scene.ts` for a scene example. The editor publishes its stylesheet as `@werddomain/timeline-editor/timeline-editor.css`.
+To play a v2 timeline without the editor, provide a typed timeline document and an HTML stage containing its target element:
 
-## Demos and checks
+```html
+<div id="stage"><div id="logo">Logo</div></div>
+```
+
+```ts
+import { createPlayer } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+
+const timeline: ITimelineDocument = {
+  version: '2.0.0',
+  settings: { fps: 24, totalFrames: 48 },
+  layers: [{
+    id: 'logo', type: 'layer', name: 'Logo', target: { selector: '#logo' },
+    spans: [{
+      id: 'movement', start: 1, end: 48, kind: 'tween',
+      tracks: { x: [{ frame: 1, value: 0 }, { frame: 48, value: 300 }] }
+    }]
+  }]
+};
+const root = document.getElementById('stage');
+if (!root) throw new Error('Stage missing');
+const player = createPlayer(timeline, { root });
+player.play();
+// The player also exposes pause() and seek(frame).
+```
+
+See [the runtime demo](demo/runtime/src/main.ts) and [its example document](demo/runtime/src/animation.ts) for a complete integration. The [editor demo](demo/editor/src/main.ts) shows an editor with sample data, and [the scene demo](demo/editor/src/scene.ts) shows canvas and audio integration. `@werddomain/timeline-export-css` exports `exportCss` for generating CSS from supported document properties.
+
+## Development and checks
 
 ```sh
-npm run build:demo
-npm run typecheck
 npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run build:demo
 npm run test:e2e
 ```
 
-Playwright serves the built editor and runtime demos; install Chromium once with `npx playwright install chromium`. See [e2e/README.md](e2e/README.md) for ports and browser tests. Runtime validation pages and fixtures are in `demo/runtime`. Historical v1 tests and demo sources are preserved under `archive/`.
+The repository also contains a .NET/Blazor integration in `dotnet/`. See its project files and tests for usage. GitHub Actions deploys the static demo on pushes to `main` or a manual workflow dispatch targeting `main`; a successful deployment is required before the public URL reflects a change.
 
-## Packages
+## License
 
-- `packages/runtime`: animation evaluation and playback.
-- `packages/editor`: timeline editor and plugins.
-- `packages/export-css`: CSS animation export.
-- `dotnet/JsTimeline.Blazor`: Blazor integration.
-
-MIT licensed.
+[MIT](LICENSE)
