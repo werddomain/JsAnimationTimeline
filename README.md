@@ -13,6 +13,7 @@ Use Node.js 22 and npm from the repository root:
 npm ci
 npm run build:demo
 node tools/pages/build.mjs
+npx playwright install chromium
 npx playwright test --config e2e/pages/playwright.config.ts
 ```
 
