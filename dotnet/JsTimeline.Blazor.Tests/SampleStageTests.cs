@@ -39,5 +39,19 @@ public sealed class SampleStageTests : BunitContext
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => stage.RenderAsync(Frame([new("layer", hero, values, true)], []), cancelled.Token));
         Assert.Equal("0", cut.Find("[data-testid=stage-value]").TextContent);
     }
+    [Fact]
+    public async Task Fractional_position_uses_css_decimal_separator_in_french_culture()
+    {
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo("fr-CA");
+            var cut = Render<SceneDisplay>();
+            var hero = LayerTarget.FromRef("hero", "dotnet");
+            await ((ITimelineStage)cut.Instance).RenderAsync(Frame([new("layer", hero, new Dictionary<string, double> { ["progress"] = 12.25 }, true)], []), CancellationToken.None);
+            Assert.Contains("translateX(24.5px)", cut.Find("[data-testid=stage-object]").GetAttribute("style"));
+        }
+        finally { System.Globalization.CultureInfo.CurrentCulture = previous; }
+    }
     private static TimelineStageFrame Frame(IReadOnlyList<TimelineStageLayerState> layers, IReadOnlyList<TimelineStageReleasedLayer> released) => new(0, 1, 1, layers, released);
 }

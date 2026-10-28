@@ -34,8 +34,10 @@ test('lecture et navigation entre les scènes restent opérationnelles', async (
   await page.getByRole('link', { name: 'Lecteur HTML' }).click();
   await page.getByRole('button', { name: 'Image 1', exact: true }).click();
   await expect(page.getByText('Image : 1', { exact: true })).toBeVisible();
+  await expect(page.locator('#logo')).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)');
   await page.getByRole('button', { name: 'Image 24', exact: true }).click();
   await expect(page.getByText('Image : 24', { exact: true })).toBeVisible();
+  await expect(page.locator('#logo')).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 200, 0)');
   await page.getByRole('button', { name: 'Lire', exact: true }).click();
   await expect(page.getByText('Image : 24', { exact: true })).not.toBeVisible();
   await page.getByRole('button', { name: 'Pause', exact: true }).click();

@@ -1,6 +1,6 @@
 @* dotnet/samples/BlazorSample/Components/SceneDisplay.razor *@
 @implements ITimelineStage
-<div class="scene"><div data-testid="stage-object" class="logo" style="transform: translateX(@(progress * 2)px)">Voyageur</div></div>
+<div class="scene"><div data-testid="stage-object" class="logo" style="transform: translateX(@((progress * 2).ToString(System.Globalization.CultureInfo.InvariantCulture))px)">Voyageur</div></div>
 <p>Image C# : @frame</p><p>Progression : <output data-testid="stage-value">@progress.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)</output></p>
 <button @onclick="Reset">Réinitialiser la scène</button>
 @code {
