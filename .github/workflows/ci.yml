@@ -1,3 +1,4 @@
+# .github/workflows/ci.yml
 name: CI
 
 on:
@@ -39,11 +40,19 @@ jobs:
       - name: Build and test the .NET library
         run: dotnet test dotnet/JsTimeline.sln
 
+      - name: Pack the .NET library locally
+        run: dotnet pack dotnet/JsTimeline.Blazor/JsTimeline.Blazor.csproj -c Release -o artifacts/nuget
+
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
       - name: Run e2e tests
         run: npm run test:e2e
+
+      - name: Run Blazor browser tests
+        run: |
+          npx playwright test --config e2e/blazor/playwright.config.ts
+          npx playwright test --config e2e/blazor-sample/playwright.config.ts
 
       - name: Upload Playwright report
         if: failure()

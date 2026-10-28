@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\JsTimeline.Blazor\JsTimeline.Blazor.csproj" />
+    <ProjectReference Include="..\samples\BlazorSample\BlazorSample.csproj" />
     <ProjectReference Include="..\tools\JsTimeline.SchemaGen\JsTimeline.SchemaGen.csproj" />
   </ItemGroup>
 
