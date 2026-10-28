@@ -11,7 +11,7 @@ module.exports = {
   },
   transformIgnorePatterns: ['/node_modules/'],
   moduleNameMapper: {
-    '\\.less$': '<rootDir>/../../packages/editor/src/legacy/__tests__/__mocks__/styleMock.js',
+    '\\.less$': '<rootDir>/../../packages/editor/src/__tests__/styleMock.js',
     // The tests run before any build: the runtime copied into wwwroot/js is read from its sources,
     // as one module shared with the editor.
     '^\\.\\./js/timeline-runtime\\.mjs$': '<rootDir>/../../packages/runtime/src/index.ts',

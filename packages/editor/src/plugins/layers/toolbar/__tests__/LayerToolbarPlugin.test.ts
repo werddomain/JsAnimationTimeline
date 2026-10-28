@@ -134,6 +134,32 @@ describe('buttons', () => {
     expect(shapeOf(h)).toBe('f(a),c');
   });
 
+  it('preserves document and history when layer deletion is vetoed', () => {
+    let context: IEditorContext | undefined;
+    const h = mount(tree, [{ id: 'test.guard', dependencies: [], init: (ctx) => { context = ctx; }, destroy: () => undefined }]);
+    const toolbar = h.editor.getService('layers.toolbar');
+    const selection = h.editor.getService('layers.selection');
+    if (!context || !toolbar || !selection) throw new Error('services absents');
+    expect(toolbar.newLayer()).toBeDefined();
+    expect(h.editor.undo()).toBe(true);
+    selection.select(['g']);
+    const before = h.editor.toJSON();
+    const history = [context.commands.canUndo, context.commands.canRedo, context.commands.undoLabel, context.commands.redoLabel];
+    const seen: string[] = [];
+    const refused: string[] = [];
+    context.events.on('command:refused', (event) => refused.push(event.reason));
+    context.events.onCancellable('command:before', (event) => {
+      seen.push(event.payload.command.label);
+      event.cancel();
+    });
+
+    expect(toolbar.deleteSelection()).toBe(false);
+    expect(seen).toEqual(['Supprimer les calques']);
+    expect(refused).toEqual(['cancelled']);
+    expect(h.editor.toJSON()).toEqual(before);
+    expect([context.commands.canUndo, context.commands.canRedo, context.commands.undoLabel, context.commands.redoLabel]).toEqual(history);
+  });
+
   it('moves focus with arrow keys over all buttons, even unavailable (roving tabindex)', () => {
     const h = setup();
     const first = button(h, 'Nouveau calque');

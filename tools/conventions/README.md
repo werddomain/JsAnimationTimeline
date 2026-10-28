@@ -7,7 +7,6 @@ Fichiers couverts : `packages/*/src/**/*.ts` (y compris `.d.ts`), `tools/**/*.ts
 ## Règle A : en-tête de chemin
 
 La première ligne de chaque fichier `.ts` est exactement `// <chemin relatif à la racine, avec />`.
-Exemption : `packages/editor/src/legacy/**` (code v1 conservé tel quel).
 
 ## Règle B : en-tête de plugin
 

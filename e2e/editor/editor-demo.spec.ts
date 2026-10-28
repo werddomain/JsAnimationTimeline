@@ -1,9 +1,9 @@
 // e2e/editor/editor-demo.spec.ts
 import { expect, test } from '@playwright/test';
 import type {} from '../../demo/editor/src/global';
-import { portFromEnv } from '../../tools/devPorts';
+import { editorPort } from '../../tools/devPorts';
 
-const url = `http://localhost:${portFromEnv('E2E_V2_EDITOR_PORT', 9002)}`;
+const url = `http://localhost:${editorPort()}`;
 
 test('the French editor opens with a deterministic document and optional properties panel', async ({ page }) => {
   await page.goto(url);

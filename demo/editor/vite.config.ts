@@ -1,9 +1,9 @@
 // demo/editor/vite.config.ts
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
-import { portFromEnv } from '../../tools/devPorts';
+import { editorPort } from '../../tools/devPorts';
 
-const port = portFromEnv('E2E_V2_EDITOR_PORT', 9002);
+const port = editorPort();
 export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
   base: './',

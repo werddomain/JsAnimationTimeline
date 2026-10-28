@@ -30,7 +30,7 @@ describe('checkPathHeader', () => {
     expect(checkPathHeader(rel, '')).toHaveLength(1);
   });
 
-  it('exempts legacy files', () => {
-    expect(checkPathHeader('packages/editor/src/legacy/x.ts', 'export {};')).toEqual([]);
+  it('requires a header in every editor source path', () => {
+    expect(checkPathHeader('packages/editor/src/legacy/x.ts', 'export {};')).toHaveLength(1);
   });
 });
