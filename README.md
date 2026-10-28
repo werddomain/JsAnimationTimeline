@@ -16,7 +16,7 @@ node tools/pages/build.mjs
 npx playwright test --config e2e/pages/playwright.config.ts
 ```
 
-The assembled static site is in `dist/pages`. Serve that directory with a static HTTP server to open its landing page. It links to the v2 editor, an editor canvas/audio scene, the runtime player, and an object-stage example. The site contains the v2 demos, runtime validation pages, and fixtures; the legacy v1 demo is outside its scope. The Pages test serves the assembled site at both a domain root and a repository subpath.
+The assembled static site is in `dist/pages`. Serve that directory with a static HTTP server to open its landing page. It links to the v2 editor, an editor canvas/audio scene, the runtime player, and an object-stage example. The site contains the v2 demos, runtime validation pages, and fixtures; the legacy v1 demo is outside its scope. Historical v1 demo sources and tests are preserved in `archive/`. The Pages test serves the assembled site at both a domain root and a repository subpath.
 
 For development, run `npm run dev --workspace demo/editor` or `npm run dev --workspace demo/runtime`. See [the editor demo](demo/editor/README.md) and [browser tests](e2e/README.md) for ports and further instructions.
 
