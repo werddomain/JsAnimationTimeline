@@ -11,7 +11,7 @@ export default defineConfig({
   testMatch: '*.spec.ts',
   forbidOnly: Boolean(process.env.CI),
   reporter: 'list',
-  use: { baseURL, trace: 'on-first-retry' },
+  use: { baseURL, trace: 'retain-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     command: `dotnet run --project dotnet/samples/BlazorSample --no-launch-profile --urls ${baseURL}`,
