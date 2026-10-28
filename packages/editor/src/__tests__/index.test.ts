@@ -1,13 +1,5 @@
 // packages/editor/src/__tests__/index.test.ts
-/**
- * Vérifie le point d'entrée public du package editor : les noms du contrôle
- * legacy utilisés par la démo restent exportés, et l'API v2 (createEditor,
- * jeu par défaut, erreurs et commandes du noyau) est ajoutée sans collision.
- * Les collisions de noms (valeurs et types) sont refusées par le compilateur
- * car l'index nomme tous ses exports ; ce test vérifie la liste exacte des
- * valeurs et que la liste legacy de l'index couvre tout le module legacy.
- * Le Store, la pile, le bus et l'hôte de plugins ne sont pas exportés.
- */
+/** Vérifie les exports publics de l'éditeur v2. */
 
 import * as api from '..';
 import type {
@@ -20,7 +12,6 @@ import type {
   SetPropertyOptions,
   TimelineEventMap
 } from '..';
-import * as legacy from '../legacy/JsTimeLine';
 
 type Equals<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -192,24 +183,9 @@ const V2_NAMES = [
 ];
 
 describe('editor package entry point', () => {
-  it('keeps exporting the legacy names used by the demo', () => {
-    // Assert
-    LEGACY_NAMES.forEach((name) => expect(name in api).toBe(true));
-    expect(typeof api.JsTimeLine).toBe('function');
-    expect(typeof api.attachEventLogger).toBe('function');
-  });
-
-  it('re-exports every value of the legacy module (explicit list kept complete)', () => {
-    // Assert
-    expect(Object.keys(legacy).sort()).toEqual([...LEGACY_NAMES].sort());
-    LEGACY_NAMES.forEach((name) =>
-      expect(api[name as keyof typeof api]).toBe(legacy[name as keyof typeof legacy])
-    );
-  });
-
-  it('exports exactly the legacy names plus the v2 values', () => {
-    // Assert
-    expect(Object.keys(api).sort()).toEqual([...LEGACY_NAMES, ...V2_NAMES].sort());
+  it('exports only v2 values and removes the legacy API', () => {
+    expect(Object.keys(api).sort()).toEqual([...V2_NAMES].sort());
+    LEGACY_NAMES.forEach((name) => expect(name in api).toBe(false));
   });
 
   it('does not export the raw core objects', () => {

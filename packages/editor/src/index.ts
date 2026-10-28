@@ -1,39 +1,5 @@
 // packages/editor/src/index.ts
-/**
- * Point d'entrée public du package editor.
- *
- * Pendant la migration v2, il expose deux API côte à côte :
- * - le contrôle v1 (legacy), réexporté tel quel (`JsTimeLine`,
- *   `attachEventLogger`...) : la page de démo actuelle s'en sert ;
- * - l'éditeur v2 en plugins : `createEditor()`, le jeu de plugins par
- *   défaut, le contrat des plugins (`IEditorContext`, `EditorPlugin`,
- *   `EditorServiceMap`...), la lecture (`IEditorPlayback`, échantillons) et
- *   les valeurs du noyau utiles aux plugins (erreurs, commandes, `ROOT_SLOT`).
- *
- * Tous les exports, legacy compris, sont nommés un par un (aucun
- * `export *`). Avec un `export *`, un nom local du même nom masquerait en
- * silence celui du legacy, sans erreur du compilateur ; avec deux listes
- * explicites, un doublon (valeur ou type) est une vraie erreur TypeScript
- * (identificateur en double). Le test `__tests__/index.test.ts` vérifie en
- * plus la liste exacte des valeurs exportées et que la liste legacy
- * ci-dessous couvre toutes les valeurs du module legacy.
- *
- * Le Store, la `CommandStack`, l'`EventBus` et le `PluginHost` ne sont pas
- * exportés comme valeurs : seul `createEditor()` les crée.
- */
-
-// Contrôle v1 (legacy) : exactement les exports de `legacy/JsTimeLine.ts`.
-export {
-  EventLogger,
-  JsTimeLine,
-  PerformanceMonitor,
-  attachEventLogger,
-  calculateVisibleRange,
-  debounce,
-  memoize,
-  rafLoop,
-  throttle
-} from './legacy/JsTimeLine';
+/** Point d'entrée public de l'éditeur v2 et de ses plugins. */
 
 // Éditeur v2 : création et API publique.
 export {
