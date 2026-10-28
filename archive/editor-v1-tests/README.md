@@ -6,8 +6,8 @@ Les huit suites et leurs deux fichiers de support sont conservés octet pour oct
 | Suite v1 | Couverture v2 active correspondante |
 | --- | --- |
 | EventManager | `packages/editor/src/core/events/__tests__/EventBus.test.ts`, `EventBus.cancellable.test.ts` |
-| KeyframeManager | `packages/editor/src/model/spans/__tests__/insertKeyframe.test.ts`, `deleteKeyframe.test.ts`, `moveKeyframe.test.ts` ; `plugins/frames/clipboard/__tests__/clipboardOps.test.ts` |
-| LayerManager | `packages/editor/src/plugins/layers/toolbar/__tests__/toolbarCommands.test.ts`, `plugins/layers/reorder/__tests__/moveNodes.test.ts`, `plugins/layers/groups/__tests__/groupCommands.test.ts` |
+| KeyframeManager | `packages/editor/src/model/spans/__tests__/insertKeyframe.test.ts`, `deleteKeyframe.test.ts`, `moveKeyframe.test.ts` ; `plugins/frames/clipboard/__tests__/clipboardOps.test.ts`, `plugins/frames/keyframes/__tests__/FramesKeyframesPlugin.test.ts` (veto de suppression d’image) |
+| LayerManager | `packages/editor/src/plugins/layers/toolbar/__tests__/toolbarCommands.test.ts`, `plugins/layers/reorder/__tests__/moveNodes.test.ts`, `plugins/layers/groups/__tests__/groupCommands.test.ts`, `plugins/layers/toolbar/__tests__/LayerToolbarPlugin.test.ts` (veto de suppression de calque) |
 | PlaybackEngine | `packages/editor/src/core/playback/__tests__/PlaybackController.test.ts`, `plugins/playback/controls/__tests__/PlaybackControlsPlugin.test.ts` |
 | SelectionManager | `packages/editor/src/plugins/frames/selection/__tests__/frameSelection.test.ts`, `FramesSelectionPlugin.test.ts`, `plugins/layers/selection/__tests__/selectionModel.test.ts` |
 | StateManager | `packages/editor/src/core/commands/__tests__/CommandStack.test.ts`, `core/store/__tests__/Store.test.ts` |

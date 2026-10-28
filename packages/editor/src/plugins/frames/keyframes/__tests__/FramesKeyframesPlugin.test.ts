@@ -131,6 +131,26 @@ describe('frames.keyframes shortcuts', () => {
     expect(h.ctx.commands.undoLabel).toBe(SpanCommandLabels.REMOVE_FRAME);
   });
 
+  it('preserves document and history when frame removal is vetoed', () => {
+    const h = setupKeyframes(data());
+    h.selection.set([{ rowId: 'a', frame: 2 }]);
+    expect(h.keyframes.insertFrame()).toBe(true);
+    expect(h.editor.undo()).toBe(true);
+    const before = h.editor.toJSON();
+    const history = [h.ctx.commands.canUndo, h.ctx.commands.canRedo, h.ctx.commands.undoLabel, h.ctx.commands.redoLabel];
+    const seen: string[] = [];
+    h.ctx.events.onCancellable('command:before', (event) => {
+      seen.push(event.payload.command.label);
+      event.cancel();
+    });
+
+    expect(h.keyframes.removeFrame()).toBe(false);
+    expect(seen).toEqual([SpanCommandLabels.REMOVE_FRAME]);
+    expect(h.refused).toEqual(['cancelled']);
+    expect(h.editor.toJSON()).toEqual(before);
+    expect([h.ctx.commands.canUndo, h.ctx.commands.canRedo, h.ctx.commands.undoLabel, h.ctx.commands.redoLabel]).toEqual(history);
+  });
+
   it('applies the whole action or nothing when a command is refused', () => {
     // Arrange
     const h = setupKeyframes(data());
