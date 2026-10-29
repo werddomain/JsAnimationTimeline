@@ -24,7 +24,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "test:e2e": "npm run e2e --workspace e2e",
-    "test:validation": "npm run e2e --workspace e2e -- validation"
+    "test:validation": "npm run e2e --workspace e2e -- validation",
+    "test:packaging": "node tools/packaging/consumers.mjs"
   },
   "license": "MIT",
   "repository": {

@@ -1,0 +1,33 @@
+# .github/workflows/release.yml : Manual preparation only; no publication or tag creation.
+name: Release preparation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: npm ci
+      - run: node --test tools/packaging/metadata.test.mjs
+      - run: npm run build --workspace packages/runtime --workspace packages/editor --workspace packages/export-css
+      - run: mkdir -p artifacts/release-preparation
+      - run: npm pack --workspace packages/runtime --workspace packages/editor --workspace packages/export-css --ignore-scripts --pack-destination artifacts/release-preparation
+      - run: dotnet pack dotnet/JsTimeline.Blazor/JsTimeline.Blazor.csproj -c Release -o artifacts/release-preparation
+      - run: npm run test:packaging -- artifacts/release-preparation/JsTimeline.Blazor.1.0.0.nupkg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-preparation
+          path: artifacts/release-preparation/*
+          if-no-files-found: error
