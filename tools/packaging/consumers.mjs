@@ -8,8 +8,9 @@ import { spawnSync } from 'node:child_process';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const npmCli = process.env.npm_execpath;
-assert.ok(npmCli, 'Run via npm run test:packaging -- <nupkg>');
-const nupkg = resolve(process.argv[2] ?? 'artifacts/release-preparation/JsTimeline.Blazor.1.0.0.nupkg');
+assert.ok(npmCli, 'Run via npm run test:packaging -- <npm-directory> <nupkg>');
+const npmDirectory = resolve(process.argv[2] ?? 'artifacts/release-preparation');
+const nupkg = resolve(process.argv[3] ?? 'artifacts/release-preparation/JsTimeline.Blazor.1.0.0.nupkg');
 assert.ok(existsSync(nupkg), `NuGet package missing: ${nupkg}`);
 const dependencySource = resolve(process.env.PACKAGING_NUGET_SOURCE ?? join(homedir(), '.nuget', 'packages'));
 assert.ok(existsSync(dependencySource), `Offline NuGet dependency source missing: ${dependencySource}`);
@@ -26,23 +27,31 @@ function xml(value) { return value.replaceAll('&', '&amp;').replaceAll('"', '&qu
 try {
   const env = { npm_config_cache: join(temp, 'npm-cache'), npm_config_offline: 'true' };
   const names = ['runtime', 'editor', 'export-css'];
-  const packed = JSON.parse(run(process.execPath, [npmCli, 'pack', ...names.flatMap(n => ['--workspace', `packages/${n}`]), '--pack-destination', temp, '--ignore-scripts', '--json'], root, env));
-  assert.equal(packed.length, 3);
+  const archives = names.map(name => join(npmDirectory, `werddomain-timeline-${name}-1.0.0.tgz`));
+  for (const archive of archives) assert.ok(existsSync(archive), `npm archive missing: ${archive}`);
+  write('package.json', '{"private":true,"type":"module"}\n');
+  run(process.execPath, [npmCli, 'install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', ...archives], temp, env);
   for (const name of names) {
-    const pkg = packed.find(item => item.name === `@werddomain/timeline-${name}`);
-    assert.ok(pkg, `Missing ${name} archive`);
-    for (const path of ['LICENSE', `dist/timeline-${name}.mjs`, `dist/timeline-${name}.umd.js`, 'dist/types/index.d.ts', ...(name === 'editor' ? ['dist/timeline-editor.css'] : [])]) {
-      assert.ok(pkg.files.some(file => file.path === path), `${pkg.name}: ${path} missing`);
+    const folder = join(temp, 'node_modules', '@werddomain', `timeline-${name}`);
+    const pkg = JSON.parse(readFileSync(join(folder, 'package.json'), 'utf8'));
+    assert.equal(pkg.name, `@werddomain/timeline-${name}`);
+    assert.equal(pkg.version, '1.0.0');
+    if (name !== 'runtime') assert.equal(pkg.dependencies['@werddomain/timeline-runtime'], '1.0.0');
+    assert.deepEqual(readFileSync(join(folder, 'LICENSE')), readFileSync(join(root, 'LICENSE')));
+    for (const file of [`dist/timeline-${name}.mjs`, `dist/timeline-${name}.umd.js`, 'dist/types/index.d.ts', ...(name === 'editor' ? ['dist/timeline-editor.css'] : [])]) {
+      assert.ok(existsSync(join(folder, file)), `${pkg.name}: ${file} missing`);
     }
   }
-  write('package.json', '{"private":true,"type":"module"}\n');
-  run(process.execPath, [npmCli, 'install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', ...packed.map(item => join(temp, item.filename))], temp, env);
-  for (const name of names) assert.deepEqual(readFileSync(join(temp, 'node_modules', '@werddomain', `timeline-${name}`, 'LICENSE')), readFileSync(join(root, 'LICENSE')));
   write('consumer.mjs', `import { createRequire } from 'node:module';\nimport { createEmptyDocument } from '@werddomain/timeline-editor';\nimport { exportCss } from '@werddomain/timeline-export-css';\nimport { validateDocument } from '@werddomain/timeline-runtime';\nimport assert from 'node:assert/strict';\nfor (const fn of [createEmptyDocument, exportCss, validateDocument]) assert.equal(typeof fn, 'function');\nconst require = createRequire(import.meta.url);\nfor (const name of ['runtime', 'editor', 'export-css']) assert.ok(Object.keys(require('@werddomain/timeline-' + name)).length);\nassert.ok(require.resolve('@werddomain/timeline-editor/timeline-editor.css'));\n`);
   run(process.execPath, ['consumer.mjs'], temp);
   write('consumer.ts', `import { createEmptyDocument } from '@werddomain/timeline-editor';\nimport { exportCss } from '@werddomain/timeline-export-css';\nimport { validateDocument } from '@werddomain/timeline-runtime';\nexportCss(createEmptyDocument());\nvalidateDocument(createEmptyDocument());\n`);
   run(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--module', 'esnext', '--moduleResolution', 'bundler', '--target', 'es2020', 'consumer.ts'], temp);
-  console.log('npm: three archives, license, ESM, CommonJS, CSS and TypeScript OK');
+  for (const extension of ['mts', 'cts']) {
+    const file = `consumer.${extension}`;
+    write(file, readFileSync(join(temp, 'consumer.ts'), 'utf8'));
+    run(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--module', 'nodenext', '--moduleResolution', 'nodenext', '--target', 'es2020', file], temp);
+  }
+  console.log('npm: three archives, license, ESM, CommonJS, CSS and TypeScript Bundler/NodeNext OK');
 
   mkdirSync(join(temp, 'nuget-feed'));
   copyFileSync(nupkg, join(temp, 'nuget-feed', basename(nupkg)));
@@ -52,7 +61,7 @@ try {
   run('dotnet', ['restore', 'Consumer.csproj', '--configfile', 'NuGet.Config', '--packages', join(temp, 'nuget-cache'), '--no-cache'], temp);
   run('dotnet', ['build', 'Consumer.csproj', '--no-restore'], temp);
   const manifest = JSON.parse(readFileSync(join(temp, 'obj/Debug/net8.0/staticwebassets.build.json'), 'utf8'));
-  for (const path of ['js/timeline-runtime.mjs', 'js/timeline-editor.mjs', 'css/timeline-editor.css', 'Player/TimelinePlayer.razor.js', 'Editor/TimelineEditor.razor.js']) {
+  for (const path of ['js/timeline-runtime.mjs', 'js/timeline-editor.mjs', 'css/timeline-editor.css', 'Player/TimelinePlayer.razor.js', 'Editor/TimelineEditor.razor.js', 'stage/dotnetStage.js']) {
     assert.ok(manifest.Assets.some(asset => asset.SourceId === 'JsTimeline.Blazor' && asset.RelativePath === path && asset.ContentRoot.startsWith(join(temp, 'nuget-cache'))), `NuGet asset missing: ${path}`);
   }
   console.log('NuGet: local package, C# consumer and static assets OK');
