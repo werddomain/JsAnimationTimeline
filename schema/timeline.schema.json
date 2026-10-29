@@ -1,0 +1,204 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/werddomain/JsAnimationTimeline/schema/timeline.schema.json",
+  "title": "JsAnimationTimeline document v2",
+  "description": "A timeline animation document (Flash CS4 motion-tween model). Frames are absolute and 1-based. Semantic invariants that JSON Schema cannot express (unique ids, contiguous spans, keyframes inside their span...) are checked by validateDocument() in the runtime package; see schema/README.md.",
+  "$ref": "#/$defs/TimelineDocument",
+  "$defs": {
+    "TimelineDocument": {
+      "description": "Root object of a timeline document.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "settings", "layers"],
+      "properties": {
+        "version": {
+          "description": "Format version (semver, major 2). The current version is \"2.0.0\".",
+          "type": "string",
+          "pattern": "^2\\.\\d+\\.\\d+$"
+        },
+        "settings": {
+          "description": "Global timing settings.",
+          "$ref": "#/$defs/TimelineSettings"
+        },
+        "layers": {
+          "description": "Top-level layer tree, first item displayed on top.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/LayerNode" }
+        }
+      }
+    },
+    "TimelineSettings": {
+      "description": "Global timing settings of the document.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fps", "totalFrames"],
+      "properties": {
+        "fps": {
+          "description": "Frame rate in frames per second.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 240
+        },
+        "totalFrames": {
+          "description": "Length of the timeline in frames (frames are numbered 1..totalFrames).",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "Id": {
+      "description": "Identifier, unique across the whole document (layers, folders and spans).",
+      "type": "string",
+      "minLength": 1
+    },
+    "Frame": {
+      "description": "Absolute, 1-based frame number.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "Color": {
+      "description": "Hexadecimal color #rrggbb (case-insensitive).",
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
+    "LayerNode": {
+      "description": "A node of the layer tree: a layer or a folder, discriminated by \"type\".",
+      "oneOf": [
+        { "$ref": "#/$defs/Layer" },
+        { "$ref": "#/$defs/Folder" }
+      ]
+    },
+    "Layer": {
+      "description": "A layer: animates a single target through a list of contiguous spans.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "name", "spans"],
+      "properties": {
+        "id": { "description": "Unique identifier of the layer.", "$ref": "#/$defs/Id" },
+        "type": { "description": "Node discriminator.", "const": "layer" },
+        "name": { "description": "Display name.", "type": "string" },
+        "color": { "description": "Layer color in the editor (outline color in Flash).", "$ref": "#/$defs/Color" },
+        "visible": { "description": "Visible in the editor.", "type": "boolean", "default": true },
+        "locked": { "description": "Locked against edits in the editor.", "type": "boolean", "default": false },
+        "icon": {
+          "description": "Layer icon: a built-in icon name, a CSS class or a URL (interpreted by the editor).",
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "description": "Object animated by the layer: a CSS selector or a reference resolved by a stage, told apart by their key.",
+          "oneOf": [
+            { "$ref": "#/$defs/SelectorTarget" },
+            { "$ref": "#/$defs/RefTarget" }
+          ]
+        },
+        "spans": {
+          "description": "Spans covering the layer from frame 1, sorted and contiguous (may be empty).",
+          "type": "array",
+          "items": { "$ref": "#/$defs/Span" }
+        }
+      }
+    },
+    "Folder": {
+      "description": "A folder grouping other layers and folders.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "name", "children"],
+      "properties": {
+        "id": { "description": "Unique identifier of the folder.", "$ref": "#/$defs/Id" },
+        "type": { "description": "Node discriminator.", "const": "folder" },
+        "name": { "description": "Display name.", "type": "string" },
+        "color": { "description": "Folder color in the editor.", "$ref": "#/$defs/Color" },
+        "visible": { "description": "Visible in the editor.", "type": "boolean", "default": true },
+        "locked": { "description": "Locked against edits in the editor.", "type": "boolean", "default": false },
+        "collapsed": { "description": "Children hidden in the layer tree.", "type": "boolean", "default": false },
+        "children": {
+          "description": "Child nodes, first item displayed on top.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/LayerNode" }
+        }
+      }
+    },
+    "SelectorTarget": {
+      "description": "Target resolved with a CSS selector in the root of the HTML stage.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selector"],
+      "properties": {
+        "selector": { "description": "CSS selector of the animated element.", "type": "string", "minLength": 1 }
+      }
+    },
+    "RefTarget": {
+      "description": "Target resolved by a stage from a developer-chosen reference (canvas object, audio channel, data-timeline-target...).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref"],
+      "properties": {
+        "ref": { "description": "Reference of the animated object, interpreted by the stage.", "type": "string", "minLength": 1 },
+        "stage": { "description": "Id of the only stage allowed to resolve the reference (any stage that accepts it when absent).", "type": "string", "minLength": 1 }
+      }
+    },
+    "SpanKind": {
+      "description": "Span kind: \"static\" (content keyframe, no motion), \"blank\" (target hidden) or \"tween\" (motion tween).",
+      "type": "string",
+      "enum": ["static", "blank", "tween"]
+    },
+    "Span": {
+      "description": "A frame range [start, end] of a layer starting with a content keyframe.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "start", "end", "kind"],
+      "properties": {
+        "id": { "description": "Unique identifier of the span.", "$ref": "#/$defs/Id" },
+        "start": { "description": "First frame of the span (inclusive).", "$ref": "#/$defs/Frame" },
+        "end": { "description": "Last frame of the span (inclusive, >= start).", "$ref": "#/$defs/Frame" },
+        "kind": { "description": "Span kind.", "$ref": "#/$defs/SpanKind" },
+        "easing": { "description": "Easing applied to the whole span (tween spans only).", "$ref": "#/$defs/Easing" },
+        "tracks": { "description": "Property keyframes (static and tween spans only).", "$ref": "#/$defs/PropertyTracks" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "tween" } } },
+          "else": { "properties": { "easing": false } }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "blank" } } },
+          "then": { "properties": { "tracks": false } }
+        }
+      ]
+    },
+    "PropertyTracks": {
+      "description": "Keyframes per animatable property name (CSS or not; property names are not checked against a registry here).",
+      "type": "object",
+      "propertyNames": {
+        "description": "Property name: letters and digits, starting with a letter; \"constructor\" and \"prototype\" are reserved.",
+        "pattern": "^[a-zA-Z][a-zA-Z0-9]*$",
+        "not": { "enum": ["constructor", "prototype"] }
+      },
+      "additionalProperties": {
+        "description": "Keyframes of one property, strictly increasing frames inside the span.",
+        "type": "array",
+        "items": { "$ref": "#/$defs/PropertyKeyframe" }
+      }
+    },
+    "PropertyKeyframe": {
+      "description": "Value of one property at one frame.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["frame", "value"],
+      "properties": {
+        "frame": { "description": "Absolute, 1-based frame number of the keyframe.", "$ref": "#/$defs/Frame" },
+        "value": { "description": "Numeric value of the property (finite).", "type": "number" }
+      }
+    },
+    "Easing": {
+      "description": "CSS easing: a preset name or cubic-bezier(x1, y1, x2, y2). Defaults to \"linear\".",
+      "type": "string",
+      "default": "linear",
+      "anyOf": [
+        { "enum": ["linear", "ease", "ease-in", "ease-out", "ease-in-out"] },
+        { "pattern": "^cubic-bezier\\(\\s*[-+]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)\\s*,\\s*[-+]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)\\s*,\\s*[-+]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)\\s*,\\s*[-+]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)\\s*\\)$" }
+      ]
+    }
+  }
+}

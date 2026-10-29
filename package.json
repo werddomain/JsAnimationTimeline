@@ -1,40 +1,32 @@
 {
-  "name": "js-timeline-control",
+  "name": "jsanimationtimeline",
   "version": "0.1.0",
-  "description": "A Flash MX-style timeline control built with TypeScript and LESS for creating animation timelines.",
-  "main": "dist/JsTimeLine.bundle.js",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist/**/*",
-    "src/**/*",
-    "README.md",
-    "LICENSE"
+  "private": true,
+  "description": "Monorepo of the JsAnimationTimeline packages: runtime, editor and export-css.",
+  "workspaces": [
+    "packages/runtime",
+    "packages/editor",
+    "packages/export-css",
+    "tools/conventions",
+    "demo/runtime",
+    "demo/editor",
+    "dotnet/JsTimeline.Blazor.JsTests",
+    "e2e"
   ],
-  "directories": {
-    "doc": "doc"
-  },
   "scripts": {
-    "build": "webpack --env production",
-    "build:dev": "webpack --env development",
-    "dev": "webpack serve --env development",
-    "watch": "webpack --watch --env development",
-    "test": "jest",
-    "test:coverage": "jest --coverage",
-    "prepublishOnly": "npm run build"
+    "build": "npm run build --workspaces --if-present",
+    "build:demo": "npm run build:demo --workspaces --if-present",
+    "dev": "npm run dev --workspace demo/editor",
+    "dev:validation": "npm run dev --workspace demo/runtime",
+    "preview:validation": "npm run preview:demo --workspace demo/runtime",
+    "test": "npm test --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "test:e2e": "npm run e2e --workspace e2e",
+    "test:validation": "npm run e2e --workspace e2e -- validation",
+    "test:packaging": "node tools/packaging/consumers.mjs"
   },
-  "keywords": [
-    "timeline",
-    "animation",
-    "flash",
-    "flash-mx",
-    "typescript",
-    "less",
-    "control",
-    "ui-component",
-    "keyframe",
-    "tween"
-  ],
-  "author": "",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -45,20 +37,18 @@
   },
   "homepage": "https://github.com/werddomain/JsAnimationTimeline#readme",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
     "@types/jest": "^30.0.0",
-    "css-loader": "^7.1.2",
-    "html-webpack-plugin": "^5.6.4",
+    "ajv": "^8.20.0",
+    "eslint": "^10.13.0",
+    "globals": "^17.13.0",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.2.0",
     "less": "^4.4.2",
-    "less-loader": "^12.3.0",
-    "mini-css-extract-plugin": "^2.9.4",
-    "style-loader": "^4.0.0",
     "ts-jest": "^29.4.6",
-    "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
-    "webpack": "^5.102.1",
-    "webpack-cli": "^6.0.1",
-    "webpack-dev-server": "^5.2.2"
+    "typescript-eslint": "^8.72.0",
+    "vite": "^8.3.5"
   }
 }

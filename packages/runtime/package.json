@@ -1,0 +1,35 @@
+{
+  "name": "@kazo-ca/timeline-runtime",
+  "version": "1.0.0",
+  "description": "UI-less player for JsAnimationTimeline animations.",
+  "main": "dist/timeline-runtime.umd.js",
+  "module": "dist/timeline-runtime.mjs",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/timeline-runtime.mjs",
+      "require": "./dist/timeline-runtime.umd.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build --configLoader runner && tsc -p tsconfig.build.json",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kazo-ca/JsAnimationTimeline.git",
+    "directory": "packages/runtime"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

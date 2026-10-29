@@ -1,0 +1,40 @@
+<!-- demo/runtime/validation-phase7.html -->
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JsAnimationTimeline v2 · Validation de l’export CSS</title>
+  <link rel="icon" href="data:,">
+
+</head>
+<body class="JsTimeLine validation-phase7">
+<main>
+  <header>
+    <div><div class="eyebrow">JsAnimationTimeline v2 · Phase 7 · X1 / X2</div><h1>Du document animé au CSS exporté</h1><p>Le même document de 48 images est rendu par le runtime et par le CSS généré. Chaque panneau possède sa propre racine isolée ; les indicateurs comparent les styles calculés du navigateur.</p></div>
+    <div class="badge">Démonstration de validation · Phase 7</div>
+  </header>
+  <section class="card controls" aria-label="Inspection image par image">
+    <output id="frame-label" for="frame-slider">Image 1 / 48</output>
+    <input id="frame-slider" type="range" min="1" max="48" step="1" value="1" aria-label="Image à inspecter">
+    <div class="boundaries" aria-label="Limites de la plage vide"><button type="button" data-frame="24" aria-label="Image 24">24 · visible</button><button type="button" data-frame="25" aria-label="Image 25">25 · masquée</button><button type="button" data-frame="32" aria-label="Image 32">32 · masquée</button><button type="button" data-frame="33" aria-label="Image 33">33 · retour</button></div>
+  </section>
+  <section class="panels" aria-label="Comparaison des deux rendus">
+    <article class="card"><div class="panel-head"><h2>Runtime</h2><span>createPlayer · seek(N)</span></div><div id="runtime-host" class="scene-host"></div><div class="scene-note">Translation linéaire, rotation accélérée et fondu de la balle.</div></article>
+    <article class="card"><div class="panel-head"><h2>CSS exporté</h2><span>@keyframes · animations en pause</span></div><div id="css-host" class="scene-host"></div><div class="scene-note">Temps appliqué : (image − 1) × 1 000 / 24 millisecondes.</div></article>
+  </section>
+  <section class="card metrics" aria-label="Accord des styles calculés">
+    <div class="metric-head"><h2>Ce que le navigateur calcule</h2><span id="agreement">Comparaison en cours…</span></div>
+    <table><thead><tr><th>Cible</th><th>Translation runtime / CSS</th><th>Opacité runtime / CSS</th><th>Visibilité runtime / CSS</th><th>Matrice</th></tr></thead><tbody id="metric-rows"></tbody></table>
+    <p class="small tolerance-note">Tolérances du scénario 12 : translation &lt; 0,005 px ; matrice et opacité &lt; 0,0005.</p>
+  </section>
+  <section class="bottom">
+    <article class="card"><div class="output-head"><h2>CSS produit par exportCss()</h2><button id="download-css" type="button">Télécharger le CSS</button></div><textarea id="css-output" readonly spellcheck="false" aria-label="CSS exporté en lecture seule"></textarea></article>
+    <aside class="card warnings"><h2>Ce que l’export signale</h2><p>Ces trois messages proviennent réellement d’un second document de contrôle, distinct de la scène comparée.</p><ul id="warning-list"></ul><p class="limit"><strong>Portée de la comparaison :</strong> ce document commence à l’image 1 et chaque sélecteur identifie un seul élément. Seules les cibles par sélecteur et les propriétés CSS connues sont exportables.</p><p><strong>Limites :</strong> le runtime anime le premier élément trouvé ; le CSS touche tous les éléments correspondants. Les courbes échantillonnées sont contrôlées aux images entières ; les temps intermédiaires ne sont pas garantis ici. Avant une première plage tardive, le CSS maintient son premier état dès 0 %, alors que le runtime peut garder le style initial. La boucle exportée est soit unique, soit infinie.</p></aside>
+  </section>
+  <pre id="fatal" hidden></pre>
+  <footer><span>Démonstration de validation conservée dans le dépôt</span><span>48 images · 24 images/s · aucune publication</span></footer>
+</main>
+<script type="module" src="./src/validation/phase7.ts"></script>
+</body>
+</html>

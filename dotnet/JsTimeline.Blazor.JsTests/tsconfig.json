@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "types": ["jest", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "@kazo-ca/timeline-runtime": ["../../packages/runtime/src/index.ts"],
+      "@kazo-ca/timeline-editor": ["../../packages/editor/src/index.ts"],
+      "../js/timeline-runtime.mjs": ["../../packages/runtime/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "../JsTimeline.Blazor/wwwroot/stage/*.js", "../JsTimeline.Blazor/Player/*.razor.js"]
+}

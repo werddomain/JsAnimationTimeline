@@ -1,0 +1,24 @@
+@* dotnet/samples/BlazorSample/Components/Pages/PlayerPage.razor *@
+@page "/lecteur"
+<Navigation />
+<main><h1>Lecteur HTML</h1><p>Le lecteur anime le contenu HTML dans le navigateur.</p>
+<TimelinePlayer @ref="player" Data="document" Loop="true" OnReady="Ready" OnFrame="Frame" OnError="Error" class="scene">
+    <div id="logo" class="logo">Bonjour</div>
+</TimelinePlayer>
+<button disabled="@(!ready)" @onclick="Play">Lire</button><button disabled="@(!ready)" @onclick="Pause">Pause</button>
+<button disabled="@(!ready)" @onclick="First">Image 1</button><button disabled="@(!ready)" @onclick="Last">Image 24</button>
+<p>Image : @frame</p><p role="alert">@error</p></main>
+@code {
+    private TimelinePlayer player = default!;
+    private readonly TimelineDocument document = SampleDocuments.Html();
+    private bool ready;
+    private int frame = 1;
+    private string error = "";
+    private void Ready() => ready = true;
+    private void Frame(int value) => frame = value;
+    private void Error(Exception value) => error = value.Message;
+    private Task Play() => player.PlayAsync();
+    private Task Pause() => player.PauseAsync();
+    private Task First() => player.SeekAsync(1);
+    private Task Last() => player.SeekAsync(24);
+}

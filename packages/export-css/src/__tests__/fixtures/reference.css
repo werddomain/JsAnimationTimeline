@@ -1,0 +1,66 @@
+@keyframes tl-hero {
+  0% {
+    transform: translateX(0px) translateY(0px) rotate(0deg) scaleX(1) scaleY(1) skewX(0deg) skewY(0deg);
+    opacity: 1;
+    visibility: visible;
+    animation-timing-function: ease-out;
+  }
+  45.833333% {
+    transform: translateX(100px) translateY(0px) rotate(0deg) scaleX(1) scaleY(1) skewX(0deg) skewY(0deg);
+    opacity: 1;
+    visibility: visible;
+    animation-timing-function: step-end;
+  }
+  50% {
+    transform: translateX(100px) translateY(0px) rotate(0deg) scaleX(1) scaleY(1) skewX(0deg) skewY(0deg);
+    opacity: 0.5;
+    visibility: visible;
+    animation-timing-function: step-end;
+  }
+  75% {
+    transform: translateX(100px) translateY(0px) rotate(0deg) scaleX(1) scaleY(1) skewX(0deg) skewY(0deg);
+    opacity: 0.5;
+    visibility: hidden;
+  }
+  100% {
+    transform: translateX(100px) translateY(0px) rotate(0deg) scaleX(1) scaleY(1) skewX(0deg) skewY(0deg);
+    opacity: 0.5;
+    visibility: hidden;
+  }
+}
+
+@keyframes tl-badge {
+  0% {
+    transform: translateX(0px) translateY(0px) rotate(0deg) scaleX(1) scaleY(1) skewX(0deg) skewY(0deg);
+    opacity: 1;
+    animation-timing-function: step-end;
+  }
+  25% {
+    transform: translateX(0px) translateY(0px) rotate(0deg) scaleX(1) scaleY(1) skewX(0deg) skewY(0deg);
+    opacity: 0;
+  }
+  95.833333% {
+    transform: translateX(0px) translateY(0px) rotate(90deg) scaleX(1) scaleY(1) skewX(0deg) skewY(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0px) translateY(0px) rotate(90deg) scaleX(1) scaleY(1) skewX(0deg) skewY(0deg);
+    opacity: 1;
+  }
+}
+
+#hero {
+  animation-name: tl-hero;
+  animation-duration: 2000ms;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-iteration-count: 1;
+}
+
+.badge > span {
+  animation-name: tl-badge;
+  animation-duration: 2000ms;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-iteration-count: 1;
+}

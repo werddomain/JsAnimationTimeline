@@ -1,0 +1,50 @@
+// packages/editor/src/plugins/properties/panel/PropertiesPanel.less
+.JsTimeLine {
+  &.jt-properties-panel-owner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--jt-properties-width, 280px);
+    grid-template-rows: minmax(0, 1fr);
+    > .jt-shell { min-width: 0; min-height: 0; }
+    > .jt-shell > .jt-zone--toolbar { overflow: auto; }
+  }
+  .jt-properties-panel {
+    --jt-panel-ink: #20324a;
+    --jt-panel-muted: #4c5e72;
+    --jt-panel-accent: #315a92;
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 0;
+    padding: 14px 12px;
+    overflow: auto;
+    color: var(--jt-panel-ink);
+    background: #f4f7fb;
+    border-left: 1px solid #b9c8da;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 13px;
+    h2 { margin: 0 0 6px; font-size: 18px; font-weight: 650; }
+    p { margin: 0 0 10px; line-height: 1.45; }
+    &__context { font-weight: 600; overflow-wrap: anywhere; }
+    &__status { color: var(--jt-panel-muted); }
+    &__hint { color: var(--jt-panel-muted); font-size: 12px; }
+    form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 5px 8px; margin: 0; padding: 10px 0; border-top: 1px solid #d5dfeb; }
+    label { display: grid; gap: 5px; min-width: 0; font-weight: 600; }
+    input { box-sizing: border-box; width: 100%; min-width: 0; padding: 6px; color: inherit; background: #fff; border: 1px solid #8c9db3; border-radius: 3px; font: inherit; font-variant-numeric: tabular-nums; }
+    button { padding: 6px 8px; color: #fff; background: var(--jt-panel-accent); border: 1px solid var(--jt-panel-accent); border-radius: 3px; font: inherit; cursor: pointer; }
+    button:hover:not(:disabled) { background: #244473; }
+    input:disabled { color: var(--jt-panel-muted); background: #e8edf4; }
+    button:disabled { color: #4d5b6c; background: #dfe6ef; border-color: #c2cedd; cursor: default; }
+    input:focus-visible, button:focus-visible, &:focus-visible { outline: 3px solid #315a92; outline-offset: 2px; }
+    &__origin, &__error { grid-column: 1 / -1; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+    &__origin { color: var(--jt-panel-muted); }
+    &__error { color: #9d251c; }
+    input[aria-invalid="true"] { border-color: #9d251c; }
+  }
+  @media (max-width: 767px) {
+    &.jt-properties-panel-owner {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(180px, 1fr) minmax(0, 260px);
+    }
+    .jt-properties-panel { border-left: 0; border-top: 1px solid #b9c8da; }
+  }
+}
+

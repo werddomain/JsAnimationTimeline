@@ -1,0 +1,7 @@
+/* dotnet/samples/BlazorSample/wwwroot/sample.css */
+body { font: 16px system-ui, sans-serif; margin: 0; color: #203047; }
+nav { padding: 1rem; background: #e9eff7; display: flex; gap: 1rem; }
+main { padding: 1rem; }
+.scene { min-height: 100px; padding: 1rem; overflow: hidden; background: #f1f6fb; }
+.logo { display: inline-block; padding: 1rem; color: white; background: #2858a6; border-radius: .5rem; }
+button { margin: .5rem .5rem .5rem 0; }

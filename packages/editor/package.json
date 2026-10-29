@@ -1,0 +1,55 @@
+{
+  "name": "@kazo-ca/timeline-editor",
+  "version": "1.0.0",
+  "description": "A Flash MX-style timeline control built with TypeScript and LESS for creating animation timelines.",
+  "main": "dist/timeline-editor.umd.js",
+  "module": "dist/timeline-editor.mjs",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/timeline-editor.mjs",
+      "require": "./dist/timeline-editor.umd.js"
+    },
+    "./timeline-editor.css": "./dist/timeline-editor.css",
+    "./package.json": "./package.json"
+  },
+  "sideEffects": [
+    "*.css",
+    "*.less"
+  ],
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build --configLoader runner && tsc -p tsconfig.build.json",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@kazo-ca/timeline-runtime": "1.0.0"
+  },
+  "keywords": [
+    "timeline",
+    "animation",
+    "flash",
+    "flash-mx",
+    "typescript",
+    "less",
+    "control",
+    "ui-component",
+    "keyframe",
+    "tween"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kazo-ca/JsAnimationTimeline.git",
+    "directory": "packages/editor"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

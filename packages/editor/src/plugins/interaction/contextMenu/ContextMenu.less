@@ -1,0 +1,48 @@
+// packages/editor/src/plugins/interaction/contextMenu/ContextMenu.less
+// Scoped portal keeps the editor's menu styles isolated from host applications.
+.JsTimeLine.jt-context-menu-portal {
+  position: fixed;
+  inset: 0;
+  width: auto;
+  height: auto;
+  pointer-events: none;
+  z-index: 10000;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+
+  .jt-context-menu {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    width: max-content;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+    padding: 4px;
+    box-sizing: border-box;
+    border: 1px solid #666;
+    border-radius: 3px;
+    background: #333;
+    color: #f4f4f4;
+    box-shadow: 0 4px 16px #0008;
+    pointer-events: auto;
+    font: 12px/1.4 Arial, sans-serif;
+
+    [role='menuitem'] {
+      border: 0;
+      border-radius: 2px;
+      margin: 0;
+      padding: 7px 12px;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      white-space: normal;
+      cursor: pointer;
+
+      &:hover, &:focus-visible { background: #4b4b4b; outline: 2px solid #bdb1ff; outline-offset: -2px; }
+      &[aria-disabled='true'] { color: #b5b5b5; cursor: default; }
+    }
+  }
+}

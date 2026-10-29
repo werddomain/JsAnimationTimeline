@@ -1,0 +1,55 @@
+<!-- demo/runtime/index.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Démo du lecteur runtime</title>
+</head>
+<body>
+  <main class="runtime-demo">
+    <h1>Démo du lecteur runtime</h1>
+    <p class="intro">
+      Le package <code>@kazo-ca/timeline-runtime</code> joue ici une animation JSON v2 écrite à la main,
+      sans éditeur, grâce à l’API Web Animations.
+    </p>
+    <p class="intro">
+      Autre démo : <a href="./object-stage.html">scène sans HTML animé (canvas et audio)</a>.
+      Revues conservées : <a href="./validation-phase3.html">calques et mise en page</a>,
+      <a href="./validation-phase4.html">images et interpolation (phase 4)</a>,
+      <a href="./validation-phase5.html">barre d’outils et lecture (phase 5)</a> et <a href="./validation-phase7.html">export CSS comparé au runtime</a>.
+      Contrôles complémentaires : <a href="./fixtures/property-api.html">API de propriétés</a>,
+      <a href="./fixtures/property-keyframes.html">clés de propriété et losanges</a>,
+      <a href="./fixtures/easing.html">accélération des interpolations</a>,
+      <a href="./fixtures/context-menu.html">menus contextuels</a> et
+      <a href="./fixtures/properties-panel.html">panneau de propriétés optionnel</a>.
+    </p>
+
+    <div id="stage" class="stage" aria-label="Scène animée">
+      <div id="logo" class="logo"><span id="logo-mark" class="logo-mark"></span>Logo</div>
+      <div id="ball" class="ball" aria-label="Balle"></div>
+    </div>
+
+    <div class="controls">
+      <button id="play" type="button">Lecture</button>
+      <button id="pause" type="button">Pause</button>
+      <label><input id="loop" type="checkbox"> Boucle</label>
+      <label>Vitesse
+        <select id="speed">
+          <option value="0.5">× 0,5</option>
+          <option value="1" selected>× 1</option>
+          <option value="2">× 2</option>
+          <option value="4">× 4</option>
+        </select>
+      </label>
+      <label for="seek">Aller à l’image</label>
+      <input id="seek" type="range" min="1" max="48" value="1">
+      <output id="frame" for="seek">Image 1 / 48</output>
+    </div>
+
+    <h2>Événements</h2>
+    <ul id="events" class="events" aria-live="polite"></ul>
+  </main>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

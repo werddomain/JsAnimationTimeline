@@ -1,0 +1,13 @@
+{
+  "name": "@werddomain/demo-runtime",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Demo page of the timeline runtime (hand-written JSON v2 played with Web Animations).",
+  "scripts": {
+    "dev": "vite --configLoader runner",
+    "build:demo": "vite build --configLoader runner",
+    "preview:demo": "vite preview --configLoader runner",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "MIT"
+}

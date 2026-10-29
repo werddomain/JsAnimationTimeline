@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "noEmit": true,
+    "types": ["node"],
+    // Typecheck before any build: the packages are read from their sources.
+    "paths": {
+      "@kazo-ca/timeline-runtime": ["../packages/runtime/src/index.ts"],
+      "@kazo-ca/timeline-export-css": ["../packages/export-css/src/index.ts"],
+      "@kazo-ca/timeline-editor": ["../packages/editor/src/index.ts"]
+    }
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "playwright-report", "test-results"]
+}

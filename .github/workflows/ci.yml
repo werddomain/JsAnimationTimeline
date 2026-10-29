@@ -1,0 +1,99 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [main, 'v2/**']
+  pull_request:
+    branches: [main, v2/base]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify NuGet release guards
+        run: python3 -m unittest tools/packaging/test_nuget_release.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run build:demo
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build and test the .NET library
+        run: dotnet test dotnet/JsTimeline.sln
+
+      - name: Pack the .NET library locally
+        run: dotnet pack dotnet/JsTimeline.Blazor/JsTimeline.Blazor.csproj -c Release -o artifacts/nuget
+
+      - name: Verify release package metadata
+        run: node --test tools/packaging/metadata.test.mjs tools/packaging/npm-release.test.mjs
+
+      - name: Pack npm libraries locally
+        run: npm pack --workspace packages/runtime --workspace packages/editor --workspace packages/export-css --ignore-scripts --pack-destination artifacts/nuget
+
+      - name: Verify package consumers offline
+        run: |
+          version=$(dotnet msbuild dotnet/JsTimeline.Blazor/JsTimeline.Blazor.csproj -getProperty:Version)
+          npm run test:packaging -- artifacts/nuget "artifacts/nuget/JsTimeline.Blazor.${version}.nupkg"
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run e2e tests
+        run: npm run test:e2e
+
+      - name: Run Blazor browser tests
+        run: |
+          npx playwright test --config e2e/blazor/playwright.config.ts
+          npx playwright test --config e2e/blazor-sample/playwright.config.ts
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+            e2e/blazor/test-results/
+            e2e/blazor-sample/test-results/
+          if-no-files-found: ignore
+
+      - name: Upload package builds
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: packages/*/dist
+          if-no-files-found: warn
+
+      - name: Upload demo build
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-demo
+          path: |
+            demo/editor/dist
+            demo/runtime/dist
+          if-no-files-found: warn

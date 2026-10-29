@@ -1,0 +1,121 @@
+// Liste des calques (layers.list) et son en-tête. Réglages par variables CSS :
+//   --jt-layer-row-hover   fond d'une ligne survolée
+//   --jt-layer-color       couleur du calque (posée sur chaque ligne)
+
+.JsTimeLine {
+  .jt-layer-list {
+    display: flex;
+    flex-direction: column;
+    min-width: 100%;
+    outline: none;
+  }
+
+  .jt-layer-list__empty {
+    padding: 8px;
+    color: #888;
+    font-style: italic;
+    font-size: 12px;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .jt-layer-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: none;
+    box-sizing: border-box;
+    padding-right: 4px;
+    border-bottom: 1px solid #e0e0e0;
+    border-left: 4px solid var(--jt-layer-color, transparent);
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: default;
+    user-select: none;
+
+    &:hover {
+      background-color: var(--jt-layer-row-hover, #f2f6fb);
+    }
+  }
+
+  .jt-layer-row--folder {
+    font-weight: 600;
+  }
+
+  .jt-layer-row--hidden .jt-layer-row__name {
+    opacity: 0.5;
+  }
+
+  .jt-layer-row--locked .jt-layer-row__name {
+    font-style: italic;
+  }
+
+  .jt-layer-row__toggle,
+  .jt-layer-row__spacer {
+    flex: none;
+    width: 16px;
+    height: 16px;
+  }
+
+  .jt-layer-row__toggle {
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 9px;
+    line-height: 16px;
+    color: #555;
+    cursor: pointer;
+  }
+
+  .jt-layer-row__icon {
+    flex: none;
+    width: 16px;
+    text-align: center;
+
+    img {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
+      vertical-align: middle;
+    }
+  }
+
+  .jt-layer-row__name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .jt-layer-row__controls,
+  .jt-layers-header__controls {
+    display: flex;
+    align-items: center;
+    flex: none;
+    gap: 2px;
+  }
+
+  .jt-layer-row__control,
+  .jt-layers-header__control {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+  }
+
+  .jt-layers-header {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 4px 0 8px;
+    box-sizing: border-box;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .jt-layers-header__title {
+    flex: 1 1 auto;
+  }
+}

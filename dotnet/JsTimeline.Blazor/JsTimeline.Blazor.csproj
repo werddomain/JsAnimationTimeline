@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <!-- dotnet/JsTimeline.Blazor : Razor Class Library shipping the npm builds and the C# model of the timeline document. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>JsTimeline.Blazor</RootNamespace>
+
+    <PackageId>JsTimeline.Blazor</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>werddomain</Authors>
+    <Description>Flash CS4-style animation timeline for Blazor: the timeline-runtime and timeline-editor builds, and a C# model of the v2 timeline document.</Description>
+    <PackageTags>blazor;timeline;animation;keyframes;tween</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/werddomain/JsAnimationTimeline</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/werddomain/JsAnimationTimeline.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.11" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <InternalsVisibleTo Include="JsTimeline.Blazor.Tests" />
+  </ItemGroup>
+
+  <!-- The generator runs at build time only: no reference to its assembly and no package dependency on it. -->
+  <ItemGroup>
+    <ProjectReference Include="..\tools\JsTimeline.SchemaGen\JsTimeline.SchemaGen.csproj"
+                      ReferenceOutputAssembly="false"
+                      PrivateAssets="all" />
+  </ItemGroup>
+
+  <Import Project="build\JsTimeline.Model.targets" />
+  <Import Project="build\JsTimeline.NpmAssets.targets" />
+</Project>

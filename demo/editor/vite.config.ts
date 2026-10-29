@@ -1,0 +1,20 @@
+// demo/editor/vite.config.ts
+import { fileURLToPath } from 'node:url';
+import { defineConfig } from 'vite';
+import { editorPort } from '../../tools/devPorts';
+
+const port = editorPort();
+export default defineConfig({
+  root: fileURLToPath(new URL('.', import.meta.url)),
+  base: './',
+  resolve: { alias: [
+    { find: /^@kazo-ca\/timeline-runtime$/, replacement: fileURLToPath(new URL('../../packages/runtime/src/index.ts', import.meta.url)) },
+    { find: /^@kazo-ca\/timeline-editor$/, replacement: fileURLToPath(new URL('../../packages/editor/src/index.ts', import.meta.url)) }
+  ] },
+  build: { outDir: 'dist', emptyOutDir: true, rollupOptions: { input: {
+    main: fileURLToPath(new URL('index.html', import.meta.url)),
+    scene: fileURLToPath(new URL('scene.html', import.meta.url))
+  } } },
+  server: { port, strictPort: true },
+  preview: { port, strictPort: true }
+});

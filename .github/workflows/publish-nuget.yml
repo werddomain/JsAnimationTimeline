@@ -1,0 +1,121 @@
+# .github/workflows/publish-nuget.yml: Publish only a validated version tag reachable from main.
+name: Publish NuGet
+
+on:
+  push:
+    tags:
+      - 'v.*'
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      package_sha256: ${{ steps.digest.outputs.sha256 }}
+    env:
+      E2E_V2_EDITOR_PORT: 19102
+      E2E_RUNTIME_PORT: 19101
+      E2E_BLAZOR_PORT: 19137
+      E2E_BLAZOR_SAMPLE_PORT: 19138
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Validate tag and main ancestry
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "${RELEASE_SHA}^{commit}")"
+          python3 tools/packaging/validate_nuget_release.py "$RELEASE_TAG" "$RELEASE_SHA" dotnet/JsTimeline.Blazor/JsTimeline.Blazor.csproj
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: 8.0.x
+      - run: python3 -m unittest tools/packaging/test_nuget_release.py
+      - run: npm ci
+      - run: node --test tools/packaging/metadata.test.mjs
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run build:demo
+      - run: dotnet build dotnet/JsTimeline.sln -c Release
+      - run: dotnet test dotnet/JsTimeline.sln -c Release --no-build
+      - run: node tools/pages/build.mjs
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - run: npx playwright test --config e2e/blazor/playwright.config.ts
+      - run: npx playwright test --config e2e/blazor-sample/playwright.config.ts
+      - run: npx playwright test --config e2e/pages/playwright.config.ts
+      - run: dotnet pack dotnet/JsTimeline.Blazor/JsTimeline.Blazor.csproj -c Release -o artifacts/nuget
+      - name: Validate package
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: python3 tools/packaging/validate_nuget_release.py "$RELEASE_TAG" "$RELEASE_SHA" dotnet/JsTimeline.Blazor/JsTimeline.Blazor.csproj "artifacts/nuget/JsTimeline.Blazor.${RELEASE_TAG#v.}.nupkg"
+      - name: Verify exact package with local consumers
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p artifacts/npm
+          npm pack --workspace packages/runtime --workspace packages/editor --workspace packages/export-css --ignore-scripts --pack-destination artifacts/npm
+          npm run test:packaging -- artifacts/npm "artifacts/nuget/JsTimeline.Blazor.${RELEASE_TAG#v.}.nupkg"
+      - name: Record validated package digest
+        id: digest
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          digest=$(python3 tools/packaging/package_digest.py "artifacts/nuget/JsTimeline.Blazor.${RELEASE_TAG#v.}.nupkg")
+          echo "sha256=$digest" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nuget-package
+          path: artifacts/nuget/JsTimeline.Blazor.*.nupkg
+          if-no-files-found: error
+
+  publish:
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: nuget-production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: nuget-package
+          path: artifacts/nuget
+      - name: Revalidate exact package
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ github.sha }}
+          EXPECTED_SHA256: ${{ needs.prepare.outputs.package_sha256 }}
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "${RELEASE_SHA}^{commit}")"
+          test "$(find artifacts/nuget -type f | wc -l)" -eq 1
+          python3 tools/packaging/validate_nuget_release.py "$RELEASE_TAG" "$RELEASE_SHA" dotnet/JsTimeline.Blazor/JsTimeline.Blazor.csproj "artifacts/nuget/JsTimeline.Blazor.${RELEASE_TAG#v.}.nupkg"
+          python3 tools/packaging/package_digest.py "artifacts/nuget/JsTimeline.Blazor.${RELEASE_TAG#v.}.nupkg" "$EXPECTED_SHA256"
+      - name: NuGet login
+        id: login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+      - name: Publish validated package
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push "artifacts/nuget/JsTimeline.Blazor.${RELEASE_TAG#v.}.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json

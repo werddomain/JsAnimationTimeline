@@ -1,0 +1,13 @@
+@* dotnet/samples/BlazorSample/Components/App.razor *@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base href="/" />
+    <link rel="stylesheet" href="_content/JsTimeline.Blazor/css/timeline-editor.css" />
+    <link rel="stylesheet" href="sample.css" />
+    <script type="importmap">{"imports":{"@@kazo-ca/timeline-runtime":"./_content/JsTimeline.Blazor/js/timeline-runtime.mjs"}}</script>
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+<body><Routes @rendermode="InteractiveServer" /><script src="_framework/blazor.web.js"></script></body>
+</html>

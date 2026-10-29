@@ -1,0 +1,41 @@
+// packages/editor/src/core/editor/defaultPlugins.ts
+/**
+ * Jeu de plugins chargé par `createEditor()` quand `defaultPlugins` n'est pas
+ * précisé (ou vaut `true`).
+ *
+ * Les tâches du plan y ajoutent leurs plugins au fur et à mesure (L1
+ * `layout.*` : fait ; Y1 `layers.list` et Y5 `layers.selection` : faits ; G1 `frames.grid`, G2 `frames.selection`, K2 `frames.keyframes` et K3 `frames.clipboard` : faits ; W1 `tweens.motion` : fait ; Y* `layers.*`, G* `frames.*`, T* `toolbar.*`,
+ * P* `playback.*`...). Déjà présents : I2 `interaction.shortcuts`,
+ * T1 `toolbar` (`toolbar.main`), P1 `playback` (`playback.controls`),
+ * S2 `persistence.json` et C5 `history` (`history.undoRedo`). Les plugins optionnels
+ * (par exemple `properties.panel`) n'y figurent pas : l'application les
+ * passe dans `options.plugins`.
+ */
+
+import type { EditorPlugin } from '../context/IEditorContext';
+import { LayoutPlugin } from '../../plugins/layout/LayoutPlugin';
+import { FramesPlugin } from '../../plugins/frames/FramesPlugin';
+import { TweensPlugin } from '../../plugins/tweens/TweensPlugin';
+import { LayersPlugin } from '../../plugins/layers/LayersPlugin';
+import { createShortcutsPlugin } from '../../plugins/interaction/shortcuts';
+import { ContextMenuPlugin } from '../../plugins/interaction/contextMenu/ContextMenuPlugin';
+import { ToolbarPlugin } from '../../plugins/toolbar/ToolbarPlugin';
+import { PlaybackPlugin } from '../../plugins/playback/PlaybackPlugin';
+import { createPersistenceJsonPlugin } from '../../plugins/persistence/json';
+import { HistoryPlugin } from '../../plugins/history/HistoryPlugin';
+
+/** Retourne une nouvelle liste des plugins par défaut (de nouvelles instances à chaque appel). */
+export function defaultPlugins(): EditorPlugin[] {
+  return [
+    new LayoutPlugin(),
+    new LayersPlugin(),
+    new FramesPlugin(),
+    new TweensPlugin(),
+    createShortcutsPlugin(),
+    new ContextMenuPlugin(),
+    new ToolbarPlugin(),
+    new PlaybackPlugin(),
+    createPersistenceJsonPlugin(),
+    new HistoryPlugin()
+  ];
+}

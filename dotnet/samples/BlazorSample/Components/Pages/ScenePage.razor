@@ -1,0 +1,19 @@
+@* dotnet/samples/BlazorSample/Components/Pages/ScenePage.razor *@
+@page "/scene"
+<Navigation />
+<main><h1>Scène C#</h1><p>La timeline calcule les valeurs ; un composant C# reçoit chaque image et dessine la scène.</p>
+<SceneDisplay @ref="display" Ready="ready" OnReset="Reset" />
+@if (stage is not null) { <TimelineEditor @ref="editor" @bind-Data="document" Stage="stage" OnReady="Ready" OnError="Error" /> }
+<p role="alert">@error</p></main>
+@code {
+    private SceneDisplay display = default!;
+    private TimelineEditor editor = default!;
+    private bool ready;
+    private TimelineStageOption? stage;
+    private TimelineDocument document = SampleDocuments.Scene();
+    private string error = "";
+    protected override void OnAfterRender(bool firstRender) { if (firstRender) { stage = TimelineStageOption.DotNet(display); StateHasChanged(); } }
+    private void Ready() => ready = true;
+    private Task Reset() => editor.ResetPlaybackAsync();
+    private void Error(Exception value) => error = value.Message;
+}
