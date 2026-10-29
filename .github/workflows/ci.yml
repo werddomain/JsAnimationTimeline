@@ -21,6 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify NuGet release guards
+        run: python3 -m unittest tools/packaging/test_nuget_release.py
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -50,7 +53,9 @@ jobs:
         run: npm pack --workspace packages/runtime --workspace packages/editor --workspace packages/export-css --ignore-scripts --pack-destination artifacts/nuget
 
       - name: Verify package consumers offline
-        run: npm run test:packaging -- artifacts/nuget artifacts/nuget/JsTimeline.Blazor.1.0.0.nupkg
+        run: |
+          version=$(dotnet msbuild dotnet/JsTimeline.Blazor/JsTimeline.Blazor.csproj -getProperty:Version)
+          npm run test:packaging -- artifacts/nuget "artifacts/nuget/JsTimeline.Blazor.${version}.nupkg"
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
