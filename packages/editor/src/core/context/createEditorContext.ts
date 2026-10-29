@@ -16,7 +16,7 @@
  * appels non typés (JavaScript, transtypage).
  */
 
-import type { ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import type { CommandStack } from '../commands/CommandStack';
 import type { EventBus } from '../events/EventBus';
 import type { IEditorPlayback } from '../playback/types';

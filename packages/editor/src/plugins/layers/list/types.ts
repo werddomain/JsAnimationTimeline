@@ -5,7 +5,7 @@
  * liste), le service `layers.list` et l'événement `layers:rowsChanged`.
  */
 
-import type { LayerNode } from '@werddomain/timeline-runtime';
+import type { LayerNode } from '@kazo-ca/timeline-runtime';
 import type { IVisibleRow } from '../../../model/rows';
 
 /** Une ligne affichée, avec son nœud du document courant. */

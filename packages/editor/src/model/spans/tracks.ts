@@ -5,7 +5,7 @@
  * `tracks`, décaler une plage entière, trouver la plage d'une image.
  */
 
-import type { ILayer, IPropertyKeyframe, ISpan, PropertyTracks, PropertyValues } from '@werddomain/timeline-runtime';
+import type { ILayer, IPropertyKeyframe, ISpan, PropertyTracks, PropertyValues } from '@kazo-ca/timeline-runtime';
 
 /** Nouvelle image clé, ou `undefined` pour la retirer. */
 export type KeyframeMapper = (keyframe: IPropertyKeyframe) => IPropertyKeyframe | undefined;

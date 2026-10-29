@@ -14,7 +14,7 @@
  *   Flash) : le document reste inchangé.
  */
 
-import type { ILayer, ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ILayer, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { assertFrame, replaceLayer, requireEditableLayer } from './layerAccess';
 import { mapKeyframes, spanIndexAt, withSpans, withTracks } from './tracks';
 

@@ -6,8 +6,8 @@
  * valeurs attendues avec `evaluateDocument`.
  */
 
-import { evaluateDocument } from '@werddomain/timeline-runtime';
-import type { IManualClock, IPlayer, ITimelineDocument, PropertyRegistry, PropertyValues } from '@werddomain/timeline-runtime';
+import { evaluateDocument } from '@kazo-ca/timeline-runtime';
+import type { IManualClock, IPlayer, ITimelineDocument, PropertyRegistry, PropertyValues } from '@kazo-ca/timeline-runtime';
 import type { AudioTrack } from './audioStage';
 import type { ISprite } from './canvasStage';
 import type { ReceivedLog } from './received';

@@ -4,7 +4,7 @@
  * transformations pures (voir le contrat de `ICommand`).
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { ICommand } from './ICommand';
 
 /** Transformation pure d'un document (ne modifie jamais son entrée). */

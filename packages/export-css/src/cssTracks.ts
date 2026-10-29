@@ -6,7 +6,7 @@
  * qui permet d'évaluer le calque sans jamais échouer sur une piste inconnue.
  */
 
-import type { ILayer, ISpan, PropertyRegistry, PropertyTracks } from '@werddomain/timeline-runtime';
+import type { ILayer, ISpan, PropertyRegistry, PropertyTracks } from '@kazo-ca/timeline-runtime';
 import type { IExportCssWarning } from './types';
 
 type TrackVerdict = 'css' | 'non-css-property' | 'unknown-property';

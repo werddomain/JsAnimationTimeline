@@ -5,8 +5,8 @@
  * `color` d'origine, y compris son absence.
  */
 
-import type { ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
-import { findNodeById, isFolder } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
+import { findNodeById, isFolder } from '@kazo-ca/timeline-runtime';
 import { createCommand } from '../../../core/commands/createCommand';
 import type { ICommand } from '../../../core/commands/ICommand';
 import { updateLayerNode } from '../list/layerTree';

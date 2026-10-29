@@ -4,8 +4,8 @@
  * `readDocument`, cibles écrites telles quelles et refus d'une cible vivante.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
-import { ValidationCodes } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
+import { ValidationCodes } from '@kazo-ca/timeline-runtime';
 import { PersistenceError } from '../PersistenceError';
 import { readDocument } from '../readDocument';
 import { DEFAULT_JSON_SPACE, writeDocument } from '../writeDocument';

@@ -5,8 +5,8 @@
  * gêne le suivant) et nouvelle sélection.
  */
 
-import { findNodeById, isLayer } from '@werddomain/timeline-runtime';
-import type { ISpan, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { findNodeById, isLayer } from '@kazo-ca/timeline-runtime';
+import type { ISpan, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { IFrameCell } from '../selection/frameSelection';
 import type { ISelectedKeyframe } from '../selection/types';
 import { retimeKeyframes } from '../../../model/spans/tracks';

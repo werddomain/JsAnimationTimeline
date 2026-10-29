@@ -6,8 +6,8 @@
  * émis de nouveau ; la clé distingue code, scène, calque et propriété.
  */
 
-import { StageReportCodes } from '@werddomain/timeline-runtime';
-import type { IStageReport } from '@werddomain/timeline-runtime';
+import { StageReportCodes } from '@kazo-ca/timeline-runtime';
+import type { IStageReport } from '@kazo-ca/timeline-runtime';
 import { StageReportFeed, reportKey } from '../reportFeed';
 
 const unknownStage: IStageReport = { code: StageReportCodes.UNKNOWN_STAGE, stageId: 'nope', layerId: 'l1', message: 'a' };

@@ -1,6 +1,6 @@
 // packages/editor/src/plugins/interaction/contextMenu/__tests__/fixtures.ts
 /** Isolated menu harness using the real default services and deterministic geometry. */
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
 import { createEditor } from '../../../../core/editor/createEditor';
 import { defaultPlugins } from '../../../../core/editor/defaultPlugins';

@@ -11,8 +11,8 @@
  * manquantes changent (`stage:targetsChanged`).
  */
 
-import { isLayer } from '@werddomain/timeline-runtime';
-import type { LayerTarget } from '@werddomain/timeline-runtime';
+import { isLayer } from '@kazo-ca/timeline-runtime';
+import type { LayerTarget } from '@kazo-ca/timeline-runtime';
 import type { ILayerRow, ILayerRowControl } from '../list/types';
 import type { ITargetAlert } from './targetAlert';
 

@@ -1,7 +1,7 @@
 // demo/runtime/src/validation/phase3.ts
 /** Preserved phase-3 demonstration, using only the existing editor public API. */
-import { createEditor } from '@werddomain/timeline-editor';
-import type { ISpan, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createEditor } from '@kazo-ca/timeline-editor';
+import type { ISpan, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type {} from './phase3Types';
 import './phase3.less';
 

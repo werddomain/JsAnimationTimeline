@@ -6,7 +6,7 @@
  * d'historique.
  */
 
-import type { ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import { createEditor } from '../../../../core/editor/createEditor';
 import type { IEditor } from '../../../../core/editor/types';
 import { createDoc, layer } from '../../../../model/spans/__tests__/fixtures';

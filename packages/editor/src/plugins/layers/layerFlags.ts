@@ -10,8 +10,8 @@
  * l'original).
  */
 
-import { findNodeById, resolveLocked, resolveVisible } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import { findNodeById, resolveLocked, resolveVisible } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import { createCommand } from '../../core/commands/createCommand';
 import type { ICommand } from '../../core/commands/ICommand';
 import { updateLayerNode } from './list/layerTree';

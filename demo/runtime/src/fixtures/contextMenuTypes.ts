@@ -1,7 +1,7 @@
 // demo/runtime/src/fixtures/contextMenuTypes.ts
 /** Public read-only browser inspection contract for the I1 validation fixture. */
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
-import type { IFrameCell, ISelectedKeyframe } from '@werddomain/timeline-editor';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
+import type { IFrameCell, ISelectedKeyframe } from '@kazo-ca/timeline-editor';
 
 export type ContextMenuEditorId = 'primary' | 'secondary';
 

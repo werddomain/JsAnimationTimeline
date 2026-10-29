@@ -1,8 +1,8 @@
 // demo/runtime/src/fixtures/contextMenu.ts
 /** Permanent context-menu fixture; commands run through real UI controls only. */
-import { createEditor } from '@werddomain/timeline-editor';
-import type { IEditor } from '@werddomain/timeline-editor';
-import type { ILayer, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createEditor } from '@kazo-ca/timeline-editor';
+import type { IEditor } from '@kazo-ca/timeline-editor';
+import type { ILayer, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { ContextMenuEditorId, IContextMenuSnapshot } from './contextMenuTypes';
 
 function staticLayer(id: string, extra: Partial<ILayer> = {}): ILayer {

@@ -7,8 +7,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { computeCssDeclarations, createEasingFunction, createPropertyRegistry, evaluateLayer } from '@werddomain/timeline-runtime';
-import type { ILayer, ITimelineDocument, LayerTarget } from '@werddomain/timeline-runtime';
+import { computeCssDeclarations, createEasingFunction, createPropertyRegistry, evaluateLayer } from '@kazo-ca/timeline-runtime';
+import type { ILayer, ITimelineDocument, LayerTarget } from '@kazo-ca/timeline-runtime';
 import { exportCss } from '../exportCss';
 import { RegistryWithValueProperty } from './registry';
 

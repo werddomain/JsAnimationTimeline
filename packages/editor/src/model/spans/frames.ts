@@ -20,7 +20,7 @@
  * - après la dernière plage : rien à faire.
  */
 
-import type { ILayer, ISpan, ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ILayer, ISpan, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { assertFrame, createSpanIdFactory, replaceLayer, requireEditableLayer } from './layerAccess';
 import { lastFrame, mapKeyframes, shiftKeyframesAfter, shiftSpan, spanIndexAt, withSpans, withTracks } from './tracks';
 

@@ -6,8 +6,8 @@
  * enfants), sans les descendants d'un dossier replié.
  */
 
-import { isFolder, resolveCollapsed, walkLayers } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument, LayerNodeType } from '@werddomain/timeline-runtime';
+import { isFolder, resolveCollapsed, walkLayers } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument, LayerNodeType } from '@kazo-ca/timeline-runtime';
 
 /** Une ligne affichée (calque ou dossier). */
 export interface IVisibleRow {

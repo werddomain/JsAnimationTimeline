@@ -17,7 +17,7 @@
  * d'historique, refusée en bloc si un des calques est verrouillé.
  */
 
-import type { ILayer, ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
+import type { ILayer, ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import { CommandRefusedError } from '../../../core/commands/CommandRefusedError';
 import type { ICommand } from '../../../core/commands/ICommand';
 import { findLayer, replaceLayer } from '../../../model/spans/layerAccess';

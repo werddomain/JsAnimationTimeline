@@ -5,8 +5,8 @@
  * gel profond du résultat.
  */
 
-import { evaluateLayer } from '@werddomain/timeline-runtime';
-import type { ILayer, ISpan, PropertyRegistry } from '@werddomain/timeline-runtime';
+import { evaluateLayer } from '@kazo-ca/timeline-runtime';
+import type { ILayer, ISpan, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import { visibleRows } from '../../../../model/rows';
 import { createDoc, createRegistry, layer } from '../../../../model/spans/__tests__/fixtures';
 import { buildClip, extractSpans } from '../clipboardModel';

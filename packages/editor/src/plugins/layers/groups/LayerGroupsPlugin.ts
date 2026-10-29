@@ -30,7 +30,7 @@
  * Service `layers.groups` : voir `ILayerGroupsService`.
  */
 
-import { isFolder } from '@werddomain/timeline-runtime';
+import { isFolder } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import type { ICommand } from '../../../core/commands/ICommand';
 import type { ILayerListService } from '../list';

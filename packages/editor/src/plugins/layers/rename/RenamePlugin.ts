@@ -21,7 +21,7 @@
  * Service `layers.rename` : `rename(id, name)` et `startEditing(id)`.
  */
 
-import { findNodeById } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import { startInlineEdit } from './inlineEdit';
 import type { IInlineEdit } from './inlineEdit';

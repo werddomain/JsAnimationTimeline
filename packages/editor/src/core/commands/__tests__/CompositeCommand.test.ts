@@ -5,7 +5,7 @@
  * d'annulation sur des entrées figées.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { CommandRefusedError } from '../CommandRefusedError';
 import { CompositeCommand } from '../CompositeCommand';
 import { createCommand } from '../createCommand';

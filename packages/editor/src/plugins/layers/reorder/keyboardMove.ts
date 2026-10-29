@@ -14,8 +14,8 @@
  * - au bord de la liste, au premier niveau : aucun déplacement.
  */
 
-import { findNodeById, isFolder, resolveCollapsed } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { findNodeById, isFolder, resolveCollapsed } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { IVisibleRow } from '../../../model/rows';
 import { computeDropTarget, toDropTarget } from './dropTarget';
 import type { ILayerDropTarget } from './moveNodes';

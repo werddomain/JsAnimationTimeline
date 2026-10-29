@@ -7,8 +7,8 @@
  * que si la timeline joue et que la page est visible.
  */
 
-import { createObjectStage } from '@werddomain/timeline-runtime';
-import type { IObjectStage } from '@werddomain/timeline-runtime';
+import { createObjectStage } from '@kazo-ca/timeline-runtime';
+import type { IObjectStage } from '@kazo-ca/timeline-runtime';
 import { AUDIO_STAGE_ID } from './document';
 import { recordFrame } from './received';
 import type { IReceivedFrame } from './received';

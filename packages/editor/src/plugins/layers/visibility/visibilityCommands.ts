@@ -5,7 +5,7 @@
  * simple donnée de l'éditeur : aucune scène ni cible n'est touchée.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { ICommand } from '../../../core/commands/ICommand';
 import { VISIBLE_FLAG, createSetAllFlagCommand, createSetFlagCommand } from '../layerFlags';
 

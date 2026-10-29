@@ -20,6 +20,6 @@ module.exports = {
   moduleNameMapper: {
     '\\.less$': '<rootDir>/src/__tests__/styleMock.js',
     // Les tests s'exécutent avant tout build : le runtime est lu depuis ses sources.
-    '^@werddomain/timeline-runtime$': '<rootDir>/../runtime/src/index.ts'
+    '^@kazo-ca/timeline-runtime$': '<rootDir>/../runtime/src/index.ts'
   }
 };

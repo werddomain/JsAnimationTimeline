@@ -1,7 +1,7 @@
 // packages/editor/src/plugins/tweens/propertyKeyframes/__tests__/PropertyKeyframesPlugin.test.ts
 import { createEditor } from '../../../../core/editor/createEditor';
-import { createObjectStage, createPropertyRegistry } from '@werddomain/timeline-runtime';
-import type { IStage, ITargetInfo, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createObjectStage, createPropertyRegistry } from '@kazo-ca/timeline-runtime';
+import type { IStage, ITargetInfo, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { EditorOptions, IEditor } from '../../../../core/editor/types';
 import { SetPropertyCommand } from '../../../../model/properties/SetPropertyCommand';
 import { PropertyOperationError } from '../../../../model/properties/propertyValue';

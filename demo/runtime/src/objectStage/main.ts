@@ -8,8 +8,8 @@
  * avance seul, en temps réel).
  */
 
-import { buildStageRegistry, createHtmlStage, createManualClock, createPlayer, defaultPropertyRegistry } from '@werddomain/timeline-runtime';
-import type { IManualClock, IPlayer, IPlayerOptions } from '@werddomain/timeline-runtime';
+import { buildStageRegistry, createHtmlStage, createManualClock, createPlayer, defaultPropertyRegistry } from '@kazo-ca/timeline-runtime';
+import type { IManualClock, IPlayer, IPlayerOptions } from '@kazo-ca/timeline-runtime';
 import { AudioTrack, createAudioStage } from './audioStage';
 import { createCanvasStage, createSprite } from './canvasStage';
 import { AUDIO_STAGE_ID, CANVAS_STAGE_ID, OBJECT_STAGE_DOCUMENT } from './document';

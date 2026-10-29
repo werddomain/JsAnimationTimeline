@@ -4,7 +4,7 @@
  * d'une case au clavier.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { visibleRows } from '../../../../model/rows';
 import { doc, folder, layer } from '../../list/__tests__/fixtures';
 import { computeDropTarget, dropZone, locateDrop, placementAt } from '../dropTarget';

@@ -17,11 +17,11 @@ export function validateMetadata(packages, project) {
   assert.match(version, versionPattern, 'Invalid npm version');
   for (const name of ['runtime', 'editor', 'export-css']) {
     const pkg = packages[name];
-    assert.equal(pkg.name, `@werddomain/timeline-${name}`);
+    assert.equal(pkg.name, `@kazo-ca/timeline-${name}`);
     assert.equal(pkg.version, version);
     assert.notEqual(pkg.private, true);
     assert.equal(pkg.license, 'MIT');
     assert.equal(pkg.exports['.'].types, './dist/types/index.d.ts');
-    if (name !== 'runtime') assert.equal(pkg.dependencies['@werddomain/timeline-runtime'], version);
+    if (name !== 'runtime') assert.equal(pkg.dependencies['@kazo-ca/timeline-runtime'], version);
   }
 }

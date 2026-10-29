@@ -1,5 +1,5 @@
 // demo/runtime/src/fixtures/propertiesPanelTypes.ts
-import type { IEditor, IPropertiesPanelService } from '@werddomain/timeline-editor';
+import type { IEditor, IPropertiesPanelService } from '@kazo-ca/timeline-editor';
 export interface IPropertiesPanelMetrics { htmlRenders: number; objectRenders: number; }
 export interface IPropertiesPanelFixture {
   readonly ready: true;

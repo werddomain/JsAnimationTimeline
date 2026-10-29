@@ -5,7 +5,7 @@
  * respect du verrou par les commandes d'édition des images.
  */
 
-import { findNodeById } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';
 import { LockLabels, createSetAllLockedCommand, createSetLockedCommand } from '../lockCommands';
 import { LOCK_BUTTON_CLASS } from '../LockPlugin';

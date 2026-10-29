@@ -12,8 +12,8 @@
  *   ne dessiner que la partie visible d'un grand document.
  */
 
-import { isFolder } from '@werddomain/timeline-runtime';
-import type { ISpan, LayerNode } from '@werddomain/timeline-runtime';
+import { isFolder } from '@kazo-ca/timeline-runtime';
+import type { ISpan, LayerNode } from '@kazo-ca/timeline-runtime';
 
 /**
  * Nature d'un morceau de ligne :

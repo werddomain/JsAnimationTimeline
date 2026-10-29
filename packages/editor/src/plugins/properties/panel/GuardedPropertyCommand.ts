@@ -1,5 +1,5 @@
 // packages/editor/src/plugins/properties/panel/GuardedPropertyCommand.ts
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { CommandRefusedError } from '../../../core/commands/CommandRefusedError';
 import type { ICommand } from '../../../core/commands/ICommand';
 import type { SetPropertyCommand } from '../../../model/properties/SetPropertyCommand';

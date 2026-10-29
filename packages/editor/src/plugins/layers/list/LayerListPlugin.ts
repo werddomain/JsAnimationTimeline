@@ -25,7 +25,7 @@
  * l'envoi de `layers:rowsChanged` : la première erreur est relancée à la fin.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import { LAYOUT_SLOTS } from '../../layout/shell/layoutSlots';
 import { layerRows, sameRowLayout } from './layerRows';

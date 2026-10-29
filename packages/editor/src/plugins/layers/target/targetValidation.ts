@@ -14,8 +14,8 @@
  * calque apparaît simplement dans les cibles manquantes.
  */
 
-import { SCHEMA_VERSION, checkDocumentShape } from '@werddomain/timeline-runtime';
-import type { IValidationIssue, SerializableLayerTarget } from '@werddomain/timeline-runtime';
+import { SCHEMA_VERSION, checkDocumentShape } from '@kazo-ca/timeline-runtime';
+import type { IValidationIssue, SerializableLayerTarget } from '@kazo-ca/timeline-runtime';
 
 /** Saisie libre : un sélecteur CSS, ou une ref avec une scène facultative. */
 export interface ITargetInput {

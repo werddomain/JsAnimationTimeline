@@ -10,7 +10,7 @@
  *   `targets.subscribe` d'une scène).
  */
 
-import type { IStageReport } from '@werddomain/timeline-runtime';
+import type { IStageReport } from '@kazo-ca/timeline-runtime';
 
 /** Charge utile de `stage:report`. */
 export type StageReportEvent = IStageReport;

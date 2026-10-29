@@ -6,8 +6,8 @@
  * propriété inconnue du registre.
  */
 
-import { evaluateLayer } from '@werddomain/timeline-runtime';
-import type { ILayer, ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
+import { evaluateLayer } from '@kazo-ca/timeline-runtime';
+import type { ILayer, ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import { SpanOperationCodes, SpanOperationError } from '../../../../model/spans';
 import {
   createDoc,

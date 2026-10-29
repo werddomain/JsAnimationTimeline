@@ -3,7 +3,7 @@
  * Pure state tests for button availability, edit targets and deletion routing.
  */
 
-import type { ISpan, LayerNode } from '@werddomain/timeline-runtime';
+import type { ISpan, LayerNode } from '@kazo-ca/timeline-runtime';
 import { createDoc, layer } from '../../../../model/spans/__tests__/fixtures';
 import type { ISelectedKeyframe } from '../../../frames/selection/types';
 import type { IMotionTweenAvailability } from '../../../tweens/motion/types';

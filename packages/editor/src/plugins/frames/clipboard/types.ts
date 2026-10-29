@@ -9,7 +9,7 @@
  * recopié tel quel dans le presse-papiers du système (E1).
  */
 
-import type { Easing, PropertyTracks, SpanKind } from '@werddomain/timeline-runtime';
+import type { Easing, PropertyTracks, SpanKind } from '@kazo-ca/timeline-runtime';
 import type { IFrameCell } from '../selection/frameSelection';
 
 /** Marque du format, pour reconnaître le contenu d'un presse-papiers. */

@@ -12,8 +12,8 @@
  * est chargée par le navigateur à l'affichage, comme toute image.
  */
 
-import { isFolder, resolveCollapsed } from '@werddomain/timeline-runtime';
-import type { LayerNode } from '@werddomain/timeline-runtime';
+import { isFolder, resolveCollapsed } from '@kazo-ca/timeline-runtime';
+import type { LayerNode } from '@kazo-ca/timeline-runtime';
 
 /** Icônes intégrées : nom -> caractère affiché. */
 export const BUILTIN_LAYER_ICONS: Readonly<Record<string, string>> = Object.freeze({

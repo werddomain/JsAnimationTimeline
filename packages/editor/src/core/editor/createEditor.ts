@@ -31,7 +31,7 @@ import { EventBus } from '../events/EventBus';
 import { createEditorContext } from '../context/createEditorContext';
 import type { EditorPlugin, IEditorContext } from '../context/IEditorContext';
 import { ServiceRegistry } from '../context/ServiceRegistry';
-import { buildStageRegistry, defaultPropertyRegistry } from '@werddomain/timeline-runtime';
+import { buildStageRegistry, defaultPropertyRegistry } from '@kazo-ca/timeline-runtime';
 import { createDefaultClock } from '../playback/defaultClock';
 import { PlaybackController } from '../playback/PlaybackController';
 import { createPlaybackFacade } from '../playback/playbackFacade';

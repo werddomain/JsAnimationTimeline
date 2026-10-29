@@ -1,5 +1,5 @@
 // demo/editor/src/document.ts
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 
 export function htmlDocument(): ITimelineDocument {
   return { version: '2.0.0', settings: { fps: 24, totalFrames: 60 }, layers: [

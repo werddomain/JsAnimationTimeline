@@ -6,7 +6,7 @@
  * annulation, refus et place dans le jeu de plugins par défaut.
  */
 
-import type { ILayer, ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import type { ILayer, ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
 import { createEditor } from '../../../../core/editor/createEditor';
 import { defaultPlugins } from '../../../../core/editor/defaultPlugins';

@@ -17,8 +17,8 @@
  * d'un v2 déjà validé), car l'éditeur gèle en place le document qu'il reçoit.
  */
 
-import { MigrationError, migrateToV2, validateDocument } from '@werddomain/timeline-runtime';
-import type { IMigrationWarning, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { MigrationError, migrateToV2, validateDocument } from '@kazo-ca/timeline-runtime';
+import type { IMigrationWarning, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { PersistenceError } from './PersistenceError';
 
 /** Document lu, prêt à être chargé. */

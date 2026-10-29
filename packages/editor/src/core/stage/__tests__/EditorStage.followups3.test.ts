@@ -8,8 +8,8 @@
  * document refusé, et annonce reportée en fin de chargement une seule fois.
  */
 
-import { defaultPropertyRegistry, StageDocumentError, StageReportCodes } from '@werddomain/timeline-runtime';
-import type { IStageContext, IStageReport } from '@werddomain/timeline-runtime';
+import { defaultPropertyRegistry, StageDocumentError, StageReportCodes } from '@kazo-ca/timeline-runtime';
+import type { IStageContext, IStageReport } from '@kazo-ca/timeline-runtime';
 import { createDocument } from '../../commands/__tests__/fixtures';
 import { createCommand } from '../../commands/createCommand';
 import { cleanBody } from '../../editor/__tests__/fixtures';

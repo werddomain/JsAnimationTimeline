@@ -77,12 +77,12 @@ Limites :
 
 ## Éditeur Blazor
 
-Le build ES de l’éditeur importe `@werddomain/timeline-runtime`. Définir une carte d’import avant
+Le build ES de l’éditeur importe `@kazo-ca/timeline-runtime`. Définir une carte d’import avant
 le chargement du composant, par exemple dans la page hôte Razor (le double `@` échappe Razor) :
 
 ```html
 <script type="importmap">
-{"imports":{"@@werddomain/timeline-runtime":"./_content/JsTimeline.Blazor/js/timeline-runtime.mjs"}}
+{"imports":{"@@kazo-ca/timeline-runtime":"./_content/JsTimeline.Blazor/js/timeline-runtime.mjs"}}
 </script>
 ```
 

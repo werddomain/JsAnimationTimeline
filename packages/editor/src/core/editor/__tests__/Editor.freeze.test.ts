@@ -7,7 +7,7 @@
  * parcourt un objet gelé en surface par l'hôte.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { createDocument, renameLayer, setFps } from '../../commands/__tests__/fixtures';
 import type { IEditorContext } from '../../context/IEditorContext';
 import { StoreError } from '../../store/StoreError';

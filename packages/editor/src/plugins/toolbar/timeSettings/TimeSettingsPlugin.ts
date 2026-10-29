@@ -16,7 +16,7 @@
  * document (annuler, rétablir, chargement).
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { CANCELLED_REASON } from '../../../core/commands/commandEvents';
 import type { ICommand } from '../../../core/commands/ICommand';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';

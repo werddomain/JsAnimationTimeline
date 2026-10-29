@@ -1,7 +1,7 @@
 // packages/editor/src/plugins/tweens/easing/easingCommands.ts
 /** Immutable span easing operations and a command that restores the original layer. */
-import { DEFAULT_EASING, parseEasing } from '@werddomain/timeline-runtime';
-import type { Easing, ILayer, ISpan, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { DEFAULT_EASING, parseEasing } from '@kazo-ca/timeline-runtime';
+import type { Easing, ILayer, ISpan, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { CommandRefusedError } from '../../../core/commands/CommandRefusedError';
 import type { ICommand } from '../../../core/commands/ICommand';
 import { assertFrame, findLayer, replaceLayer, requireEditableLayer } from '../../../model/spans/layerAccess';

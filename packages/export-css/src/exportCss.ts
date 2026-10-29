@@ -29,8 +29,8 @@ import {
   collectLayers,
   defaultPropertyRegistry,
   isSelectorTarget
-} from '@werddomain/timeline-runtime';
-import type { ILayer, ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
+} from '@kazo-ca/timeline-runtime';
+import type { ILayer, ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import { formatKeyframesBlock, toCssKeyframes } from './cssKeyframes';
 import { isSafeSelector, keyframesName } from './cssNames';
 import { keepCssTracks } from './cssTracks';

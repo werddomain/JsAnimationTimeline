@@ -5,8 +5,8 @@
  * `value` entière, `floorInterpolator`) ; un seul dessin par image (`endFrame`).
  */
 
-import { createObjectStage, floorInterpolator } from '@werddomain/timeline-runtime';
-import type { IObjectStage } from '@werddomain/timeline-runtime';
+import { createObjectStage, floorInterpolator } from '@kazo-ca/timeline-runtime';
+import type { IObjectStage } from '@kazo-ca/timeline-runtime';
 import { CANVAS_STAGE_ID } from './document';
 import { recordFrame } from './received';
 import type { IReceivedFrame } from './received';

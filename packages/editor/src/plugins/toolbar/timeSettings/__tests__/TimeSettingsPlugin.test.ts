@@ -6,7 +6,7 @@
  * nettoyage.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { CommandRefusedError } from '../../../../core/commands/CommandRefusedError';
 import { createEditor } from '../../../../core/editor/createEditor';
 import type { IEditor } from '../../../../core/editor/types';

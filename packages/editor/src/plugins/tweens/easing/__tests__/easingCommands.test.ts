@@ -1,5 +1,5 @@
 // packages/editor/src/plugins/tweens/easing/__tests__/easingCommands.test.ts
-import type { Easing, ILayer, ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { Easing, ILayer, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { CommandRefusedError } from '../../../../core/commands/CommandRefusedError';
 import { createSetEasingCommand, setSpanEasing } from '../easingCommands';
 

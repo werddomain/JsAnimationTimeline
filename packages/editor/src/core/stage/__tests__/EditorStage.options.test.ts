@@ -8,8 +8,8 @@
  * `stage:report`, et document de commande refusé par une scène.
  */
 
-import { createManualClock, HTML_STAGE_ID, StageDocumentError, StageReportCodes } from '@werddomain/timeline-runtime';
-import type { IStageReport, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createManualClock, HTML_STAGE_ID, StageDocumentError, StageReportCodes } from '@kazo-ca/timeline-runtime';
+import type { IStageReport, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { deepFreeze } from '../../commands/__tests__/fixtures';
 import { createEditor } from '../../editor/createEditor';
 import { catchError, cleanBody, createContainer } from '../../editor/__tests__/fixtures';

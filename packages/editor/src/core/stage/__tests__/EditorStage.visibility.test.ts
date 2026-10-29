@@ -6,8 +6,8 @@
  * d'un élément par la scène HTML par défaut.
  */
 
-import { createManualClock } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createManualClock } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { deepFreeze } from '../../commands/__tests__/fixtures';
 import { createCommand } from '../../commands/createCommand';
 import type { ICommand } from '../../commands/ICommand';

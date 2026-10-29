@@ -5,7 +5,7 @@
  * à `evaluateDocument`.
  */
 
-import type { ITransportTime, ObjectStageState } from '@werddomain/timeline-runtime';
+import type { ITransportTime, ObjectStageState } from '@kazo-ca/timeline-runtime';
 
 /** Values received by one layer of a stage. */
 export interface IReceivedLayer {

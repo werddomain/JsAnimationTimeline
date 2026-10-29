@@ -10,8 +10,8 @@
  *   inconnue, erreur de la scène (son `resolve` a levé), ou objet introuvable.
  */
 
-import { StageReportCodes } from '@werddomain/timeline-runtime';
-import type { IStageReport, LayerTarget } from '@werddomain/timeline-runtime';
+import { StageReportCodes } from '@kazo-ca/timeline-runtime';
+import type { IStageReport, LayerTarget } from '@kazo-ca/timeline-runtime';
 
 /** Ce que l'alerte lit des scènes (sous-ensemble de `IEditorStage`). */
 export interface ITargetAlertSource {

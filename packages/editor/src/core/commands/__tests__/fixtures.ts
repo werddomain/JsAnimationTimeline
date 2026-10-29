@@ -5,7 +5,7 @@
  * d'événements et fabrique Store + pile.
  */
 
-import type { ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import { EventBus } from '../../events/EventBus';
 import type { TimelineEventMap } from '../../events/TimelineEventMap';
 import { Store } from '../../store/Store';

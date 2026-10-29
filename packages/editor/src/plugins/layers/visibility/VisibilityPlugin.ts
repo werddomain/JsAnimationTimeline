@@ -19,7 +19,7 @@
  * Service `layers.visibility` : `setVisible`, `toggle`, `setAll`.
  */
 
-import { findNodeById, resolveVisible } from '@werddomain/timeline-runtime';
+import { findNodeById, resolveVisible } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import { VISIBLE_FLAG, nextAllValue } from '../layerFlags';
 import { createFlagToggleControl } from '../flagToggleControl';

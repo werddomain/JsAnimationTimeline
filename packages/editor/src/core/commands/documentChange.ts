@@ -9,7 +9,7 @@
  * `CommandStack.execute`.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 
 /** Origine d'une modification du document (charge utile de `document:changed`). */
 export type DocumentChangeCause = 'execute' | 'undo' | 'redo' | 'group-cancel';

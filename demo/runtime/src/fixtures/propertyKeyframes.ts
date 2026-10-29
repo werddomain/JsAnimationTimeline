@@ -1,7 +1,7 @@
 // demo/runtime/src/fixtures/propertyKeyframes.ts
-import { createEditor, createEditorHtmlStage } from '@werddomain/timeline-editor';
-import { createObjectStage } from '@werddomain/timeline-runtime';
-import type { IStage, ITargetInfo, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createEditor, createEditorHtmlStage } from '@kazo-ca/timeline-editor';
+import { createObjectStage } from '@kazo-ca/timeline-runtime';
+import type { IStage, ITargetInfo, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { IPropertyKeyframesFixture, IPropertyKeyframesMetrics } from './propertyKeyframesTypes';
 import './propertyKeyframes.less';
 

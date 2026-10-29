@@ -4,7 +4,7 @@
  * cibles transmises telles quelles et copie de l'objet de l'appelant.
  */
 
-import { ValidationCodes } from '@werddomain/timeline-runtime';
+import { ValidationCodes } from '@kazo-ca/timeline-runtime';
 import { PersistenceError } from '../PersistenceError';
 import { parseJson, readDocument } from '../readDocument';
 import { makeV1Document, makeV2Document } from './fixtures';

@@ -7,8 +7,8 @@
  * destruction.
  */
 
-import { createPropertyRegistry, validateDocument } from '@werddomain/timeline-runtime';
-import type { ILayer, ITimelineDocument, LayerNode, PropertyRegistry } from '@werddomain/timeline-runtime';
+import { createPropertyRegistry, validateDocument } from '@kazo-ca/timeline-runtime';
+import type { ILayer, ITimelineDocument, LayerNode, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import type { IEditorContext } from '../../../../core/context/IEditorContext';
 import { MotionTweenPlugin } from '../MotionTweenPlugin';
 import { createEditor } from '../../../../core/editor/createEditor';

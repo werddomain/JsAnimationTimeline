@@ -24,8 +24,8 @@ import {
   resolveVisible,
   toTransportTime,
   walkLayers
-} from '@werddomain/timeline-runtime';
-import type { ILayer, ITimelineDocument, ITransportTime, PropertyRegistry } from '@werddomain/timeline-runtime';
+} from '@kazo-ca/timeline-runtime';
+import type { ILayer, ITimelineDocument, ITransportTime, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import type { IFrameSample, ILayerSample } from './types';
 
 /** Calque du document et son œil résolu (dossiers parents compris). */

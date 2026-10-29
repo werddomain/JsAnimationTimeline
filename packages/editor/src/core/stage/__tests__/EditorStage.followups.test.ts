@@ -7,8 +7,8 @@
  * lève, et œil des calques lu dans le dernier document accepté.
  */
 
-import { createManualClock, StageDocumentError, StageReportCodes } from '@werddomain/timeline-runtime';
-import type { IStageReport, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createManualClock, StageDocumentError, StageReportCodes } from '@kazo-ca/timeline-runtime';
+import type { IStageReport, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { deepFreeze } from '../../commands/__tests__/fixtures';
 import { createCommand } from '../../commands/createCommand';
 import { createEditor } from '../../editor/createEditor';

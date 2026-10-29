@@ -14,14 +14,14 @@ import {
   isLayer,
   resolveLocked,
   walkLayers
-} from '@werddomain/timeline-runtime';
+} from '@kazo-ca/timeline-runtime';
 import type {
   ILayer,
   ITimelineDocument,
   LayerNode,
   PropertyRegistry,
   PropertyValues
-} from '@werddomain/timeline-runtime';
+} from '@kazo-ca/timeline-runtime';
 import { SpanOperationCodes, SpanOperationError } from './SpanOperationError';
 
 /** Calque `layerId` ; refuse un id inconnu, un dossier ou un calque verrouillé. */

@@ -7,8 +7,8 @@
  * cache par document, et aucun événement émis.
  */
 
-import { createPropertyRegistry, evaluateLayer, isLayer } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createPropertyRegistry, evaluateLayer, isLayer } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { deepFreeze } from '../../commands/__tests__/fixtures';
 import { captureContext, cleanBody } from '../../editor/__tests__/fixtures';
 import { FrameSampler } from '../FrameSampler';

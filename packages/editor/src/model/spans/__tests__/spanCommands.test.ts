@@ -5,7 +5,7 @@
  * verrouillé (`command:refused` avec le message français).
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { CommandRefusedError } from '../../../core/commands/CommandRefusedError';
 import type { ICommand } from '../../../core/commands/ICommand';
 import { EventBus } from '../../../core/events/EventBus';

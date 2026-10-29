@@ -1,6 +1,6 @@
 // packages/editor/src/plugins/interaction/contextMenu/__tests__/reviewRegressions.test.ts
 /** Review regressions for inherited flags and reentrant focus restoration. */
-import { findNodeById } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
 import { MenuController } from '../MenuController';
 import { active, doc, folder, frameLayer, item, layer, mount, open, openFrame } from './fixtures';
 

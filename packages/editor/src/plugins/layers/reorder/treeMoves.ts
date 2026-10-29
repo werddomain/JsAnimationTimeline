@@ -9,8 +9,8 @@
  * rendent la même référence quand rien ne change.
  */
 
-import { findNodeById, isFolder } from '@werddomain/timeline-runtime';
-import type { LayerNode } from '@werddomain/timeline-runtime';
+import { findNodeById, isFolder } from '@kazo-ca/timeline-runtime';
+import type { LayerNode } from '@kazo-ca/timeline-runtime';
 
 /** Place d'un nœud dans l'arbre : son dossier parent (absent au premier niveau) et son index parmi ses frères. */
 export interface NodeLocation {

@@ -14,7 +14,7 @@
  * Locked layers and folders refuse the whole paste.
  */
 
-import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
+import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import { SpanOperationCodes, SpanOperationError } from '../../../model/spans/SpanOperationError';
 import { createSpanIdFactory, replaceLayer, requireEditableLayer } from '../../../model/spans/layerAccess';
 import { lastFrame, shiftSpan, withSpans, withTracks } from '../../../model/spans/tracks';

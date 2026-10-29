@@ -30,7 +30,7 @@
  * le transport, qui garde les précédents ; le rendu est quand même demandé.
  */
 
-import { createTransport } from '@werddomain/timeline-runtime';
+import { createTransport } from '@kazo-ca/timeline-runtime';
 import type {
   IPlayerClock,
   IStageHostClock,
@@ -39,7 +39,7 @@ import type {
   ITransportTime,
   PropertyRegistry,
   Transport
-} from '@werddomain/timeline-runtime';
+} from '@kazo-ca/timeline-runtime';
 import type { EventBus } from '../events/EventBus';
 import type { Store } from '../store/Store';
 import { FrameSampler } from './FrameSampler';

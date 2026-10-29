@@ -1,5 +1,5 @@
 // packages/editor/src/plugins/tweens/easing/types.ts
-import type { Easing } from '@werddomain/timeline-runtime';
+import type { Easing } from '@kazo-ca/timeline-runtime';
 
 /** Availability with a French refusal reason when the target cannot be edited. */
 export interface IEasingAvailability { readonly enabled: boolean; readonly reason?: string; }

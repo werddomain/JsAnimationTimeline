@@ -1,5 +1,5 @@
 // demo/editor/src/main.ts
-import { createEditor, createPropertiesPanelPlugin } from '@werddomain/timeline-editor';
+import { createEditor, createPropertiesPanelPlugin } from '@kazo-ca/timeline-editor';
 import { htmlDocument } from './document';
 import './style.css';
 

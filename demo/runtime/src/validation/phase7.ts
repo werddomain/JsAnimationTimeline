@@ -1,9 +1,9 @@
 // demo/runtime/src/validation/phase7.ts
 /** Reusable X1/X2 inspection page; all animation behavior comes from the public packages. */
-import { createPlayer, defaultPropertyRegistry } from '@werddomain/timeline-runtime';
-import type { IPlayer, ISpan, ITimelineDocument, PropertyTracks } from '@werddomain/timeline-runtime';
-import { exportCss } from '@werddomain/timeline-export-css';
-import type { IExportCssWarning } from '@werddomain/timeline-export-css';
+import { createPlayer, defaultPropertyRegistry } from '@kazo-ca/timeline-runtime';
+import type { IPlayer, ISpan, ITimelineDocument, PropertyTracks } from '@kazo-ca/timeline-runtime';
+import { exportCss } from '@kazo-ca/timeline-export-css';
+import type { IExportCssWarning } from '@kazo-ca/timeline-export-css';
 import { DEMO_ANIMATION } from '../animation';
 import type { IPhase7RenderedState, IPhase7Snapshot, Phase7Selector } from './phase7Types';
 import sceneCss from './phase7Scene.less?inline';

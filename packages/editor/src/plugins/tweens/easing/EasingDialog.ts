@@ -1,7 +1,7 @@
 // packages/editor/src/plugins/tweens/easing/EasingDialog.ts
 /** A document-local modal preset picker with disposable event handlers. */
-import { DEFAULT_EASING, EASING_PRESETS, isEasingPreset } from '@werddomain/timeline-runtime';
-import type { Easing, EasingPreset } from '@werddomain/timeline-runtime';
+import { DEFAULT_EASING, EASING_PRESETS, isEasingPreset } from '@kazo-ca/timeline-runtime';
+import type { Easing, EasingPreset } from '@kazo-ca/timeline-runtime';
 
 /** French labels in the same order as the runtime presets. */
 export const EASING_PRESET_LABELS: Readonly<Record<EasingPreset, string>> = Object.freeze({

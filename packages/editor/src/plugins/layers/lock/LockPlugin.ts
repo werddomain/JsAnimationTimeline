@@ -21,7 +21,7 @@
  * Service `layers.lock` : `setLocked`, `toggle`, `setAll`.
  */
 
-import { findNodeById, resolveLocked } from '@werddomain/timeline-runtime';
+import { findNodeById, resolveLocked } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import { LOCKED_FLAG, nextAllValue } from '../layerFlags';
 import { createFlagToggleControl } from '../flagToggleControl';

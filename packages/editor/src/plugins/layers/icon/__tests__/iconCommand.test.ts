@@ -1,5 +1,5 @@
 // packages/editor/src/plugins/layers/icon/__tests__/iconCommand.test.ts
-import { findNodeById } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
 import { BUILTIN_LAYER_ICONS } from '../../list/layerIcon';
 import { doc, folder, layer } from '../../list/__tests__/fixtures';
 import { iconChoices } from '../iconChoices';

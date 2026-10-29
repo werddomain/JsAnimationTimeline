@@ -1,6 +1,6 @@
 // packages/editor/src/plugins/interaction/contextMenu/__tests__/menuActions.test.ts
 /** Existing frame semantics, optional services and atomic other-layer flag batches. */
-import { findNodeById } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
 import { contextMenuActions, setOtherFlags } from '../menuActions';
 import { doc, folder, layer, mount, open, item, openFrame, frameLayer } from './fixtures';
 

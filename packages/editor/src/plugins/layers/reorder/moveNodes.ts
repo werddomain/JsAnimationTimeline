@@ -4,7 +4,7 @@
  * pure sur le document, utilisée par la commande `Déplacer les calques`.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { childrenOf, detachNodes, insertNodes, isSameOrDescendant, sameArrangement, topMostIds } from './treeMoves';
 
 /** Destination d'un déplacement : un dossier (premier niveau si absent) et un index parmi ses enfants. */

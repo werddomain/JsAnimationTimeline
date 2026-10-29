@@ -7,7 +7,7 @@
  * rend alors une retenue inerte.
  */
 
-import type { IStage, IStageReport, ITargetInfo, LayerTarget } from '@werddomain/timeline-runtime';
+import type { IStage, IStageReport, ITargetInfo, LayerTarget } from '@kazo-ca/timeline-runtime';
 import type { EditorStageHost } from './EditorStageHost';
 import type { IEditorStage, IStageHold } from './types';
 

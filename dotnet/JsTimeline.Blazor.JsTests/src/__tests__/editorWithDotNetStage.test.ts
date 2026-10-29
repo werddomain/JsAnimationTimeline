@@ -4,8 +4,8 @@
  * a seek sends the layer values to .NET, and a failed call reaches `onStageError`.
  */
 
-import { createManualClock } from '@werddomain/timeline-runtime';
-import { createEditor } from '@werddomain/timeline-editor';
+import { createManualClock } from '@kazo-ca/timeline-runtime';
+import { createEditor } from '@kazo-ca/timeline-editor';
 import { FakeDotNetReference, flush, heroDocument, heroStage } from './fakeDotNet';
 
 /** One display frame of the editor's batched rendering. */

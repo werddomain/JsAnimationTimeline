@@ -6,7 +6,7 @@
  * respectent (elles refusent un calque verrouillé ou dans un dossier verrouillé).
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { ICommand } from '../../../core/commands/ICommand';
 import { LOCKED_FLAG, createSetAllFlagCommand, createSetFlagCommand } from '../layerFlags';
 

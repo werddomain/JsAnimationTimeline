@@ -9,8 +9,8 @@
  * suppression ne décale pas celles qui restent à faire.
  */
 
-import { findNodeById, flattenLayers, isLayer, resolveLocked } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { findNodeById, flattenLayers, isLayer, resolveLocked } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { lastFrame } from '../../../model/spans/tracks';
 import type { IFrameCell } from '../selection/frameSelection';
 

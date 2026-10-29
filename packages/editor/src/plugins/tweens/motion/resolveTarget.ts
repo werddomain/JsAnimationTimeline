@@ -15,8 +15,8 @@
  * plusieurs calques.
  */
 
-import { findNodeById, isLayer } from '@werddomain/timeline-runtime';
-import type { ILayer, ISpan, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { findNodeById, isLayer } from '@kazo-ca/timeline-runtime';
+import type { ILayer, ISpan, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { spanIndexAt } from '../../../model/spans/tracks';
 import type { IFrameCell } from '../../frames/selection/frameSelection';
 import type { IMotionTarget } from './createMotionTween';

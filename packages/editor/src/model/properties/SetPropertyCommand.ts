@@ -1,5 +1,5 @@
 // packages/editor/src/model/properties/SetPropertyCommand.ts
-import type { ILayer, ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ILayer, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { CommandRefusedError } from '../../core/commands/CommandRefusedError';
 import type { ICommand } from '../../core/commands/ICommand';
 import { findLayer, replaceLayer } from '../spans/layerAccess';

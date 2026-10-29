@@ -7,8 +7,8 @@
  * événements de rendu.
  */
 
-import { createManualClock } from '@werddomain/timeline-runtime';
-import type { IManualClock, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createManualClock } from '@kazo-ca/timeline-runtime';
+import type { IManualClock, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { deepFreeze } from '../../commands/__tests__/fixtures';
 import { createCommand } from '../../commands/createCommand';
 import type { ICommand } from '../../commands/ICommand';

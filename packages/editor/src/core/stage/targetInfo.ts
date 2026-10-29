@@ -1,6 +1,6 @@
 // packages/editor/src/core/stage/targetInfo.ts
-import { isRefTarget, sameTarget } from '@werddomain/timeline-runtime';
-import type { IStage, ITargetInfo, LayerTarget } from '@werddomain/timeline-runtime';
+import { isRefTarget, sameTarget } from '@kazo-ca/timeline-runtime';
+import type { IStage, ITargetInfo, LayerTarget } from '@kazo-ca/timeline-runtime';
 
 /** Internal routing query. Errors propagate to the caller's reporting policy. */
 export function routeOf(stages: readonly IStage[], target: LayerTarget): IStage | undefined {

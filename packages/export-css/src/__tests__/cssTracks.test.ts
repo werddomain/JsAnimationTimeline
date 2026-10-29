@@ -4,8 +4,8 @@
  * ignorée.
  */
 
-import { createPropertyRegistry } from '@werddomain/timeline-runtime';
-import type { ILayer } from '@werddomain/timeline-runtime';
+import { createPropertyRegistry } from '@kazo-ca/timeline-runtime';
+import type { ILayer } from '@kazo-ca/timeline-runtime';
 import { keepCssTracks } from '../cssTracks';
 import { RegistryWithValueProperty } from './registry';
 

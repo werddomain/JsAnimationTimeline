@@ -4,7 +4,7 @@
  * nœuds de premier niveau, absence de changement et annulation exacte.
  */
 
-import { findNodeById } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
 import {
   LOCKED_FLAG,
   VISIBLE_FLAG,

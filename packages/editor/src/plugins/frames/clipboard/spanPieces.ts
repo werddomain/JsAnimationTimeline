@@ -18,8 +18,8 @@
  * K1 follow-up: reuse truncateTween/newSpan if they become public helpers.
  */
 
-import type { ILayer, ISpan, PropertyRegistry, PropertyTracks, PropertyValues } from '@werddomain/timeline-runtime';
-import { evaluateLayer } from '@werddomain/timeline-runtime';
+import type { ILayer, ISpan, PropertyRegistry, PropertyTracks, PropertyValues } from '@kazo-ca/timeline-runtime';
+import { evaluateLayer } from '@kazo-ca/timeline-runtime';
 import { evaluateValues } from '../../../model/spans/layerAccess';
 import { SpanOperationCodes, SpanOperationError } from '../../../model/spans/SpanOperationError';
 import { mapKeyframes, tracksFromValues, withTracks } from '../../../model/spans/tracks';

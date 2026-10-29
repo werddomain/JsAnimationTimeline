@@ -13,7 +13,7 @@
  * l'index : l'augmentation est donc visible partout où la pile est importée.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { ICommand } from './ICommand';
 
 /** Raison transmise dans `command:refused` quand `command:before` a été annulé. */

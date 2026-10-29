@@ -30,8 +30,8 @@
  * `load` vide l'historique (`history:changed`) puis émet `document:loaded`.
  */
 
-import { defaultPropertyRegistry, validateDocument } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
+import { defaultPropertyRegistry, validateDocument } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import { CommandStack } from '../commands/CommandStack';
 import type { CommandStackOptions } from '../commands/CommandStack';
 import type { IDocumentChange, IDocumentWriter } from '../commands/documentChange';

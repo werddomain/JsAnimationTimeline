@@ -5,7 +5,7 @@
  * la liste.
  */
 
-import type { ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import { createCommand } from '../../../core/commands/createCommand';
 import type { ICommand } from '../../../core/commands/ICommand';
 import { moveNodes } from './moveNodes';

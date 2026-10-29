@@ -6,8 +6,8 @@
  * rectangles des lignes sont simulés (30 px par ligne, d'après leur index).
  */
 
-import { isFolder } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import { isFolder } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
 import { ROW_HEIGHT } from '../../../../model/rows';
 import { doc, domRowIds, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';

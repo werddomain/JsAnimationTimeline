@@ -40,7 +40,7 @@
  * Service `layers.selection` : voir `ILayerSelectionService`.
  */
 
-import { isFolder, findNodeById, resolveCollapsed } from '@werddomain/timeline-runtime';
+import { isFolder, findNodeById, resolveCollapsed } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import { LAYER_LIST_CLASSES, LAYER_ROW_CLASSES, NAME_EDITING_ATTRIBUTE } from '../list';
 import type { ILayerListService, ILayerRow } from '../list';

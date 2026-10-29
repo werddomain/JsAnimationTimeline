@@ -1,6 +1,6 @@
 // packages/editor/src/model/properties/__tests__/propertyValue.test.ts
-import { evaluateLayer } from '@werddomain/timeline-runtime';
-import type { ISpan, LayerNode } from '@werddomain/timeline-runtime';
+import { evaluateLayer } from '@kazo-ca/timeline-runtime';
+import type { ISpan, LayerNode } from '@kazo-ca/timeline-runtime';
 import { createDoc, createRegistry, expectValid, layer, layerOf, spansOf } from '../../spans/__tests__/fixtures';
 import { applyPropertyValue } from '../propertyValue';
 

@@ -4,8 +4,8 @@
  * français : « Héros » déplacé : position 2 sur 5, ou dans « Dossier 1 ».
  */
 
-import { findNodeById } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { childrenOf, findNodeLocation, topMostIds } from './treeMoves';
 
 /** Phrase décrivant la place des nœuds `ids` dans `doc` (après le déplacement) ; vide si aucun n'existe. */

@@ -5,7 +5,7 @@
  * `EditorServiceMap` et de `TimelineEventMap`.
  */
 
-import type { IMigrationWarning, ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { IMigrationWarning, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { IReadResult } from './readDocument';
 import type { IWriteOptions } from './writeDocument';
 

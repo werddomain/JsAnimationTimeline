@@ -5,7 +5,7 @@
  * commandes unique et absence d'écriture publique du document.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { EventBus } from '../../events/EventBus';
 import { createDocument, createHarness, deepFreeze, recordEvents, setFps } from '../../commands/__tests__/fixtures';
 import { Store } from '../Store';

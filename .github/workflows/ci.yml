@@ -47,7 +47,7 @@ jobs:
         run: dotnet pack dotnet/JsTimeline.Blazor/JsTimeline.Blazor.csproj -c Release -o artifacts/nuget
 
       - name: Verify release package metadata
-        run: node --test tools/packaging/metadata.test.mjs
+        run: node --test tools/packaging/metadata.test.mjs tools/packaging/npm-release.test.mjs
 
       - name: Pack npm libraries locally
         run: npm pack --workspace packages/runtime --workspace packages/editor --workspace packages/export-css --ignore-scripts --pack-destination artifacts/nuget

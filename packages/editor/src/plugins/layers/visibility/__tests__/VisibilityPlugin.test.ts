@@ -4,7 +4,7 @@
  * œil de ligne (aria-pressed, libellés, focus conservé), en-tête et nettoyage.
  */
 
-import { findNodeById } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';
 import { VisibilityLabels, createSetAllVisibleCommand, createSetVisibleCommand } from '../visibilityCommands';
 import { VISIBILITY_BUTTON_CLASS } from '../VisibilityPlugin';

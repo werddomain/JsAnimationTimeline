@@ -5,7 +5,7 @@
  * lecture, service et destruction.
  */
 
-import type { ILayer, ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ILayer, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { SpanCommandLabels } from '../../../../model/spans';
 import { createDoc, layer, shapeOf } from '../../../../model/spans/__tests__/fixtures';
 import { cleanBody, pressKey, setupKeyframes } from './keyframeFixtures';

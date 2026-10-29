@@ -56,7 +56,7 @@
  * toucher au document (utilisé par `Store.load`).
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { EventBus } from '../events/EventBus';
 // Import pour effet : garde l'augmentation de TimelineEventMap dans CommandStack.d.ts.
 import './commandEvents';

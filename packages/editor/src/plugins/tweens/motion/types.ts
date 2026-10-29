@@ -6,7 +6,7 @@
  * s'en servent.
  */
 
-import type { ISpan } from '@werddomain/timeline-runtime';
+import type { ISpan } from '@kazo-ca/timeline-runtime';
 
 /** Disponibilité d'une action : activée, ou désactivée avec la raison (message français). */
 export interface IMotionTweenAvailability {
