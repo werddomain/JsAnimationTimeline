@@ -41,6 +41,18 @@ for (const prefix of ['', '/JsAnimationTimeline']) {
         await page.getByRole('link', { name: 'Démo de l’éditeur', exact: true }).click();
         await expect(page.getByRole('heading', { name: 'Éditeur de timeline' })).toBeVisible();
         await expect(page.locator('.jt-shell')).toBeVisible();
+        for (const label of ['Vitesse de lecture', 'Aperçu pendant le glisser', 'Niveau de zoom']) {
+          const select = page.getByRole('combobox', { name: label });
+          await expect(select).toBeVisible();
+          const metrics = await select.evaluate((element) => {
+            const style = getComputedStyle(element);
+            return {
+              available: element.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom),
+              fontSize: parseFloat(style.fontSize),
+            };
+          });
+          expect(metrics.available, `${label}: text must fit inside the control`).toBeGreaterThanOrEqual(metrics.fontSize * 1.2);
+        }
         await page.goto(`${origin}${prefix}/`);
         await page.getByRole('link', { name: 'Démo du lecteur', exact: true }).click();
         await expect(page.locator('#frame')).toHaveText('Image 1 / 48');
