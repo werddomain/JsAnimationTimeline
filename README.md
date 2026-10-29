@@ -3,7 +3,7 @@
 
 JsAnimationTimeline is a TypeScript monorepo for creating and playing frame-based animations. Version 2 includes a plugin-based timeline editor, a runtime player, and CSS export.
 
-The official [GitHub Pages demo](https://kazo-ca.github.io/JsAnimationTimeline/) is the intended public address; it becomes available after the Pages workflow has successfully deployed. The demos currently use French labels.
+The official [GitHub Pages demo](https://kazo-ca.github.io/JsAnimationTimeline/) is the intended public address; it becomes available after the Pages workflow has successfully deployed. The configured custom domain is [jstimeline.kazo.ca](https://jstimeline.kazo.ca/), which currently serves v1; v2 appears there only after deployment. The demos currently use French labels.
 
 ## Try the demos locally
 
@@ -65,6 +65,8 @@ player.play();
 ```
 
 See [the runtime demo](demo/runtime/src/main.ts) and [its example document](demo/runtime/src/animation.ts) for a complete integration. The [editor demo](demo/editor/src/main.ts) shows an editor with sample data, and [the scene demo](demo/editor/src/scene.ts) shows canvas and audio integration. `@werddomain/timeline-export-css` exports `exportCss` for generating CSS from supported document properties.
+
+See the [v2 API and integration guide](doc/v2/api.md) for runtime, editor, developer-owned scenes, undo, CSS export, and Blazor integration.
 
 ## Development and checks
 
