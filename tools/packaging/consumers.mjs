@@ -5,12 +5,17 @@ import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { projectVersion, validateMetadata } from './metadata.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const npmCli = process.env.npm_execpath;
 assert.ok(npmCli, 'Run via npm run test:packaging -- <npm-directory> <nupkg>');
 const npmDirectory = resolve(process.argv[2] ?? 'artifacts/release-preparation');
-const nupkg = resolve(process.argv[3] ?? 'artifacts/release-preparation/JsTimeline.Blazor.1.0.0.nupkg');
+const packages = Object.fromEntries(['runtime', 'editor', 'export-css'].map(name => [name, JSON.parse(readFileSync(join(root, `packages/${name}/package.json`), 'utf8'))]));
+const project = readFileSync(join(root, 'dotnet/JsTimeline.Blazor/JsTimeline.Blazor.csproj'), 'utf8');
+validateMetadata(packages, project);
+const npmVersion = packages.runtime.version;
+const nupkg = resolve(process.argv[3] ?? `artifacts/release-preparation/JsTimeline.Blazor.${projectVersion(project)}.nupkg`);
 assert.ok(existsSync(nupkg), `NuGet package missing: ${nupkg}`);
 const versionMatch = /^JsTimeline\.Blazor\.((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))\.nupkg$/.exec(basename(nupkg));
 assert.ok(versionMatch, 'Unexpected NuGet package filename');
@@ -30,7 +35,7 @@ function xml(value) { return value.replaceAll('&', '&amp;').replaceAll('"', '&qu
 try {
   const env = { npm_config_cache: join(temp, 'npm-cache'), npm_config_offline: 'true' };
   const names = ['runtime', 'editor', 'export-css'];
-  const archives = names.map(name => join(npmDirectory, `werddomain-timeline-${name}-1.0.0.tgz`));
+  const archives = names.map(name => join(npmDirectory, `werddomain-timeline-${name}-${npmVersion}.tgz`));
   for (const archive of archives) assert.ok(existsSync(archive), `npm archive missing: ${archive}`);
   write('package.json', '{"private":true,"type":"module"}\n');
   run(process.execPath, [npmCli, 'install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', ...archives], temp, env);
@@ -38,8 +43,8 @@ try {
     const folder = join(temp, 'node_modules', '@werddomain', `timeline-${name}`);
     const pkg = JSON.parse(readFileSync(join(folder, 'package.json'), 'utf8'));
     assert.equal(pkg.name, `@werddomain/timeline-${name}`);
-    assert.equal(pkg.version, '1.0.0');
-    if (name !== 'runtime') assert.equal(pkg.dependencies['@werddomain/timeline-runtime'], '1.0.0');
+    assert.equal(pkg.version, npmVersion);
+    if (name !== 'runtime') assert.equal(pkg.dependencies['@werddomain/timeline-runtime'], npmVersion);
     assert.deepEqual(readFileSync(join(folder, 'LICENSE')), readFileSync(join(root, 'LICENSE')));
     for (const file of [`dist/timeline-${name}.mjs`, `dist/timeline-${name}.umd.js`, 'dist/types/index.d.ts', ...(name === 'editor' ? ['dist/timeline-editor.css'] : [])]) {
       assert.ok(existsSync(join(folder, file)), `${pkg.name}: ${file} missing`);

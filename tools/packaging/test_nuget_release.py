@@ -45,6 +45,20 @@ class ReleaseGuardTests(unittest.TestCase):
         for tag in ['', 'v1.3.0', 'v.01.3.0', 'v.1.3', 'v.1.3.0-preview', 'v.1.3.1', 'v.1.3.0\n']:
             with self.subTest(tag=tag): self.assertNotEqual(self.validate(tag).returncode, 0)
 
+    def test_accepts_annotated_tag(self):
+        self.git('tag', '-d', 'v.1.3.0')
+        self.git('tag', '-a', 'v.1.3.0', '-m', 'release')
+        self.assertEqual(self.validate().returncode, 0)
+
+    def test_digest_rejects_tampering(self):
+        tool = ROOT / 'tools/packaging/package_digest.py'
+        digest = subprocess.run([sys.executable, str(tool), str(self.package)], capture_output=True, text=True, check=True).stdout.strip()
+        def verify():
+            return subprocess.run([sys.executable, str(tool), str(self.package), digest], capture_output=True).returncode
+        self.assertEqual(verify(), 0)
+        with self.package.open('ab') as package: package.write(b'tampered')
+        self.assertNotEqual(verify(), 0)
+
     def test_rejects_non_main_commit(self):
         (self.repo / 'other').write_text('other')
         self.git('add', 'other')
@@ -75,6 +89,12 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("- 'v.*'", workflow)
         self.assertNotIn('workflow_dispatch:', workflow)
         self.assertIn('needs: prepare', workflow)
+        self.assertIn('needs.prepare.outputs.package_sha256', workflow)
+        self.assertLess(workflow.index('npm run test:packaging'), workflow.index('id: digest'))
+        for line in workflow.splitlines():
+            if 'uses:' in line:
+                self.assertRegex(line, r'uses: [^@]+@[0-9a-f]{40}(?:\s|$)')
+        self.assertLess(workflow.index('package_digest.py', workflow.index('  publish:')), workflow.index('NuGet/login@v1'))
         self.assertIn('environment: nuget-production', workflow)
         self.assertIn('fetch-depth: 0', workflow)
         self.assertIn('NuGet/login@v1', workflow)
