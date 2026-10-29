@@ -124,7 +124,7 @@ La chaîne F01 → C2 → C3 → C4 → L1 → Y1 → Y5 → Y7 → Y8 → I1 �
 | **B3** | 8 | 11 | Composant Blazor `TimelineEditor` (liaison des données, callbacks d'événements, paramètre `Stage` : HTML, module JS, scène C# `ITimelineStage` ou aucune) | B1, B3a, S2, E1, C7 | B4 | `dotnet/JsTimeline.Blazor/Editor/` | ☑ |
 | **B4** | 8 | 12 | Appli Blazor d'exemple (dont une page où un composant C# reçoit les images) + tests bUnit + `dotnet pack` en CI | B2, B3 | D1 | `dotnet/samples/`, `dotnet/*.Tests/` | ☑ |
 | **Z1** | 9 | 11 | Suppression de `packages/editor/src/legacy` et de l'ancienne démo | E1 | D1 | `packages/editor/src/legacy/` | ☑ |
-| **D1** | 9 | 13 | README réécrit (CS4, nouvelle API, « utiliser la timeline avec votre propre scène »), doc d'API, démo GitHub Pages | Z1, X2, B4, R5, R8 | D2 | `README.md`, `doc/`, `demo/` | ☑ |
+| **D1** | 9 | 13 | README réécrit (CS4, nouvelle API, « utiliser la timeline avec votre propre scène »), doc d'API, démo GitHub Pages (prête, déploiement v2 après fusion sur main) | Z1, X2, B4, R5, R8 | D2 | `README.md`, `doc/`, `demo/` | ☐ |
 | **D2** | 9 | 14 | Publication 1.0.0 sur tag (npm + NuGet) | D1 | — | `.github/workflows/release.yml` | ☐ |
 
 ## Graphe des dépendances
