@@ -5,8 +5,8 @@
  */
 
 import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
-import { isFolder } from '@werddomain/timeline-runtime';
-import type { LayerNode } from '@werddomain/timeline-runtime';
+import { isFolder } from '@kazo-ca/timeline-runtime';
+import type { LayerNode } from '@kazo-ca/timeline-runtime';
 import { createEditor } from '../../../../core/editor/createEditor';
 import { LayoutPlugin } from '../../../layout/LayoutPlugin';
 import { LayersPlugin } from '../../LayersPlugin';

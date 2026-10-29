@@ -4,7 +4,7 @@
  * chaque commande a son test d'annulation, sur des entrées figées).
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { createCommand } from '../createCommand';
 import { createDocument, layerName, renameLayer, renameUnlessLocked, setFps } from './fixtures';
 

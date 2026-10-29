@@ -16,7 +16,7 @@
  * - Toute autre image : rien à déplacer.
  */
 
-import type { ILayer, IPropertyKeyframe, ISpan, ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ILayer, IPropertyKeyframe, ISpan, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { assertFrame, createSpanIdFactory, replaceLayer, requireEditableLayer } from './layerAccess';
 import { SpanOperationCodes, SpanOperationError } from './SpanOperationError';
 import { retimeKeyframes, spanIndexAt, withSpans, withTracks } from './tracks';

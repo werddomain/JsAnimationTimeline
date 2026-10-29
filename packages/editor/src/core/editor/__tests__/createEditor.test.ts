@@ -7,8 +7,8 @@
  * plugins optionnels, et charge utile de `editor:ready`.
  */
 
-import { SCHEMA_VERSION, validateDocument } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { SCHEMA_VERSION, validateDocument } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { createDocument } from '../../commands/__tests__/fixtures';
 import { deepFreeze } from '../../commands/__tests__/fixtures';
 import type { IEditorContext } from '../../context/IEditorContext';

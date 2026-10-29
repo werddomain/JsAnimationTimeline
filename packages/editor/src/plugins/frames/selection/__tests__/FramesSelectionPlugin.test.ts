@@ -5,7 +5,7 @@
  * changement de document, service, événement et destruction.
  */
 
-import type { ILayer, ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import type { ILayer, ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import { createCommand } from '../../../../core/commands/createCommand';
 import { createEditor } from '../../../../core/editor/createEditor';
 import type { IEditor } from '../../../../core/editor/types';

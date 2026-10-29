@@ -2,7 +2,7 @@
 /** Permanent I1 validation through real menus, keyboard and read-only fixture inspection. */
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import type { ILayer } from '@werddomain/timeline-runtime';
+import type { ILayer } from '@kazo-ca/timeline-runtime';
 import type { ContextMenuEditorId } from '../../demo/runtime/src/fixtures/contextMenuTypes';
 import type {} from '../../demo/runtime/src/fixtures/contextMenuTypes';
 import { RUNTIME_DEMO_URL } from '../runtime/demoUrl';

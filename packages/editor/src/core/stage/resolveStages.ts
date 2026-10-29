@@ -4,7 +4,7 @@
  * (`stage: false`), ou la scène HTML par défaut (`createEditorHtmlStage`).
  */
 
-import type { IStage } from '@werddomain/timeline-runtime';
+import type { IStage } from '@kazo-ca/timeline-runtime';
 import type { EditorStageOption } from './types';
 
 /** Options qui choisissent les scènes. */

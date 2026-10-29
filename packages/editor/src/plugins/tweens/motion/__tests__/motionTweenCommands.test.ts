@@ -5,7 +5,7 @@
  * suppression sur plusieurs calques en une seule commande.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { CommandRefusedError } from '../../../../core/commands/CommandRefusedError';
 import { CompositeCommand } from '../../../../core/commands/CompositeCommand';
 import { createDoc, createRegistry, deepFreeze, expectValid, layer, shapeOf, spansOf } from '../../../../model/spans/__tests__/fixtures';

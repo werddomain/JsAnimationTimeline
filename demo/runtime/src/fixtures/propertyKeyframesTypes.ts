@@ -1,6 +1,6 @@
 // demo/runtime/src/fixtures/propertyKeyframesTypes.ts
-import type { IEditor, IPropertyKeyframesService } from '@werddomain/timeline-editor';
-import type { ITargetInfo } from '@werddomain/timeline-runtime';
+import type { IEditor, IPropertyKeyframesService } from '@kazo-ca/timeline-editor';
+import type { ITargetInfo } from '@kazo-ca/timeline-runtime';
 
 export interface IPropertyKeyframesMetrics {
   htmlRenders: number;

@@ -1,8 +1,8 @@
 // packages/editor/src/plugins/layers/toolbar/__tests__/toolbarCommands.test.ts
 /** Commandes de `layers.toolbar` : exécuter, annuler, rétablir. */
 
-import { isFolder } from '@werddomain/timeline-runtime';
-import type { LayerNode } from '@werddomain/timeline-runtime';
+import { isFolder } from '@kazo-ca/timeline-runtime';
+import type { LayerNode } from '@kazo-ca/timeline-runtime';
 import { doc, folder, layer } from '../../list/__tests__/fixtures';
 import { LayerToolbarCommandLabels, deleteLayersCommand, newLayerCommand } from '../toolbarCommands';
 

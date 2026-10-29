@@ -4,8 +4,8 @@
  * commande `Déplacer les calques`.
  */
 
-import type { ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
-import { isFolder } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
+import { isFolder } from '@kazo-ca/timeline-runtime';
 import { doc, folder, layer } from '../../list/__tests__/fixtures';
 import { moveNodes } from '../moveNodes';
 import { LAYER_MOVE_LABEL, createMoveLayersCommand } from '../reorderCommand';

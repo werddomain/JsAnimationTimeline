@@ -11,8 +11,8 @@ import {
   createManualClock,
   createPropertyRegistry,
   defaultPropertyRegistry
-} from '@werddomain/timeline-runtime';
-import type { PropertyDescriptor } from '@werddomain/timeline-runtime';
+} from '@kazo-ca/timeline-runtime';
+import type { PropertyDescriptor } from '@kazo-ca/timeline-runtime';
 import { createEditor } from '../createEditor';
 import { createEditorRegistry } from '../editorRegistry';
 import { captureContext, cleanBody, createContainer } from './fixtures';

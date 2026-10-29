@@ -1,6 +1,6 @@
 // demo/runtime/src/fixtures/propertyApiTypes.ts
-import type { IEditor } from '@werddomain/timeline-editor';
-import type { ITargetInfo, ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { IEditor } from '@kazo-ca/timeline-editor';
+import type { ITargetInfo, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 
 /** Public API handles for the permanent property contract browser fixture. */
 export interface IPropertyApiFixture {

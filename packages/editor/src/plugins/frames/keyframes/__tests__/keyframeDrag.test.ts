@@ -5,7 +5,7 @@
  * pointeur, changement du document, destruction) et gestes ignorés.
  */
 
-import type { ILayer, ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ILayer, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { createSpanCommands } from '../../../../model/spans';
 import { createDoc, layer, shapeOf } from '../../../../model/spans/__tests__/fixtures';
 import { FRAMES_KEYFRAMES_CLASSES } from '../keyframeGhost';

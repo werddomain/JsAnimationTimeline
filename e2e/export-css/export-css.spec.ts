@@ -9,7 +9,7 @@
 
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { exportCss } from '@werddomain/timeline-export-css';
+import { exportCss } from '@kazo-ca/timeline-export-css';
 import { DEMO_ANIMATION } from '../../demo/runtime/src/animation';
 import { RUNTIME_DEMO_URL } from '../runtime/demoUrl';
 

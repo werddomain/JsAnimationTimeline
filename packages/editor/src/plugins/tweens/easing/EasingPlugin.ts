@@ -9,7 +9,7 @@
  * Span-wide easing commands and an accessible French preset dialog. Any document
  * or selection change closes a pending dialog so confirmation cannot target stale data.
  */
-import type { Easing } from '@werddomain/timeline-runtime';
+import type { Easing } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import { CommandRefusedError } from '../../../core/commands/CommandRefusedError';
 import type {} from '../motion/types';

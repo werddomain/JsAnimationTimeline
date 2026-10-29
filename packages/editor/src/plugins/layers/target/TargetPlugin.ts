@@ -37,8 +37,8 @@
  * Service `layers.target` : `setTarget`, `alert`, `open`, `close`.
  */
 
-import { findNodeById, isLayer, isRefTarget, isSelectorTarget, sameTarget } from '@werddomain/timeline-runtime';
-import type { ILayer, LayerTarget } from '@werddomain/timeline-runtime';
+import { findNodeById, isLayer, isRefTarget, isSelectorTarget, sameTarget } from '@kazo-ca/timeline-runtime';
+import type { ILayer, LayerTarget } from '@kazo-ca/timeline-runtime';
 import { CANCELLED_REASON } from '../../../core/commands';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import { computeTargetAlert } from './targetAlert';

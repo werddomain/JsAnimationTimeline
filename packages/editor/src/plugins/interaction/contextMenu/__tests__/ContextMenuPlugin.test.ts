@@ -1,6 +1,6 @@
 // packages/editor/src/plugins/interaction/contextMenu/__tests__/ContextMenuPlugin.test.ts
 /** Real editor integration for scoped context menus and undoable actions. */
-import { findNodeById } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
 import { doc, folder, layer, mount, open, item } from './fixtures';
 
 describe('interaction.contextMenu', () => {

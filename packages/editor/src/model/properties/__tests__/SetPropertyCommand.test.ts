@@ -1,5 +1,5 @@
 // packages/editor/src/model/properties/__tests__/SetPropertyCommand.test.ts
-import type { ITargetInfo, ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITargetInfo, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { CommandRefusedError } from '../../../core/commands/CommandRefusedError';
 import { EventBus } from '../../../core/events/EventBus';
 import { Store } from '../../../core/store/Store';

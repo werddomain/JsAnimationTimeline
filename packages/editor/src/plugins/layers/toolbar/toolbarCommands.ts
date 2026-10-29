@@ -8,7 +8,7 @@
  * donc « rétablir » redonne exactement le même résultat.
  */
 
-import type { ILayer, ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import type { ILayer, ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import { createCommand } from '../../../core/commands/createCommand';
 import type { ICommand } from '../../../core/commands/ICommand';
 import { removeNodes, topMostIds } from '../groups/groupsTree';

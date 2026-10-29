@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 import { editorPort } from '../../tools/devPorts';
 
 /** Le runtime reste une dépendance externe : il n'est jamais inclus dans le bundle de l'éditeur. */
-const RUNTIME_PACKAGE = /^@werddomain\/timeline-runtime(\/.*)?$/;
+const RUNTIME_PACKAGE = /^@kazo-ca\/timeline-runtime(\/.*)?$/;
 
 /**
  * Serveur de dev uniquement (`npm run dev`) : Vite ne lit pas les `paths` de
@@ -12,7 +12,7 @@ const RUNTIME_PACKAGE = /^@werddomain\/timeline-runtime(\/.*)?$/;
  * Jamais appliqué au build bibliothèque, où le runtime reste externe.
  */
 const RUNTIME_SOURCE_ALIAS = {
-  find: /^@werddomain\/timeline-runtime$/,
+  find: /^@kazo-ca\/timeline-runtime$/,
   replacement: fileURLToPath(new URL('../runtime/src/index.ts', import.meta.url)),
 };
 
@@ -33,7 +33,7 @@ export default defineConfig(({ command }) => ({
     emptyOutDir: true,
     rolldownOptions: {
       external: [RUNTIME_PACKAGE],
-      output: { globals: { '@werddomain/timeline-runtime': 'TimelineRuntime' } },
+      output: { globals: { '@kazo-ca/timeline-runtime': 'TimelineRuntime' } },
     },
   },
 }));

@@ -7,8 +7,8 @@
  * (le document est figé).
  */
 
-import { flattenLayers } from '@werddomain/timeline-runtime';
-import type { ILayer, LayerNode } from '@werddomain/timeline-runtime';
+import { flattenLayers } from '@kazo-ca/timeline-runtime';
+import type { ILayer, LayerNode } from '@kazo-ca/timeline-runtime';
 import { allIds, insertNode, locateNode, numbersWithPrefix, smallestFree } from '../groups/groupsTree';
 
 /** Préfixe des noms de calque créés par l'éditeur (« Calque 1 »). */

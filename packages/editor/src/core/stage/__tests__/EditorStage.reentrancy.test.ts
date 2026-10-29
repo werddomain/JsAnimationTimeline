@@ -7,8 +7,8 @@
  * relâchée quand un plugin échoue au démarrage.
  */
 
-import { createManualClock, StageDocumentError, StageReportCodes } from '@werddomain/timeline-runtime';
-import type { IStageReport } from '@werddomain/timeline-runtime';
+import { createManualClock, StageDocumentError, StageReportCodes } from '@kazo-ca/timeline-runtime';
+import type { IStageReport } from '@kazo-ca/timeline-runtime';
 import type { IEditor } from '../../editor/types';
 import { createEditor } from '../../editor/createEditor';
 import { catchError, cleanBody, createContainer } from '../../editor/__tests__/fixtures';

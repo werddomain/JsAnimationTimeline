@@ -28,7 +28,7 @@
  * commandes le changent.
  */
 
-import type { ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import type { ICommand } from '../commands/ICommand';
 import type { CancellableHandler, EventHandler, EventName } from '../events/EventBus';
 import type { TimelineEventMap } from '../events/TimelineEventMap';

@@ -4,8 +4,8 @@
  * fournie : aucune couche, 24 images par seconde, 60 images.
  */
 
-import { SCHEMA_VERSION } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { SCHEMA_VERSION } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 
 /** Cadence d'un document vide (même valeur que la cadence par défaut du migrateur v1). */
 export const DEFAULT_FPS = 24;

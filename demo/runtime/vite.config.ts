@@ -17,15 +17,15 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: /^@werddomain\/timeline-runtime$/,
+        find: /^@kazo-ca\/timeline-runtime$/,
         replacement: fileURLToPath(new URL('../../packages/runtime/src/index.ts', import.meta.url)),
       },
       {
-        find: /^@werddomain\/timeline-editor$/,
+        find: /^@kazo-ca\/timeline-editor$/,
         replacement: fileURLToPath(new URL('../../packages/editor/src/index.ts', import.meta.url)),
       },
       {
-        find: /^@werddomain\/timeline-export-css$/,
+        find: /^@kazo-ca\/timeline-export-css$/,
         replacement: fileURLToPath(new URL('../../packages/export-css/src/index.ts', import.meta.url)),
       },
     ],

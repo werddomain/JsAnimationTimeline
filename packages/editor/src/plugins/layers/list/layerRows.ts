@@ -5,8 +5,8 @@
  * Fonctions pures.
  */
 
-import { isFolder, resolveLocked, resolveVisible } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import { isFolder, resolveLocked, resolveVisible } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import { visibleRows } from '../../../model/rows';
 import type { IVisibleRow } from '../../../model/rows';
 import type { ILayerRow } from './types';

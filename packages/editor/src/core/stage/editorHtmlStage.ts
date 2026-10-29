@@ -28,8 +28,8 @@ import {
   isRefTarget,
   isSelectorTarget,
   TARGET_ATTRIBUTE
-} from '@werddomain/timeline-runtime';
-import type { HtmlStageRefs, IHtmlStage, ITargetInfo, LayerTarget } from '@werddomain/timeline-runtime';
+} from '@kazo-ca/timeline-runtime';
+import type { HtmlStageRefs, IHtmlStage, ITargetInfo, LayerTarget } from '@kazo-ca/timeline-runtime';
 
 /**
  * Classe de l'élément racine de l'éditeur. Même valeur que `EDITOR_ROOT_CLASS`

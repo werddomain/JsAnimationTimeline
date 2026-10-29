@@ -8,8 +8,8 @@
  * hors d'un navigateur complet (tests, rendu côté serveur, webview limitée).
  */
 
-import { createBrowserClock } from '@werddomain/timeline-runtime';
-import type { IPlayerClock } from '@werddomain/timeline-runtime';
+import { createBrowserClock } from '@kazo-ca/timeline-runtime';
+import type { IPlayerClock } from '@kazo-ca/timeline-runtime';
 
 /** Délai d'une image avec les minuteries (60 images par seconde). */
 const TIMER_FRAME_MS = 1000 / 60;

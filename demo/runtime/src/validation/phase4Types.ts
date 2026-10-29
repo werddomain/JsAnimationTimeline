@@ -1,6 +1,6 @@
 // demo/runtime/src/validation/phase4Types.ts
 /** Public inspection handle shared by the phase-4 demonstration and its browser checks. */
-import type { IEditor } from '@werddomain/timeline-editor';
+import type { IEditor } from '@kazo-ca/timeline-editor';
 
 export type Phase4ReviewState =
   | { readonly ready: true; readonly editor: IEditor }

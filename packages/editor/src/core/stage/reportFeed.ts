@@ -29,7 +29,7 @@
  * courant, puis le fil émet en direct.
  */
 
-import type { IStageReport } from '@werddomain/timeline-runtime';
+import type { IStageReport } from '@kazo-ca/timeline-runtime';
 
 /** Clé d'un avertissement : code, scène, calque et propriété. */
 export function reportKey(report: IStageReport): string {

@@ -1,6 +1,6 @@
 // packages/editor/src/plugins/layers/list/__tests__/layerTree.test.ts
-import { findNodeById, isFolder } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { findNodeById, isFolder } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import {
   LayerListCommandLabels,
   createSetCollapsedCommand,

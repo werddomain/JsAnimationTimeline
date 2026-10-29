@@ -14,8 +14,8 @@
  *   sortir d'un dossier dont on survole le dernier enfant).
  */
 
-import { findNodeById, isFolder, resolveCollapsed } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument, LayerNodeType } from '@werddomain/timeline-runtime';
+import { findNodeById, isFolder, resolveCollapsed } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument, LayerNodeType } from '@kazo-ca/timeline-runtime';
 import type { ILayerDropTarget } from './moveNodes';
 import { findNodeLocation } from './treeMoves';
 

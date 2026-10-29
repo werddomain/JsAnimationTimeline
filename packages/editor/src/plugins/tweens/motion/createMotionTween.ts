@@ -33,7 +33,7 @@
  * une interpolation d'une image ne peut pas bouger.
  */
 
-import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry, PropertyTracks } from '@werddomain/timeline-runtime';
+import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry, PropertyTracks } from '@kazo-ca/timeline-runtime';
 import { assertFrame, evaluateValues, replaceLayer, requireEditableLayer } from '../../../model/spans/layerAccess';
 import { spanIndexAt, withSpans, withTracks } from '../../../model/spans/tracks';
 import { motionTweenRefusal } from './MotionTweenError';

@@ -15,8 +15,8 @@
  * restaure ; `do` à nouveau (rétablir) revérifie et remémorise.
  */
 
-import { isLayer, walkLayers } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument, ITimelineSettings } from '@werddomain/timeline-runtime';
+import { isLayer, walkLayers } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument, ITimelineSettings } from '@kazo-ca/timeline-runtime';
 import { CommandRefusedError } from '../../../core/commands/CommandRefusedError';
 import type { ICommand } from '../../../core/commands/ICommand';
 

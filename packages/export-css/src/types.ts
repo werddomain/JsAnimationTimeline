@@ -3,7 +3,7 @@
  * Types publics de l'export CSS : options, résultat et avertissements.
  */
 
-import type { PropertyRegistry } from '@werddomain/timeline-runtime';
+import type { PropertyRegistry } from '@kazo-ca/timeline-runtime';
 
 /**
  * Why part of a document was left out of the CSS:

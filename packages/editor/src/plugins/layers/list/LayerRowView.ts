@@ -10,7 +10,7 @@
  * retournées à la liste, qui les relance une fois son travail fini.
  */
 
-import { isFolder, resolveCollapsed } from '@werddomain/timeline-runtime';
+import { isFolder, resolveCollapsed } from '@kazo-ca/timeline-runtime';
 import { ROW_HEIGHT } from '../../../model/rows';
 import { renderLayerIcon } from './layerIcon';
 import type { ILayerRow, ILayerRowControl } from './types';

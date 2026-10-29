@@ -15,7 +15,7 @@
  *   profondeur et ne partage rien avec le document.
  */
 
-import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
+import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import type { IVisibleRow } from '../../../model/rows';
 import { findLayer } from '../../../model/spans/layerAccess';
 import { lastFrame, shiftSpan } from '../../../model/spans/tracks';

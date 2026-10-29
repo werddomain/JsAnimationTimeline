@@ -18,7 +18,7 @@
  * surface seulement) est, lui, parcouru en entier.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { EventBus } from '../events/EventBus';
 
 /** Objets déjà gelés en profondeur par `deepFreezeValue`. */

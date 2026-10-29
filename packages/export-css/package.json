@@ -1,5 +1,5 @@
 {
-  "name": "@werddomain/timeline-export-css",
+  "name": "@kazo-ca/timeline-export-css",
   "version": "1.0.0",
   "description": "Exports JsAnimationTimeline animations to pure CSS @keyframes.",
   "main": "dist/timeline-export-css.umd.js",
@@ -24,12 +24,12 @@
     "typecheck": "tsc --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
-    "@werddomain/timeline-runtime": "1.0.0"
+    "@kazo-ca/timeline-runtime": "1.0.0"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/werddomain/JsAnimationTimeline.git",
+    "url": "https://github.com/Kazo-ca/JsAnimationTimeline.git",
     "directory": "packages/export-css"
   },
   "publishConfig": {

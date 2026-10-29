@@ -6,7 +6,7 @@
  * F5 / F6 / F7 through keyframeTargets.
  */
 
-import type { ISpan, ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ISpan, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { keyframeTargets, lockedLayerIds } from '../../frames/keyframes/keyframeTargets';
 import type { IFrameCell } from '../../frames/selection/frameSelection';
 import type { ISelectedKeyframe } from '../../frames/selection/types';

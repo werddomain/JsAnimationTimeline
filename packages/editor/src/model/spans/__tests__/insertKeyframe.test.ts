@@ -3,7 +3,7 @@
  * Tests de l'insertion d'une image clé (F6) et d'une image clé vide (F7).
  */
 
-import { BUILTIN_PROPERTIES, PropertyRegistry, evaluateLayer } from '@werddomain/timeline-runtime';
+import { BUILTIN_PROPERTIES, PropertyRegistry, evaluateLayer } from '@kazo-ca/timeline-runtime';
 import { insertBlankKeyframe, insertKeyframe } from '../insertKeyframe';
 import { SpanOperationCodes, SpanOperationError } from '../SpanOperationError';
 import { createDoc, createRegistry, expectValid, layer, layerOf, shapeOf, spansOf, tweenDoc } from './fixtures';

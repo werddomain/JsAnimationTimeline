@@ -34,8 +34,8 @@
  * brut ; une erreur de `pick` affiche un message.
  */
 
-import { sameTarget } from '@werddomain/timeline-runtime';
-import type { IStageTargets, ITargetInfo, LayerTarget } from '@werddomain/timeline-runtime';
+import { sameTarget } from '@kazo-ca/timeline-runtime';
+import type { IStageTargets, ITargetInfo, LayerTarget } from '@kazo-ca/timeline-runtime';
 import type { IEditorStage } from '../../../core/stage/types';
 import { clampMenuPosition } from '../icon/menuPosition';
 import { isHistoryChord } from './historyKeys';

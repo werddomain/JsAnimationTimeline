@@ -23,8 +23,8 @@
  * Service `layers.icon` : `setIcon(id, icon | undefined)` et `openChooser(id)`.
  */
 
-import { findNodeById, isFolder } from '@werddomain/timeline-runtime';
-import type { ILayer } from '@werddomain/timeline-runtime';
+import { findNodeById, isFolder } from '@kazo-ca/timeline-runtime';
+import type { ILayer } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import { LAYER_ROW_CLASSES } from '../list/LayerRowView';
 import type { ILayerListService } from '../list/types';

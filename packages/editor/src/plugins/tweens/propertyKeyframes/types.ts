@@ -1,5 +1,5 @@
 // packages/editor/src/plugins/tweens/propertyKeyframes/types.ts
-import type { PropertyDescriptor } from '@werddomain/timeline-runtime';
+import type { PropertyDescriptor } from '@kazo-ca/timeline-runtime';
 import type { SetPropertyOptions } from '../../../core/editor/types';
 
 /** Headless property controls, shared with the public editor's undo history. */

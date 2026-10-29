@@ -23,7 +23,7 @@
  * `command:refused` avec le message français.
  */
 
-import type { ISpan, ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ISpan, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import type { ICommand } from '../../../core/commands/ICommand';
 import { findLayer } from '../../../model/spans/layerAccess';

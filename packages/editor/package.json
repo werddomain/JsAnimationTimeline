@@ -1,5 +1,5 @@
 {
-  "name": "@werddomain/timeline-editor",
+  "name": "@kazo-ca/timeline-editor",
   "version": "1.0.0",
   "description": "A Flash MX-style timeline control built with TypeScript and LESS for creating animation timelines.",
   "main": "dist/timeline-editor.umd.js",
@@ -29,7 +29,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@werddomain/timeline-runtime": "1.0.0"
+    "@kazo-ca/timeline-runtime": "1.0.0"
   },
   "keywords": [
     "timeline",
@@ -46,7 +46,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/werddomain/JsAnimationTimeline.git",
+    "url": "https://github.com/Kazo-ca/JsAnimationTimeline.git",
     "directory": "packages/editor"
   },
   "publishConfig": {

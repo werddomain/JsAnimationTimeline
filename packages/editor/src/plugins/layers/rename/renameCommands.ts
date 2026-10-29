@@ -6,8 +6,8 @@
  * verrouillé : le verrou protège les images clés, pas le nom.
  */
 
-import { findNodeById } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { createCommand } from '../../../core/commands/createCommand';
 import type { ICommand } from '../../../core/commands/ICommand';
 import { updateLayerNode } from '../list/layerTree';

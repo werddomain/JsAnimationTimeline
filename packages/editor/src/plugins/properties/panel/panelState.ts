@@ -1,6 +1,6 @@
 // packages/editor/src/plugins/properties/panel/panelState.ts
-import { findNodeById, flattenLayers, isLayer, resolveLocked } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument, PropertyDescriptor } from '@werddomain/timeline-runtime';
+import { findNodeById, flattenLayers, isLayer, resolveLocked } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument, PropertyDescriptor } from '@kazo-ca/timeline-runtime';
 import type { IEditorContext } from '../../../core/context/IEditorContext';
 import type {} from '../../layers/selection/types';
 import type {} from '../../tweens/propertyKeyframes/types';

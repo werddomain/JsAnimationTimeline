@@ -11,7 +11,7 @@
 import type { EditorPlugin } from '../../context/IEditorContext';
 import { cleanBody } from '../../editor/__tests__/fixtures';
 import type { IFakeStage } from './fixtures';
-import type { IStageReport } from '@werddomain/timeline-runtime';
+import type { IStageReport } from '@kazo-ca/timeline-runtime';
 import { DISPLAY_FRAME_MS, createFakeStage, createStageEditor, deleteLayer, setTarget } from './fixtures';
 
 afterEach(cleanBody);

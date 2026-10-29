@@ -1,5 +1,5 @@
 // packages/editor/src/plugins/layers/color/__tests__/layerColor.test.ts
-import { findNodeById } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
 import { LAYER_COLOR_COMMAND_LABEL, createSetColorCommand, normalizeLayerColor } from '../layerColor';
 import { doc, folder, layer } from '../../list/__tests__/fixtures';
 

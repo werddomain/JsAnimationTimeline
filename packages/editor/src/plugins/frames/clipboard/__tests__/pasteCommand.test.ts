@@ -4,8 +4,8 @@
  * lignes (durée comprise), rétablir, et refus sans effet.
  */
 
-import { evaluateLayer } from '@werddomain/timeline-runtime';
-import type { PropertyRegistry } from '@werddomain/timeline-runtime';
+import { evaluateLayer } from '@kazo-ca/timeline-runtime';
+import type { PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import { CommandRefusedError } from '../../../../core/commands/CommandRefusedError';
 import { createDoc, createRegistry, expectValid, layer, layerOf, shapeOf } from '../../../../model/spans/__tests__/fixtures';
 import { createPasteCommand, PASTE_COMMAND_LABEL } from '../pasteCommand';

@@ -4,7 +4,7 @@
  * ligne, coupés à la fenêtre affichée, et fenêtre visible (images, lignes).
  */
 
-import type { IFolder, ILayer, ISpan } from '@werddomain/timeline-runtime';
+import type { IFolder, ILayer, ISpan } from '@kazo-ca/timeline-runtime';
 import {
   FRAME_OVERSCAN,
   ROW_OVERSCAN,

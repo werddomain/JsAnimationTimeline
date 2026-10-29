@@ -1,7 +1,7 @@
 // packages/editor/src/plugins/layers/groups/__tests__/groupCommands.test.ts
 /** Commandes de `layers.groups` : exécuter, annuler (arbre identique) et rétablir. */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { ICommand } from '../../../../core/commands/ICommand';
 import { doc, folder, layer } from '../../list/__tests__/fixtures';
 import {

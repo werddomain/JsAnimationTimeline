@@ -1,8 +1,8 @@
 // packages/editor/src/plugins/layers/groups/__tests__/groupsTree.test.ts
 /** Opérations pures de `layers.groups` : noms, ids, insertion, regroupement, dissociation. */
 
-import { flattenLayers, isFolder } from '@werddomain/timeline-runtime';
-import type { LayerNode } from '@werddomain/timeline-runtime';
+import { flattenLayers, isFolder } from '@kazo-ca/timeline-runtime';
+import type { LayerNode } from '@kazo-ca/timeline-runtime';
 import { folder, layer } from '../../list/__tests__/fixtures';
 import {
   addFolder,

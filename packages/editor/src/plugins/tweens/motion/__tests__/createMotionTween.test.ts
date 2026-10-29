@@ -5,8 +5,8 @@
  * images clés absorbées, image clé vide d'arrivée, refus).
  */
 
-import { evaluateLayer, validateDocument } from '@werddomain/timeline-runtime';
-import type { ISpan, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { evaluateLayer, validateDocument } from '@kazo-ca/timeline-runtime';
+import type { ISpan, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { createDoc, createRegistry, deepFreeze, expectValid, layer, layerOf, shapeOf, spansOf } from '../../../../model/spans/__tests__/fixtures';
 import { createMotionTween, createMotionTweenBetween, createMotionTweenFromSpan } from '../createMotionTween';
 import { MotionTweenCodes, MotionTweenError } from '../MotionTweenError';

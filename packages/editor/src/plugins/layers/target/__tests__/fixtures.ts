@@ -6,7 +6,7 @@
  * d'un éditeur complet sur cette scène.
  */
 
-import { createManualClock, isRefTarget, refStage } from '@werddomain/timeline-runtime';
+import { createManualClock, isRefTarget, refStage } from '@kazo-ca/timeline-runtime';
 import type {
   IManualClock,
   IStage,
@@ -14,7 +14,7 @@ import type {
   ITargetInfo,
   ITimelineDocument,
   LayerTarget
-} from '@werddomain/timeline-runtime';
+} from '@kazo-ca/timeline-runtime';
 import type { CommandStack } from '../../../../core/commands/CommandStack';
 import { createEditor } from '../../../../core/editor/createEditor';
 import type { EditorOptions, IEditor } from '../../../../core/editor/types';

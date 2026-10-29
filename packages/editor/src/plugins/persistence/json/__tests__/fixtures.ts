@@ -5,7 +5,7 @@
  * calque sans cible, et un document v1 minimal à migrer.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 
 /** Document v2 valide : cibles sélecteur, référence avec scène, référence sans scène. */
 export function makeV2Document(): ITimelineDocument {

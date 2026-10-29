@@ -1,11 +1,11 @@
 <!-- doc/v2/api.md -->
 # v2 integration and API
 
-The workspaces are built locally with `npm run build`. A repository build does not imply that packages have been published to npm; see the workspace metadata for [runtime](../../packages/runtime/package.json), [editor](../../packages/editor/package.json) and [CSS export](../../packages/export-css/package.json). The demos use Vite aliases to workspace sources. The editor exports `@werddomain/timeline-editor/timeline-editor.css`; import that stylesheet in a bundler or serve the built CSS separately. See the [root README](../../README.md) for setup and the [schema](../../schema/README.md) for the document format.
+The workspaces are built locally with `npm run build`. A repository build does not imply that packages have been published to npm; see the workspace metadata for [runtime](../../packages/runtime/package.json), [editor](../../packages/editor/package.json) and [CSS export](../../packages/export-css/package.json). The demos use Vite aliases to workspace sources. The editor exports `@kazo-ca/timeline-editor/timeline-editor.css`; import that stylesheet in a bundler or serve the built CSS separately. See the [root README](../../README.md) for setup and the [schema](../../schema/README.md) for the document format.
 
 ## Runtime
 
-`@werddomain/timeline-runtime` exports the v2 model, validation and v1 migration, property registry and evaluation, player, transport and stages. Its entry point is [runtime/src/index.ts](../../packages/runtime/src/index.ts). A document contains settings (`fps`, `totalFrames`) and a layer tree with spans and property tracks. Frames are numbered from 1. Persistable documents use serializable selector or reference targets. The player also supports a runtime-only `{ element }` target, which is absent from the JSON schema; the editor store rejects live element targets.
+`@kazo-ca/timeline-runtime` exports the v2 model, validation and v1 migration, property registry and evaluation, player, transport and stages. Its entry point is [runtime/src/index.ts](../../packages/runtime/src/index.ts). A document contains settings (`fps`, `totalFrames`) and a layer tree with spans and property tracks. Frames are numbered from 1. Persistable documents use serializable selector or reference targets. The player also supports a runtime-only `{ element }` target, which is absent from the JSON schema; the editor store rejects live element targets.
 
 `createPlayer(document, options)` uses a Web Animations HTML stage by default. Set `root` to scope selectors, or supply `stage` (one `IStage` or an array), but not both. Options include `autoplay`, `loop`, positive `speed`, a property `registry`, `clock`, and `onListenerError`. The player exposes `play`, `pause`, `seek`, `update`, `refreshTargets`, `destroy`, current time and state, `missingTargets` and `warnings`. `update` keeps playback state and time, clamped to the new document duration. `on` returns an unsubscribe function; events include `frame`, `tick`, `play`, `pause`, `loop`, and `complete`. By default listener and stage errors are rethrown asynchronously through `setTimeout`; supply `onListenerError` to handle them. `destroy` releases layers and detaches stages. See the [runtime demo](../../demo/runtime/src/main.ts) and [document fixture](../../demo/runtime/src/animation.ts).
 
@@ -27,7 +27,7 @@ The [runtime object-stage demo](../../demo/runtime/src/objectStage/) combines ca
 
 ## CSS export
 
-`@werddomain/timeline-export-css` exports `exportCss(document, options)` returning `{ css, html, warnings }`. Options include a keyframe `prefix`, a property `registry` and `loop`. Inspect warnings before using the result: unsupported or unsafe selectors, non-CSS and unknown properties, invalid layers and invalid documents can be skipped. The exporter does not render developer-owned objects. See [export options and warnings](../../packages/export-css/src/types.ts) and the [CSS parity browser test](../../e2e/export-css/).
+`@kazo-ca/timeline-export-css` exports `exportCss(document, options)` returning `{ css, html, warnings }`. Options include a keyframe `prefix`, a property `registry` and `loop`. Inspect warnings before using the result: unsupported or unsafe selectors, non-CSS and unknown properties, invalid layers and invalid documents can be skipped. The exporter does not render developer-owned objects. See [export options and warnings](../../packages/export-css/src/types.ts) and the [CSS parity browser test](../../e2e/export-css/).
 
 ## Blazor
 

@@ -1,5 +1,5 @@
 // packages/editor/src/model/properties/propertyValue.ts
-import type { IPropertyKeyframe, ISpan, ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { IPropertyKeyframe, ISpan, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { assertFrame, replaceLayer, requireEditableLayer } from '../spans/layerAccess';
 import { spanIndexAt } from '../spans/tracks';
 import { getTargetPropertyNames } from './targetProperties';

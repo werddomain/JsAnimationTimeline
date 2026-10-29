@@ -7,7 +7,7 @@
  * - « Bandeau » (scène HTML par défaut) : fondu d'entrée.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 
 export const CANVAS_STAGE_ID = 'canvas';
 export const AUDIO_STAGE_ID = 'audio';

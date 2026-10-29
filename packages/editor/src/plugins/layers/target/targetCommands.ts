@@ -8,8 +8,8 @@
  * avait pas.
  */
 
-import { findNodeById, isLayer, sameTarget } from '@werddomain/timeline-runtime';
-import type { ILayer, ITimelineDocument, LayerTarget, SerializableLayerTarget } from '@werddomain/timeline-runtime';
+import { findNodeById, isLayer, sameTarget } from '@kazo-ca/timeline-runtime';
+import type { ILayer, ITimelineDocument, LayerTarget, SerializableLayerTarget } from '@kazo-ca/timeline-runtime';
 import { createCommand } from '../../../core/commands/createCommand';
 import type { ICommand } from '../../../core/commands/ICommand';
 import { updateLayerNode } from '../list/layerTree';

@@ -1,6 +1,6 @@
 // demo/runtime/src/validation/phase5Types.ts
 /** Inspection handle for the phase-5 review; metrics count actual stage draws. */
-import type { IEditor } from '@werddomain/timeline-editor';
+import type { IEditor } from '@kazo-ca/timeline-editor';
 
 export interface Phase5DrawMetrics {
   drawCount: number;

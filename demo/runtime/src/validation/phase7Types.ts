@@ -1,6 +1,6 @@
 // demo/runtime/src/validation/phase7Types.ts
 /** Typed inspection handle shared by the validation page and its browser tests. */
-import type { IExportCssWarning } from '@werddomain/timeline-export-css';
+import type { IExportCssWarning } from '@kazo-ca/timeline-export-css';
 
 export type Phase7Selector = '#logo' | '#logo-mark' | '#ball';
 

@@ -7,8 +7,8 @@
  * respecté, et même contrôle dans `createEditor()`.
  */
 
-import { createManualClock, createPropertyRegistry, ValidationCodes } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument, LayerTarget, PropertyTracks } from '@werddomain/timeline-runtime';
+import { createManualClock, createPropertyRegistry, ValidationCodes } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument, LayerTarget, PropertyTracks } from '@kazo-ca/timeline-runtime';
 import { deepFreeze } from '../../commands/__tests__/fixtures';
 import { createEditor } from '../../editor/createEditor';
 import { catchError, cleanBody, createContainer } from '../../editor/__tests__/fixtures';

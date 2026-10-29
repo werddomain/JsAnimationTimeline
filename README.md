@@ -26,8 +26,8 @@ For development, run `npm run dev --workspace demo/editor` or `npm run dev --wor
 The workspaces are `packages/runtime`, `packages/editor`, and `packages/export-css`. The demos consume their source via Vite aliases; package publishing is not implied by this repository setup. Build the packages with `npm run build`, then use a bundler configured to resolve the workspace packages and CSS imports. For example, an editor host can create an editor and release it when finished:
 
 ```ts
-import { createEditor, createPropertiesPanelPlugin } from '@werddomain/timeline-editor';
-import '@werddomain/timeline-editor/timeline-editor.css';
+import { createEditor, createPropertiesPanelPlugin } from '@kazo-ca/timeline-editor';
+import '@kazo-ca/timeline-editor/timeline-editor.css';
 
 const host = document.getElementById('editor-host');
 if (!host) throw new Error('Editor host missing');
@@ -43,8 +43,8 @@ To play a v2 timeline without the editor, provide a typed timeline document and 
 ```
 
 ```ts
-import { createPlayer } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createPlayer } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 
 const timeline: ITimelineDocument = {
   version: '2.0.0',
@@ -64,7 +64,7 @@ player.play();
 // The player also exposes pause() and seek(frame).
 ```
 
-See [the runtime demo](demo/runtime/src/main.ts) and [its example document](demo/runtime/src/animation.ts) for a complete integration. The [editor demo](demo/editor/src/main.ts) shows an editor with sample data, and [the scene demo](demo/editor/src/scene.ts) shows canvas and audio integration. `@werddomain/timeline-export-css` exports `exportCss` for generating CSS from supported document properties.
+See [the runtime demo](demo/runtime/src/main.ts) and [its example document](demo/runtime/src/animation.ts) for a complete integration. The [editor demo](demo/editor/src/main.ts) shows an editor with sample data, and [the scene demo](demo/editor/src/scene.ts) shows canvas and audio integration. `@kazo-ca/timeline-export-css` exports `exportCss` for generating CSS from supported document properties.
 
 See the [v2 API and integration guide](doc/v2/api.md) for runtime, editor, developer-owned scenes, undo, CSS export, and Blazor integration.
 

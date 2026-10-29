@@ -10,8 +10,8 @@
  * `clone()` reste permis (copie modifiable).
  */
 
-import { PropertyRegistry, defaultPropertyRegistry } from '@werddomain/timeline-runtime';
-import type { PropertyDescriptor } from '@werddomain/timeline-runtime';
+import { PropertyRegistry, defaultPropertyRegistry } from '@kazo-ca/timeline-runtime';
+import type { PropertyDescriptor } from '@kazo-ca/timeline-runtime';
 
 /** Registre dont le contenu ne change plus après la construction. */
 class FrozenPropertyRegistry extends PropertyRegistry {

@@ -33,8 +33,8 @@
  * grille fonctionne aussi sans la liste des calques.
  */
 
-import type { ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
-import { walkLayers } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
+import { walkLayers } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import { ROW_HEIGHT, visibleRows } from '../../../model/rows';
 import type { IVisibleRow } from '../../../model/rows';

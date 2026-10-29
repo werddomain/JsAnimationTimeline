@@ -1,7 +1,7 @@
 // demo/runtime/src/fixtures/propertyApi.ts
-import { createEditor } from '@werddomain/timeline-editor';
-import { createObjectStage, createPropertyRegistry } from '@werddomain/timeline-runtime';
-import type { ITargetInfo, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createEditor } from '@kazo-ca/timeline-editor';
+import { createObjectStage, createPropertyRegistry } from '@kazo-ca/timeline-runtime';
+import type { ITargetInfo, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { IPropertyApiFixture } from './propertyApiTypes';
 
 function element(id: string): HTMLElement {

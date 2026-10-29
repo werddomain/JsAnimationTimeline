@@ -16,7 +16,7 @@
  * (rétablir) sur un calque verrouillé est refusé.
  */
 
-import type { ILayer, ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
+import type { ILayer, ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import { CommandRefusedError } from '../../core/commands/CommandRefusedError';
 import type { ICommand } from '../../core/commands/ICommand';
 import { deleteKeyframe } from './deleteKeyframe';

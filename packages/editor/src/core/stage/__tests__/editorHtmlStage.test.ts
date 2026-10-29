@@ -7,7 +7,7 @@
  * hors du conteneur reste une cible.
  */
 
-import { TARGET_ATTRIBUTE } from '@werddomain/timeline-runtime';
+import { TARGET_ATTRIBUTE } from '@kazo-ca/timeline-runtime';
 import { cleanBody } from '../../editor/__tests__/fixtures';
 import { createEditorHtmlStage } from '../editorHtmlStage';
 

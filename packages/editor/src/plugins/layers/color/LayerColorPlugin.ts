@@ -16,7 +16,7 @@
  * (rendue en minuscules).
  */
 
-import { findNodeById } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import { createLayerColorControl } from './layerColorControl';
 import { createSetColorCommand, normalizeLayerColor } from './layerColor';

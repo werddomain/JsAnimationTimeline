@@ -17,7 +17,7 @@
  *   n'a pas d'image clé à 0 % et part du style propre de l'élément.
  */
 
-import { parseEasing } from '@werddomain/timeline-runtime';
+import { parseEasing } from '@kazo-ca/timeline-runtime';
 
 /** A CSS keyframe: offset in [0, 1], easing of the segment it starts, declarations. */
 export interface ICssKeyframe {

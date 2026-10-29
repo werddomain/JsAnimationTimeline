@@ -9,7 +9,7 @@
  * branchée (mode tiré, robot, état Blazor...).
  */
 
-import type { ITransportTime, LayerTarget, PropertyValues } from '@werddomain/timeline-runtime';
+import type { ITransportTime, LayerTarget, PropertyValues } from '@kazo-ca/timeline-runtime';
 
 /** Valeurs d'un calque à une image. */
 export interface ILayerSample {

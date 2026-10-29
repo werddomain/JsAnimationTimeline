@@ -9,8 +9,8 @@
  * manquante (raison en français, rien en mode timeline seule).
  */
 
-import { StageReportCodes, findNodeById, isLayer } from '@werddomain/timeline-runtime';
-import type { IStageReport, ITimelineDocument, LayerTarget } from '@werddomain/timeline-runtime';
+import { StageReportCodes, findNodeById, isLayer } from '@kazo-ca/timeline-runtime';
+import type { IStageReport, ITimelineDocument, LayerTarget } from '@kazo-ca/timeline-runtime';
 import { createCommandStackHarness } from './fixtures';
 import { TARGET_LABEL, createSetTargetCommand } from '../targetCommands';
 import { TargetAlertLabels, computeTargetAlert } from '../targetAlert';

@@ -10,7 +10,7 @@
  * création, donc « rétablir » redonne exactement le même résultat.
  */
 
-import type { IFolder, ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import type { IFolder, ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import { createCommand } from '../../../core/commands/createCommand';
 import type { ICommand } from '../../../core/commands/ICommand';
 import { findFolder } from '../list/layerTree';

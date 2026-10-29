@@ -5,8 +5,8 @@
  * plages d'un calque et contrôle du document par `validateDocument`.
  */
 
-import { createPropertyRegistry, findNodeById, isLayer, validateDocument } from '@werddomain/timeline-runtime';
-import type { ILayer, ISpan, ITimelineDocument, LayerNode, PropertyRegistry } from '@werddomain/timeline-runtime';
+import { createPropertyRegistry, findNodeById, isLayer, validateDocument } from '@kazo-ca/timeline-runtime';
+import type { ILayer, ISpan, ITimelineDocument, LayerNode, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 
 /** Fige récursivement `value` (objets et tableaux) et le retourne. */
 export function deepFreeze<T>(value: T): T {

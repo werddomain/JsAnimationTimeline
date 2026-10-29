@@ -5,8 +5,8 @@
  * ce type à l'enregistrement : `get` est donc surchargé.
  */
 
-import { BUILTIN_PROPERTIES, PropertyRegistry } from '@werddomain/timeline-runtime';
-import type { PropertyDescriptor } from '@werddomain/timeline-runtime';
+import { BUILTIN_PROPERTIES, PropertyRegistry } from '@kazo-ca/timeline-runtime';
+import type { PropertyDescriptor } from '@kazo-ca/timeline-runtime';
 
 const FRAME_INDEX = { name: 'frameIndex', kind: 'value', unit: '', defaultValue: 0 } as unknown as PropertyDescriptor;
 

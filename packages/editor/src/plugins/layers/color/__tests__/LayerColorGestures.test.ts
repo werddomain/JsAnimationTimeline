@@ -4,7 +4,7 @@
  * et commande insensible à la casse.
  */
 
-import { findNodeById } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
 import { LAYER_COLOR_CLASSES } from '..';
 import { createSetColorCommand } from '../layerColor';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';

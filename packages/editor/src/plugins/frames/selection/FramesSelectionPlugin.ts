@@ -35,8 +35,8 @@
  * dessinée par la grille.
  */
 
-import { walkLayers } from '@werddomain/timeline-runtime';
-import type { LayerNode } from '@werddomain/timeline-runtime';
+import { walkLayers } from '@kazo-ca/timeline-runtime';
+import type { LayerNode } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import type { IVisibleRow } from '../../../model/rows';
 import { LAYOUT_SLOTS } from '../../layout/shell/layoutSlots';

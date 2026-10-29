@@ -6,8 +6,8 @@
  * est figé) et ne recopient que les chemins touchés.
  */
 
-import { findNodeById, flattenLayers, isFolder } from '@werddomain/timeline-runtime';
-import type { IFolder, LayerNode } from '@werddomain/timeline-runtime';
+import { findNodeById, flattenLayers, isFolder } from '@kazo-ca/timeline-runtime';
+import type { IFolder, LayerNode } from '@kazo-ca/timeline-runtime';
 
 /** Préfixe des noms de dossier créés par l'éditeur (« Dossier 1 »). */
 export const FOLDER_NAME_PREFIX = 'Dossier';

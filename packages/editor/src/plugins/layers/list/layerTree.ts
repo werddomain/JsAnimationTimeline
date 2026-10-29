@@ -8,8 +8,8 @@
  * recopient que le chemin du nœud modifié.
  */
 
-import { findNodeById, isFolder, resolveCollapsed } from '@werddomain/timeline-runtime';
-import type { IFolder, ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import { findNodeById, isFolder, resolveCollapsed } from '@kazo-ca/timeline-runtime';
+import type { IFolder, ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import { createCommand } from '../../../core/commands/createCommand';
 import type { ICommand } from '../../../core/commands/ICommand';
 

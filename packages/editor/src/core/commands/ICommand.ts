@@ -19,7 +19,7 @@
  * des méthodes.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 
 /** Commande annulable appliquée au document par la `CommandStack`. */
 export interface ICommand {

@@ -9,7 +9,7 @@
  * rafraîchi par `refreshHeaders()`, que le plugin appelle à chaque document.
  */
 
-import type { ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import type { ILayerRow, ILayerRowControl } from './list/types';
 import './FlagToggle.less';
 

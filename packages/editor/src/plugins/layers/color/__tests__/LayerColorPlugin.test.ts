@@ -1,5 +1,5 @@
 // packages/editor/src/plugins/layers/color/__tests__/LayerColorPlugin.test.ts
-import { findNodeById } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
 import { LAYER_COLOR_CLASSES, createLayerColorControl } from '..';
 import type { ILayerRow } from '../../list/types';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';

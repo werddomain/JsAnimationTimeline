@@ -1,5 +1,5 @@
 // packages/editor/src/plugins/tweens/easing/__tests__/EasingPlugin.test.ts
-import type { Easing, ILayer } from '@werddomain/timeline-runtime';
+import type { Easing, ILayer } from '@kazo-ca/timeline-runtime';
 import { captureContext } from '../../../../core/editor/__tests__/fixtures';
 import { createEditor } from '../../../../core/editor/createEditor';
 import type { IEditorContext } from '../../../../core/context/IEditorContext';

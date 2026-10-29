@@ -4,7 +4,7 @@
  * à gauche, avec repli sur la tête de lecture et sans calque verrouillé.
  */
 
-import type { LayerNode } from '@werddomain/timeline-runtime';
+import type { LayerNode } from '@kazo-ca/timeline-runtime';
 import { createDoc, layer } from '../../../../model/spans/__tests__/fixtures';
 import { insertFrameTargets, keyframeTargets, lockedLayerIds } from '../keyframeTargets';
 

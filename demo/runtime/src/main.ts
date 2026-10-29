@@ -5,8 +5,8 @@
  * journal des événements.
  */
 
-import { createPlayer } from '@werddomain/timeline-runtime';
-import type { IPlayer, PlayerEventName } from '@werddomain/timeline-runtime';
+import { createPlayer } from '@kazo-ca/timeline-runtime';
+import type { IPlayer, PlayerEventName } from '@kazo-ca/timeline-runtime';
 import { DEMO_ANIMATION } from './animation';
 import './demo.less';
 

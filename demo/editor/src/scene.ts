@@ -1,8 +1,8 @@
 // demo/editor/src/scene.ts
-import { createEditor, createPropertiesPanelPlugin } from '@werddomain/timeline-editor';
-import type { IEditor, IFrameSample } from '@werddomain/timeline-editor';
-import { defaultPropertyRegistry, floorInterpolator } from '@werddomain/timeline-runtime';
-import type { IStage } from '@werddomain/timeline-runtime';
+import { createEditor, createPropertiesPanelPlugin } from '@kazo-ca/timeline-editor';
+import type { IEditor, IFrameSample } from '@kazo-ca/timeline-editor';
+import { defaultPropertyRegistry, floorInterpolator } from '@kazo-ca/timeline-runtime';
+import type { IStage } from '@kazo-ca/timeline-runtime';
 import { AudioTrack, createAudioStage } from '../../runtime/src/objectStage/audioStage';
 import { createCanvasStage, createSprite, drawScene } from '../../runtime/src/objectStage/canvasStage';
 import { OBJECT_STAGE_DOCUMENT } from '../../runtime/src/objectStage/document';

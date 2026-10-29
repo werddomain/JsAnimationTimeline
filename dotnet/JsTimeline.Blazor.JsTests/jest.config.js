@@ -16,7 +16,7 @@ module.exports = {
     // as one module shared with the editor.
     '^\\.\\./js/timeline-runtime\\.mjs$': '<rootDir>/../../packages/runtime/src/index.ts',
     '^\\.\\./js/timeline-editor\\.mjs$': '<rootDir>/../../packages/editor/src/index.ts',
-    '^@werddomain/timeline-runtime$': '<rootDir>/../../packages/runtime/src/index.ts',
-    '^@werddomain/timeline-editor$': '<rootDir>/../../packages/editor/src/index.ts'
+    '^@kazo-ca/timeline-runtime$': '<rootDir>/../../packages/runtime/src/index.ts',
+    '^@kazo-ca/timeline-editor$': '<rootDir>/../../packages/editor/src/index.ts'
   }
 };

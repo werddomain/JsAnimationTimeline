@@ -5,9 +5,9 @@ import { test } from 'node:test';
 import { validateMetadata } from './metadata.mjs';
 
 const packages = Object.fromEntries(['runtime', 'editor', 'export-css'].map(name => [name, {
-  name: `@werddomain/timeline-${name}`, version: '1.0.0', license: 'MIT',
+  name: `@kazo-ca/timeline-${name}`, version: '1.0.0', license: 'MIT',
   exports: { '.': { types: './dist/types/index.d.ts' } },
-  dependencies: { '@werddomain/timeline-runtime': '1.0.0' },
+  dependencies: { '@kazo-ca/timeline-runtime': '1.0.0' },
 }]));
 const project = version => `<Project><PropertyGroup><PackageId>JsTimeline.Blazor</PackageId><Version>${version}</Version></PropertyGroup></Project>`;
 
@@ -20,7 +20,7 @@ test('rejects invalid NuGet or npm versions and mismatched npm dependencies', ()
   }
   assert.throws(() => validateMetadata({ ...packages, runtime: { ...packages.runtime, version: '01.0.0' } }, project('1.3.0')));
   assert.throws(() => validateMetadata({ ...packages, editor: { ...packages.editor, version: '1.0.1' } }, project('1.3.0')));
-  assert.throws(() => validateMetadata({ ...packages, editor: { ...packages.editor, dependencies: { '@werddomain/timeline-runtime': '^1.0.0' } } }, project('1.3.0')));
+  assert.throws(() => validateMetadata({ ...packages, editor: { ...packages.editor, dependencies: { '@kazo-ca/timeline-runtime': '^1.0.0' } } }, project('1.3.0')));
 });
 test('tag workflow checks metadata before OIDC', () => {
   const workflow = readFileSync('.github/workflows/publish-nuget.yml', 'utf8');

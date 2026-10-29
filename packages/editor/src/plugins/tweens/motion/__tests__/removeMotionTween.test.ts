@@ -5,8 +5,8 @@
  * clés de propriété, et les refus.
  */
 
-import { evaluateLayer } from '@werddomain/timeline-runtime';
-import type { ISpan } from '@werddomain/timeline-runtime';
+import { evaluateLayer } from '@kazo-ca/timeline-runtime';
+import type { ISpan } from '@kazo-ca/timeline-runtime';
 import { createDoc, createRegistry, expectValid, layer, layerOf, shapeOf, spansOf } from '../../../../model/spans/__tests__/fixtures';
 import { MotionTweenCodes, MotionTweenError } from '../MotionTweenError';
 import { removeMotionTween, removeMotionTweens } from '../removeMotionTween';

@@ -6,7 +6,7 @@
  * cible d'un calque, supprimer un calque) et éditeur sur horloge manuelle.
  */
 
-import { createManualClock, isRefTarget, refStage } from '@werddomain/timeline-runtime';
+import { createManualClock, isRefTarget, refStage } from '@kazo-ca/timeline-runtime';
 import type {
   IManualClock,
   IStage,
@@ -15,7 +15,7 @@ import type {
   ITimelineDocument,
   LayerTarget,
   PropertyDescriptor
-} from '@werddomain/timeline-runtime';
+} from '@kazo-ca/timeline-runtime';
 import { deepFreeze } from '../../commands/__tests__/fixtures';
 import { createCommand } from '../../commands/createCommand';
 import type { ICommand } from '../../commands/ICommand';

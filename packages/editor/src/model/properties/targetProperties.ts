@@ -1,6 +1,6 @@
 // packages/editor/src/model/properties/targetProperties.ts
-import { sameTarget } from '@werddomain/timeline-runtime';
-import type { ITargetInfo, LayerTarget, PropertyRegistry } from '@werddomain/timeline-runtime';
+import { sameTarget } from '@kazo-ca/timeline-runtime';
+import type { ITargetInfo, LayerTarget, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 
 /** Runtime metadata queries shared by property commands and property controls. */
 export interface ITargetPropertyQuery {

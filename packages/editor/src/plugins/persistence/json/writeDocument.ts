@@ -7,7 +7,7 @@
  * est refusée au lieu d'être écrite `{}`.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { assertSerializable } from './readDocument';
 
 /** Indentation par défaut du JSON exporté (lisible et stable dans un dépôt). */

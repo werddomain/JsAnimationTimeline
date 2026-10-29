@@ -9,7 +9,7 @@
  * Headless property discovery and edits. The future property panel consumes
  * this service; timeline diamonds already derive from document tracks.
  */
-import type { PropertyDescriptor } from '@werddomain/timeline-runtime';
+import type { PropertyDescriptor } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import type { SetPropertyOptions } from '../../../core/editor/types';
 import { createStagePropertyEditContext } from '../../../core/stage/propertyEditContext';

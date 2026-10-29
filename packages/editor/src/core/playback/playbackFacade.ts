@@ -7,7 +7,7 @@
  * restent permises.
  */
 
-import type { ITransportTime } from '@werddomain/timeline-runtime';
+import type { ITransportTime } from '@kazo-ca/timeline-runtime';
 import type { PlaybackController } from './PlaybackController';
 import type { IEditorPlayback, IFrameSample } from './types';
 

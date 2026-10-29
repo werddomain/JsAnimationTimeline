@@ -5,7 +5,7 @@
  * sélection.
  */
 
-import type { ISpan } from '@werddomain/timeline-runtime';
+import type { ISpan } from '@kazo-ca/timeline-runtime';
 import { moveKeyframe } from '../../../../model/spans';
 import { createDoc, layer, spansOf } from '../../../../model/spans/__tests__/fixtures';
 import type { ISelectedKeyframe } from '../../selection/types';

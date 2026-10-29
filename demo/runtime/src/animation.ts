@@ -9,7 +9,7 @@
  *   images 25 à 32 (plage vide), puis réapparition plus bas.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 
 export const DEMO_ANIMATION: ITimelineDocument = {
   version: '2.0.0',

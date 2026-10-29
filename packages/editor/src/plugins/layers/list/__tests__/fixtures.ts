@@ -4,7 +4,7 @@
  * montage d'un éditeur avec le jeu de plugins par défaut.
  */
 
-import type { IFolder, ILayer, ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import type { IFolder, ILayer, ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import { createEditor } from '../../../../core/editor/createEditor';
 import type { IEditor } from '../../../../core/editor/types';
 import type { EditorPlugin } from '../../../../core/context/IEditorContext';

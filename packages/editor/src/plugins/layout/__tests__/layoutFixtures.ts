@@ -5,8 +5,8 @@
  * page) et montage d'un éditeur avec l'epic seul.
  */
 
-import { SCHEMA_VERSION, createManualClock } from '@werddomain/timeline-runtime';
-import type { IManualClock, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { SCHEMA_VERSION, createManualClock } from '@kazo-ca/timeline-runtime';
+import type { IManualClock, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { createEditor } from '../../../core/editor/createEditor';
 import type { IEditor } from '../../../core/editor/types';
 import type { EditorPlugin } from '../../../core/context/IEditorContext';

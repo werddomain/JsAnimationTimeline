@@ -39,7 +39,7 @@ import type {
   ITimelineDocument,
   PropertyRegistry,
   PropertyTracks
-} from '@werddomain/timeline-runtime';
+} from '@kazo-ca/timeline-runtime';
 import { assertFrame, createSpanIdFactory, evaluateValues, replaceLayer, requireEditableLayer } from './layerAccess';
 import { lastFrame, mapKeyframes, spanIndexAt, tracksFromValues, withSpans, withTracks } from './tracks';
 

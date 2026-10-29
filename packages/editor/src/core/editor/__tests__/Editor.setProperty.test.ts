@@ -1,6 +1,6 @@
 // packages/editor/src/core/editor/__tests__/Editor.setProperty.test.ts
-import { createObjectStage, createPropertyRegistry } from '@werddomain/timeline-runtime';
-import type { IStage } from '@werddomain/timeline-runtime';
+import { createObjectStage, createPropertyRegistry } from '@kazo-ca/timeline-runtime';
+import type { IStage } from '@kazo-ca/timeline-runtime';
 import { createEditor } from '../createEditor';
 import { createDoc, layer, layerOf, spansOf } from '../../../model/spans/__tests__/fixtures';
 import { cleanBody, createContainer, makeEditorPlugin } from './fixtures';

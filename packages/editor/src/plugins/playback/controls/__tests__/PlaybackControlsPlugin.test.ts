@@ -6,8 +6,8 @@
  * lecture sans scène et nettoyage.
  */
 
-import { createManualClock } from '@werddomain/timeline-runtime';
-import type { IManualClock } from '@werddomain/timeline-runtime';
+import { createManualClock } from '@kazo-ca/timeline-runtime';
+import type { IManualClock } from '@kazo-ca/timeline-runtime';
 import { createEditor } from '../../../../core/editor/createEditor';
 import { defaultPlugins } from '../../../../core/editor/defaultPlugins';
 import type { IEditor } from '../../../../core/editor/types';

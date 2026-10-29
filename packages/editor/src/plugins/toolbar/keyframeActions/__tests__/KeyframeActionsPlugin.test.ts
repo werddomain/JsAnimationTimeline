@@ -4,8 +4,8 @@
  * states, accessible tooltips, edit events, playback refresh and cleanup.
  */
 
-import { createManualClock } from '@werddomain/timeline-runtime';
-import type { ILayer, ISpan, ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import { createManualClock } from '@kazo-ca/timeline-runtime';
+import type { ILayer, ISpan, ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
 import { EventBus } from '../../../../core/events/EventBus';
 import { createEditor } from '../../../../core/editor/createEditor';

@@ -1,7 +1,7 @@
 // demo/runtime/src/fixtures/propertiesPanel.ts
-import { createEditor, createEditorHtmlStage, createPropertiesPanelPlugin } from '@werddomain/timeline-editor';
-import { createObjectStage } from '@werddomain/timeline-runtime';
-import type { IStage, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createEditor, createEditorHtmlStage, createPropertiesPanelPlugin } from '@kazo-ca/timeline-editor';
+import { createObjectStage } from '@kazo-ca/timeline-runtime';
+import type { IStage, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { IPropertiesPanelFixture, IPropertiesPanelMetrics } from './propertiesPanelTypes';
 import './propertiesPanel.less';
 

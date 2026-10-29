@@ -1,5 +1,5 @@
 // packages/editor/src/model/properties/__tests__/targetProperties.test.ts
-import type { ITargetInfo } from '@werddomain/timeline-runtime';
+import type { ITargetInfo } from '@kazo-ca/timeline-runtime';
 import { createRegistry } from '../../spans/__tests__/fixtures';
 import { getTargetPropertyNames } from '../targetProperties';
 

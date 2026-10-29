@@ -6,8 +6,8 @@
  * conservé).
  */
 
-import { findUnknownProperties, isLayer, resolveTracks, walkLayers } from '@werddomain/timeline-runtime';
-import type { ILayer, ITimelineDocument, IValidationIssue, PropertyRegistry } from '@werddomain/timeline-runtime';
+import { findUnknownProperties, isLayer, resolveTracks, walkLayers } from '@kazo-ca/timeline-runtime';
+import type { ILayer, ITimelineDocument, IValidationIssue, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 
 /** Code d'un nom de piste inconnu du registre. */
 export const UNKNOWN_PROPERTY = 'unknown-property';

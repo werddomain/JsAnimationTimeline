@@ -1,5 +1,5 @@
 {
-  "name": "@werddomain/timeline-runtime",
+  "name": "@kazo-ca/timeline-runtime",
   "version": "1.0.0",
   "description": "UI-less player for JsAnimationTimeline animations.",
   "main": "dist/timeline-runtime.umd.js",
@@ -26,7 +26,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/werddomain/JsAnimationTimeline.git",
+    "url": "https://github.com/Kazo-ca/JsAnimationTimeline.git",
     "directory": "packages/runtime"
   },
   "publishConfig": {

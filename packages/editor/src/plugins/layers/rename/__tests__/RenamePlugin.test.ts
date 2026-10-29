@@ -4,7 +4,7 @@
  * des noms, saisie sur place (double-clic, Entrée, Échap, blur) et service.
  */
 
-import { findNodeById } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
 import { createCommand } from '../../../../core/commands/createCommand';
 import { NAME_EDITING_ATTRIBUTE } from '../../list/LayerRowView';
 import { doc, folder, layer, mount, unmountAll } from '../../list/__tests__/fixtures';

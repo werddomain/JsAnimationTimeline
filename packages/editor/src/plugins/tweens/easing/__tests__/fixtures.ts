@@ -1,5 +1,5 @@
 // packages/editor/src/plugins/tweens/easing/__tests__/fixtures.ts
-import type { Easing, ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { Easing, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 export function fixture(easing?: Easing): ITimelineDocument {
   return { version: '2.0.0', settings: { fps: 24, totalFrames: 20 }, layers: [{
     id: 'a', type: 'layer', name: 'Objet', target: { selector: '#object' }, spans: [

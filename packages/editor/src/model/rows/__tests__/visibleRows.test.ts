@@ -1,5 +1,5 @@
 // packages/editor/src/model/rows/__tests__/visibleRows.test.ts
-import type { IFolder, ILayer, ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import type { IFolder, ILayer, ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import { DEFAULT_FRAME_WIDTH, ROW_HEIGHT, visibleRows } from '..';
 
 function layer(id: string): ILayer {

@@ -6,7 +6,7 @@
  * clavier.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
 import { createEditor } from '../../../../core/editor/createEditor';
 import type { IEditor } from '../../../../core/editor/types';

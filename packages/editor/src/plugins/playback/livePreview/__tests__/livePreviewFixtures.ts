@@ -5,8 +5,8 @@
  * placée à l'écran, et glisser de la tête de lecture au pointeur.
  */
 
-import { createManualClock } from '@werddomain/timeline-runtime';
-import type { IManualClock } from '@werddomain/timeline-runtime';
+import { createManualClock } from '@kazo-ca/timeline-runtime';
+import type { IManualClock } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin } from '../../../../core/context/IEditorContext';
 import { createEditor } from '../../../../core/editor/createEditor';
 import type { IEditor } from '../../../../core/editor/types';

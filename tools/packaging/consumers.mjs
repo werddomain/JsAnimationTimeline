@@ -35,24 +35,24 @@ function xml(value) { return value.replaceAll('&', '&amp;').replaceAll('"', '&qu
 try {
   const env = { npm_config_cache: join(temp, 'npm-cache'), npm_config_offline: 'true' };
   const names = ['runtime', 'editor', 'export-css'];
-  const archives = names.map(name => join(npmDirectory, `werddomain-timeline-${name}-${npmVersion}.tgz`));
+  const archives = names.map(name => join(npmDirectory, `kazo-ca-timeline-${name}-${npmVersion}.tgz`));
   for (const archive of archives) assert.ok(existsSync(archive), `npm archive missing: ${archive}`);
   write('package.json', '{"private":true,"type":"module"}\n');
   run(process.execPath, [npmCli, 'install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', ...archives], temp, env);
   for (const name of names) {
-    const folder = join(temp, 'node_modules', '@werddomain', `timeline-${name}`);
+    const folder = join(temp, 'node_modules', '@kazo-ca', `timeline-${name}`);
     const pkg = JSON.parse(readFileSync(join(folder, 'package.json'), 'utf8'));
-    assert.equal(pkg.name, `@werddomain/timeline-${name}`);
+    assert.equal(pkg.name, `@kazo-ca/timeline-${name}`);
     assert.equal(pkg.version, npmVersion);
-    if (name !== 'runtime') assert.equal(pkg.dependencies['@werddomain/timeline-runtime'], npmVersion);
+    if (name !== 'runtime') assert.equal(pkg.dependencies['@kazo-ca/timeline-runtime'], npmVersion);
     assert.deepEqual(readFileSync(join(folder, 'LICENSE')), readFileSync(join(root, 'LICENSE')));
     for (const file of [`dist/timeline-${name}.mjs`, `dist/timeline-${name}.umd.js`, 'dist/types/index.d.ts', ...(name === 'editor' ? ['dist/timeline-editor.css'] : [])]) {
       assert.ok(existsSync(join(folder, file)), `${pkg.name}: ${file} missing`);
     }
   }
-  write('consumer.mjs', `import { createRequire } from 'node:module';\nimport { createEmptyDocument } from '@werddomain/timeline-editor';\nimport { exportCss } from '@werddomain/timeline-export-css';\nimport { validateDocument } from '@werddomain/timeline-runtime';\nimport assert from 'node:assert/strict';\nfor (const fn of [createEmptyDocument, exportCss, validateDocument]) assert.equal(typeof fn, 'function');\nconst require = createRequire(import.meta.url);\nfor (const name of ['runtime', 'editor', 'export-css']) assert.ok(Object.keys(require('@werddomain/timeline-' + name)).length);\nassert.ok(require.resolve('@werddomain/timeline-editor/timeline-editor.css'));\n`);
+  write('consumer.mjs', `import { createRequire } from 'node:module';\nimport { createEmptyDocument } from '@kazo-ca/timeline-editor';\nimport { exportCss } from '@kazo-ca/timeline-export-css';\nimport { validateDocument } from '@kazo-ca/timeline-runtime';\nimport assert from 'node:assert/strict';\nfor (const fn of [createEmptyDocument, exportCss, validateDocument]) assert.equal(typeof fn, 'function');\nconst require = createRequire(import.meta.url);\nfor (const name of ['runtime', 'editor', 'export-css']) assert.ok(Object.keys(require('@kazo-ca/timeline-' + name)).length);\nassert.ok(require.resolve('@kazo-ca/timeline-editor/timeline-editor.css'));\n`);
   run(process.execPath, ['consumer.mjs'], temp);
-  write('consumer.ts', `import { createEmptyDocument } from '@werddomain/timeline-editor';\nimport { exportCss } from '@werddomain/timeline-export-css';\nimport { validateDocument } from '@werddomain/timeline-runtime';\nexportCss(createEmptyDocument());\nvalidateDocument(createEmptyDocument());\n`);
+  write('consumer.ts', `import { createEmptyDocument } from '@kazo-ca/timeline-editor';\nimport { exportCss } from '@kazo-ca/timeline-export-css';\nimport { validateDocument } from '@kazo-ca/timeline-runtime';\nexportCss(createEmptyDocument());\nvalidateDocument(createEmptyDocument());\n`);
   run(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--module', 'esnext', '--moduleResolution', 'bundler', '--target', 'es2020', 'consumer.ts'], temp);
   for (const extension of ['mts', 'cts']) {
     const file = `consumer.${extension}`;

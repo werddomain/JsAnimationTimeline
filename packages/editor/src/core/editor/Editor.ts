@@ -9,7 +9,7 @@
  * Interne au noyau : l'application ne reçoit que le type `IEditor`.
  */
 
-import type { ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import type { CommandStack } from '../commands/CommandStack';
 import type { ICommand } from '../commands/ICommand';
 import type {

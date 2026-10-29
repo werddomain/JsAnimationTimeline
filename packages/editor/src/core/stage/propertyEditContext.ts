@@ -1,5 +1,5 @@
 // packages/editor/src/core/stage/propertyEditContext.ts
-import type { IStage, PropertyRegistry } from '@werddomain/timeline-runtime';
+import type { IStage, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import { PropertyOperationError } from '../../model/properties/propertyValue';
 import type { IPropertyEditContext } from '../../model/properties/targetProperties';
 import { readTargetInfo } from './targetInfo';

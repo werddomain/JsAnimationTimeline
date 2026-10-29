@@ -4,7 +4,7 @@
  * `IEditor` qu'il retourne à l'application hôte.
  */
 
-import type { IPlayerClock, ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
+import type { IPlayerClock, ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import type { ICommand } from '../commands/ICommand';
 import type {
   EditorEventName,

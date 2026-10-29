@@ -1,8 +1,8 @@
 // demo/runtime/src/fixtures/easing.ts
 /** Permanent W3 fixture using the real editor, default plugins and HTML stage. */
-import { createEditor } from '@werddomain/timeline-editor';
-import type { IEditor } from '@werddomain/timeline-editor';
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createEditor } from '@kazo-ca/timeline-editor';
+import type { IEditor } from '@kazo-ca/timeline-editor';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { createSetLockedCommand } from '../../../../packages/editor/src/plugins/layers/lock/lockCommands';
 
 

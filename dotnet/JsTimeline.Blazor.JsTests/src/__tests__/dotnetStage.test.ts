@@ -5,8 +5,8 @@
  * layers and detach.
  */
 
-import { createManualClock, createPlayer } from '@werddomain/timeline-runtime';
-import type { IPlayer, IStage, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createManualClock, createPlayer } from '@kazo-ca/timeline-runtime';
+import type { IPlayer, IStage, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { createDotNetStage } from '../../../JsTimeline.Blazor/wwwroot/stage/dotnetStage.js';
 import { FakeDotNetReference, flush, HERO_RELEASE, heroDescription, heroDocument, heroStage } from './fakeDotNet';
 import type { FrameMode } from './fakeDotNet';

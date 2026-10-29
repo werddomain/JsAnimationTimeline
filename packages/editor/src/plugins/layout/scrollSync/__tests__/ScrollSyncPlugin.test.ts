@@ -6,7 +6,7 @@
  * service et nettoyage.
  */
 
-import { createManualClock } from '@werddomain/timeline-runtime';
+import { createManualClock } from '@kazo-ca/timeline-runtime';
 import { createEditor } from '../../../../core/editor/createEditor';
 import type { IScrollState } from '../scrollGeometry';
 import { ScrollSyncPlugin } from '../ScrollSyncPlugin';

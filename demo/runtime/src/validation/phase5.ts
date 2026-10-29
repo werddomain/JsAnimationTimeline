@@ -1,9 +1,9 @@
 // demo/runtime/src/validation/phase5.ts
 /** Narrow phase-5 review using existing toolbar controls and a real HTML stage. */
-import { createEditor } from '@werddomain/timeline-editor';
-import type { IEditor } from '@werddomain/timeline-editor';
-import { createHtmlStage } from '@werddomain/timeline-runtime';
-import type { IStage, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createEditor } from '@kazo-ca/timeline-editor';
+import type { IEditor } from '@kazo-ca/timeline-editor';
+import { createHtmlStage } from '@kazo-ca/timeline-runtime';
+import type { IStage, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { Phase5DrawMetrics } from './phase5Types';
 import './phase5.less';
 

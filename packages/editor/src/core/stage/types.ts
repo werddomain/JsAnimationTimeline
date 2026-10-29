@@ -9,7 +9,7 @@
  * calque est relâché (`release`) puis chaque scène détachée (`detach`).
  */
 
-import type { IStage, IStageReport, ITargetInfo, LayerTarget } from '@werddomain/timeline-runtime';
+import type { IStage, IStageReport, ITargetInfo, LayerTarget } from '@kazo-ca/timeline-runtime';
 
 /**
  * Option `stage` de `createEditor()` :

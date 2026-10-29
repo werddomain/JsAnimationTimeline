@@ -6,7 +6,7 @@
  * `zoom:changed`, service et nettoyage.
  */
 
-import type { ILayer, ITimelineDocument, LayerNode } from '@werddomain/timeline-runtime';
+import type { ILayer, ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import { createCommand } from '../../../../core/commands/createCommand';
 import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
 import { createEditor } from '../../../../core/editor/createEditor';

@@ -1,7 +1,7 @@
 // packages/editor/src/plugins/interaction/contextMenu/__tests__/easingActions.test.ts
 /** Optional W3 integration targets the context cell and preserves dialog focus. */
-import { findNodeById } from '@werddomain/timeline-runtime';
-import type { ILayer } from '@werddomain/timeline-runtime';
+import { findNodeById } from '@kazo-ca/timeline-runtime';
+import type { ILayer } from '@kazo-ca/timeline-runtime';
 import { contextMenuActions } from '../menuActions';
 import { active, doc, folder, frameLayer, item, key, mount, openFrame } from './fixtures';
 

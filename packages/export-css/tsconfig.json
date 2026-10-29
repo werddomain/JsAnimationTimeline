@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": "./dist",
     "paths": {
-      "@werddomain/timeline-runtime": ["../runtime/src/index.ts"]
+      "@kazo-ca/timeline-runtime": ["../runtime/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts"],

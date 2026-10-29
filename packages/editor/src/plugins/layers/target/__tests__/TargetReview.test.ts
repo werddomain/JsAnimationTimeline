@@ -8,8 +8,8 @@
  * annuler, et raison « erreur de la scène ».
  */
 
-import { isRefTarget, refStage } from '@werddomain/timeline-runtime';
-import type { IStage, ITimelineDocument, LayerTarget } from '@werddomain/timeline-runtime';
+import { isRefTarget, refStage } from '@kazo-ca/timeline-runtime';
+import type { IStage, ITimelineDocument, LayerTarget } from '@kazo-ca/timeline-runtime';
 import { createCommand } from '../../../../core/commands/createCommand';
 import type { EditorPlugin } from '../../../../core/context/IEditorContext';
 import { TargetAlertLabels } from '../targetAlert';

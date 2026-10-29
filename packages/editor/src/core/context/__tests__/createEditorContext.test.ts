@@ -6,8 +6,8 @@
  * d'atteindre `load`, `createCommandStack` ou `clear` par le contexte.
  */
 
-import { createManualClock, defaultPropertyRegistry } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createManualClock, defaultPropertyRegistry } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { createDocument, renameLayer } from '../../commands/__tests__/fixtures';
 import { EventBus } from '../../events/EventBus';
 import { PlaybackController } from '../../playback/PlaybackController';

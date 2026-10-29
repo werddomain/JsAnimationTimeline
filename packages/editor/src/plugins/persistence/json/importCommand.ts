@@ -5,7 +5,7 @@
  * Ctrl+Z comme toute autre modification (règle 8 du plan).
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { ICommand } from '../../../core/commands/ICommand';
 
 /** Libellé par défaut de la commande d'import (historique). */

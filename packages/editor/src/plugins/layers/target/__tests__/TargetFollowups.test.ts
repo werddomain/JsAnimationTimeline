@@ -7,8 +7,8 @@
  * bouton de la ligne, et nettoyage complet du plugin à sa destruction.
  */
 
-import { createManualClock } from '@werddomain/timeline-runtime';
-import type { ITimelineDocument, LayerTarget } from '@werddomain/timeline-runtime';
+import { createManualClock } from '@kazo-ca/timeline-runtime';
+import type { ITimelineDocument, LayerTarget } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../../core/context/IEditorContext';
 import { createEditor } from '../../../../core/editor/createEditor';
 import { defaultPlugins } from '../../../../core/editor/defaultPlugins';

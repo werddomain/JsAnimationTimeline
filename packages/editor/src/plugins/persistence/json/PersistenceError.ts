@@ -6,7 +6,7 @@
  * français ; `code`, `issues` et `migrationCode` servent au programme.
  */
 
-import type { IValidationIssue, MigrationErrorCode } from '@werddomain/timeline-runtime';
+import type { IValidationIssue, MigrationErrorCode } from '@kazo-ca/timeline-runtime';
 
 /**
  * Code machine de chaque cas d'erreur :

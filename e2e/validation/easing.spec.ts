@@ -3,7 +3,7 @@
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import type { Easing } from '@werddomain/timeline-runtime';
+import type { Easing } from '@kazo-ca/timeline-runtime';
 import type {} from '../../demo/runtime/src/fixtures/easing';
 import { RUNTIME_DEMO_URL } from '../runtime/demoUrl';
 

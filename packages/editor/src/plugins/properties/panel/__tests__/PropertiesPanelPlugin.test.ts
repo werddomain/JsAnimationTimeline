@@ -1,8 +1,8 @@
 // packages/editor/src/plugins/properties/panel/__tests__/PropertiesPanelPlugin.test.ts
 import { createEditor } from '../../../../core/editor/createEditor';
 import { captureContext, cleanBody, createContainer } from '../../../../core/editor/__tests__/fixtures';
-import { createManualClock, createObjectStage, createPropertyRegistry } from '@werddomain/timeline-runtime';
-import type { IStage, ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createManualClock, createObjectStage, createPropertyRegistry } from '@kazo-ca/timeline-runtime';
+import type { IStage, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { EditorOptions, IEditor } from '../../../../core/editor/types';
 import type { IEditorContext } from '../../../../core/context/IEditorContext';
 import { createPropertiesPanelPlugin, PROPERTIES_PANEL_PLUGIN_ID } from '..';

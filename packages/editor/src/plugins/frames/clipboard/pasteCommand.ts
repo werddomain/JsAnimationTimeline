@@ -13,7 +13,7 @@
  * ne plus recopier `run`, `snapshotOf` et `restore`.
  */
 
-import type { ILayer, ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
+import type { ILayer, ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import { CommandRefusedError } from '../../../core/commands/CommandRefusedError';
 import { CompositeCommand } from '../../../core/commands/CompositeCommand';
 import type { ICommand } from '../../../core/commands/ICommand';

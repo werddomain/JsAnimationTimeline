@@ -43,7 +43,7 @@
  *   scènes sur l'image d'arrêt. `destroy` abandonne les retenues sans rendu.
  */
 
-import { StageHost } from '@werddomain/timeline-runtime';
+import { StageHost } from '@kazo-ca/timeline-runtime';
 import type {
   IStage,
   IStageHostClock,
@@ -54,7 +54,7 @@ import type {
   ITransportTime,
   LayerTarget,
   PropertyRegistry
-} from '@werddomain/timeline-runtime';
+} from '@kazo-ca/timeline-runtime';
 import type { EventBus } from '../events/EventBus';
 import { isLayerEditorVisible } from '../playback/FrameSampler';
 import type { IStageRenderer } from '../playback/PlaybackController';

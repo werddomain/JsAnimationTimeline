@@ -1,6 +1,6 @@
 // packages/editor/src/plugins/interaction/contextMenu/menuActions.ts
 /** Service-backed actions; document changes always belong to existing commands. */
-import { findNodeById, flattenLayers, resolveLocked, resolveVisible } from '@werddomain/timeline-runtime';
+import { findNodeById, flattenLayers, resolveLocked, resolveVisible } from '@kazo-ca/timeline-runtime';
 import type { IEditorContext } from '../../../core/context/IEditorContext';
 import { rowMarks } from '../../frames/grid/gridCells';
 import { lockedLayerIds } from '../../frames/keyframes/keyframeTargets';

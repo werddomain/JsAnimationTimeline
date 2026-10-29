@@ -11,7 +11,7 @@
  * l'augmentation est donc visible partout où le Store est importé.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { DocumentChangeCause } from '../commands/documentChange';
 
 /** Charge utile de `document:loaded`. */

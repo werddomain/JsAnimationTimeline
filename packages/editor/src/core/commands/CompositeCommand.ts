@@ -7,7 +7,7 @@
  * comme le document est immuable, rien n'est appliqué à moitié.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { ICommand } from './ICommand';
 
 /** Suite de commandes exécutée et annulée d'un bloc. */

@@ -24,7 +24,7 @@
  * Tout (écouteurs, classes, repère, capture) est retiré à la fin de la session.
  */
 
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { ILayerListService } from '../list';
 import { LAYER_ROW_CLASSES, NAME_EDITING_ATTRIBUTE } from '../list';
 import type { ILayerSelectionService } from '../selection';

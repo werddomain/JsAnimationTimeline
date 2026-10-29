@@ -17,7 +17,7 @@
  * écrits à la main.
  */
 
-import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry } from '@werddomain/timeline-runtime';
+import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import { assertFrame, evaluateValues, replaceLayer, requireEditableLayer } from '../../../model/spans/layerAccess';
 import { spanIndexAt, withSpans, withTracks } from '../../../model/spans/tracks';
 import { motionTweenRefusal } from './MotionTweenError';

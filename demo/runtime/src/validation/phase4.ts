@@ -1,7 +1,7 @@
 // demo/runtime/src/validation/phase4.ts
 /** Phase-4 review, using only existing public editor APIs. */
-import { createEditor } from '@werddomain/timeline-editor';
-import type { ITimelineDocument } from '@werddomain/timeline-runtime';
+import { createEditor } from '@kazo-ca/timeline-editor';
+import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type {} from './phase4Types';
 import './phase4.less';
 
