@@ -21,6 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify NuGet release guards
+        run: python3 -m unittest tools/packaging/test_nuget_release.py
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22

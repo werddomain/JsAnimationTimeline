@@ -1,0 +1,109 @@
+# .github/workflows/publish-nuget.yml: Publish only a validated version tag reachable from main.
+name: Publish NuGet
+
+on:
+  push:
+    tags:
+      - 'v.*'
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    env:
+      E2E_V2_EDITOR_PORT: 19102
+      E2E_RUNTIME_PORT: 19101
+      E2E_BLAZOR_PORT: 19137
+      E2E_BLAZOR_SAMPLE_PORT: 19138
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate tag and main ancestry
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          python3 tools/packaging/validate_nuget_release.py "$RELEASE_TAG" "$RELEASE_SHA" dotnet/JsTimeline.Blazor/JsTimeline.Blazor.csproj
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: python3 -m unittest tools/packaging/test_nuget_release.py
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run build:demo
+      - run: dotnet build dotnet/JsTimeline.sln -c Release
+      - run: dotnet test dotnet/JsTimeline.sln -c Release --no-build
+      - run: node tools/pages/build.mjs
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - run: npx playwright test --config e2e/blazor/playwright.config.ts
+      - run: npx playwright test --config e2e/blazor-sample/playwright.config.ts
+      - run: npx playwright test --config e2e/pages/playwright.config.ts
+      - run: dotnet pack dotnet/JsTimeline.Blazor/JsTimeline.Blazor.csproj -c Release -o artifacts/nuget
+      - name: Validate package
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: python3 tools/packaging/validate_nuget_release.py "$RELEASE_TAG" "$RELEASE_SHA" dotnet/JsTimeline.Blazor/JsTimeline.Blazor.csproj "artifacts/nuget/JsTimeline.Blazor.${RELEASE_TAG#v.}.nupkg"
+      - name: Verify exact package with local consumers
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p artifacts/npm
+          npm pack --workspace packages/runtime --workspace packages/editor --workspace packages/export-css --ignore-scripts --pack-destination artifacts/npm
+          npm run test:packaging -- artifacts/npm "artifacts/nuget/JsTimeline.Blazor.${RELEASE_TAG#v.}.nupkg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget-package
+          path: artifacts/nuget/JsTimeline.Blazor.*.nupkg
+          if-no-files-found: error
+
+  publish:
+    needs: prepare
+    runs-on: ubuntu-latest
+    environment: nuget-production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuget-package
+          path: artifacts/nuget
+      - name: Revalidate exact package
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          test "$(find artifacts/nuget -type f | wc -l)" -eq 1
+          python3 tools/packaging/validate_nuget_release.py "$RELEASE_TAG" "$RELEASE_SHA" dotnet/JsTimeline.Blazor/JsTimeline.Blazor.csproj "artifacts/nuget/JsTimeline.Blazor.${RELEASE_TAG#v.}.nupkg"
+      - name: NuGet login
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+      - name: Publish validated package
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push "artifacts/nuget/JsTimeline.Blazor.${RELEASE_TAG#v.}.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json

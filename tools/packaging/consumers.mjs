@@ -12,6 +12,9 @@ assert.ok(npmCli, 'Run via npm run test:packaging -- <npm-directory> <nupkg>');
 const npmDirectory = resolve(process.argv[2] ?? 'artifacts/release-preparation');
 const nupkg = resolve(process.argv[3] ?? 'artifacts/release-preparation/JsTimeline.Blazor.1.0.0.nupkg');
 assert.ok(existsSync(nupkg), `NuGet package missing: ${nupkg}`);
+const versionMatch = /^JsTimeline\.Blazor\.((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))\.nupkg$/.exec(basename(nupkg));
+assert.ok(versionMatch, 'Unexpected NuGet package filename');
+const nugetVersion = versionMatch[1];
 const dependencySource = resolve(process.env.PACKAGING_NUGET_SOURCE ?? join(homedir(), '.nuget', 'packages'));
 assert.ok(existsSync(dependencySource), `Offline NuGet dependency source missing: ${dependencySource}`);
 const temp = mkdtempSync(join(tmpdir(), 'jstimeline-package-check-'));
@@ -56,7 +59,7 @@ try {
   mkdirSync(join(temp, 'nuget-feed'));
   copyFileSync(nupkg, join(temp, 'nuget-feed', basename(nupkg)));
   write('NuGet.Config', `<configuration><packageSources><clear/><add key="local" value="${xml(join(temp, 'nuget-feed'))}"/><add key="dependencies" value="${xml(dependencySource)}"/></packageSources><packageSourceMapping><packageSource key="local"><package pattern="JsTimeline.Blazor"/></packageSource><packageSource key="dependencies"><package pattern="*"/></packageSource></packageSourceMapping></configuration>`);
-  write('Consumer.csproj', '<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup><TargetFramework>net8.0</TargetFramework><DefaultItemExcludes>$(DefaultItemExcludes);nuget-cache/**;node_modules/**</DefaultItemExcludes></PropertyGroup><ItemGroup><PackageReference Include="JsTimeline.Blazor" Version="1.0.0" /></ItemGroup></Project>');
+  write('Consumer.csproj', `<Project Sdk="Microsoft.NET.Sdk.Web"><PropertyGroup><TargetFramework>net8.0</TargetFramework><DefaultItemExcludes>$(DefaultItemExcludes);nuget-cache/**;node_modules/**</DefaultItemExcludes></PropertyGroup><ItemGroup><PackageReference Include="JsTimeline.Blazor" Version="${nugetVersion}" /></ItemGroup></Project>`);
   write('Program.cs', 'using JsTimeline.Blazor.Model;\nusing Microsoft.AspNetCore.Builder;\nvar app = WebApplication.CreateBuilder(args).Build();\napp.MapGet("/", () => typeof(TimelineDocument).FullName);\napp.Run();\n');
   run('dotnet', ['restore', 'Consumer.csproj', '--configfile', 'NuGet.Config', '--packages', join(temp, 'nuget-cache'), '--no-cache'], temp);
   run('dotnet', ['build', 'Consumer.csproj', '--no-restore'], temp);
