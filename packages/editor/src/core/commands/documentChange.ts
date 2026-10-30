@@ -19,12 +19,16 @@ export interface IDocumentChange {
   readonly cause: DocumentChangeCause;
   /** Libellé de la commande (ou du regroupement annulé) à l'origine du changement. */
   readonly label: string;
+  /** Internal gesture identity, captured at commit rather than read during notification. */
+  readonly groupToken?: object;
 }
 
 /** Accès en lecture/écriture au document, réservé à la `CommandStack`. */
 export interface IDocumentWriter {
   /** Document courant. */
   readonly document: ITimelineDocument;
+  /** Optional pure validation before history is changed; a reason refuses the proposal. */
+  refusalReason?(next: ITimelineDocument): string | undefined;
   /** Remplace le document et émet `document:changed`. */
   commit(next: ITimelineDocument, change: IDocumentChange): void;
 }

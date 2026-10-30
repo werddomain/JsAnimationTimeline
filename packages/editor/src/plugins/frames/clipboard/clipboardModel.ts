@@ -17,7 +17,7 @@
 
 import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import type { IVisibleRow } from '../../../model/rows';
-import { findLayer } from '../../../model/spans/layerAccess';
+import { assertLegacyLayer, findLayer } from '../../../model/spans/layerAccess';
 import { lastFrame, shiftSpan } from '../../../model/spans/tracks';
 import { cellRuns } from '../selection/frameSelection';
 import type { IFrameCell } from '../selection/frameSelection';
@@ -67,6 +67,7 @@ function appendBlank(pieces: readonly ISpan[], from: number, to: number): ISpan[
  * plage vide ; un calque sans plage donne une seule plage vide.
  */
 export function extractSpans(layer: ILayer, first: number, last: number, registry: PropertyRegistry): IClipSpan[] {
+  assertLegacyLayer(layer);
   const pieces = layer.spans
     .filter((span) => span.end >= first && span.start <= last)
     .map((span) => slicePiece(layer, span, Math.max(span.start, first), Math.min(span.end, last), registry, { inherit: true }));

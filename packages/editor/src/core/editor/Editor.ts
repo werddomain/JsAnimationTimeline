@@ -32,6 +32,8 @@ import { SetPropertyCommand } from '../../model/properties/SetPropertyCommand';
 import { PropertyOperationError } from '../../model/properties/propertyValue';
 import type { EditorLifecycle } from './EditorLifecycle';
 import type { IEditor, SetPropertyOptions } from './types';
+import { createPropertyTimelines } from './createPropertyTimelines';
+import type { IEditorPropertyTimelines } from './propertyTimelineTypes';
 
 /** Pièces d'un éditeur, créées par `createEditor()`. */
 export interface IEditorParts {
@@ -72,7 +74,16 @@ export function releaseEditorParts(parts: IEditorParts): void {
 
 /** Éditeur v2 retourné par `createEditor()`. */
 export class Editor implements IEditor {
-  constructor(private readonly parts: IEditorParts) {}
+  private readonly propertyFacade: IEditorPropertyTimelines;
+
+  constructor(private readonly parts: IEditorParts) {
+    this.propertyFacade = createPropertyTimelines(parts);
+  }
+
+  get propertyTimelines(): IEditorPropertyTimelines {
+    this.assertActive('propertyTimelines');
+    return this.propertyFacade;
+  }
 
   get isDestroyed(): boolean {
     return this.parts.lifecycle.isDestroyed;

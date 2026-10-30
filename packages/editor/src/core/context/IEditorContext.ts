@@ -42,6 +42,7 @@ import '../store/storeEvents';
 import '../commands/commandEvents';
 import '../playback/playbackEvents';
 import '../stage/stageEvents';
+import '../editor/propertyTimelineTypes';
 
 /** Nom d'un événement de l'éditeur (clé de `TimelineEventMap`). */
 export type EditorEventName = EventName<TimelineEventMap>;
@@ -57,6 +58,7 @@ export type CoreEventName =
   | 'editor:destroying'
   | 'document:loaded'
   | 'document:changed'
+  | 'property:changed'
   | 'command:before'
   | 'command:refused'
   | 'history:changed'

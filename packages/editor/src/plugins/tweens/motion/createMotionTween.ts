@@ -34,7 +34,7 @@
  */
 
 import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry, PropertyTracks } from '@kazo-ca/timeline-runtime';
-import { assertFrame, evaluateValues, replaceLayer, requireEditableLayer } from '../../../model/spans/layerAccess';
+import { assertFrame, evaluateValues, replaceLayer, requireEditableLegacyLayer } from '../../../model/spans/layerAccess';
 import { spanIndexAt, withSpans, withTracks } from '../../../model/spans/tracks';
 import { motionTweenRefusal } from './MotionTweenError';
 
@@ -49,7 +49,7 @@ export interface IMotionTarget {
 
 /** Plage statique contenant `frame` transformée en interpolation. */
 export function createMotionTweenFromSpan(doc: ITimelineDocument, layerId: string, frame: number): ITimelineDocument {
-  const layer = requireEditableLayer(doc, layerId);
+  const layer = requireEditableLegacyLayer(doc, layerId);
   assertFrame(doc, frame);
   const index = spanIndexAt(layer, frame);
   if (index === -1) throw motionTweenRefusal('NO_KEYFRAME');
@@ -151,7 +151,7 @@ export function createMotionTweenBetween(
   to: number,
   registry: PropertyRegistry
 ): ITimelineDocument {
-  const layer = requireEditableLayer(doc, layerId);
+  const layer = requireEditableLegacyLayer(doc, layerId);
   assertFrame(doc, from);
   assertFrame(doc, to);
   if (to <= from) throw motionTweenRefusal('INVALID_RANGE');

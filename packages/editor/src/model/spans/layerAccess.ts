@@ -40,6 +40,23 @@ export function requireEditableLayer(doc: ITimelineDocument, layerId: string): I
   return layer;
 }
 
+/** Old span operations cannot safely describe or edit independent property keys. */
+export function assertLegacyLayer(layer: ILayer): void {
+  if (Object.keys(layer.propertyTimelines ?? {}).length > 0) {
+    throw new SpanOperationError(
+      SpanOperationCodes.MODERN_PROPERTY_LAYER,
+      `Le calque « ${layer.name} » utilise des propriétés indépendantes. Cette opération de plage n'est pas disponible ; utilisez les commandes de propriété.`
+    );
+  }
+}
+
+/** Editable legacy layer; retain the unrestricted helper for modern property commands. */
+export function requireEditableLegacyLayer(doc: ITimelineDocument, layerId: string): ILayer {
+  const layer = requireEditableLayer(doc, layerId);
+  assertLegacyLayer(layer);
+  return layer;
+}
+
 /** Calque `layerId`, verrouillé ou non ; `undefined` s'il est absent. */
 export function findLayer(doc: ITimelineDocument, layerId: string): ILayer | undefined {
   const node = findNodeById(doc.layers, layerId);
@@ -84,7 +101,10 @@ export function createSpanIdFactory(doc: ITimelineDocument, layerId: string): ()
   const used = new Set<string>();
   walkLayers(doc.layers, ({ node }) => {
     used.add(node.id);
-    if (isLayer(node)) node.spans.forEach((span) => used.add(span.id));
+    if (isLayer(node)) {
+      node.spans.forEach((span) => used.add(span.id));
+      Object.values(node.propertyTimelines ?? {}).forEach((track) => track.transitions?.forEach((transition) => used.add(transition.id)));
+    }
   });
   let counter = 0;
   return () => {

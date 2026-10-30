@@ -12,6 +12,8 @@ export const SpanOperationCodes = {
   LAYER_NOT_FOUND: 'layer-not-found',
   /** Le calque, ou un de ses dossiers parents, est verrouillé. */
   LAYER_LOCKED: 'layer-locked',
+  /** Les opérations de plage ne représentent pas les propriétés indépendantes. */
+  MODERN_PROPERTY_LAYER: 'modern-property-layer',
   /** L'image n'est pas un entier compris entre 1 et `totalFrames`. */
   INVALID_FRAME: 'invalid-frame',
   /** La destination d'un déplacement sort des limites permises. */

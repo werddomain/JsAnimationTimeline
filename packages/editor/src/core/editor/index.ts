@@ -8,3 +8,7 @@ export { EDITOR_ROOT_CLASS, createEditor } from './createEditor';
 export { defaultPlugins } from './defaultPlugins';
 export { DEFAULT_FPS, DEFAULT_TOTAL_FRAMES, createEmptyDocument } from './emptyDocument';
 export type { EditorOptions, IEditor, SetPropertyOptions } from './types';
+export type {
+  IEditorPropertyTimelines, IPropertyTimelineTransaction, PropertyChangedEvent,
+  PropertyTimelineEditOptions, PropertyTimelineMutationResult
+} from './propertyTimelineTypes';

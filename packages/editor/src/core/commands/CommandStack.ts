@@ -78,6 +78,7 @@ export const DEFAULT_HISTORY_LIMIT = 100;
 
 /** Regroupement en cours. */
 interface IGroupState {
+  readonly token: object;
   readonly label: string;
   /** Document avant `beginGroup`, restauré par `cancelGroup`. */
   readonly snapshot: ITimelineDocument;
@@ -144,6 +145,11 @@ export class CommandStack {
     return this.group !== undefined;
   }
 
+  /** @internal Stable identity across commands; stale transaction handles cannot close another group. */
+  get groupToken(): object | undefined {
+    return this.group?.token;
+  }
+
   /** Exécute `command` ; retourne `true` si le document a changé. */
   execute(command: ICommand): boolean {
     const lifecycleGeneration = this.lifecycleGeneration;
@@ -162,7 +168,7 @@ export class CommandStack {
     if (this.group !== undefined) {
       this.generation++;
       this.group = { ...this.group, commands: [...this.group.commands, command] };
-      this.writer.commit(next, { cause: 'execute', label: command.label });
+      this.writer.commit(next, { cause: 'execute', label: command.label, groupToken: this.group.token });
       return true;
     }
     this.record(command);
@@ -214,15 +220,17 @@ export class CommandStack {
   }
 
   /** Démarre un regroupement (émet `history:changed`) ; lève si un regroupement est déjà en cours. */
-  beginGroup(label: string): void {
+  beginGroup(label: string): object {
     if (this.group !== undefined) {
       throw new Error(
         `CommandStack : impossible de démarrer le regroupement « ${label} », « ${this.group.label} » est déjà en cours.`
       );
     }
     this.generation++;
-    this.group = { label, snapshot: this.writer.document, commands: [] };
+    const token = Object.freeze({});
+    this.group = { token, label, snapshot: this.writer.document, commands: [] };
     this.emitHistoryChanged();
+    return token;
   }
 
   /**
@@ -244,7 +252,7 @@ export class CommandStack {
    */
   cancelGroup(): void {
     const group = this.takeGroup('cancelGroup');
-    this.commitAndNotify(group.snapshot, 'group-cancel', group.label);
+    this.commitAndNotify(group.snapshot, 'group-cancel', group.label, group.token);
   }
 
   /** Refuse une transformation périmée et traduit une `CommandRefusedError`. */
@@ -252,6 +260,8 @@ export class CommandStack {
     const generation = this.generation;
     try {
       const next = transform();
+      const reason = this.writer.refusalReason?.(next);
+      if (reason !== undefined) throw new CommandRefusedError(command.label, reason);
       if (generation !== this.generation) {
         this.bus.emit('command:refused', { command, reason: 'La commande a été annulée car le document ou son historique a changé.' });
         return undefined;
@@ -275,8 +285,8 @@ export class CommandStack {
     return entries.length > this.limit ? entries.slice(entries.length - this.limit) : entries;
   }
 
-  private commitAndNotify(next: ITimelineDocument, cause: DocumentChangeCause, label: string): void {
-    if (next !== this.writer.document) this.writer.commit(next, { cause, label });
+  private commitAndNotify(next: ITimelineDocument, cause: DocumentChangeCause, label: string, groupToken?: object): void {
+    if (next !== this.writer.document) this.writer.commit(next, { cause, label, ...(groupToken === undefined ? {} : { groupToken }) });
     this.emitHistoryChanged();
   }
 

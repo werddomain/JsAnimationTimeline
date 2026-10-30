@@ -23,14 +23,14 @@
  * refusées : le document est gelé en profondeur, ce qui gèlerait un nœud DOM
  * ou un objet three.js. Les pistes dont le nom est inconnu du registre sont
  * signalées à `onWarning` (par défaut `console.warn`), ou refusées avec
- * `strictProperties`. Les documents produits par les commandes ne sont pas
- * revalidés.
+ * `strictProperties`. Commands involving independent property tracks also
+ * validate the resulting schema before changing history.
  *
  * Événements : `document:changed` à chaque écriture d'une commande ;
  * `load` vide l'historique (`history:changed`) puis émet `document:loaded`.
  */
 
-import { defaultPropertyRegistry, validateDocument } from '@kazo-ca/timeline-runtime';
+import { collectLayers, defaultPropertyRegistry, validateDocument } from '@kazo-ca/timeline-runtime';
 import type { ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import { CommandStack } from '../commands/CommandStack';
 import type { CommandStackOptions } from '../commands/CommandStack';
@@ -53,7 +53,7 @@ export interface StoreOptions {
   /**
    * Refuse (`StoreError`) un document qui a une piste inconnue du registre, au
    * lieu d'avertir. Contrôle fait au chargement seulement (document initial et
-   * `load`) : les documents produits par les commandes ne sont pas revalidés.
+   * `load`). Modern command results are schema-validated separately.
    */
   readonly strictProperties?: boolean;
   /** Reçoit les pistes inconnues d'un document accepté. Par défaut : `console.warn`. */
@@ -65,8 +65,15 @@ const warnInConsole: StoreWarningHandler = (issues) => {
   console.warn(`Pistes inconnues du registre de l'éditeur (ignorées au rendu) :\n${lines.join('\n')}`);
 };
 
+/** Internal post-commit observer, called after document subscribers finish. */
+type CommitObserver = (event: DocumentChangedEvent, groupToken?: object) => void;
+
 /** Conteneur du document v2 courant. */
 export class Store {
+  private readonly commitObservers = new Set<CommitObserver>();
+  private pendingCommits: { event: DocumentChangedEvent; groupToken?: object }[] = [];
+  private commitDepth = 0;
+  private notifyingCommits = false;
   private current: ITimelineDocument;
   private stack: CommandStack | undefined;
   private readonly registry: PropertyRegistry;
@@ -97,6 +104,7 @@ export class Store {
    */
   load(doc: ITimelineDocument): void {
     this.accept(doc);
+    this.pendingCommits = [];
     const previous = this.current;
     this.current = doc;
     this.stack?.clear();
@@ -116,6 +124,12 @@ export class Store {
     return this.stack;
   }
 
+  /** @internal For core notifications; plugins receive neither this Store nor this hook. */
+  observeCommits(observer: CommitObserver): () => void {
+    this.commitObservers.add(observer);
+    return () => { this.commitObservers.delete(observer); };
+  }
+
   /** Valide `doc` (lève `StoreError`), puis signale ou refuse ses pistes inconnues. */
   private accept(doc: ITimelineDocument): void {
     const issues = validateDocument(doc, { allowLiveTargets: false });
@@ -133,13 +147,38 @@ export class Store {
       get document(): ITimelineDocument {
         return read();
       },
-      commit
+      commit,
+      refusalReason: (next: ITimelineDocument): string | undefined => {
+        const hasModern = (doc: ITimelineDocument): boolean => collectLayers(doc)
+          .some((layer) => layer.propertyTimelines !== undefined);
+        if (!hasModern(this.current) && !hasModern(next)) return undefined;
+        const issues = validateDocument(next, { allowLiveTargets: false });
+        return issues.length === 0 ? undefined : `La commande produirait un document invalide : ${issues[0].path} (${issues[0].code}).`;
+      }
     });
   }
 
   private commit(next: ITimelineDocument, change: IDocumentChange): void {
-    const payload: DocumentChangedEvent = { document: next, previous: this.current, ...change };
+    const payload: DocumentChangedEvent = { document: next, previous: this.current, cause: change.cause, label: change.label };
     this.current = next;
-    this.bus.emit('document:changed', payload);
+    this.pendingCommits.push({ event: payload, groupToken: change.groupToken });
+    this.commitDepth++;
+    try { this.bus.emit('document:changed', payload); }
+    finally {
+      this.commitDepth--;
+      this.flushCommits();
+    }
+  }
+
+  /** Nested commands append behind the entire current commit, never between its properties. */
+  private flushCommits(): void {
+    if (this.commitDepth !== 0 || this.notifyingCommits) return;
+    this.notifyingCommits = true;
+    try {
+      while (this.pendingCommits.length > 0) {
+        const next = this.pendingCommits.shift()!;
+        for (const observer of this.commitObservers) observer(next.event, next.groupToken);
+      }
+    } finally { this.notifyingCommits = false; }
   }
 }

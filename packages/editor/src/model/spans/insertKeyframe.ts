@@ -40,7 +40,7 @@ import type {
   PropertyRegistry,
   PropertyTracks
 } from '@kazo-ca/timeline-runtime';
-import { assertFrame, createSpanIdFactory, evaluateValues, replaceLayer, requireEditableLayer } from './layerAccess';
+import { assertFrame, createSpanIdFactory, evaluateValues, replaceLayer, requireEditableLegacyLayer } from './layerAccess';
 import { lastFrame, mapKeyframes, spanIndexAt, tracksFromValues, withSpans, withTracks } from './tracks';
 
 /** Contenu de la nouvelle image clé : celui de la plage précédente (F6) ou vide (F7). */
@@ -130,7 +130,7 @@ function insertAt(
   content: KeyframeContent,
   registry: PropertyRegistry
 ): ITimelineDocument {
-  const layer = requireEditableLayer(doc, layerId);
+  const layer = requireEditableLegacyLayer(doc, layerId);
   assertFrame(doc, frame);
   if (frame > lastFrame(layer)) {
     return replaceLayer(doc, appendKeyframe(doc, layer, frame, content, registry));

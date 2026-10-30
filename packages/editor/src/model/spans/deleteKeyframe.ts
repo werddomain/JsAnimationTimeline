@@ -15,7 +15,7 @@
  */
 
 import type { ILayer, ITimelineDocument } from '@kazo-ca/timeline-runtime';
-import { assertFrame, replaceLayer, requireEditableLayer } from './layerAccess';
+import { assertFrame, replaceLayer, requireEditableLegacyLayer } from './layerAccess';
 import { mapKeyframes, spanIndexAt, withSpans, withTracks } from './tracks';
 
 /** Fusionne la plage `index` dans la précédente. */
@@ -36,7 +36,7 @@ function removePropertyKeyframes(layer: ILayer, index: number, frame: number): I
 
 /** Efface l'image clé à `frame` sur le calque `layerId`. */
 export function deleteKeyframe(doc: ITimelineDocument, layerId: string, frame: number): ITimelineDocument {
-  const layer = requireEditableLayer(doc, layerId);
+  const layer = requireEditableLegacyLayer(doc, layerId);
   assertFrame(doc, frame);
   const index = spanIndexAt(layer, frame);
   if (index === -1) return doc;
