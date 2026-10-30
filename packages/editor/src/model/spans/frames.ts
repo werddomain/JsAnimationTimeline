@@ -21,7 +21,7 @@
  */
 
 import type { ILayer, ISpan, ITimelineDocument } from '@kazo-ca/timeline-runtime';
-import { assertFrame, createSpanIdFactory, replaceLayer, requireEditableLayer } from './layerAccess';
+import { assertFrame, createSpanIdFactory, replaceLayer, requireEditableLegacyLayer } from './layerAccess';
 import { lastFrame, mapKeyframes, shiftKeyframesAfter, shiftSpan, spanIndexAt, withSpans, withTracks } from './tracks';
 
 /** Prolonge la dernière plage jusqu'à `frame` (plage vide 1 à `frame` sur un calque vide). */
@@ -49,7 +49,7 @@ function rebuildFrom(layer: ILayer, index: number, span: ISpan | undefined, delt
 
 /** Insère une image à `frame` sur le calque `layerId`. */
 export function insertFrame(doc: ITimelineDocument, layerId: string, frame: number): ITimelineDocument {
-  const layer = requireEditableLayer(doc, layerId);
+  const layer = requireEditableLegacyLayer(doc, layerId);
   assertFrame(doc, frame);
   if (frame > lastFrame(layer)) {
     return replaceLayer(doc, extendTo(doc, layer, frame));
@@ -63,7 +63,7 @@ export function insertFrame(doc: ITimelineDocument, layerId: string, frame: numb
 
 /** Supprime l'image `frame` du calque `layerId`. */
 export function removeFrame(doc: ITimelineDocument, layerId: string, frame: number): ITimelineDocument {
-  const layer = requireEditableLayer(doc, layerId);
+  const layer = requireEditableLegacyLayer(doc, layerId);
   assertFrame(doc, frame);
   if (frame > lastFrame(layer)) return doc;
   const index = spanIndexAt(layer, frame);

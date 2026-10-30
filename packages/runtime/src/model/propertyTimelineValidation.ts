@@ -3,6 +3,7 @@ import { escapePointerToken, ValidationCodes } from './issues';
 import type { IValidationIssue, ValidationCode } from './issues';
 import type { ILayer } from './layer';
 import type { IPropertyTimeline, IPropertyTimelineKeyframe, IPropertyTransition, TimelinePropertyValue } from './propertyTimeline';
+import { parseEasing } from './easing';
 
 type Reporter = (path: string, code: ValidationCode, message: string) => void;
 type UniqueIdCheck = (id: string, path: string) => void;
@@ -22,6 +23,13 @@ function validateSource(transition: IPropertyTransition, kind: TimelinePropertyV
   const source = transition.source;
   if (source === undefined) return;
   const sourcePath = `${path}/source`;
+  if (source.legacyEasing !== undefined) {
+    const curve = parseEasing(source.legacyEasing);
+    if (curve === null || !Object.values(curve).every(Number.isFinite)) {
+      report(`${sourcePath}/legacyEasing`, ValidationCodes.INVALID_EASING, 'Legacy easing must have finite coordinates and x coordinates in [0, 1].');
+    }
+    if (kind !== 'number') report(sourcePath, ValidationCodes.PROPERTY_KIND_MISMATCH, 'Legacy sources require a numeric property.');
+  }
   validateKeys(source.keys, kind, totalFrames, `${sourcePath}/keys`, report);
   if (source.start >= source.end || source.start > transition.fromFrame || source.end < transition.toFrame || source.end > totalFrames) {
     report(sourcePath, ValidationCodes.INVALID_CURVE_SOURCE, 'Source bounds must cover the transition inside the document.');

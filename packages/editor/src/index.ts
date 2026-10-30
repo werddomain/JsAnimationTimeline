@@ -11,6 +11,10 @@ export {
   defaultPlugins
 } from './core/editor';
 export type { EditorOptions, IEditor, SetPropertyOptions } from './core/editor';
+export type {
+  IEditorPropertyTimelines, IPropertyTimelineTransaction, PropertyChangedEvent,
+  PropertyTimelineEditOptions, PropertyTimelineMutationResult
+} from './core/editor';
 
 // Contrat des plugins.
 export type {

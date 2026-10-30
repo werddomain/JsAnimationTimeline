@@ -17,7 +17,7 @@
  */
 
 import type { ILayer, IPropertyKeyframe, ISpan, ITimelineDocument } from '@kazo-ca/timeline-runtime';
-import { assertFrame, createSpanIdFactory, replaceLayer, requireEditableLayer } from './layerAccess';
+import { assertFrame, createSpanIdFactory, replaceLayer, requireEditableLegacyLayer } from './layerAccess';
 import { SpanOperationCodes, SpanOperationError } from './SpanOperationError';
 import { retimeKeyframes, spanIndexAt, withSpans, withTracks } from './tracks';
 
@@ -75,7 +75,7 @@ function movePropertyKeyframes(layer: ILayer, index: number, from: number, to: n
 
 /** Déplace l'image clé de `from` à `to` sur le calque `layerId`. */
 export function moveKeyframe(doc: ITimelineDocument, layerId: string, from: number, to: number): ITimelineDocument {
-  const layer = requireEditableLayer(doc, layerId);
+  const layer = requireEditableLegacyLayer(doc, layerId);
   assertFrame(doc, from);
   assertFrame(doc, to);
   const index = spanIndexAt(layer, from);

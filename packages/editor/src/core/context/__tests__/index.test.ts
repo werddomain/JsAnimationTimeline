@@ -68,6 +68,7 @@ describe('context and editor modules public API', () => {
       'playback:pause',
       'playback:play',
       'playhead:changed',
+      'property:changed',
       'stage:report',
       'stage:targetsChanged'
     ]);

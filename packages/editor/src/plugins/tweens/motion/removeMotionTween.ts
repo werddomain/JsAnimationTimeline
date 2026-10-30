@@ -18,7 +18,7 @@
  */
 
 import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
-import { assertFrame, evaluateValues, replaceLayer, requireEditableLayer } from '../../../model/spans/layerAccess';
+import { assertFrame, evaluateValues, replaceLayer, requireEditableLegacyLayer } from '../../../model/spans/layerAccess';
 import { spanIndexAt, withSpans, withTracks } from '../../../model/spans/tracks';
 import { motionTweenRefusal } from './MotionTweenError';
 
@@ -47,7 +47,7 @@ export function removeMotionTweens(
   frames: readonly number[],
   registry: PropertyRegistry
 ): ITimelineDocument {
-  const layer = requireEditableLayer(doc, layerId);
+  const layer = requireEditableLegacyLayer(doc, layerId);
   frames.forEach((frame) => assertFrame(doc, frame));
   const indexes = new Set(frames.map((frame) => spanIndexAt(layer, frame)));
   const allTweens = Array.from(indexes).every((index) => index !== -1 && layer.spans[index].kind === 'tween');

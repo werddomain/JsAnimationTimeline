@@ -1,5 +1,6 @@
 // packages/runtime/src/model/propertyTimeline.ts
 import type { PropertyEasing } from './propertyEasing';
+import type { Easing } from './easing';
 
 /** A serializable value, independent of DOM or property-registry adapters. */
 export type TimelinePropertyValue =
@@ -19,6 +20,8 @@ export interface IPropertyCurveSource {
   readonly end: number;
   readonly keys: readonly IPropertyTimelineKeyframe[];
   readonly easing?: PropertyEasing;
+  /** Migrated numeric span: retain historic absolute-frame arithmetic, exclusive with easing. */
+  readonly legacyEasing?: Easing;
 }
 
 export interface IPropertyTransition {

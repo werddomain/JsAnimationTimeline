@@ -17,6 +17,7 @@ import type { TimelineEventMap } from '../events/TimelineEventMap';
 import type { FrameListener, IEditorPlayback, IFrameSample } from '../playback/types';
 import type { EditorStageOption, IEditorStage, StageErrorHandler } from '../stage/types';
 import type { StoreWarningHandler } from '../store/Store';
+import type { IEditorPropertyTimelines } from './propertyTimelineTypes';
 
 /** Options for a property edit. */
 export interface SetPropertyOptions {
@@ -67,7 +68,7 @@ export interface EditorOptions {
   /**
    * Refuse (`StoreError`) un document dont une piste a un nom inconnu du
    * registre, au lieu d'avertir. Faux par défaut. Contrôle fait au chargement
-   * (`data`, `load`) ; les commandes ne sont pas revalidées.
+   * (`data`, `load`). Modern command results are schema-validated separately.
    */
   readonly strictProperties?: boolean;
   /** Reçoit les pistes inconnues du registre d'un document accepté. Par défaut : `console.warn`. */
@@ -107,6 +108,8 @@ export interface IEditor {
   readonly registry: PropertyRegistry;
   /** Scènes animées (même façade que `ctx.stage`). */
   readonly stage: IEditorStage;
+  /** Typed property tracks, explicit transitions and shared undo transactions. */
+  readonly propertyTimelines: IEditorPropertyTimelines;
 
   /** S'abonne à un événement de l'éditeur ; retourne la fonction de désabonnement. */
   on<K extends EditorEventName>(name: K, handler: EventHandler<TimelineEventMap[K]>): () => void;

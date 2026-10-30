@@ -1,0 +1,63 @@
+<!-- demo/editor/property-timelines.html -->
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pistes de propriétés · API Timeline</title></head>
+<body class="JsTimeLine property-api-page">
+<main class="property-api">
+  <header>
+    <nav aria-label="Démonstrations"><a href="index.html">← Éditeur de timeline</a></nav>
+    <p class="eyebrow">JsAnimationTimeline · Phase A · Démonstration API</p>
+    <h1>Une propriété. Une courbe.</h1>
+    <p class="intro">L’opacité évolue de l’image 1 à 100. Ajoutez une position à l’image 50 : chaque propriété garde ses propres clés.</p>
+    <p class="notice">Cette démo utilise le moteur d’édition et une scène d’objets dessinée sur canvas. Les lignes et outils de l’éditeur principal seront raccordés lors de la phase suivante.</p>
+  </header>
+  <section class="preview" aria-labelledby="preview-title">
+    <div class="section-heading"><h2 id="preview-title">L’objet en mouvement</h2><span class="badge">Objet générique</span></div>
+    <canvas id="object-preview" width="1000" height="180" role="img" aria-label="Aperçu de la position et de l’opacité"></canvas>
+    <div class="transport">
+      <button id="play-pause" type="button">Lire</button><button id="rewind" type="button">Revenir au début</button>
+      <label>Image courante<input id="frame-number" type="number" min="1" max="100" step="1" value="50"></label>
+      <label class="scrubber-label">Tête de lecture<input id="frame-range" type="range" min="1" max="100" step="1" value="50"></label>
+      <button id="undo" type="button">Annuler</button><button id="redo" type="button">Rétablir</button>
+    </div>
+    <dl class="values"><div><dt>Position X</dt><dd id="value-x">0.00</dd></div><div><dt>Position Y</dt><dd id="value-y">0.00</dd></div><div><dt>Opacité</dt><dd id="value-opacity">—</dd></div></dl>
+    <table class="track-table"><caption>Clés et transitions enregistrées</caption><thead><tr><th scope="col">Propriété</th><th scope="col">Clés</th><th scope="col">Transitions</th></tr></thead><tbody id="track-rows"></tbody></table>
+  </section>
+  <div class="workspace">
+    <section aria-labelledby="edit-title">
+      <h2 id="edit-title">01 · Modifier ou capturer</h2>
+      <p>Une capture mémorise la valeur actuelle. Dans une transition, elle crée deux portions de la même courbe.</p>
+      <fieldset id="property-edit-fields"><legend>Clé à l’image courante</legend>
+        <label>Propriété à modifier<select id="property-name"><option value="opacity">Opacité</option><option value="x">Position X</option><option value="y">Position Y</option></select></label>
+        <label>Nouvelle valeur<input id="property-value" type="number" step="0.01" value="0.5"></label>
+        <div class="actions"><button id="set-value" type="button">Appliquer la valeur</button><button id="capture-key" type="button">Capturer une clé</button></div>
+      </fieldset>
+      <h3>Un déplacement, une annulation</h3>
+      <p>Prévisualisez X et Y ensemble, puis validez. Échap annule le geste complet.</p>
+      <button id="begin-gesture" type="button">Commencer un déplacement</button>
+      <fieldset id="gesture-fields" disabled><legend>Déplacement en cours</legend>
+        <div class="pair"><label>Déplacement X<input id="gesture-x" type="number" step="1" value="30"></label><label>Déplacement Y<input id="gesture-y" type="number" step="1" value="30"></label></div>
+        <div class="actions"><button id="preview-gesture" type="button">Prévisualiser X/Y</button><button id="commit-gesture" type="button">Valider le déplacement</button><button id="cancel-gesture" type="button">Annuler le déplacement</button></div>
+      </fieldset>
+    </section>
+    <section aria-labelledby="effect-title">
+      <h2 id="effect-title">02 · Choisir l’accélération</h2>
+      <p>Appliquez un effet à une transition de l’opacité. La courbe ci-dessous représente les valeurs réellement évaluées.</p>
+      <fieldset id="effect-edit-fields"><legend>MotionTween de l’opacité</legend>
+        <label>Transition à modifier<select id="transition-id"></select></label>
+        <div class="pair"><label>Courbe ou effet<select id="effect-family"></select></label><label id="mode-label">Accélération<select id="effect-mode"><option value="in">Entrée</option><option value="out">Sortie</option><option value="in-out">Entrée / sortie</option></select></label></div>
+        <div id="parameter-fields" class="pair"></div>
+        <div class="actions"><button id="apply-effect" type="button">Appliquer l’effet</button><button id="remove-transition" type="button">Supprimer la transition</button></div>
+        <label>Clés de la transition<input id="transition-frames" type="text" value="1, 100" aria-describedby="transition-help"></label>
+        <p id="transition-help" class="hint">Deux clés voisines, séparées par une virgule. Une transition concerne une seule propriété.</p>
+        <button id="create-transition" type="button">Créer la transition</button>
+      </fieldset>
+      <figure class="curve-panel"><svg viewBox="0 0 460 230" role="img" aria-label="Valeur évaluée de l’opacité"><path class="graph-axis" d="M 40 20 V 195 H 435"/><path class="graph-guide" d="M 40 25 H 435 M 40 110 H 435"/><path id="curve-line" class="graph-curve"/><path id="curve-cursor" class="graph-cursor"/><text x="12" y="30">1</text><text x="12" y="195">0</text><text x="38" y="219">1</text><text x="410" y="219">100</text></svg><figcaption>Opacité évaluée pour toutes les demi-images</figcaption></figure>
+    </section>
+  </div>
+  <p id="command-status" role="status" aria-label="Résultat de la commande">Prêt. Modifiez une propriété ou capturez une clé.</p>
+  <details><summary>Document et événements de propriété</summary><p id="last-change">Aucune modification.</p><pre id="document-json"></pre></details>
+  <div id="editor-host" hidden></div>
+</main>
+<script type="module" src="./src/propertyTimelines.ts"></script>
+</body></html>

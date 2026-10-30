@@ -321,6 +321,15 @@
       "PropertyCurveSource": {
         "type": "object",
         "additionalProperties": false,
+        "not": { "required": ["easing", "legacyEasing"], "properties": { "easing": {}, "legacyEasing": {} } },
+        "allOf": [{
+          "if": { "required": ["legacyEasing"], "properties": { "legacyEasing": {} } },
+          "then": {
+            "properties": {
+              "keys": { "type": "array", "items": { "type": "object", "properties": { "value": { "$ref": "#/$defs/NumberPropertyValue" } } } }
+            }
+          }
+        }],
         "required": [
           "start",
           "end",
@@ -341,6 +350,10 @@
           },
           "easing": {
             "$ref": "#/$defs/PropertyEasing"
+          },
+          "legacyEasing": {
+            "description": "Migrated numeric source retaining the historical absolute-frame evaluation; exclusive with easing.",
+            "$ref": "#/$defs/Easing"
           }
         }
       },

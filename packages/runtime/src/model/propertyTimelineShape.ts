@@ -3,6 +3,7 @@ import { escapePointerToken, ValidationCodes } from './issues';
 import type { IValidationIssue, ValidationCode } from './issues';
 import { isValidPropertyName } from './names';
 import { isPropertyEasing } from './propertyEasing';
+import { CUBIC_BEZIER_PATTERN, isEasingPreset } from './easing';
 
 type JsonRecord = Readonly<Record<string, unknown>>;
 type Reporter = (path: string, code: ValidationCode, message: string) => void;
@@ -80,11 +81,25 @@ function easing(value: JsonRecord, path: string, report: Reporter): void {
 function source(value: unknown, path: string, report: Reporter): void {
   const item = record(value, path, report);
   if (item === null) return;
-  fields(item, path, ['start', 'end', 'keys'], ['easing'], report);
+  fields(item, path, ['start', 'end', 'keys'], ['easing', 'legacyEasing'], report);
   frame(item['start'], `${path}/start`, report);
   frame(item['end'], `${path}/end`, report);
   keys(item['keys'], `${path}/keys`, report);
   easing(item, path, report);
+  if (has(item, 'legacyEasing')) {
+    const legacy = item['legacyEasing'];
+    if (typeof legacy !== 'string' || (!isEasingPreset(legacy) && !CUBIC_BEZIER_PATTERN.test(legacy))) {
+      report(`${path}/legacyEasing`, ValidationCodes.INVALID_EASING, 'Expected a legacy CSS easing string.');
+    }
+    if (has(item, 'easing')) report(path, ValidationCodes.INVALID_CURVE_SOURCE, 'Legacy and modern source easing are mutually exclusive.');
+    if (Array.isArray(item['keys'])) item['keys'].forEach((key: unknown, index) => {
+      if (typeof key !== 'object' || key === null || !('value' in key)) return;
+      const value = key.value;
+      if (typeof value === 'object' && value !== null && 'kind' in value && value.kind !== 'number') {
+        report(`${path}/keys/${index}/value`, ValidationCodes.PROPERTY_KIND_MISMATCH, 'Legacy curve sources require numeric keys.');
+      }
+    });
+  }
 }
 
 function transitions(value: unknown, path: string, report: Reporter): void {

@@ -9,6 +9,24 @@ import type { PropertyDescriptor } from '../properties/types';
 import { boundTimelineValue, interpolateTimelineValue } from '../properties/timelineValues';
 import type { TimelinePropertyValues } from '../properties/timelineValues';
 import { createPropertyEasingFunction } from './propertyEasing';
+import { createEasingFunction } from './easingFunction';
+import { valueAtFrame } from './track';
+
+/** Keep the legacy evaluator's operation order, including custom interpolation at endpoints. */
+function legacySourceValue(source: IPropertyCurveSource, frame: number, descriptor?: PropertyDescriptor): TimelinePropertyValue {
+  if (source.easing !== undefined) throw new Error('Legacy and modern source easing are mutually exclusive.');
+  const points = source.keys.map((key) => {
+    if (key.value.kind !== 'number') throw new Error('Legacy curve sources require numeric keys.');
+    return { frame: key.frame, value: key.value.value };
+  });
+  const length = source.end - source.start;
+  const progress = Math.min(1, Math.max(0, (frame - source.start) / length));
+  const at = source.start + createEasingFunction(source.legacyEasing!)(progress) * length;
+  const numeric = descriptor ?? { name: 'legacy', kind: 'value', unit: '', defaultValue: 0 };
+  const value = valueAtFrame(numeric, points, at, source);
+  if (!Number.isFinite(value)) throw new Error('A legacy property source produced a non-finite value.');
+  return { kind: 'number', value };
+}
 
 function curveProgress(start: number, end: number, frame: number, easing?: PropertyEasing): number {
   const progress = Math.max(0, Math.min(1, (frame - start) / (end - start)));
@@ -19,6 +37,7 @@ function curveProgress(start: number, end: number, frame: number, easing?: Prope
 function sourceValue(source: IPropertyCurveSource, frame: number, descriptor?: PropertyDescriptor): TimelinePropertyValue {
   const keys = source.keys;
   if (keys.length < 2 || source.end <= source.start) throw new Error('A curve source requires two keys and a positive duration.');
+  if (source.legacyEasing !== undefined) return legacySourceValue(source, frame, descriptor);
   const at = curveProgress(source.start, source.end, frame, source.easing);
   const normalize = (key: IPropertyTimelineKeyframe): number => (key.frame - source.start) / (source.end - source.start);
   let index = 0;

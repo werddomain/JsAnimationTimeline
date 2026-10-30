@@ -13,7 +13,8 @@ export default defineConfig({
   ] },
   build: { outDir: 'dist', emptyOutDir: true, rollupOptions: { input: {
     main: fileURLToPath(new URL('index.html', import.meta.url)),
-    scene: fileURLToPath(new URL('scene.html', import.meta.url))
+    scene: fileURLToPath(new URL('scene.html', import.meta.url)),
+    propertyTimelines: fileURLToPath(new URL('property-timelines.html', import.meta.url))
   } } },
   server: { port, strictPort: true },
   preview: { port, strictPort: true }

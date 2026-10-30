@@ -74,6 +74,15 @@ each piece. Runtime state carries these values in optional `propertyValues`,
 alongside the existing numeric `values` projection. The .NET stage bridge
 preserves both fields and omits `propertyValues` for legacy layers.
 
+A numeric source migrated from a legacy span uses `legacyEasing` (the original
+CSS easing string) instead of `source.easing`. These two fields are mutually
+exclusive. Such a source retains the original numeric keys and absolute frame
+domain, including the legacy interpolator's arithmetic order. Editable keys
+contain the values actually evaluated at their frames. This distinction prevents
+an explicit migration or a subsequent split from changing fractional-frame
+results. The transition may also retain the equivalent modern `easing` for
+future edits that intentionally detach its preserved source.
+
 Modern easing is either `{kind:"bezier",x1,y1,x2,y2}` or
 `{kind:"effect",family,mode,parameters?}`. Bezier x coordinates are 0..1 and y
 coordinates are -100..100. Modes are `in`, `out`, and `in-out`. Families are

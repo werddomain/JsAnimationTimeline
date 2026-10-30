@@ -5,6 +5,11 @@ Référence de travail : `v2/HA1-property-tracks`, vérifications locales et rev
 réussies le 30 octobre 2026. Contrat cible : HA-TL-001 r2. Ce document ne déclare pas le contrat
 complet livré et ne désigne pas une version publiée.
 
+Livraison du socle : [PR #122](https://github.com/Kazo-ca/JsAnimationTimeline/pull/122),
+fusionnée uniquement dans `v2/base` au commit
+`1b0232bad4d5b259b5d836d2853649c64b5636cd`. Le commit fonctionnel vérifié est
+`7bf82252ee89482a5a5d2cc300e71a63697cfab1`.
+
 ## Modèle et évaluation
 
 `ILayer.propertyTimelines` est un dictionnaire optionnel de pistes indépendantes.

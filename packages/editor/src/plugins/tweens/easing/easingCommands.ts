@@ -4,7 +4,7 @@ import { DEFAULT_EASING, parseEasing } from '@kazo-ca/timeline-runtime';
 import type { Easing, ILayer, ISpan, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import { CommandRefusedError } from '../../../core/commands/CommandRefusedError';
 import type { ICommand } from '../../../core/commands/ICommand';
-import { assertFrame, findLayer, replaceLayer, requireEditableLayer } from '../../../model/spans/layerAccess';
+import { assertFrame, findLayer, replaceLayer, requireEditableLegacyLayer } from '../../../model/spans/layerAccess';
 import { SpanOperationError } from '../../../model/spans/SpanOperationError';
 import { spanIndexAt, withSpans } from '../../../model/spans/tracks';
 
@@ -17,7 +17,7 @@ function refused(reason: string): CommandRefusedError { return new CommandRefuse
 export function requireEasingTarget(doc: ITimelineDocument, layerId: string, frame: number): { layer: ILayer; span: ISpan } {
   try {
     assertFrame(doc, frame);
-    const layer = requireEditableLayer(doc, layerId);
+    const layer = requireEditableLegacyLayer(doc, layerId);
     const span = layer.spans[spanIndexAt(layer, frame)];
     if (span?.kind !== 'tween') throw refused('Aucune interpolation à cette image.');
     return { layer, span };

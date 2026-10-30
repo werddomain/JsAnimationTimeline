@@ -1,0 +1,74 @@
+// demo/editor/src/propertyTimelines.less
+.JsTimeLine.property-api-page {
+  --ink: #20383d;
+  --teal: #11695f;
+  --rust: #a33d23;
+  --line: #aabbb1;
+  --paper: #fffdf8;
+  margin: 0;
+  color: var(--ink);
+  background: #f3f0e8;
+  font: 16px/1.5 "Segoe UI", sans-serif;
+}
+.JsTimeLine .property-api {
+  box-sizing: border-box;
+  max-width: 1200px;
+  padding: 28px clamp(12px, 4vw, 40px) 48px;
+  margin: auto;
+  * { box-sizing: border-box; }
+  a { color: var(--teal); text-underline-offset: 3px; }
+  nav { font-size: .9rem; }
+  .eyebrow { color: var(--rust); text-transform: uppercase; letter-spacing: .12em; font-size: .75rem; font-weight: 700; margin: 24px 0 12px; }
+  h1 { margin: 0 0 18px; font: 600 clamp(2rem, 5vw, 3.8rem)/1.1 Georgia, serif; }
+  h2 { font-size: 1.2rem; margin: 0 0 14px; }
+  h3 { font-size: 1rem; margin: 28px 0 10px; }
+  .intro { max-width: 750px; font-size: 1.1rem; }
+  .notice { border-left: 4px solid var(--rust); padding: 10px 16px; background: #eae4d8; font-size: .9rem; }
+  .preview { margin: 32px 0; }
+  .section-heading { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: 12px; }
+  .badge { color: #3a5751; background: #e0e6dc; padding: 3px 10px; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
+  #object-preview { display: block; width: 100%; height: auto; border: 1px solid var(--line); background: #e0e6dc; }
+  label { display: flex; flex-direction: column; gap: 5px; font-size: .9rem; font-weight: 600; min-width: 0; }
+  select, input, button { font: inherit; color: var(--ink); background: var(--paper); min-height: 42px; border: 1px solid #71867d; border-radius: 3px; padding: 8px 10px; max-width: 100%; min-width: 0; }
+  select { width: 100%; line-height: normal; }
+  input { width: 100%; }
+  button { cursor: pointer; font-weight: 600; }
+  button:hover:not(:disabled) { background: #e0eee7; }
+  button:disabled, fieldset:disabled { opacity: .55; }
+  button:disabled { cursor: default; }
+  :focus-visible { outline: 3px solid var(--rust); outline-offset: 3px; }
+  .transport { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-top: 14px; }
+  .transport label { margin: 0; }
+  #frame-number { width: 110px; }
+  .scrubber-label { flex: 1 1 180px; }
+  #frame-range { padding: 0; accent-color: var(--teal); }
+  .values { display: flex; flex-wrap: wrap; gap: 24px 48px; margin: 18px 0; }
+  .values dt { font-size: .8rem; color: #425c61; }
+  .values dd { margin: 0; font-size: 1.3rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .track-table { border-collapse: collapse; width: 100%; table-layout: fixed; background: var(--paper); }
+  .track-table caption { text-align: left; font-size: .9rem; margin-bottom: 8px; }
+  .track-table th, .track-table td { text-align: left; border-bottom: 1px solid var(--line); padding: 10px 12px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+  .track-table thead { background: #e0e6dc; font-size: .8rem; }
+  .workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; border-top: 1px solid var(--line); padding-top: 30px; }
+  .workspace section > p { font-size: .9rem; min-height: 3em; }
+  fieldset { min-width: 0; padding: 14px; border: 1px solid var(--line); display: grid; gap: 16px; margin: 12px 0; }
+  legend { font-size: .85rem; padding: 0 6px; }
+  .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .hint { font-size: .8rem; margin: -10px 0 0; color: #425c61; }
+  #mode-label[hidden] { display: none; }
+  .curve-panel { margin: 22px 0 0; padding: 10px; border: 1px solid var(--line); background: var(--paper); box-shadow: 5px 5px 0 #dfdfd3; }
+  .curve-panel svg { display: block; width: 100%; }
+  .curve-panel text { font: 13px "Segoe UI", sans-serif; fill: var(--ink); }
+  .curve-panel figcaption { text-align: center; font-size: .8rem; }
+  .graph-axis { fill: none; stroke: #7a8a82; stroke-width: 1; }
+  .graph-guide { fill: none; stroke: #b2bcb5; stroke-dasharray: 4 4; }
+  .graph-curve { fill: none; stroke: var(--teal); stroke-width: 3; }
+  .graph-cursor { fill: none; stroke: var(--rust); stroke-width: 1.5; }
+  #command-status { margin: 32px 0 20px; min-height: 3em; border-left: 4px solid var(--teal); padding: 10px 16px; background: #e0eee7; }
+  details { border-top: 1px solid var(--line); padding-top: 16px; }
+  summary { cursor: pointer; }
+  pre { overflow: auto; font-size: .8rem; max-height: 320px; padding: 12px; background: var(--paper); }
+  @media (max-width: 760px) { .workspace { grid-template-columns: minmax(0, 1fr); gap: 32px; } }
+  @media (max-width: 400px) { .pair { grid-template-columns: minmax(0, 1fr); } .track-table th, .track-table td { padding: 8px 5px; font-size: .8rem; } }
+}

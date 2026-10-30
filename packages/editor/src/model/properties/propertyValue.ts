@@ -1,6 +1,6 @@
 // packages/editor/src/model/properties/propertyValue.ts
 import type { IPropertyKeyframe, ISpan, ITimelineDocument } from '@kazo-ca/timeline-runtime';
-import { assertFrame, replaceLayer, requireEditableLayer } from '../spans/layerAccess';
+import { assertFrame, replaceLayer, requireEditableLegacyLayer } from '../spans/layerAccess';
 import { spanIndexAt } from '../spans/tracks';
 import { getTargetPropertyNames } from './targetProperties';
 import type { IPropertyEditContext } from './targetProperties';
@@ -39,7 +39,7 @@ export function applyPropertyValue(
   context: IPropertyEditContext
 ): ITimelineDocument {
   assertFrame(doc, frame);
-  const layer = requireEditableLayer(doc, layerId);
+  const layer = requireEditableLegacyLayer(doc, layerId);
   if (!context.registry.has(name)) throw new PropertyOperationError(`La propriété « ${name} » est inconnue.`);
   if (!Number.isFinite(value)) throw new PropertyOperationError('La valeur de propriété doit être un nombre fini.');
   const index = spanIndexAt(layer, frame);
