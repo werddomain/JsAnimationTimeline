@@ -1,7 +1,7 @@
 // packages/editor/src/plugins/properties/panel/__tests__/PropertiesPanelPlugin.test.ts
 import { createEditor } from '../../../../core/editor/createEditor';
 import { captureContext, cleanBody, createContainer } from '../../../../core/editor/__tests__/fixtures';
-import { createManualClock, createObjectStage, createPropertyRegistry } from '@kazo-ca/timeline-runtime';
+import { createHtmlStage, createManualClock, createObjectStage, createPropertyRegistry } from '@kazo-ca/timeline-runtime';
 import type { IStage, ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { EditorOptions, IEditor } from '../../../../core/editor/types';
 import type { IEditorContext } from '../../../../core/context/IEditorContext';
@@ -92,6 +92,97 @@ function modernData(): ITimelineDocument {
     } }
   ] };
 }
+
+it('keeps a divergent group property visible with its explanation while editing other properties', () => {
+  const source = modernData();
+  const modern = source.layers[0];
+  const data = { ...source, layers: [{ ...modern, target: { ref: 'group' } }] };
+  const stage = createObjectStage({ id: 'objects', unscoped: true, objects: [{ id: 'group', label: 'Groupe', object: {}, properties: [
+    { name: 'x', editable: false, reason: 'Les positions du groupe diffèrent. Attribuez un ID à chaque élément.' },
+    { name: 'level', initialValue: { kind: 'number', value: 0.25 }, sample: () => ({ kind: 'number', value: 0.9 }) }
+  ] }], apply: () => {} });
+  const { editor, service } = setup({ data, stage });
+  expect(editor.stage.describe({ ref: 'group' })?.properties?.[0]).toMatchObject({ editable: false });
+  service.focusAt('main', 20);
+  const field = input(editor, 'x');
+  expect(field.disabled).toBe(true);
+  const hint = editor.container.querySelector<HTMLElement>('[data-property="x"] .jt-properties-panel__capability');
+  expect(hint?.textContent).toBe('ⓘ');
+  expect(hint?.title).toContain('Attribuez un ID');
+  expect(hint?.getAttribute('aria-label')).toContain('positions du groupe');
+  expect(input(editor, 'level').value).toBe('0.9');
+  expect(input(editor, 'level').disabled).toBe(false);
+  const before = editor.document;
+  draft(field, '45'); enter(field);
+  expect(editor.document).toBe(before);
+  expect(editor.canUndo).toBe(false);
+  draft(input(editor, 'level'), '0.4'); enter(input(editor, 'level'));
+  expect(editor.canUndo).toBe(true);
+  expect(editor.undo()).toBe(true);
+  expect(editor.document).toEqual(before);
+  editor.destroy();
+});
+
+it('shows an unavailable numeric property before its first key without adding a track', () => {
+  const original = data();
+  const content = { ...original, layers: original.layers.map((entry) => ({ ...entry, target: { ref: 'group' } })) };
+  const stage = createObjectStage({ id: 'objects', unscoped: true, objects: [{ id: 'group', label: 'Groupe', object: {}, properties: [
+    'x', { name: 'margin-top', editable: false, reason: 'Les marges sont différentes.', unit: 'px', initialValue: { kind: 'number', value: 10 } }
+  ] }], apply: () => {} });
+  const { editor, service } = setup({ data: content, stage });
+  expect(editor.stage.describe({ ref: 'group' })?.properties?.[1]).toMatchObject({ editable: false });
+  service.focusAt('main', 6);
+  expect(input(editor, 'margin-top').disabled).toBe(true);
+  expect(input(editor, 'margin-top').value).toBe('10');
+  expect(editor.canUndo).toBe(false);
+  expect(editor.document).toEqual(content);
+  editor.destroy();
+});
+
+it('accepts an explicit group value in the real panel when resolved member values are mixed', () => {
+  const root = document.createElement('div');
+  const buttons = Array.from({ length: 2 }, (_, index) => {
+    const button = document.createElement('div');
+    button.className = 'button'; button.id = `button-${index + 1}`;
+    button.style.opacity = '1'; root.append(button); return button;
+  });
+  document.body.append(root);
+  const stage = createHtmlStage({ root, mode: 'frame' });
+  const data: ITimelineDocument = { version: '2.0.0', settings: { fps: 24, totalFrames: 100 }, layers: [
+    { type: 'layer', id: 'group', name: 'Boutons', target: { selector: '.button' }, spans: [], propertyTimelines: {
+      opacity: { initialValue: { kind: 'number', value: 1 }, keys: [{ frame: 1, value: { kind: 'number', value: 0.5 } }] }
+    } },
+    { type: 'layer', id: 'specific', name: 'Bouton spécifique', target: { selector: '#button-2' }, spans: [], propertyTimelines: {
+      opacity: { initialValue: { kind: 'number', value: 1 }, keys: [{ frame: 50, value: { kind: 'number', value: 0.8 } }] }
+    } }
+  ] };
+  const { editor, service } = setup({ data, stage });
+  try {
+    expect(service.focusAt('group', 20)).toBe(true);
+    expect(buttons.map((button) => button.style.opacity)).toEqual(['0.5', '0.8']);
+    const before = editor.document;
+    expect(editor.propertyTimelines.capture('group', 'opacity')).toMatchObject({ status: 'refused' });
+    const field = input(editor, 'opacity');
+    expect(field.disabled).toBe(false);
+    expect(field.value).toBe('');
+    expect(field.placeholder).toBe('Saisissez une valeur');
+    const info = editor.container.querySelector<HTMLElement>('[data-property="opacity"] .jt-properties-panel__capability');
+    expect(info?.title).toMatch(/différ|commune/);
+    draft(field, '0.4');
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(field.value).toBe('');
+    expect(editor.canUndo).toBe(false);
+    expect(editor.document).toBe(before);
+    draft(field, '0.4'); enter(field);
+    expect(buttons.map((button) => button.style.opacity)).toEqual(['0.4', '1']);
+    expect(stage.diagnostics.some((diagnostic) => diagnostic.code === 'before-first-conflict')).toBe(true);
+    expect(editor.undo()).toBe(true);
+    expect(editor.document).toEqual(before);
+    expect(buttons.map((button) => button.style.opacity)).toEqual(['0.5', '0.8']);
+    expect(editor.redo()).toBe(true);
+    expect(buttons.map((button) => button.style.opacity)).toEqual(['0.4', '1']);
+  } finally { editor.destroy(); }
+});
 
 it('edits existing independent numeric tracks without spans and keeps unrelated tracks and history exact', () => {
   const { editor, service } = setup({ data: modernData() });

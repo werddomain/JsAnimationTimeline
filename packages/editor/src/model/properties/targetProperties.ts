@@ -1,6 +1,6 @@
 // packages/editor/src/model/properties/targetProperties.ts
 import { sameTarget } from '@kazo-ca/timeline-runtime';
-import type { ITargetInfo, LayerTarget, PropertyRegistry } from '@kazo-ca/timeline-runtime';
+import type { ITargetInfo, ITargetPropertyInfo, LayerTarget, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 
 /** Runtime metadata queries shared by property commands and property controls. */
 export interface ITargetPropertyQuery {
@@ -18,10 +18,10 @@ export interface IPropertyEditContext extends ITargetPropertyQuery {
  * Missing metadata allows registry properties (HTML and stage-free editors).
  * Query on every use: permissions must follow target and metadata changes.
  */
-export function getTargetPropertyNames(
+export function getTargetProperties(
   target: LayerTarget | undefined,
   context: IPropertyEditContext
-): readonly string[] {
+): ITargetInfo['properties'] {
   let properties: ITargetInfo['properties'];
   if (target !== undefined) {
     properties = context.describe?.(target)?.properties;
@@ -29,7 +29,20 @@ export function getTargetPropertyNames(
       properties = context.listTargets?.().find((info) => sameTarget(info.target, target))?.properties;
     }
   }
+  return properties;
+}
+
+/** Reads one rich capability while keeping absent metadata unrestricted. */
+export function getTargetPropertyInfo(target: LayerTarget | undefined, name: string, context: IPropertyEditContext): ITargetPropertyInfo | undefined {
+  const property = getTargetProperties(target, context)?.find((entry) => (typeof entry === 'string' ? entry : entry.name) === name);
+  return typeof property === 'string' ? { name: property } : property;
+}
+
+/** Numeric legacy edits exclude explicitly disabled capabilities. */
+export function getTargetPropertyNames(target: LayerTarget | undefined, context: IPropertyEditContext): readonly string[] {
+  const properties = getTargetProperties(target, context);
   if (properties === undefined) return context.registry.list().map(({ name }) => name);
-  const names = properties.map((property) => typeof property === 'string' ? property : property.name);
+  const names = properties.filter((property) => typeof property === 'string' || property.editable !== false)
+    .map((property) => typeof property === 'string' ? property : property.name);
   return [...new Set(names.filter((name) => context.registry.has(name)))];
 }

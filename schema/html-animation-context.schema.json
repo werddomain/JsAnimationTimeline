@@ -1,0 +1,142 @@
+{
+  "$comment": "schema/html-animation-context.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Kazo-ca/JsAnimationTimeline/schema/html-animation-context.schema.json",
+  "title": "JsAnimationTimeline HTML animation context v1",
+  "description": "Optional HTML integration data saved beside a generic timeline document. Cross-references, unique gradient/stop/conflict identifiers and safe in-memory JSON values are additionally checked by cloneHtmlAnimationContext(). Conflict ticket validity depends on the current timeline and is checked by prepareHtmlResolution().",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "bindings": {
+      "description": "Layer id to property id to explicit CSS association.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/MapKey" },
+      "additionalProperties": {
+        "type": "object",
+        "propertyNames": { "$ref": "#/$defs/MapKey" },
+        "additionalProperties": { "$ref": "#/$defs/Binding" }
+      }
+    },
+    "gradients": {
+      "description": "Stable captured gradient definitions, by layer id.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/MapKey" },
+      "additionalProperties": { "type": "array", "items": { "$ref": "#/$defs/Gradient" } }
+    },
+    "resolutions": { "type": "array", "items": { "$ref": "#/$defs/Resolution" } }
+  },
+  "$defs": {
+    "MapKey": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "enum": ["__proto__", "constructor", "prototype"] }
+    },
+    "StableId": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "NonEmptyString": { "type": "string", "minLength": 1 },
+    "Unit": {
+      "type": "string",
+      "enum": ["", "px", "%", "em", "rem", "ex", "ch", "lh", "rlh", "cap", "ic", "rex", "rch", "rcap", "ric",
+        "vw", "vh", "vmin", "vmax", "vi", "vb", "svw", "svh", "svmin", "svmax", "svi", "svb",
+        "lvw", "lvh", "lvmin", "lvmax", "lvi", "lvb", "dvw", "dvh", "dvmin", "dvmax", "dvi", "dvb",
+        "cm", "mm", "q", "in", "pt", "pc", "deg", "grad", "rad", "turn", "s", "ms"]
+    },
+    "CssName": {
+      "type": "string",
+      "pattern": "^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)*|--[a-zA-Z_][a-zA-Z0-9_-]*)$",
+      "not": { "enum": ["all", "behavior", "-moz-binding"] }
+    },
+    "Binding": {
+      "oneOf": [
+        { "$ref": "#/$defs/StyleBinding" },
+        { "$ref": "#/$defs/TransformBinding" },
+        { "$ref": "#/$defs/GradientGeometryBinding" },
+        { "$ref": "#/$defs/GradientStopBinding" }
+      ]
+    },
+    "StyleBinding": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "cssName"],
+      "properties": {
+        "kind": { "const": "style" },
+        "cssName": { "$ref": "#/$defs/CssName" },
+        "unit": { "$ref": "#/$defs/Unit" }
+      }
+    },
+    "TransformBinding": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "component"],
+      "properties": {
+        "kind": { "const": "transform" },
+        "component": { "enum": ["x", "y", "rotation", "scaleX", "scaleY", "skewX", "skewY"] }
+      }
+    },
+    "GradientGeometryBinding": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "gradientId", "component"],
+      "properties": {
+        "kind": { "const": "gradient" },
+        "gradientId": { "$ref": "#/$defs/StableId" },
+        "component": { "enum": ["type", "angle", "centerX", "centerY", "radiusX", "radiusY"] }
+      }
+    },
+    "GradientStopBinding": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "gradientId", "component", "stopId"],
+      "properties": {
+        "kind": { "const": "gradient" },
+        "gradientId": { "$ref": "#/$defs/StableId" },
+        "component": { "enum": ["color", "position", "opacity", "present"] },
+        "stopId": { "$ref": "#/$defs/StableId" }
+      }
+    },
+    "OpaqueColor": {
+      "type": "object", "additionalProperties": false, "required": ["kind", "r", "g", "b", "a"],
+      "description": "Normalized opaque sRGB. A gradient stop's independent opacity owns its alpha.",
+      "properties": {
+        "kind": { "const": "color" },
+        "r": { "type": "number", "minimum": 0, "maximum": 1 },
+        "g": { "type": "number", "minimum": 0, "maximum": 1 },
+        "b": { "type": "number", "minimum": 0, "maximum": 1 },
+        "a": { "type": "number", "const": 1 }
+      }
+    },
+    "GradientStop": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "color", "opacity", "position", "present"],
+      "properties": {
+        "id": { "$ref": "#/$defs/StableId" },
+        "color": { "$ref": "#/$defs/OpaqueColor" },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "position": { "description": "Percentage; may extend beyond the nominal 0..100 range.", "type": "number" },
+        "present": { "type": "boolean" }
+      }
+    },
+    "Gradient": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "cssName", "type", "angle", "centerX", "centerY", "radiusX", "radiusY", "stops"],
+      "properties": {
+        "id": { "$ref": "#/$defs/StableId" },
+        "cssName": { "const": "background-image" },
+        "type": { "enum": ["linear", "radial", "conic"] },
+        "angle": { "type": "number" },
+        "centerX": { "type": "number" },
+        "centerY": { "type": "number" },
+        "radiusX": { "type": "number", "minimum": 0 },
+        "radiusY": { "type": "number", "minimum": 0 },
+        "stops": {
+          "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/GradientStop" },
+          "contains": { "type": "object", "required": ["present"], "properties": { "present": { "const": true } } },
+          "minContains": 2
+        }
+      }
+    },
+    "Resolution": {
+      "type": "object", "additionalProperties": false,
+      "required": ["conflictId", "signature", "winnerLayerId"],
+      "properties": {
+        "conflictId": { "$ref": "#/$defs/NonEmptyString" },
+        "signature": { "$ref": "#/$defs/NonEmptyString" },
+        "winnerLayerId": { "$ref": "#/$defs/NonEmptyString" },
+        "beforeFirst": { "type": "string", "enum": ["initial", "first-key", "underlying"] }
+      }
+    }
+  }
+}

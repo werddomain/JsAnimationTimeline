@@ -7,6 +7,7 @@
  */
 
 import type { ITimelineDocument } from '../model/document';
+import type { IPropertyTimeline, TimelinePropertyValue } from '../model/propertyTimeline';
 import type { ILayer } from '../model/layer';
 import type { LayerTarget } from '../model/target';
 import type { PropertyRegistry } from '../properties/PropertyRegistry';
@@ -35,11 +36,31 @@ export interface IStageLayerState<T = unknown> {
   readonly editorVisible: boolean;
 }
 
-/** Display of one property for one object (label and unit per object). */
+/** A host capability diagnostic; warnings do not refuse a valid edit. */
+export interface ITargetPropertyDiagnostic {
+  readonly severity: 'error' | 'warning';
+  readonly message: string;
+  readonly property?: string;
+  readonly fromFrame?: number;
+  readonly toFrame?: number;
+}
+
+/** Display and current capabilities of one property for one object. */
 export interface ITargetPropertyInfo {
   readonly name: string;
   readonly label?: string;
   readonly unit?: string;
+  /** Omitted capabilities preserve the generic editing behavior. */
+  readonly editable?: boolean;
+  readonly interpolable?: boolean;
+  /** UI-ready explanation when editing or interpolation is unavailable. */
+  readonly reason?: string;
+  /** Original host value, outside animation preview. */
+  readonly initialValue?: TimelinePropertyValue;
+  /** Read-only host evaluation after its target-resolution rules. */
+  readonly sample?: (layerId: string, frame: number) => TimelinePropertyValue;
+  /** Read-only validation of the proposed timeline; undefined explicitly removes the property track. */
+  readonly validate?: (layerId: string, timeline: IPropertyTimeline | undefined) => readonly ITargetPropertyDiagnostic[];
 }
 
 /** A target offered by a stage (target picker of the editor). */

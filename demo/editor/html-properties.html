@@ -1,0 +1,33 @@
+<!-- demo/editor/html-properties.html -->
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Groupes HTML et propriétés · Timeline</title></head>
+<body class="JsTimeLine html-properties-page"><main>
+  <header><nav><a href="index.html">← Démonstrations</a> · <a href="property-editor.html">Clés et accélérations</a></nav>
+    <p class="eyebrow">JsAnimationTimeline · Intégration HTML</p>
+    <h1>Une propriété. Toutes ses cibles.</h1>
+    <p>Explorez les groupes, les priorités par sélecteur et les dégradés. Les commandes utilisent l’éditeur et sa scène HTML réels.</p>
+  </header>
+  <section id="html-scene" class="scene-grid" aria-label="Scène HTML animée">
+    <article class="scene-card"><h2>Un groupe, une exception</h2><p><code>.button</code> : 50 % · <code>#button-2</code> : 80 %, dès le début.</p>
+      <div class="button-group"><button class="button" id="button-1" type="button">Bouton 1</button><button class="button" id="button-2" type="button">Bouton 2</button><button class="button" id="button-3" type="button">Bouton 3</button><button class="button" id="button-4" type="button">Bouton 4</button></div>
+      <p class="source-note">La classe source fixe l’opacité à 100 % avec <code>!important</code>. Le deuxième bouton possède aussi une marge supérieure différente.</p></article>
+    <article class="scene-card"><h2>Une décision explicite</h2><p>Deux classes de même priorité proposent 30 % et 70 %.</p>
+      <div id="conflict-target" class="conflict-a conflict-b">Deux règles concurrentes</div>
+      <p id="conflict-summary" class="source-note"></p></article>
+    <article class="scene-card"><h2>Un dégradé, des pistes indépendantes</h2><div id="gradient-box" aria-label="Dégradé animé"></div><p class="source-note">Angle, couleur, position, opacité et présence des points conservent leur propre identité.</p></article>
+    <article class="scene-card"><h2>Préserver la transformation d’origine</h2><div class="transform-area"><div id="transform-box">30°</div></div><p class="source-note">Modifier X préserve la rotation de 30° et la position Y de 15 px. L’ordre de superposition passe de 1 à 2 à l’image 100, sans interpolation.</p></article>
+  </section>
+  <section class="tools-grid" aria-label="Outils de démonstration">
+    <form id="seek-form"><h2>Image affichée</h2><label for="frame-input">Image</label><input data-demo-action id="frame-input" type="number" min="1" max="100" value="1"><button data-demo-action type="submit">Afficher l’image</button><output id="frame-output">Image 1 / 100</output></form>
+    <section><h2>Inspecter les valeurs d’origine</h2><button data-demo-action type="button" id="inspect-bases">Inspecter le groupe</button><p id="base-inspection"></p><button type="button" id="animate-margin" disabled>Animer la marge commune</button> <span id="margin-info" role="img" aria-label="Propriété non animable" tabindex="0">ⓘ</span><p id="margin-reason" class="source-note"></p></section>
+    <section><h2>Modifier le dégradé à cette image</h2><div class="actions"><button data-demo-action type="button" id="show-middle">Afficher le point central</button><button data-demo-action type="button" id="hide-middle">Masquer le point central</button><button data-demo-action type="button" id="hide-left">Retirer le point gauche</button><button data-demo-action type="button" id="quarter-opacity">Point central à 25 %</button><button data-demo-action type="button" id="gradient-purple">Point gauche violet</button></div></section>
+    <form id="transform-form"><h2>Position du carré</h2><label for="x-input">Position X en pixels</label><input data-demo-action id="x-input" type="number" value="40"><button data-demo-action type="submit">Appliquer la position X</button></form>
+  </section>
+  <section class="conflict-actions" aria-label="Décisions de priorité"><button data-demo-action type="button" id="resolve-conflict">Résoudre le conflit de priorité</button><button data-demo-action type="button" id="undo-decision" disabled>Annuler la décision de priorité</button><button data-demo-action type="button" id="redo-decision" disabled>Rétablir la décision de priorité</button><p>Ces décisions appartiennent au projet HTML. Les clés et les interpolations utilisent l’annulation de la Timeline.</p></section>
+  <section aria-label="Timeline"><div id="editor-host"></div></section>
+  <div class="project-actions"><button data-demo-action type="button" id="save-project">Mémoriser le projet</button><button data-demo-action type="button" id="reload-project">Recharger le projet</button><button data-demo-action type="button" id="stop-preview">Terminer l’aperçu et restaurer les styles</button></div>
+  <p id="status" role="status">Prêt. Les valeurs du groupe et les priorités sont appliquées.</p>
+  <details><summary>Données du projet : Timeline et contexte HTML</summary><pre id="project-json"></pre></details>
+  <dialog id="conflict-dialog" aria-labelledby="conflict-title"><h2 id="conflict-title">Choisir la règle prioritaire</h2><p id="conflict-detail"></p><label for="conflict-choice">Règle à conserver</label><select id="conflict-choice"></select><p>La décision est enregistrée sans ajouter de clé. Elle ne dépendra plus de la sélection dans l’éditeur.</p><div class="actions"><button type="button" id="confirm-conflict">Appliquer cette priorité</button><button type="button" id="cancel-conflict">Annuler le choix</button></div></dialog>
+</main><script type="module" src="./src/htmlProperties.ts"></script></body></html>

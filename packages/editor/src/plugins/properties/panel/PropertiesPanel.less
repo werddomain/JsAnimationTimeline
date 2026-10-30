@@ -26,6 +26,9 @@
     &__context { font-weight: 600; overflow-wrap: anywhere; }
     &__status { color: var(--jt-panel-muted); }
     &__hint { color: var(--jt-panel-muted); font-size: 12px; }
+    &__capability { justify-self: start; cursor: help; color: var(--jt-panel-muted); }
+    &__capability[hidden] { display: none; }
+    &__capability:focus-visible { outline: 2px solid var(--jt-panel-accent); outline-offset: 2px; }
     form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 5px 8px; margin: 0; padding: 10px 0; border-top: 1px solid #d5dfeb; }
     label { display: grid; gap: 5px; min-width: 0; font-weight: 600; }
     input { box-sizing: border-box; width: 100%; min-width: 0; padding: 6px; color: inherit; background: #fff; border: 1px solid #8c9db3; border-radius: 3px; font: inherit; font-variant-numeric: tabular-nums; }

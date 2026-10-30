@@ -45,7 +45,8 @@ export class HtmlElements {
     private readonly root: ParentNode,
     private readonly stageId: string,
     exclude: Element | readonly Element[] | undefined,
-    refs: HtmlStageRefs | undefined
+    refs: HtmlStageRefs | undefined,
+    private readonly excludeElement?: (element: Element) => boolean
   ) {
     this.excluded = toList(exclude);
     this.refs = toMap(refs);
@@ -53,7 +54,7 @@ export class HtmlElements {
 
   /** True when `element` is in an excluded subtree. */
   isExcluded(element: Element): boolean {
-    return this.excluded.some((excluded) => excluded === element || excluded.contains(element));
+    return this.excluded.some((excluded) => excluded === element || excluded.contains(element)) || this.excludeElement?.(element) === true;
   }
 
   /** Binds `ref` to `element`, or unbinds it with `null`. */
@@ -67,8 +68,16 @@ export class HtmlElements {
 
   /** Element of `target`, `null` when missing, excluded or for an invalid selector (never throws). */
   resolve(target: LayerTarget): Element | null {
+    return this.resolveElements(target)[0] ?? null;
+  }
+
+  /** All selector matches; direct elements and refs retain their single-object meaning. */
+  resolveElements(target: LayerTarget): readonly Element[] {
+    if (isSelectorTarget(target)) {
+      try { return this.queryAll(target.selector); } catch { return []; }
+    }
     const element = this.find(target);
-    return element !== null && !this.isExcluded(element) ? element : null;
+    return element !== null && !this.isExcluded(element) ? [element] : [];
   }
 
   /** Targets offered by the stage: bound refs, `[data-timeline-target]` and elements with a simple id. */

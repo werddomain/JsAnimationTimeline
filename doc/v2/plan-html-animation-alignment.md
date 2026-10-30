@@ -13,8 +13,8 @@ implémentation. Les choix produit ne sont pas remis en discussion.
 | --- | --- | --- | --- |
 | A — Socle et API | HA1 / `v2/HA1-property-tracks` | Pistes indépendantes, valeurs typées, évaluation, accélérations paramétrées, schéma et .NET. | PR #122 fusionnée dans v2/base (`1b0232b`). |
 | A — Socle et API | HA2 / `v2/HA2-property-editing-api` | Commandes par propriété, découpe exacte, transactions publiques et démo moteur/API. | PR #123 fusionnée dans v2/base (`afcdb6b`). Phase A validée par l’utilisateur le 30 octobre 2026 (« 1. a »). |
-| B — Éditeur et HTML | HA3 / `v2/HA3-property-rows-selection` | Lignes, sélection, dépliage, commandes visuelles et choix d'accélération avec courbe. | Implémentation, vérification complète et revues ECC terminées ; intégration dans v2/base. |
-| B — Éditeur et HTML | HA4 / `v2/HA4-html-target-resolution` | Groupes, bases DOM, valeurs CSS riches, spécificité, cas 59 et conflits. | À faire après HA3. |
+| B — Éditeur et HTML | HA3 / `v2/HA3-property-rows-selection` | Lignes, sélection, dépliage, commandes visuelles et choix d'accélération avec courbe. | PR #124 fusionnée dans v2/base (`2f5295d`). |
+| B — Éditeur et HTML | HA4 / `v2/HA4-html-target-resolution` | Groupes, bases DOM, valeurs CSS riches, spécificité, cas 59 et conflits. | Implémenté et vérifié ; preuves dans `todo/ha4-validation.md`. Phase B en attente de validation utilisateur. |
 | C — Sorties et raccordement | HA5 / `v2/HA5-playback-exports` | JSON préévalué, lecteur, export JS autonome HTML. | À faire après validation B. |
 | C — Sorties et raccordement | HA6 / `v2/HA6-css-export-conformance` | CSS fidèle/refus explicite, parité, démo et passation API réelle. | À faire après HA5. |
 
@@ -92,7 +92,7 @@ prétendre que le contrat complet est livré après une seule tâche.
 
 Les fonctions d'accélération demandées le 30 octobre complètent le contrat :
 sélection par transition, paramètres, aperçu de courbe, annulation et fidélité des
-exports. Le dialogue actuel n'offre que cinq presets CSS ; il sera enrichi en HA3.
+exports. Le dialogue HA3 offre ces familles et paramètres, la courbe exacte et le Bézier.
 
 La référence officielle des familles et modes est
 [Microsoft — Easing functions](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/graphics-multimedia/easing-functions).

@@ -13,7 +13,8 @@ export type {
   IStageSyncState,
   IStageTargets,
   ITargetInfo,
-  ITargetPropertyInfo
+  ITargetPropertyInfo,
+  ITargetPropertyDiagnostic
 } from './types';
 export { isStageDocumentError, StageDocumentError, StageReportCodes } from './reports';
 export type { IStageReport, IStageReportInput, StageReportCode } from './reports';
