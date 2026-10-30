@@ -68,6 +68,38 @@ function mergeReleased(first, second) {
   return second.reduce((all, entry) => (all.some((known) => sameRelease(known, entry)) ? all : [...all, entry]), first);
 }
 
+/** Current animation values win over a one-shot restoration of removed properties. */
+function mergeRestoredState(restored, current) {
+  const propertyValues = restored.propertyValues === undefined && current.propertyValues === undefined ? undefined : {
+    ...restored.propertyValues,
+    ...Object.fromEntries(Object.entries(current.values).map(([name, value]) => [name, { kind: 'number', value }])),
+    ...current.propertyValues,
+  };
+  const values = Object.fromEntries(Object.entries({ ...restored.values, ...current.values })
+    .filter(([name]) => propertyValues?.[name] === undefined || propertyValues[name].kind === 'number'));
+  return {
+    ...current,
+    values,
+    ...(propertyValues === undefined ? {} : { propertyValues }),
+  };
+}
+
+/** Accumulate property restores for the same layer and target, with newer values winning. */
+function mergeRestorations(first, second) {
+  return second.reduce((all, state) => {
+    const previous = all.find((entry) => sameRelease(entry, state));
+    return [...all.filter((entry) => !sameRelease(entry, state)), previous === undefined ? state : mergeRestoredState(previous, state)];
+  }, first);
+}
+
+/** Restore only properties belonging to a target that is still rendered. */
+function withRestorations(states, restorations) {
+  return states.map((state) => {
+    const restored = restorations.find((entry) => sameRelease(entry, state));
+    return restored === undefined ? state : mergeRestoredState(restored, state);
+  });
+}
+
 /**
  * The compact frame sent to .NET: time, layers released since the last frame (each with the target it
  * had, to be applied before `layers`), and the state of each layer.
@@ -82,6 +114,9 @@ function toFrame(time, states, released) {
       layerId: state.layerId,
       target: state.target,
       values: finiteValues(state.values),
+      ...(state.propertyValues === undefined ? {} : {
+        propertyValues: Object.fromEntries(Object.entries(state.propertyValues).map(([name, value]) => [name, { ...value }])),
+      }),
       active: state.active,
       visible: state.editorVisible,
     })),
@@ -117,11 +152,20 @@ export function createDotNetStage(description, receiver) {
   const boundTargets = new Map();
   let inFlight = false;
   let pending = null;
+  // Restorations made by update, and those carried by the replaceable pending frame.
+  let restorations = [];
+  let pendingRestorations = [];
+  let updating = false;
   let lastIntegerFrame = null;
   // Layers removed (or retargeted), with their old target, not yet told to .NET.
   let released = [];
   // Set by a new document or a time jump: the next frame is sent even at the same integer frame.
   let changed = true;
+
+  const stillBound = (states) => states.filter((state) => {
+    const target = boundTargets.get(state.layerId);
+    return target !== undefined && sameRelease(state, { layerId: state.layerId, target });
+  });
 
   const report = (error) => {
     if (!stopped && !closing) context?.error(error instanceof Error ? error : new Error(String(error)));
@@ -130,7 +174,9 @@ export function createDotNetStage(description, receiver) {
   const send = () => {
     if (inFlight || pending === null || stopped) return;
     const frame = pending;
+    const frameRestorations = pendingRestorations;
     pending = null;
+    pendingRestorations = [];
     inFlight = true;
     let call;
     try {
@@ -143,10 +189,18 @@ export function createDotNetStage(description, receiver) {
       .catch((error) => {
         // .NET did not get these releases: send them with the frame waiting, else with the next one.
         if (!stopped && !closing) {
+          // A release may have been followed by a new binding with the same layer and ref.
+          const releasedSince = mergeReleased(released, pending === null ? [] : pending.released);
+          const retry = stillBound(frameRestorations).filter((state) => !releasedSince.some((entry) => sameRelease(entry, state)));
           if (pending !== null) {
-            pending = { ...pending, released: mergeReleased(frame.released, pending.released) };
+            pendingRestorations = mergeRestorations(retry, pendingRestorations);
+            pending = { ...pending,
+              layers: withRestorations(pending.layers, pendingRestorations),
+              released: mergeReleased(frame.released, pending.released),
+            };
           } else {
             released = mergeReleased(frame.released, released);
+            restorations = mergeRestorations(retry, restorations);
           }
           changed = true;
         } else if (!stopped && closing && frame !== lastFrame && frame.released.length > 0) {
@@ -172,9 +226,11 @@ export function createDotNetStage(description, receiver) {
     if (description.mode === 'integerFrames' && !changed && time.integerFrame === lastIntegerFrame) return;
     changed = false;
     lastIntegerFrame = time.integerFrame;
-    // A frame still waiting is replaced, but its releases carry over.
+    // A frame still waiting is replaced, but its releases and property restorations carry over.
     const carried = pending === null ? [] : pending.released;
-    pending = toFrame(time, states, mergeReleased(carried, released));
+    pendingRestorations = stillBound(mergeRestorations(pendingRestorations, restorations));
+    pending = toFrame(time, withRestorations(states, pendingRestorations), mergeReleased(carried, released));
+    restorations = [];
     released = [];
     send();
   };
@@ -185,6 +241,8 @@ export function createDotNetStage(description, receiver) {
   const halt = () => {
     stopped = true;
     pending = null;
+    restorations = [];
+    pendingRestorations = [];
     released = [];
   };
 
@@ -204,8 +262,10 @@ export function createDotNetStage(description, receiver) {
     id: description.id,
     properties: description.properties.map(toDescriptor),
     objects: description.targets.map(toEntry),
-    // The values travel in endFrame, for every layer at once.
-    apply: () => undefined,
+    // Render values travel in endFrame; update-time restores must survive until that frame.
+    apply: (_object, _values, state) => {
+      if (updating && sends && !stopped && !closing) restorations = mergeRestorations(restorations, [state]);
+    },
     endFrame,
   });
 
@@ -219,7 +279,14 @@ export function createDotNetStage(description, receiver) {
       changed = true;
       boundTargets.clear();
       layers.forEach((layer) => boundTargets.set(layer.layerId, layer.target));
-      objectStage.update?.(doc, layers);
+      restorations = stillBound(restorations);
+      pendingRestorations = stillBound(pendingRestorations);
+      updating = true;
+      try {
+        objectStage.update?.(doc, layers);
+      } finally {
+        updating = false;
+      }
     },
     sync() {
       changed = true;
@@ -228,12 +295,17 @@ export function createDotNetStage(description, receiver) {
       changed = true;
       const target = boundTargets.get(layerId) ?? { ref: object, stage: description.id };
       boundTargets.delete(layerId);
+      restorations = restorations.filter((state) => state.layerId !== layerId);
+      pendingRestorations = pendingRestorations.filter((state) => state.layerId !== layerId);
+      if (pending !== null) pending = { ...pending, layers: pending.layers.filter((state) => !sameRelease(state, { layerId, target })) };
       if (sends && !stopped && !closing) {
         released = mergeReleased(released, [{ layerId, target }]);
       }
       objectStage.release?.(layerId, object);
     },
     detach() {
+      restorations = [];
+      pendingRestorations = [];
       if (!stopped && !closing && sends) {
         const last = mergeReleased(pending === null ? [] : pending.released, released);
         if (last.length > 0) {

@@ -35,6 +35,16 @@ import type { PropertyRegistry } from '../../properties/PropertyRegistry';
 import { isCssProperty } from '../../properties/types';
 import type { PropertyDescriptor } from '../../properties/types';
 import { lerp } from '../../properties/values';
+import { StageDocumentError } from '../reports';
+
+/** Prevent legacy HTML adapters from silently changing independent track semantics. */
+export function assertHtmlLayerSupported(layer: ILayer): void {
+  if (Object.keys(layer.propertyTimelines ?? {}).length > 0) {
+    throw new StageDocumentError(
+      `Calque « ${layer.id} » : l'adaptateur HTML des pistes de propriétés est indisponible dans cette phase. Le document est refusé pour préserver son animation.`
+    );
+  }
+}
 
 /** Offset of the start of `frame` in the animation, in [0, 1). */
 export function frameToOffset(frame: number, totalFrames: number): number {
@@ -190,6 +200,7 @@ export function buildLayerKeyframes(
   settings: ITimelineSettings,
   registry: PropertyRegistry
 ): Keyframe[] | null {
+  assertHtmlLayerSupported(layer);
   const withVisibility = needsVisibility(layer, settings.totalFrames);
   const cssNames = collectCssProperties(layer, registry);
   if (!withVisibility && cssNames.size === 0) {

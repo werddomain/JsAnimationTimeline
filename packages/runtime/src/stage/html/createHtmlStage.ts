@@ -24,7 +24,7 @@ import type { IStage, IStageContext, IStageLayer, IStageLayerState, IStageTarget
 import { HtmlElements } from './elements';
 import type { HtmlStageRefs } from './elements';
 import { InlineStyleKeeper, writeFrameStyles } from './inlineStyles';
-import { needsVisibility } from './keyframes';
+import { assertHtmlLayerSupported, needsVisibility } from './keyframes';
 import { WaapiAnimations } from './waapi';
 
 /** Id of the HTML stage. */
@@ -119,6 +119,7 @@ function createWaapiStage(core: IHtmlStageCore, base: Omit<IHtmlStage, 'mode'>):
     ...base,
     mode: 'waapi',
     update(doc: ITimelineDocument, layers: readonly IStageLayer<Element>[]): void {
+      layers.forEach(({ layer }) => assertHtmlLayerSupported(layer));
       animations.rebuild(doc, layers, registryOf(core));
       reportDuplicates(core, layers);
     },
@@ -141,6 +142,7 @@ function createFrameStage(core: IHtmlStageCore, base: Omit<IHtmlStage, 'mode'>):
     ...base,
     mode: 'frame',
     update(doc: ITimelineDocument, layers: readonly IStageLayer<Element>[]): void {
+      layers.forEach(({ layer }) => assertHtmlLayerSupported(layer));
       // Styles of the previous document go away (tracks or visibility no longer animated); render rewrites the rest.
       keeper.restoreOriginals();
       hiddenByEditor.clear();
@@ -163,6 +165,9 @@ function createFrameStage(core: IHtmlStageCore, base: Omit<IHtmlStage, 'mode'>):
     render(_time, states: readonly IStageLayerState<Element>[]): void {
       const registry = registryOf(core);
       for (const state of states) {
+        // A late target resolution can report a refused update without rolling back the host.
+        // Only layers accepted by the last successful update may write to held elements.
+        if (held.get(state.layerId) !== state.object) continue;
         writeFrameStyles(keeper, state.object, state.values, registry, {
           managed: managed.get(state.layerId) === true,
           active: state.active,

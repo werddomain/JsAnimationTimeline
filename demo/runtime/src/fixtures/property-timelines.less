@@ -1,0 +1,62 @@
+// demo/runtime/src/fixtures/property-timelines.less
+.JsTimeLine.property-timelines-page {
+  margin: 0;
+  background: #f3f0e8;
+  color: #20383d;
+  font: 16px/1.5 "Segoe UI", sans-serif;
+}
+.JsTimeLine .property-timelines-fixture {
+  --ink: #20383d;
+  --teal: #11695f;
+  --rust: #a33d23;
+  --line: #aebbb5;
+  box-sizing: border-box;
+  max-width: 1080px;
+  margin: auto;
+  padding: 28px clamp(12px, 4vw, 40px) 48px;
+  * { box-sizing: border-box; }
+  h1 { margin: 0 0 12px; font: 600 clamp(2rem, 5vw, 3rem)/1.1 Georgia, serif; }
+  h2 { font-size: 1.2rem; margin: 0 0 16px; }
+  .eyebrow { color: var(--rust); text-transform: uppercase; letter-spacing: .12em; font-size: .75rem; font-weight: 700; }
+  .notice { border-left: 4px solid var(--rust); padding: 10px 16px; background: #eae4d8; }
+  section { margin-top: 30px; }
+  .playground { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 1.4fr); gap: 32px; align-items: start; }
+  label { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; font-size: .9rem; font-weight: 600; }
+  select, input, button { font: inherit; color: var(--ink); min-height: 42px; padding: 8px 10px; border: 1px solid #71867d; border-radius: 3px; background: #fffdf8; max-width: 100%; }
+  select { width: 100%; line-height: normal; }
+  button { cursor: pointer; font-weight: 600; }
+  button:hover { background: #e0eee7; }
+  :focus-visible { outline: 3px solid var(--rust); outline-offset: 3px; }
+  fieldset { padding: 12px; min-width: 0; border: 1px solid var(--line); }
+  fieldset[hidden], #mode-label[hidden] { display: none; }
+  legend { font-size: .9rem; }
+  #parameter-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  #parameter-fields label { margin: 0; }
+  #parameter-fields input { width: 100%; }
+  #effect-status { font-size: .9rem; min-height: 1.5em; color: var(--rust); }
+  .curve-panel { margin: 0; border: 1px solid var(--line); padding: 10px; background: #fffdf8; box-shadow: 6px 6px 0 #dfdfd3; }
+  .curve-panel svg { width: 100%; display: block; }
+  .curve-panel text { font: 13px "Segoe UI", sans-serif; fill: var(--ink); }
+  .curve-panel figcaption { text-align: center; font-size: .85rem; }
+  .graph-axis { fill: none; stroke: #7a8a82; stroke-width: 1; }
+  .graph-guide { fill: none; stroke: #b2bcb5; stroke-dasharray: 4 4; }
+  .graph-curve { fill: none; stroke: var(--teal); stroke-width: 3; }
+  #curve-cursor { fill: var(--rust); stroke: #fffdf8; stroke-width: 2; }
+  .transport { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+  .transport label { margin: 0; }
+  #frame-number { width: 110px; }
+  .scrubber-label { flex: 1 1 200px; }
+  #frame-range { padding: 0; accent-color: var(--teal); }
+  #object-preview { display: block; width: 100%; height: auto; margin-top: 14px; background: #e0e6dc; border: 1px solid var(--line); }
+  .values { display: flex; flex-wrap: wrap; gap: 16px 30px; margin: 16px 0; }
+  .values dt { font-size: .8rem; color: #425c61; }
+  .values dd { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+  #sample-color { display: inline-block; width: 24px; height: 24px; border: 1px solid var(--ink); }
+  #sample-color-text { font-size: .8rem; }
+  ul { padding-left: 22px; }
+  li { margin: 8px 0; }
+  details { border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; }
+  pre { overflow: auto; font-size: .8rem; max-height: 260px; padding: 12px; background: #fffdf8; }
+  @media (max-width: 660px) { .playground { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+}

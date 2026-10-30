@@ -11,6 +11,7 @@ import type { ILayer } from '../model/layer';
 import type { LayerTarget } from '../model/target';
 import type { PropertyRegistry } from '../properties/PropertyRegistry';
 import type { PropertyDescriptor, PropertyValues } from '../properties/types';
+import type { TimelinePropertyValues } from '../properties/timelineValues';
 import type { ITransportSyncState, ITransportTime } from '../transport/types';
 import type { IStageReportInput } from './reports';
 
@@ -24,6 +25,8 @@ export interface IStageLayerState<T = unknown> {
   readonly object: T;
   /** Value of every property animated anywhere in the layer (unknown tracks skipped). */
   readonly values: PropertyValues;
+  /** Typed values when the layer contains independent property timelines. */
+  readonly propertyValues?: TimelinePropertyValues;
   /** Span holding the time, `undefined` outside every span. */
   readonly spanId?: string;
   /** `false` in a blank span and outside every span. */

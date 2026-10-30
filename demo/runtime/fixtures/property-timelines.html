@@ -1,0 +1,55 @@
+<!-- demo/runtime/fixtures/property-timelines.html -->
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Courbes et pistes indépendantes · HA1</title>
+  <link rel="icon" href="data:,">
+</head>
+<body class="JsTimeLine property-timelines-page">
+<main class="property-timelines-fixture">
+  <header><p class="eyebrow">Laboratoire du moteur · HA1</p><h1>Courbes et pistes indépendantes</h1>
+    <p>Explorez l’accélération d’une propriété sans modifier les autres pistes.</p></header>
+  <p class="notice">Cette démo configure un document d’exemple. Elle utilise le lecteur et une scène d’objets du moteur ; les commandes d’édition arrivent dans l’étape suivante.</p>
+  <section class="playground" aria-labelledby="effect-title">
+    <form id="effect-controls">
+      <h2 id="effect-title">Effet du déplacement</h2>
+      <label>Courbe ou effet <select id="effect-family"></select></label>
+      <label id="mode-label">Accélération <select id="effect-mode"><option value="in">Entrée</option><option value="out">Sortie</option><option value="in-out">Entrée et sortie</option></select></label>
+      <fieldset id="effect-parameters"><legend>Paramètres de l’effet</legend><div id="parameter-fields"></div></fieldset>
+      <p id="effect-status" role="status" aria-label="Validation de l’effet" aria-live="polite"></p>
+    </form>
+    <figure class="curve-panel">
+      <svg id="curve-graph" viewBox="0 0 440 280" role="img" aria-labelledby="curve-title" aria-describedby="curve-description">
+        <title id="curve-title">Courbe d’accélération du déplacement</title>
+        <desc id="curve-description">Progression de la valeur en fonction du temps. Les dépassements sont conservés.</desc>
+        <path class="graph-axis" d="M 40 20 V 240 H 420"/>
+        <path id="curve-zero" class="graph-guide"/><path id="curve-one" class="graph-guide"/>
+        <path id="curve-line" class="graph-curve"/><circle id="curve-cursor" r="5"/>
+        <text x="215" y="272" text-anchor="middle">Temps →</text>
+      </svg>
+      <figcaption>Valeur min. <output id="curve-min"></output> · max. <output id="curve-max"></output></figcaption>
+    </figure>
+  </section>
+  <section aria-labelledby="preview-title">
+    <h2 id="preview-title">Objet générique animé sur canvas</h2>
+    <div class="transport">
+      <button type="button" id="play-pause">Lire</button><button type="button" id="rewind">Revenir au début</button>
+      <label>Image <input id="frame-number" type="number" min="1" max="101" step="0.25" value="61"></label>
+      <label class="scrubber-label">Position de lecture <input id="frame-range" type="range" min="1" max="101" step="0.25" value="61"></label>
+    </div>
+    <canvas id="object-preview" width="800" height="150" role="img" aria-label="Objet animé : sa position, son opacité, sa couleur et son texte suivent des pistes indépendantes."></canvas>
+    <dl class="values"><div><dt>Position X</dt><dd><output id="sample-x"></output></dd></div><div><dt>Opacité</dt><dd><output id="sample-opacity"></output></dd></div><div><dt>Texte</dt><dd><output id="sample-caption"></output></dd></div><div><dt>Couleur</dt><dd><span id="sample-color" role="img" aria-label="Couleur évaluée"></span><output id="sample-color-text"></output></dd></div></dl>
+  </section>
+  <section aria-labelledby="tracks-title"><h2 id="tracks-title">Quatre pistes, quatre comportements</h2>
+    <ul><li><strong>Position :</strong> −20 avant l’image 21, puis MotionTween de 0 à 100 entre 21 et 101.</li>
+      <li><strong>Opacité :</strong> 25 % dès l’image 1, puis 75 % à l’image 51, sans interpolation.</li>
+      <li><strong>Texte :</strong> « Départ », puis « Arrivée » à l’image 51.</li>
+      <li><strong>Couleur :</strong> bleu vers rouge de 21 à 101, avec une interpolation linéaire indépendante.</li></ul>
+    <details><summary>Voir les données évaluées</summary><pre id="sample-json"></pre></details>
+  </section>
+</main>
+<script type="module" src="../src/fixtures/property-timelines.ts"></script>
+</body>
+</html>

@@ -14,6 +14,7 @@ import { isValidPropertyName } from './names';
 import { escapePointerToken, ValidationCodes } from './issues';
 import type { IValidationIssue, ValidationCode } from './issues';
 import { TARGET_KEYS } from './target';
+import { checkPropertyTimelinesShape } from './propertyTimelineShape';
 
 /** Options of the shape check. */
 export interface IShapeOptions {
@@ -37,7 +38,7 @@ const SPAN_KINDS: readonly string[] = ['static', 'blank', 'tween'];
 const MAX_FPS = 240;
 
 const NODE_FIELDS: readonly string[] = ['id', 'type', 'name', 'color', 'visible', 'locked'];
-const LAYER_FIELDS: readonly string[] = [...NODE_FIELDS, 'icon', 'target', 'spans'];
+const LAYER_FIELDS: readonly string[] = [...NODE_FIELDS, 'icon', 'target', 'spans', 'propertyTimelines'];
 const FOLDER_FIELDS: readonly string[] = [...NODE_FIELDS, 'collapsed', 'children'];
 
 function report(ctx: IShapeContext, path: string, code: ValidationCode, message: string): void {
@@ -243,6 +244,9 @@ function checkNode(ctx: IShapeContext, value: unknown, path: string): void {
       checkTarget(ctx, node['target'], `${path}/target`);
     }
     checkArray(ctx, node, 'spans', path, (span, spanPath) => checkSpan(ctx, span, spanPath));
+    if (has(node, 'propertyTimelines')) {
+      ctx.issues.push(...checkPropertyTimelinesShape(node['propertyTimelines'], `${path}/propertyTimelines`));
+    }
   } else if (type === 'folder') {
     checkFields(ctx, node, path, ['id', 'type', 'name', 'children'], FOLDER_FIELDS);
     checkNodeBase(ctx, node, path);

@@ -25,7 +25,7 @@ import {
   toTransportTime,
   walkLayers
 } from '@kazo-ca/timeline-runtime';
-import type { ILayer, ITimelineDocument, ITransportTime, PropertyRegistry } from '@kazo-ca/timeline-runtime';
+import type { ILayer, ITimelineDocument, ITransportTime, PropertyRegistry, TimelinePropertyValues } from '@kazo-ca/timeline-runtime';
 import type { IFrameSample, ILayerSample } from './types';
 
 /** Calque du document et son œil résolu (dossiers parents compris). */
@@ -76,6 +76,12 @@ function createSample(time: ITransportTime, evaluate: () => ILayerSample[]): IFr
   });
 }
 
+/** Freeze an independent snapshot without freezing values owned by the source document. */
+function freezePropertyValues(values: TimelinePropertyValues): TimelinePropertyValues {
+  return Object.freeze(Object.fromEntries(Object.entries(values).map(([name, value]) =>
+    [name, Object.freeze({ ...value })] as const)));
+}
+
 /** Évalue les documents de l'éditeur avec un registre donné. */
 export class FrameSampler {
   private readonly entries = new WeakMap<ITimelineDocument, readonly ILayerEntry[]>();
@@ -105,6 +111,7 @@ export class FrameSampler {
         layerId: layer.id,
         target: layer.target,
         values: Object.freeze({ ...state.values }),
+        ...(state.propertyValues === undefined ? {} : { propertyValues: freezePropertyValues(state.propertyValues) }),
         spanId: state.spanId,
         active: state.visible,
         editorVisible

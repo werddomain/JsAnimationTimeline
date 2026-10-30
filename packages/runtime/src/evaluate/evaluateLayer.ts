@@ -14,6 +14,9 @@ import type { ISpan } from '../model/span';
 import { defaultPropertyRegistry } from '../properties/PropertyRegistry';
 import type { PropertyRegistry } from '../properties/PropertyRegistry';
 import type { PropertyValues } from '../properties/types';
+import { numericTimelineValues, typedNumericValues } from '../properties/timelineValues';
+import type { TimelinePropertyValues } from '../properties/timelineValues';
+import { evaluatePropertyTimelines } from './propertyTimeline';
 import { createEasingFunction } from './easingFunction';
 import { valueAtFrame, withImplicitStart } from './track';
 import { applyUnknownPropertyPolicy, assertUnknownPropertyPolicy } from './unknownProperties';
@@ -32,6 +35,8 @@ export interface ILayerFrameState {
   readonly spanId: string | undefined;
   /** Value of every property animated anywhere in the layer. */
   readonly values: PropertyValues;
+  /** Typed values for a layer with independent property timelines; absent for legacy-only layers. */
+  readonly propertyValues?: TimelinePropertyValues;
 }
 
 /** Options shared by the evaluation functions. */
@@ -52,6 +57,10 @@ export interface IEvaluateOptions {
  * appearance. These are the properties a player writes on the target.
  */
 export function collectLayerProperties(layer: ILayer): string[] {
+  return Array.from(new Set([...collectLegacyProperties(layer), ...Object.keys(layer.propertyTimelines ?? {})]));
+}
+
+function collectLegacyProperties(layer: ILayer): string[] {
   const names = new Set<string>();
   for (const span of layer.spans) {
     Object.keys(resolveTracks(span)).forEach((name) => names.add(name));
@@ -133,14 +142,14 @@ function defaultValues(names: readonly string[], registry: PropertyRegistry): Pr
  * a non-finite frame, an invalid easing or a property unknown to the registry
  * (unless `unknownProperties` is `skip`).
  */
-export function evaluateLayer(source: ILayer, frame: number, options: IEvaluateOptions = {}): ILayerFrameState {
+function evaluateLegacyLayer(source: ILayer, frame: number, options: IEvaluateOptions): ILayerFrameState {
   if (!Number.isFinite(frame)) {
     throw new Error(`Frame must be a finite number (got ${frame}).`);
   }
   assertUnknownPropertyPolicy(options.unknownProperties);
   const registry = options.registry ?? defaultPropertyRegistry;
   const layer = applyUnknownPropertyPolicy(source, registry, options.unknownProperties ?? 'throw', options.onIssue);
-  let carried = defaultValues(collectLayerProperties(layer), registry);
+  let carried = defaultValues(collectLegacyProperties(layer), registry);
   for (const span of layer.spans) {
     if (frame < span.start) {
       break;
@@ -152,4 +161,21 @@ export function evaluateLayer(source: ILayer, frame: number, options: IEvaluateO
     carried = valuesAfterSpan(span, carried);
   }
   return { layerId: layer.id, visible: false, spanId: undefined, values: carried };
+}
+
+/** Reads historical spans and independent property timelines without mutating either representation. */
+export function evaluateLayer(source: ILayer, frame: number, options: IEvaluateOptions = {}): ILayerFrameState {
+  const state = evaluateLegacyLayer(source, frame, options);
+  if (source.propertyTimelines === undefined) return state;
+  const legacyNames = new Set(collectLegacyProperties(source));
+  for (const name of Object.keys(source.propertyTimelines)) {
+    if (legacyNames.has(name)) throw new Error(`Property "${name}" has both legacy and independent timelines.`);
+  }
+  const modern = evaluatePropertyTimelines(source.propertyTimelines, frame, options.registry ?? defaultPropertyRegistry);
+  return {
+    ...state,
+    visible: source.spans.length === 0 ? frame >= 1 : state.visible,
+    values: { ...state.values, ...numericTimelineValues(modern) },
+    propertyValues: { ...typedNumericValues(state.values), ...modern }
+  };
 }

@@ -158,6 +158,15 @@ export function exportCss(doc: ITimelineDocument, options: IExportCssOptions = {
       { code: 'invalid-document', layerId: '', message: "Le document n'a pas de fps, de nombre d'images ou de liste de calques valide : rien n'est exporté en CSS." }
     ]);
   }
+  const sourceLayers = collectLayers(doc);
+  const unsupported = sourceLayers.filter((layer) => Object.keys(layer.propertyTimelines ?? {}).length > 0);
+  if (unsupported.length > 0) {
+    return result('', unsupported.map((layer): IExportCssWarning => ({
+      code: 'unsupported-property-timeline',
+      layerId: layer.id,
+      message: `Calque « ${layer.id} » : l'adaptateur HTML des pistes de propriétés est indisponible dans cette phase. L'export CSS complet est refusé pour préserver l'animation.`
+    })));
+  }
   const ctx: IExportContext = {
     doc,
     registry: options.registry ?? defaultPropertyRegistry,
@@ -165,7 +174,7 @@ export function exportCss(doc: ITimelineDocument, options: IExportCssOptions = {
     usedNames: new Set<string>(),
     warnings: []
   };
-  const layers = collectLayers(doc)
+  const layers = sourceLayers
     .map((layer) => tryExportLayer(layer, ctx))
     .filter((layer): layer is IExportedLayer => layer !== null);
   if (layers.length === 0) {

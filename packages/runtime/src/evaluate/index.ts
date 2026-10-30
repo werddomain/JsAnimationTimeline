@@ -5,6 +5,8 @@
 
 export { cubicBezierFunction, createEasingFunction } from './easingFunction';
 export type { EasingFunction } from './easingFunction';
+export { createPropertyEasingFunction } from './propertyEasing';
+export { evaluatePropertyTimeline, evaluatePropertyTimelines } from './propertyTimeline';
 export { valueAtFrame, withImplicitStart } from './track';
 export type { ISpanRange } from './track';
 export { collectLayerProperties, evaluateLayer, findSpanAt } from './evaluateLayer';

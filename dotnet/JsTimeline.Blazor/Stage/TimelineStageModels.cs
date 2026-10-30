@@ -1,5 +1,6 @@
 // dotnet/JsTimeline.Blazor/Stage/TimelineStageModels.cs
 using JsTimeline.Blazor.Model;
+using System.Text.Json.Serialization;
 
 namespace JsTimeline.Blazor.Stage;
 
@@ -51,15 +52,18 @@ public sealed record TimelineStageProperty(
 /// <summary>State of one layer at the rendered time.</summary>
 /// <param name="LayerId">Id of the layer.</param>
 /// <param name="Target">Target of the layer (a ref of this stage).</param>
-/// <param name="Values">Value of every property animated in the layer, completed with the defaults.</param>
-/// <param name="Active">False in a blank span and outside every span.</param>
+/// <param name="Values">Numeric property projection, completed with the registered numeric defaults.</param>
+/// <param name="Active">Whether the layer is active at this time under its span or independent-track rules.</param>
 /// <param name="Visible">Eye of the layer in the editor; always true in the player.</param>
+/// <param name="PropertyValues">Independent typed property values; absent for legacy numeric-only layers.</param>
 public sealed record TimelineStageLayerState(
     string LayerId,
     LayerTarget Target,
     IReadOnlyDictionary<string, double> Values,
     bool Active,
-    bool Visible = true);
+    bool Visible = true,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    IReadOnlyDictionary<string, TimelinePropertyValue>? PropertyValues = null);
 
 /// <summary>A layer no longer animated by the stage, with the target it had.</summary>
 /// <param name="LayerId">Id of the layer.</param>

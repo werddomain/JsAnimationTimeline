@@ -51,7 +51,21 @@ export const ValidationCodes = {
   /** A non-tween span has an easing. */
   EASING_NOT_ALLOWED: 'easing-not-allowed',
   /** The easing string does not parse (see `parseEasing`). */
-  INVALID_EASING: 'invalid-easing'
+  INVALID_EASING: 'invalid-easing',
+  /** A typed property key lies after the document duration. */
+  PROPERTY_KEY_OUT_OF_RANGE: 'property-key-out-of-range',
+  /** A property changes its serialized value kind. */
+  PROPERTY_KIND_MISMATCH: 'property-kind-mismatch',
+  /** A property is driven by both legacy spans and an independent timeline. */
+  PROPERTY_TRACK_CONFLICT: 'property-track-conflict',
+  /** A transition does not connect two consecutive property keys. */
+  INVALID_PROPERTY_TRANSITION: 'invalid-property-transition',
+  /** More than one transition covers the same interval. */
+  PROPERTY_TRANSITIONS_OVERLAP: 'property-transitions-overlap',
+  /** Text and boolean properties cannot interpolate. */
+  PROPERTY_NOT_INTERPOLABLE: 'property-not-interpolable',
+  /** A preserved source curve does not cover or describe its transition. */
+  INVALID_CURVE_SOURCE: 'invalid-curve-source'
 } as const;
 
 export type ValidationCode = (typeof ValidationCodes)[keyof typeof ValidationCodes];

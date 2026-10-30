@@ -1,4 +1,5 @@
 {
+  "$comment": "schema/timeline.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/werddomain/JsAnimationTimeline/schema/timeline.schema.json",
   "title": "JsAnimationTimeline document v2",
@@ -96,7 +97,8 @@
           "description": "Spans covering the layer from frame 1, sorted and contiguous (may be empty).",
           "type": "array",
           "items": { "$ref": "#/$defs/Span" }
-        }
+        },
+        "propertyTimelines": { "$ref": "#/$defs/PropertyTimelines" }
       }
     },
     "Folder": {
@@ -199,6 +201,662 @@
         { "enum": ["linear", "ease", "ease-in", "ease-out", "ease-in-out"] },
         { "pattern": "^cubic-bezier\\(\\s*[-+]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)\\s*,\\s*[-+]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)\\s*,\\s*[-+]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)\\s*,\\s*[-+]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)\\s*\\)$" }
       ]
-    }
+    },
+      "TimelinePropertyValue": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/NumberPropertyValue"
+          },
+          {
+            "$ref": "#/$defs/TextPropertyValue"
+          },
+          {
+            "$ref": "#/$defs/BooleanPropertyValue"
+          },
+          {
+            "$ref": "#/$defs/ColorPropertyValue"
+          }
+        ]
+      },
+      "NumberPropertyValue": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "value"
+        ],
+        "properties": {
+          "kind": {
+            "const": "number"
+          },
+          "value": {
+            "type": "number"
+          }
+        }
+      },
+      "TextPropertyValue": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "value"
+        ],
+        "properties": {
+          "kind": {
+            "const": "text"
+          },
+          "value": {
+            "type": "string"
+          }
+        }
+      },
+      "BooleanPropertyValue": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "value"
+        ],
+        "properties": {
+          "kind": {
+            "const": "boolean"
+          },
+          "value": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ColorPropertyValue": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "r",
+          "g",
+          "b",
+          "a"
+        ],
+        "properties": {
+          "kind": {
+            "const": "color"
+          },
+          "r": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "g": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "b": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "a": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      },
+      "PropertyTimelineKeyframe": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "frame",
+          "value"
+        ],
+        "properties": {
+          "frame": {
+            "$ref": "#/$defs/Frame"
+          },
+          "value": {
+            "$ref": "#/$defs/TimelinePropertyValue"
+          }
+        }
+      },
+      "PropertyCurveSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "start",
+          "end",
+          "keys"
+        ],
+        "properties": {
+          "start": {
+            "$ref": "#/$defs/Frame"
+          },
+          "end": {
+            "$ref": "#/$defs/Frame"
+          },
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/PropertyTimelineKeyframe"
+            }
+          },
+          "easing": {
+            "$ref": "#/$defs/PropertyEasing"
+          }
+        }
+      },
+      "PropertyTransition": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "fromFrame",
+          "toFrame"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/Id"
+          },
+          "fromFrame": {
+            "$ref": "#/$defs/Frame"
+          },
+          "toFrame": {
+            "$ref": "#/$defs/Frame"
+          },
+          "easing": {
+            "$ref": "#/$defs/PropertyEasing"
+          },
+          "source": {
+            "$ref": "#/$defs/PropertyCurveSource"
+          }
+        }
+      },
+      "PropertyBeforeFirst": {
+        "type": "string",
+        "enum": [
+          "initial",
+          "first-key"
+        ]
+      },
+      "PropertyTimeline": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "initialValue",
+          "keys"
+        ],
+        "properties": {
+          "initialValue": {
+            "$ref": "#/$defs/TimelinePropertyValue"
+          },
+          "keys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/PropertyTimelineKeyframe"
+            }
+          },
+          "transitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/PropertyTransition"
+            }
+          },
+          "beforeFirst": {
+            "$ref": "#/$defs/PropertyBeforeFirst"
+          },
+          "label": {
+            "type": "string"
+          },
+          "group": {
+            "type": "string"
+          }
+        }
+      },
+      "PropertyTimelines": {
+        "type": "object",
+        "propertyNames": {
+          "description": "Property name: letters and digits, starting with a letter; \"constructor\" and \"prototype\" are reserved.",
+          "pattern": "^[a-zA-Z][a-zA-Z0-9]*$",
+          "not": {
+            "enum": [
+              "constructor",
+              "prototype"
+            ]
+          }
+        },
+        "additionalProperties": {
+          "$ref": "#/$defs/PropertyTimeline"
+        }
+      },
+      "PropertyEasing": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/BezierPropertyEasing"
+          },
+          {
+            "$ref": "#/$defs/EffectPropertyEasing"
+          }
+        ]
+      },
+      "BezierPropertyEasing": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "x1",
+          "y1",
+          "x2",
+          "y2"
+        ],
+        "properties": {
+          "kind": {
+            "const": "bezier"
+          },
+          "x1": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "y1": {
+            "type": "number",
+            "minimum": -100,
+            "maximum": 100
+          },
+          "x2": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "y2": {
+            "type": "number",
+            "minimum": -100,
+            "maximum": 100
+          }
+        }
+      },
+      "PropertyEasingFamily": {
+        "type": "string",
+        "enum": [
+          "linear",
+          "sine",
+          "circle",
+          "quadratic",
+          "cubic",
+          "quartic",
+          "quintic",
+          "power",
+          "exponential",
+          "back",
+          "bounce",
+          "elastic"
+        ]
+      },
+      "PropertyEasingMode": {
+        "type": "string",
+        "enum": [
+          "in",
+          "out",
+          "in-out"
+        ]
+      },
+      "EffectParameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties": {
+          "power": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 20
+          },
+          "exponent": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 30
+          },
+          "amplitude": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "bounces": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 32
+          },
+          "bounciness": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "oscillations": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 32
+          },
+          "springiness": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 30
+          }
+        }
+      },
+      "EffectPropertyEasing": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "family",
+          "mode"
+        ],
+        "properties": {
+          "kind": {
+            "const": "effect"
+          },
+          "family": {
+            "$ref": "#/$defs/PropertyEasingFamily"
+          },
+          "mode": {
+            "$ref": "#/$defs/PropertyEasingMode"
+          },
+          "parameters": {
+            "$ref": "#/$defs/EffectParameters"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "family": {
+                  "const": "linear"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "power": false,
+                    "exponent": false,
+                    "amplitude": false,
+                    "bounces": false,
+                    "bounciness": false,
+                    "oscillations": false,
+                    "springiness": false
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "family": {
+                  "const": "sine"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "power": false,
+                    "exponent": false,
+                    "amplitude": false,
+                    "bounces": false,
+                    "bounciness": false,
+                    "oscillations": false,
+                    "springiness": false
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "family": {
+                  "const": "circle"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "power": false,
+                    "exponent": false,
+                    "amplitude": false,
+                    "bounces": false,
+                    "bounciness": false,
+                    "oscillations": false,
+                    "springiness": false
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "family": {
+                  "const": "quadratic"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "power": false,
+                    "exponent": false,
+                    "amplitude": false,
+                    "bounces": false,
+                    "bounciness": false,
+                    "oscillations": false,
+                    "springiness": false
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "family": {
+                  "const": "cubic"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "power": false,
+                    "exponent": false,
+                    "amplitude": false,
+                    "bounces": false,
+                    "bounciness": false,
+                    "oscillations": false,
+                    "springiness": false
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "family": {
+                  "const": "quartic"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "power": false,
+                    "exponent": false,
+                    "amplitude": false,
+                    "bounces": false,
+                    "bounciness": false,
+                    "oscillations": false,
+                    "springiness": false
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "family": {
+                  "const": "quintic"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "power": false,
+                    "exponent": false,
+                    "amplitude": false,
+                    "bounces": false,
+                    "bounciness": false,
+                    "oscillations": false,
+                    "springiness": false
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "family": {
+                  "const": "power"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "exponent": false,
+                    "amplitude": false,
+                    "bounces": false,
+                    "bounciness": false,
+                    "oscillations": false,
+                    "springiness": false
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "family": {
+                  "const": "exponential"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "power": false,
+                    "amplitude": false,
+                    "bounces": false,
+                    "bounciness": false,
+                    "oscillations": false,
+                    "springiness": false
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "family": {
+                  "const": "back"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "power": false,
+                    "exponent": false,
+                    "bounces": false,
+                    "bounciness": false,
+                    "oscillations": false,
+                    "springiness": false
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "family": {
+                  "const": "bounce"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "power": false,
+                    "exponent": false,
+                    "amplitude": false,
+                    "oscillations": false,
+                    "springiness": false
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "family": {
+                  "const": "elastic"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "power": false,
+                    "exponent": false,
+                    "amplitude": false,
+                    "bounces": false,
+                    "bounciness": false
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
   }
 }
