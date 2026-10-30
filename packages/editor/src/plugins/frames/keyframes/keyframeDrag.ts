@@ -19,6 +19,7 @@ import type { IEditorContext } from '../../../core/context/IEditorContext';
 import type { ISpanCommands } from '../../../model/spans';
 import type { IFrameCell } from '../selection/frameSelection';
 import type { ISelectedKeyframe } from '../selection/types';
+import type {} from '../../layers/list/types';
 import { moveBatch, moveKeyframes } from './keyframeActions';
 import type { IKeyframeGhost } from './keyframeGhost';
 import { clampOffset, movableKeyframes, overwritesKeyframe, planMove } from './keyframeMove';

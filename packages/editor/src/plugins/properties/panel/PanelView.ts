@@ -9,6 +9,7 @@ interface IFieldView {
   readonly button: HTMLButtonElement;
   readonly origin: HTMLElement;
   readonly error: HTMLElement;
+  readonly capability: HTMLElement;
   readonly remove: () => void;
   state: IPanelState;
   display: string;
@@ -93,13 +94,17 @@ export class PanelView {
     const error = doc.createElement('span');
     error.className = 'jt-properties-panel__error';
     error.setAttribute('role', 'status');
+    const capability = doc.createElement('span');
+    capability.className = 'jt-properties-panel__capability';
+    capability.tabIndex = 0;
+    capability.hidden = true;
     const button = doc.createElement('button');
     button.type = 'submit';
     button.textContent = 'Appliquer';
     button.setAttribute('aria-label', 'Appliquer ' + propertyLabel(field.descriptor));
-    label.append(labelText, input);
+    label.append(labelText, capability, input);
     form.append(label, button, origin, error);
-    const control: IFieldView = { name: field.descriptor.name, form, input, button, origin, error,
+    const control: IFieldView = { name: field.descriptor.name, form, input, button, origin, error, capability,
       state, display: '', draft: false, remove: () => {
         input.removeEventListener('input', onInput);
         input.removeEventListener('keydown', onKey);
@@ -137,8 +142,14 @@ export class PanelView {
   private updateField(control: IFieldView, state: IPanelState, field: IPanelField, reset: boolean): void {
     const changed = !samePanelContext(control.state, state);
     control.state = state;
-    control.display = String(field.value);
-    control.input.disabled = state.reason !== '';
+    control.display = field.unresolvedValue ? '' : String(field.value);
+    control.input.placeholder = field.unresolvedValue ? 'Saisissez une valeur' : '';
+    control.input.disabled = state.reason !== '' || field.disabledReason !== undefined;
+    const reason = field.disabledReason ?? field.capabilityReason;
+    control.capability.hidden = reason === undefined;
+    control.capability.textContent = reason === undefined ? '' : 'ⓘ';
+    control.capability.title = reason ?? '';
+    control.capability.setAttribute('aria-label', reason ?? '');
     if (changed || reset || !control.draft) {
       control.input.value = control.display;
       control.draft = false;
@@ -146,7 +157,8 @@ export class PanelView {
       control.input.removeAttribute('aria-invalid');
     }
     control.button.disabled = control.input.disabled || !control.draft;
-    control.origin.textContent = field.defaultOrigin ? 'Valeur par défaut du registre.' : 'Valeur évaluée.';
+    control.origin.textContent = field.unresolvedValue ? 'Aucune valeur commune affichable ; saisissez une valeur explicite.'
+      : field.defaultOrigin ? 'Valeur par défaut du registre.' : 'Valeur évaluée.';
     if (field.stored !== undefined) control.origin.textContent += ' Clé enregistrée : ' + field.stored + '.';
   }
 

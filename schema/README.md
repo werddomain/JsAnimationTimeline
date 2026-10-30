@@ -7,6 +7,17 @@ edited by `editor` and played by `runtime`. It follows the Flash CS4
 TypeScript types live in `packages/runtime/src/model/` and are exported by the
 `runtime` package.
 
+`html-animation-context.schema.json` separately describes the optional version-1
+HTML context saved beside that document: CSS bindings, stable gradient definitions
+and explicit conflict decisions. It adds no HTML fields to the generic timeline or
+its .NET models. Validate its JSON shape with this schema, then call
+`cloneHtmlAnimationContext()` for gradient/stop cross-references, unique gradient,
+stop and conflict identifiers, and safe detached in-memory data. The runtime also
+rejects accessors, cycles and non-finite values. Conflict signatures and the
+applicability of a `beforeFirst` decision are rechecked against the actual document
+by the HTML resolution plan; schema validation alone cannot authorize a stale
+decision. The host owns the context's project history and persistence.
+
 ## Structure
 
 ```text

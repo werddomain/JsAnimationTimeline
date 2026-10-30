@@ -4,115 +4,80 @@ import { installFakeAnimate } from '../../../player/__tests__/fakes';
 import { defaultPropertyRegistry } from '../../../properties/PropertyRegistry';
 import { createFakeStage, createHost, docOf, timeAt } from '../../__tests__/fakeStage';
 import { StageDocumentError } from '../../reports';
-import type { IStageLayer } from '../../types';
 import { createHtmlStage } from '../createHtmlStage';
 import { buildLayerKeyframes } from '../keyframes';
+import type { IHtmlAnimationContext } from '../animationTypes';
 
-const legacy: ILayer = {
-  id: 'legacy', type: 'layer', name: 'Legacy', target: { selector: '#box' },
-  spans: [{ id: 'held', start: 1, end: 10, kind: 'static', tracks: { opacity: [{ frame: 1, value: 0.4 }] } }]
-};
-const modern: ILayer = {
-  id: 'modern', type: 'layer', name: 'Modern', target: { selector: '#box' }, spans: [],
-  propertyTimelines: { opacity: { initialValue: { kind: 'number', value: 1 }, keys: [{ frame: 5, value: { kind: 'number', value: 0.2 } }] } }
-};
-
+const legacy: ILayer = { id: 'legacy', type: 'layer', name: 'Legacy', target: { selector: '#box' },
+  spans: [{ id: 'held', start: 1, end: 10, kind: 'static', tracks: { opacity: [{ frame: 1, value: 0.4 }] } }] };
+const modern: ILayer = { id: 'modern', type: 'layer', name: 'Modern', target: { selector: '#box' }, spans: [],
+  propertyTimelines: { opacity: { initialValue: { kind: 'number', value: 0.8 }, keys: [{ frame: 5, value: { kind: 'number', value: 0.2 } }] } } };
 let fake: ReturnType<typeof installFakeAnimate>;
 let element: HTMLElement;
-
 beforeEach(() => {
+  document.head.innerHTML = '';
   document.body.innerHTML = '<div id="box" style="opacity: 0.8; color: red"></div>';
   element = document.getElementById('box') as HTMLElement;
   fake = installFakeAnimate();
 });
 afterEach(() => fake.restore());
 
-function bound(layer: ILayer): IStageLayer<Element> {
-  return { layerId: layer.id, layer, object: element, target: { selector: '#box' } };
-}
-
-describe.each(['frame', 'waapi'] as const)('modern property timeline refusal in %s HTML mode', (mode) => {
-  it('refuses the first document explicitly without changing its target', () => {
-    const host = createHost([createHtmlStage({ mode })]);
-    const original = element.getAttribute('style');
-    expect(() => host.load(docOf([modern]))).toThrow(StageDocumentError);
-    expect(host.document).toBeNull();
-    expect(element.getAttribute('style')).toBe(original);
-    expect(fake.animations).toHaveLength(0);
-    host.destroy();
-  });
-
-  it('validates every layer before restoring styles or creating animations', () => {
+describe.each(['frame', 'waapi'] as const)('modern property timelines in %s HTML mode', (mode) => {
+  it('uses exact rendering, holds the source before the first key and restores owned styles', () => {
     const stage = createHtmlStage({ mode });
-    stage.update?.(docOf([legacy]), [bound(legacy)]);
-    stage.render?.(timeAt(1), [{ layerId: legacy.id, object: element, target: { selector: '#box' },
-      values: { opacity: 0.4 }, active: true, editorVisible: true }]);
-    const original = element.getAttribute('style');
-    const previous = fake.animations.slice();
-    expect(() => stage.update?.(docOf([legacy, modern]), [bound(legacy), bound(modern)]))
-      .toThrow(/adaptateur HTML.*indisponible/i);
-    expect(element.getAttribute('style')).toBe(original);
-    expect(fake.animations).toEqual(previous);
-    expect(previous.every((animation) => animation.playState !== 'idle')).toBe(true);
-    stage.detach?.();
+    const host = createHost([stage]);
+    host.load(docOf([modern]));
+    expect(stage.effectiveMode).toBe('frame');
+    host.render(timeAt(3)); expect(element.style.opacity).toBe('0.8');
+    host.render(timeAt(6.25)); expect(element.style.opacity).toBe('0.2');
+    expect(fake.animations).toHaveLength(0);
+    element.style.borderWidth = '3px';
+    host.destroy();
+    expect(element.style.opacity).toBe('0.8'); expect(element.style.color).toBe('red'); expect(element.style.borderWidth).toBe('3px');
   });
 
-  it('rolls back to the previous document after a refused update', () => {
-    const host = createHost([createHtmlStage({ mode })]);
-    const previous = docOf([legacy]);
-    host.load(previous);
-    host.render(timeAt(1));
-    expect(() => host.load(docOf([{ ...modern, id: legacy.id }]))).toThrow(StageDocumentError);
-    expect(host.document).toBe(previous);
-    host.render(timeAt(1));
-    if (mode === 'frame') expect(element.style.opacity).toBe('0.4');
-    else expect(fake.animations.filter((animation) => animation.playState !== 'idle')).toHaveLength(1);
+  it('rejects invalid context before changing the document, preview or existing animations', () => {
+    const stage = createHtmlStage({ mode }); const host = createHost([stage]);
+    const previous = docOf([legacy]); host.load(previous); host.render(timeAt(1));
+    const style = element.getAttribute('style'); const animations = fake.animations.slice();
+    expect(() => stage.setAnimationContext({ version: 5 } as unknown as IHtmlAnimationContext)).toThrow();
+    expect(host.document).toBe(previous); expect(element.getAttribute('style')).toBe(style);
+    expect(fake.animations).toEqual(animations); expect(animations.every((animation) => animation.playState !== 'idle')).toBe(true);
     host.destroy();
-    expect(element.style.opacity).toBe('0.8');
+  });
+
+  it('switches between legacy and modern documents without losing original styles', () => {
+    const stage = createHtmlStage({ mode }); const host = createHost([stage]);
+    host.load(docOf([legacy])); host.render(timeAt(1));
+    host.load(docOf([{ ...modern, id: legacy.id }])); host.render(timeAt(6));
+    expect(element.style.opacity).toBe('0.2'); expect(stage.effectiveMode).toBe('frame');
+    host.load(docOf([legacy])); host.render(timeAt(1));
+    expect(stage.effectiveMode).toBe(mode);
+    if (mode === 'frame') expect(element.style.opacity).toBe('0.4');
+    host.destroy(); expect(element.style.opacity).toBe('0.8');
     expect(fake.animations.every((animation) => animation.playState === 'idle')).toBe(true);
   });
 
-  it('allows empty dictionaries and modern tracks routed to a generic stage', () => {
-    const objects = createFakeStage('objects');
-    objects.objects.set('item', { name: 'item' });
+  it('keeps empty dictionaries and generic stage routing compatible', () => {
+    const objects = createFakeStage('objects'); objects.objects.set('item', { name: 'item' });
     const host = createHost([createHtmlStage({ mode }), objects.stage]);
-    expect(() => host.load(docOf([
-      { ...legacy, propertyTimelines: {} },
-      { ...modern, target: { ref: 'item', stage: 'objects' } }
-    ]))).not.toThrow();
-    host.render(timeAt(5));
-    expect(objects.renders[0].states[0].values.opacity).toBe(0.2);
-    host.destroy();
+    host.load(docOf([{ ...legacy, propertyTimelines: {} }, { ...modern, target: { ref: 'item', stage: 'objects' } }]));
+    host.render(timeAt(5)); expect(objects.renders[0].states[0].values.opacity).toBe(0.2); host.destroy();
   });
 
-  it('never renders a refused late-bound layer through another layer holding the same element', () => {
-    const stage = createHtmlStage({ mode });
-    const errors: unknown[] = [];
-    const host = createHost([stage], errors);
-    host.load(docOf([legacy, { ...modern, target: { ref: 'late', stage: 'html' } }]));
-    host.render(timeAt(6));
-    stage.bind('late', element);
-    expect(errors.some((error) => error instanceof StageDocumentError)).toBe(true);
-    host.render(timeAt(6));
-    if (mode === 'frame') expect(element.style.opacity).toBe('0.4');
-    else expect(fake.animations.filter((animation) => animation.playState !== 'idle')).toHaveLength(1);
-    stage.bind('late', null);
-    host.render(timeAt(6));
-    if (mode === 'frame') expect(element.style.opacity).toBe('0.4');
-    host.destroy();
-    expect(element.style.opacity).toBe('0.8');
+  it('resolves a modern layer bound after load and restores it on unbind', () => {
+    const stage = createHtmlStage({ mode }); const host = createHost([stage]);
+    host.load(docOf([{ ...modern, target: { ref: 'late', stage: 'html' } }]));
+    expect(host.missingTargets).toEqual(['modern']); stage.bind('late', element); host.render(timeAt(6));
+    expect(element.style.opacity).toBe('0.2'); stage.bind('late', null); host.render(timeAt(6));
+    expect(host.missingTargets).toEqual(['modern']); expect(element.style.opacity).toBe('0.8'); host.destroy();
   });
 });
 
 describe('public Web Animations keyframe builder', () => {
-  it('refuses numeric and nonnumeric modern tracks rather than sampling them as legacy spans', () => {
-    for (const layer of [modern, { ...modern, propertyTimelines: {
-      color: { initialValue: { kind: 'color' as const, r: 1, g: 0, b: 0, a: 1 }, keys: [] }
-    } }]) {
-      expect(() => buildLayerKeyframes(layer, docOf([]).settings, defaultPropertyRegistry)).toThrow(StageDocumentError);
-    }
+  it('continues refusing lossy modern conversion; exact HTML stage handles modern playback', () => {
+    expect(() => buildLayerKeyframes(modern, docOf([]).settings, defaultPropertyRegistry)).toThrow(StageDocumentError);
   });
-
   it('keeps an empty dictionary equivalent to a legacy layer', () => {
     expect(buildLayerKeyframes({ ...legacy, propertyTimelines: {} }, docOf([]).settings, defaultPropertyRegistry))
       .toEqual(buildLayerKeyframes(legacy, docOf([]).settings, defaultPropertyRegistry));

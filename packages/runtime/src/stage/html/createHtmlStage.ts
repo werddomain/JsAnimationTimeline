@@ -26,6 +26,10 @@ import type { HtmlStageRefs } from './elements';
 import { InlineStyleKeeper, writeFrameStyles } from './inlineStyles';
 import { assertHtmlLayerSupported, needsVisibility } from './keyframes';
 import { WaapiAnimations } from './waapi';
+import { HtmlAnimationRenderer } from './animationRenderer';
+import type { IHtmlAnimationContext, IHtmlResolutionDiagnostic } from './animationTypes';
+import type { IHtmlInspectPropertyOptions, IHtmlPropertyInspection } from './propertyInspection';
+import type { ITransportTime, ITransportSyncState } from '../../transport/types';
 
 /** Id of the HTML stage. */
 export const HTML_STAGE_ID = 'html';
@@ -43,12 +47,27 @@ export interface IHtmlStageOptions {
   readonly exclude?: Element | readonly Element[];
   /** Elements of `{ ref, stage: 'html' }` targets, by ref. */
   readonly refs?: HtmlStageRefs;
+  /** Additional exclusion predicate, applied to every selector match and explicit target. */
+  readonly excludeElement?: (element: Element) => boolean;
+  /** Serializable HTML bindings, gradients and explicit conflict decisions. */
+  readonly animationContext?: IHtmlAnimationContext;
 }
 
 /** The HTML stage. */
 export interface IHtmlStage extends IStage<Element> {
   readonly mode: HtmlStageMode;
+  /** Modern tracks and selector groups use exact per-frame evaluation in either requested mode. */
+  readonly effectiveMode: HtmlStageMode;
   readonly targets: IStageTargets;
+  resolveElements(target: LayerTarget): readonly Element[];
+  readonly animationContext: IHtmlAnimationContext;
+  readonly diagnostics: readonly IHtmlResolutionDiagnostic[];
+  setAnimationContext(context: IHtmlAnimationContext): void;
+  inspectProperty(target: LayerTarget, property: string, options?: IHtmlInspectPropertyOptions): IHtmlPropertyInspection;
+  /** Refresh group membership and original CSS after the host changes the source document. */
+  refresh(): void;
+  /** Synchronous source edits run with owned preview declarations suspended, then recapture their bases. */
+  withSourceStyles<T>(action: () => T): T;
   /**
    * Binds `ref` to `element` (`null` unbinds). Failed resolutions are
    * retried, and the layers already on `{ ref, stage: 'html' }` move to the
@@ -113,11 +132,10 @@ function createTargets(core: IHtmlStageCore): IStageTargets {
   };
 }
 
-function createWaapiStage(core: IHtmlStageCore, base: Omit<IHtmlStage, 'mode'>): IHtmlStage {
+function createWaapiStage(core: IHtmlStageCore, base: IStage<Element>): IStage<Element> {
   const animations = new WaapiAnimations();
   return {
     ...base,
-    mode: 'waapi',
     update(doc: ITimelineDocument, layers: readonly IStageLayer<Element>[]): void {
       layers.forEach(({ layer }) => assertHtmlLayerSupported(layer));
       animations.rebuild(doc, layers, registryOf(core));
@@ -132,7 +150,7 @@ function createWaapiStage(core: IHtmlStageCore, base: Omit<IHtmlStage, 'mode'>):
   };
 }
 
-function createFrameStage(core: IHtmlStageCore, base: Omit<IHtmlStage, 'mode'>): IHtmlStage {
+function createFrameStage(core: IHtmlStageCore, base: IStage<Element>): IStage<Element> {
   const keeper = new InlineStyleKeeper();
   const hiddenByEditor = new Set<Element>();
   let managed = new Map<string, boolean>();
@@ -140,7 +158,6 @@ function createFrameStage(core: IHtmlStageCore, base: Omit<IHtmlStage, 'mode'>):
   let held = new Map<string, Element>();
   return {
     ...base,
-    mode: 'frame',
     update(doc: ITimelineDocument, layers: readonly IStageLayer<Element>[]): void {
       layers.forEach(({ layer }) => assertHtmlLayerSupported(layer));
       // Styles of the previous document go away (tracks or visibility no longer animated); render rewrites the rest.
@@ -200,23 +217,105 @@ export function createHtmlStage(options: IHtmlStageOptions = {}): IHtmlStage {
   const mode = options.mode ?? 'waapi';
   assertMode(mode);
   const core: IHtmlStageCore = {
-    elements: new HtmlElements(options.root ?? document, HTML_STAGE_ID, options.exclude, options.refs),
+    elements: new HtmlElements(options.root ?? document, HTML_STAGE_ID, options.exclude, options.refs, options.excludeElement),
     listeners: new Set(),
     ctx: null
   };
-  const base: Omit<IHtmlStage, 'mode'> = {
+  const base: IStage<Element> = {
     id: HTML_STAGE_ID,
     targets: createTargets(core),
     accepts: acceptsHtml,
     resolve: (target) => core.elements.resolve(target),
     attach: (ctx) => {
       core.ctx = ctx;
-    },
-    bind(ref: string, element: Element | null): void {
-      core.elements.bind(ref, element);
-      const affected: readonly LayerTarget[] = [{ ref, stage: HTML_STAGE_ID }];
-      Array.from(core.listeners).forEach((listener) => listener(affected));
     }
   };
-  return mode === 'waapi' ? createWaapiStage(core, base) : createFrameStage(core, base);
+  const legacy = mode === 'waapi' ? createWaapiStage(core, base) : createFrameStage(core, base);
+  const modern = new HtmlAnimationRenderer(core.elements, () => registryOf(core), options.animationContext);
+  let exact = false;
+  let last: { doc: ITimelineDocument; layers: readonly IStageLayer<Element>[] } | undefined;
+  let lastTime: ITransportTime = { frame: 1, integerFrame: 1, timeMs: 0 };
+  let lastSync: ITransportSyncState = { playing: false, speed: 1 };
+  let lastStates: readonly IStageLayerState<Element>[] = [];
+  let sourceReads = 0;
+  let sourceEdits = 0;
+  const notify = (targets?: readonly LayerTarget[]): void => Array.from(core.listeners).forEach((listener) => listener(targets));
+  const useExact = (layers: readonly IStageLayer<Element>[]): boolean => options.animationContext !== undefined ||
+    Object.keys(modern.animationContext.bindings ?? {}).length > 0 || layers.some(({ layer, target }) =>
+      Object.keys(layer.propertyTimelines ?? {}).length > 0 || core.elements.resolveElements(target).length > 1);
+  const targets = createTargets(core);
+  const inspectSource = <T>(read: () => T): T => {
+    if (exact || last === undefined || sourceReads > 0) return read();
+    const snapshot = last;
+    const ctx = core.ctx;
+    sourceReads++;
+    legacy.detach?.(); core.ctx = ctx;
+    try { return read(); }
+    finally {
+      sourceReads--;
+      if (last === snapshot && !exact) {
+        legacy.update?.(snapshot.doc, snapshot.layers); legacy.sync?.(lastTime, lastSync); legacy.render?.(lastTime, lastStates);
+      }
+    }
+  };
+  return {
+    ...base,
+    mode,
+    get effectiveMode() { return exact ? 'frame' : mode; },
+    get animationContext() { return modern.animationContext; },
+    get diagnostics() { return modern.diagnostics; },
+    targets: { ...targets, describe(target) {
+      const info = targets.describe?.(target);
+      return info === undefined || !exact ? info : { ...info, properties: modern.properties(target) };
+    } },
+    resolveElements: (target) => core.elements.resolveElements(target),
+    inspectProperty: (target, property, inspectOptions) => inspectSource(() => modern.inspect(target, property, inspectOptions)),
+    setAnimationContext(context) {
+      modern.setContext(context);
+      if (last !== undefined) notify(last.layers.map((layer) => layer.target));
+    },
+    refresh() {
+      inspectSource(() => modern.refresh());
+      notify(last?.layers.map((layer) => layer.target));
+    },
+    withSourceStyles(action) {
+      sourceEdits++;
+      try { return inspectSource(() => modern.withSourceStyles(action)); }
+      finally { if (--sourceEdits === 0) notify(last?.layers.map((layer) => layer.target)); }
+    },
+    bind(ref, element) {
+      core.elements.bind(ref, element);
+      notify([{ ref, stage: HTML_STAGE_ID }]);
+    },
+    update(doc, layers) {
+      const nextExact = useExact(layers);
+      if (nextExact === exact) {
+        if (exact) modern.update(doc, layers); else legacy.update?.(doc, layers);
+      } else {
+        const ctx = core.ctx;
+        if (exact) modern.detach(); else legacy.detach?.();
+        core.ctx = ctx;
+        try {
+          if (nextExact) modern.update(doc, layers); else legacy.update?.(doc, layers);
+        } catch (error) {
+          if (nextExact) modern.detach(); else legacy.detach?.();
+          core.ctx = ctx;
+          if (last !== undefined) {
+            if (exact) { modern.update(last.doc, last.layers); modern.render(lastTime.frame, lastStates); }
+            else { legacy.update?.(last.doc, last.layers); legacy.sync?.(lastTime, lastSync); legacy.render?.(lastTime, lastStates); }
+          }
+          throw error;
+        }
+        exact = nextExact;
+      }
+      last = { doc, layers };
+    },
+    sync(time, state) { lastTime = time; lastSync = state; if (!exact) legacy.sync?.(time, state); },
+    render(time, states) {
+      lastTime = time; lastStates = states;
+      if (exact) modern.render(time.frame, states); else if (sourceReads === 0) legacy.render?.(time, states);
+    },
+    release(layerId, element) { if (exact) modern.release(layerId); else legacy.release?.(layerId, element); },
+    detach() { modern.detach(); legacy.detach?.(); last = undefined; lastStates = []; exact = false; }
+  };
 }

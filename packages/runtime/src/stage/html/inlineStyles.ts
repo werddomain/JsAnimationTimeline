@@ -195,13 +195,13 @@ function changedNames(before: ReadonlyMap<string, ISavedProperty>, after: Readon
  * changed (jsdom lists the shorthand itself, and a partly set or mixed
  * `!important` shorthand reads as '').
  */
-function writeSaving(entry: IHeldStyle, element: StyledElement, name: string, value: string): void {
+function writeSaving(entry: IHeldStyle, element: StyledElement, name: string, value: string, priority: '' | 'important'): void {
   const style = element.style;
   const longhands = longhandsOf(element, name, value);
   const before = snapshot(style);
   // A page shorthand written with var() is not listed by item(): read it as such.
   const pageShorthand: ISavedProperty = { value: style.getPropertyValue(name), priority: style.getPropertyPriority(name) };
-  style.setProperty(name, value);
+  style.setProperty(name, value, priority);
   const changed = changedNames(before, snapshot(style));
   if (changed.size === 0) {
     // A value the browser refused: saved on the first write that changes something.
@@ -216,8 +216,8 @@ function writeSaving(entry: IHeldStyle, element: StyledElement, name: string, va
   entry.written.set(name, Array.from(keys));
 }
 
-function isUnchanged(style: CSSStyleDeclaration, name: string, value: string): boolean {
-  return style.getPropertyValue(name) === value && style.getPropertyPriority(name) === '';
+function isUnchanged(style: CSSStyleDeclaration, name: string, value: string, priority: '' | 'important'): boolean {
+  return style.getPropertyValue(name) === value && style.getPropertyPriority(name) === priority;
 }
 
 /** Per-element save of the written inline properties, with a reference counter. */
@@ -257,20 +257,20 @@ export class InlineStyleKeeper {
    * what it changes the first time. Elements not held, or without inline
    * style, are skipped.
    */
-  write(element: Element, name: string, value: string): void {
+  write(element: Element, name: string, value: string, priority: '' | 'important' = ''): void {
     const entry = this.held.get(element);
     if (entry === undefined || !hasInlineStyle(element)) {
       return;
     }
-    if (!entry.written.has(name) && isUnchanged(element.style, name, value)) {
+    if (!entry.written.has(name) && isUnchanged(element.style, name, value, priority)) {
       return; // same as the page's: nothing to save, no snapshot taken
     }
     if (entry.written.has(name)) {
       // Already saved: only the value changes (a shorthand changes the same longhands for same-shape values, e.g. one value to one value).
-      element.style.setProperty(name, value);
+      element.style.setProperty(name, value, priority);
       return;
     }
-    writeSaving(entry, element, name, value);
+    writeSaving(entry, element, name, value, priority);
   }
 
   /** Puts back the original value of `name` on `element` (and of what it changed), when the stage wrote it. */

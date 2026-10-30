@@ -13,7 +13,7 @@ peuvent varier selon l'outil : ils ne constituent pas un mécanisme de coordinat
    état actuel observé, opérations conceptuelles et scénarios de conformité.
 3. [Message de démarrage pour la session Designer](designer-session.md) — contexte
    à transmettre à la session qui travaillera dans HtmlAnimation.
-4. [API HA1](timeline-ha1-api.md), [API HA2](timeline-ha2-api.md), puis [API HA3](timeline-ha3-api.md) — capacités
+4. [API HA1](timeline-ha1-api.md), [API HA2](timeline-ha2-api.md), [API HA3](timeline-ha3-api.md) et [API HA4](timeline-ha4-api.md) — capacités
    effectivement implémentées, méthodes publiques, vérifications et limites restantes.
 
 Les documents suffisent sans relire les discussions et sans suivre les références
@@ -104,6 +104,15 @@ Le chantier Timeline progresse par HA1 à HA6, dans
 pas encore les commandes de conception, les lignes de propriétés ou l'adaptateur
 HTML complet. Le raccordement du Designer doit attendre les capacités réellement
 validées et leur correspondance d'API.
+
+### Mise à jour HA3 / HA4
+
+HA3 est fusionné par la PR #124 dans `v2/base` (`2f5295d`) : lignes de propriétés,
+commandes visuelles et accélérations configurables. HA4 ajoute la scène HTML exacte,
+les groupes, les bases CSS, les valeurs riches et les décisions de conflit.
+Consulter les API ci-dessus et leurs preuves de vérification avant raccordement.
+Les formats de lecture/export modernes restent le chantier HA5/HA6 ; aucun nouveau
+package publié ne doit être déduit de ces mises à jour documentaires.
 
 ## Règles de travail à emporter
 

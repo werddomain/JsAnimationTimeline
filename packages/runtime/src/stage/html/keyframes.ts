@@ -41,7 +41,7 @@ import { StageDocumentError } from '../reports';
 export function assertHtmlLayerSupported(layer: ILayer): void {
   if (Object.keys(layer.propertyTimelines ?? {}).length > 0) {
     throw new StageDocumentError(
-      `Calque « ${layer.id} » : l'adaptateur HTML des pistes de propriétés est indisponible dans cette phase. Le document est refusé pour préserver son animation.`
+      `Calque « ${layer.id} » : les pistes de propriétés exigent le rendu HTML exact de createHtmlStage ; leur conversion en images Web Animations historiques est refusée.`
     );
   }
 }

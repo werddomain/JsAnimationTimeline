@@ -103,7 +103,7 @@ export class PropertiesPanelPlugin implements EditorPlugin {
     const fresh = readPanelState(ctx, this.revision);
     if (this.ctx !== ctx) return;
     if (generation !== this.contextGeneration || !this.isCurrent(ctx, fresh) || !samePanelContext(ticket, fresh) || fresh.reason !== '' || fresh.layerId === undefined ||
-        !fresh.fields.some(({ descriptor }) => descriptor.name === name)) { this.refresh(); return; }
+        !fresh.fields.some(({ descriptor, disabledReason }) => descriptor.name === name && disabledReason === undefined)) { this.refresh(); return; }
     const current = (): boolean => generation === this.contextGeneration && this.isCurrent(ctx, fresh);
     const layer = findLayer(ctx.document, fresh.layerId);
     if (Object.keys(layer?.propertyTimelines ?? {}).length > 0) {
