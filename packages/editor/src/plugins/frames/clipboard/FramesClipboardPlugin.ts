@@ -205,6 +205,10 @@ export class FramesClipboardPlugin implements EditorPlugin {
     const clip = this.clip;
     const cell = target ?? this.defaultTarget(ctx);
     if (clip === undefined || cell === undefined) return false;
+    if (ctx.services.require('frames.grid').rows().some((row) => row.id === cell.rowId && row.kind === 'property')) {
+      refuse(ctx, 'Coller les images', 'Le collage sur une propriété indépendante n’est pas encore disponible.');
+      return false;
+    }
     const plan = planPaste(clip, ctx.services.require('frames.grid').rows(), cell);
     if (plan === undefined) return false;
     const before = ctx.document;

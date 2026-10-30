@@ -80,6 +80,64 @@ function enter(field: HTMLInputElement): void {
 }
 function content(editor: IEditor): string { return editor.container.querySelector('.jt-properties-panel')?.textContent ?? ''; }
 
+function modernData(): ITimelineDocument {
+  return { version: '2.0.0', settings: { fps: 24, totalFrames: 100 }, layers: [
+    { id: 'main', type: 'layer', name: 'Objet', spans: [], propertyTimelines: {
+      x: { initialValue: { kind: 'number', value: 0 }, keys: [
+        { frame: 1, value: { kind: 'number', value: 0 } }, { frame: 100, value: { kind: 'number', value: 100 } }
+      ], transitions: [{ id: 'x-motion', fromFrame: 1, toFrame: 100 }] },
+      level: { label: 'Intensité', initialValue: { kind: 'number', value: 0.25 }, keys: [
+        { frame: 1, value: { kind: 'number', value: 0.75 } }
+      ] }
+    } }
+  ] };
+}
+
+it('edits existing independent numeric tracks without spans and keeps unrelated tracks and history exact', () => {
+  const { editor, service } = setup({ data: modernData() });
+  try {
+    service.focusAt('main', 50);
+    const before = editor.document;
+    const field = input(editor, 'level');
+    expect(field.disabled).toBe(false);
+    expect(field.value).toBe('0.75');
+    expect(content(editor)).toContain('Intensité');
+    draft(field, '0.5');
+    enter(field);
+    const changed = editor.document;
+    expect(changed).not.toBe(before);
+    const node = changed.layers[0];
+    const old = before.layers[0];
+    if (node.type !== 'layer' || old.type !== 'layer') throw new Error('Missing layer');
+    expect(node.propertyTimelines?.x).toEqual(old.propertyTimelines?.x);
+    expect(node.propertyTimelines?.level.keys).toEqual([
+      { frame: 1, value: { kind: 'number', value: 0.75 } },
+      { frame: 50, value: { kind: 'number', value: 0.5 } }
+    ]);
+    expect(editor.undo()).toBe(true);
+    expect(editor.document).toEqual(before);
+    expect(editor.redo()).toBe(true);
+    expect(editor.document).toEqual(changed);
+  } finally { editor.destroy(); }
+});
+
+it('cancels a modern field draft with Escape without adding a key', () => {
+  const { editor, service } = setup({ data: modernData() });
+  try {
+    service.focusAt('main', 50);
+    const before = editor.document;
+    const field = input(editor, 'x');
+    expect(field.disabled).toBe(false);
+    const evaluated = field.value;
+    draft(field, '80');
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(field.value).toBe(evaluated);
+    enter(field);
+    expect(editor.document).toBe(before);
+    expect(editor.canUndo).toBe(false);
+  } finally { editor.destroy(); }
+});
+
 it('has a literal identity and removes only its own service, root class, DOM and handlers', () => {
   const { editor, plugin, service, ctx } = setup();
   const id: 'properties.panel' = plugin.id;
@@ -333,7 +391,7 @@ it('invalidates a draft on document/frame/selection changes even before batched 
   editor.destroy();
 });
 
-function metadataSetup() {
+function metadataSetup(original = data()) {
   let allowed = ['x'];
   let fails = false;
   let nextQuery: (() => void) | undefined;
@@ -351,7 +409,6 @@ function metadataSetup() {
     },
     subscribe: (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; }
   } };
-  const original = data();
   const main = original.layers[0];
   if (main.type !== 'layer') throw new Error('Missing layer');
   const result = setup({ stage, onStageError: () => {},
@@ -363,6 +420,31 @@ function metadataSetup() {
       if (notify) [...listeners].forEach((listener) => listener());
     } };
 }
+
+it.each(['selection', 'frame', 'playback', 'load', 'destroy'] as const)(
+  'rejects a modern panel edit invalidated by a metadata callback changing %s', (change) => {
+    const { editor, service, selection, onQuery, ctx } = metadataSetup(modernData());
+    try {
+      service.focusAt('main', 50);
+      const before = editor.document;
+      const field = input(editor);
+      const changes: string[] = [];
+      ctx.events.on('property:changed', ({ property }) => changes.push(property));
+      draft(field, '75');
+      onQuery(() => onQuery(() => {
+        if (change === 'selection') { selection.clear(); selection.select(['main']); }
+        else if (change === 'frame') editor.playback.seek(60);
+        else if (change === 'playback') { editor.playback.play(); editor.playback.pause(); }
+        else if (change === 'load') editor.load(before);
+        else editor.destroy();
+      }));
+      enter(field);
+      expect(ctx.document).toBe(before);
+      expect(ctx.commands.canUndo).toBe(false);
+      expect(changes).toEqual([]);
+    } finally { editor.destroy(); }
+  }
+);
 
 it('subscribes directly to capability-only metadata changes and detaches stale nodes', () => {
   const { editor, service, capabilities, listeners } = metadataSetup();

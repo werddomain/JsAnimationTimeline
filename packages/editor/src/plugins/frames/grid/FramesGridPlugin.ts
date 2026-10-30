@@ -36,7 +36,7 @@
 import type { ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import { walkLayers } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
-import { ROW_HEIGHT, visibleRows } from '../../../model/rows';
+import { ROW_HEIGHT, rowProjection } from '../../../model/rows';
 import type { IVisibleRow } from '../../../model/rows';
 import type { IRulerApi } from '../../layout/ruler/RulerPlugin';
 import type { IScrollState } from '../../layout/scrollSync/scrollGeometry';
@@ -46,6 +46,7 @@ import type {} from '../../layers/list/types';
 import type {} from '../../layout/scrollSync/ScrollSyncPlugin';
 import type {} from '../../layout/zoom/zoomEvents';
 import { rangeContains, rowMarks, rowSegments, visibleFrameRange, visibleRowRange } from './gridCells';
+import { propertyRowSegments } from './propertyGridCells';
 import type { IGridCell, IGridWindow } from './types';
 import './FramesGrid.less';
 
@@ -71,6 +72,7 @@ interface IRowsCache {
 /** Ce qui a servi au dernier dessin (pour ne pas redessiner à l'identique). */
 interface IDrawnState {
   readonly document: ITimelineDocument;
+  readonly rows: readonly IVisibleRow[];
   readonly frameWidth: number;
   readonly window: IGridWindow;
 }
@@ -83,10 +85,10 @@ function covers(drawn: IGridWindow, visible: IGridWindow): boolean {
   return rangeContains(drawn.frames, visible.frames) && rangeContains(drawn.rows, visible.rows);
 }
 
-function buildRows(document: ITimelineDocument): IRowsCache {
+function buildRows(document: ITimelineDocument, rows: readonly IVisibleRow[]): IRowsCache {
   const nodes = new Map<string, LayerNode>();
   walkLayers(document.layers, ({ node }) => void nodes.set(node.id, node));
-  return { document, rows: visibleRows(document), nodes };
+  return { document, rows, nodes };
 }
 
 /** Dessine les plages, la fin vide et les images clés de chaque ligne visible. */
@@ -171,8 +173,10 @@ export class FramesGridPlugin implements EditorPlugin {
   }
 
   private rowsCache(): IRowsCache {
-    const document = this.requireContext().document;
-    if (this.cache?.document !== document) this.cache = buildRows(document);
+    const ctx = this.requireContext();
+    const document = ctx.document;
+    const rows = rowProjection(ctx).rows(document);
+    if (this.cache?.document !== document || this.cache.rows !== rows) this.cache = buildRows(document, rows);
     return this.cache;
   }
 
@@ -207,6 +211,7 @@ export class FramesGridPlugin implements EditorPlugin {
       !force &&
       drawn !== undefined &&
       drawn.document === cache.document &&
+      drawn.rows === cache.rows &&
       drawn.frameWidth === frameWidth &&
       covers(drawn.window, this.currentWindow(cache, frameWidth, false))
     ) {
@@ -214,7 +219,7 @@ export class FramesGridPlugin implements EditorPlugin {
     }
     const window = this.currentWindow(cache, frameWidth, true);
     this.draw(grid, rowsLayer, cache, window, frameWidth);
-    this.drawn = { document: cache.document, frameWidth, window };
+    this.drawn = { document: cache.document, rows: cache.rows, frameWidth, window };
     this.requireContext().events.emit('frames:gridRendered', { window, frameWidth, rowHeight: ROW_HEIGHT });
   }
 
@@ -232,7 +237,7 @@ export class FramesGridPlugin implements EditorPlugin {
     const fragment = grid.ownerDocument.createDocumentFragment();
     for (let index = window.rows.first; index <= window.rows.last; index += 1) {
       const row = cache.rows[index];
-      const node = row === undefined ? undefined : cache.nodes.get(row.id);
+      const node = row === undefined ? undefined : cache.nodes.get(row.kind === 'property' ? row.layerId : row.id);
       if (row === undefined || node === undefined) continue;
       fragment.appendChild(this.drawRow(grid, row, node, cache, window));
     }
@@ -260,6 +265,29 @@ export class FramesGridPlugin implements EditorPlugin {
       child.style.left = `${left}px`;
       child.style.width = `${ruler.frameLeft(end + 1) - left}px`;
     };
+    if (row.kind === 'property' && node.type === 'layer') {
+      element.dataset.layerId = row.layerId;
+      element.dataset.property = row.property;
+      const track = node.propertyTimelines?.[row.property];
+      if (track === undefined) return element;
+      for (const segment of propertyRowSegments(track, totalFrames, window.frames)) {
+        const span = doc.createElement('div');
+        span.className = `${FRAMES_GRID_CLASSES.span} ${FRAMES_GRID_CLASSES.span}--${segment.kind}`;
+        place(span, segment.start, segment.end);
+        span.style.backgroundPositionX = `${-ruler.frameLeft(segment.start)}px`;
+        if (segment.transitionId !== undefined) span.dataset.transitionId = segment.transitionId;
+        element.appendChild(span);
+      }
+      for (const key of track.keys) {
+        if (key.frame < window.frames.first || key.frame > window.frames.last) continue;
+        const mark = doc.createElement('span');
+        mark.className = `${FRAMES_GRID_CLASSES.mark} ${FRAMES_GRID_CLASSES.mark}--propertyKeyframe`;
+        mark.dataset.frame = String(key.frame);
+        place(mark, key.frame, key.frame);
+        element.appendChild(mark);
+      }
+      return element;
+    }
     rowSegments(node, totalFrames, window.frames).forEach((segment) => {
       const span = doc.createElement('div');
       span.className = `${FRAMES_GRID_CLASSES.span} ${FRAMES_GRID_CLASSES.span}--${segment.kind}`;

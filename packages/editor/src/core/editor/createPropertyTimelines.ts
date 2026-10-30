@@ -7,7 +7,8 @@ import { propertyChanges } from './propertyChangeEvents';
 import type { IEditorPropertyTimelines, IPropertyTimelineTransaction, PropertyTimelineMutationResult } from './propertyTimelineTypes';
 
 /** Frozen closures expose neither the command stack nor mutable editor internals. */
-export function createPropertyTimelines(parts: IEditorParts): IEditorPropertyTimelines {
+export function createPropertyTimelines(parts: Pick<IEditorParts,
+  'commands' | 'bus' | 'lifecycle' | 'playbackFacade' | 'registry' | 'stageHost' | 'store'>): IEditorPropertyTimelines {
   const { commands, bus, lifecycle, playbackFacade, registry, stageHost } = parts;
   const transactionIds = new WeakMap<object, string>();
   let sequence = 0;
@@ -31,7 +32,7 @@ export function createPropertyTimelines(parts: IEditorParts): IEditorPropertyTim
     }
   });
   bus.on('editor:destroying', stopObserving);
-  const apply = (operation: PropertyTimelineOperation): PropertyTimelineMutationResult => {
+  const apply = (operation: PropertyTimelineOperation, current?: () => boolean): PropertyTimelineMutationResult => {
     lifecycle.assertActive('propertyTimelines');
     const command = new PropertyTimelineCommand(operation, {
       registry,
@@ -39,7 +40,7 @@ export function createPropertyTimelines(parts: IEditorParts): IEditorPropertyTim
         try { return stageHost.describeForEdit(target); }
         catch { throw new PropertyOperationError('Les propriétés de la cible sont indisponibles.'); }
       }
-    });
+    }, current);
     let reason: string | undefined;
     const off = bus.on('command:refused', (event) => {
       if (event.command === command) reason = event.reason;
@@ -66,17 +67,26 @@ export function createPropertyTimelines(parts: IEditorParts): IEditorPropertyTim
       cancel: (): void => { assertActive(); commands.cancelGroup(); }
     });
   };
-  return Object.freeze<IEditorPropertyTimelines>({
-    set: (layerId, property, value, options = {}) => apply({ kind: 'set', layerId, property, value,
+  const facade = (current?: () => boolean): IEditorPropertyTimelines => {
+    const edit = (operation: PropertyTimelineOperation): PropertyTimelineMutationResult => apply(operation, current);
+    return Object.freeze<IEditorPropertyTimelines>({
+    guarded: (isCurrent) => {
+      lifecycle.assertActive('propertyTimelines.guarded');
+      if (typeof isCurrent !== 'function') throw new TypeError('La garde doit être une fonction.');
+      return facade(current === undefined ? isCurrent : () => current() && isCurrent());
+    },
+    set: (layerId, property, value, options = {}) => edit({ kind: 'set', layerId, property, value,
       frame: options.frame ?? playbackFacade.frame, initialValue: options.initialValue }),
-    capture: (layerId, property, options = {}) => apply({ kind: 'capture', layerId, property,
+    capture: (layerId, property, options = {}) => edit({ kind: 'capture', layerId, property,
       frame: options.frame ?? playbackFacade.frame, initialValue: options.initialValue }),
-    deleteKey: (layerId, property, frame) => apply({ kind: 'delete-key', layerId, property, frame: frame ?? playbackFacade.frame }),
-    moveKey: (layerId, property, frame, toFrame) => apply({ kind: 'move-key', layerId, property, frame, toFrame }),
-    createTransition: (layerId, property, frames, easing) => apply({ kind: 'create-transition', layerId, property, frames, easing }),
-    removeTransition: (layerId, property, transitionId) => apply({ kind: 'remove-transition', layerId, property, transitionId }),
-    setEasing: (layerId, property, transitionId, easing) => apply({ kind: 'set-easing', layerId, property, transitionId, easing }),
-    migrate: (layerId, property) => apply({ kind: 'migrate', layerId, property }),
+    deleteKey: (layerId, property, frame) => edit({ kind: 'delete-key', layerId, property, frame: frame ?? playbackFacade.frame }),
+    moveKey: (layerId, property, frame, toFrame) => edit({ kind: 'move-key', layerId, property, frame, toFrame }),
+    createTransition: (layerId, property, frames, easing) => edit({ kind: 'create-transition', layerId, property, frames, easing }),
+    removeTransition: (layerId, property, transitionId) => edit({ kind: 'remove-transition', layerId, property, transitionId }),
+    setEasing: (layerId, property, transitionId, easing) => edit({ kind: 'set-easing', layerId, property, transitionId, easing }),
+    migrate: (layerId, property) => edit({ kind: 'migrate', layerId, property }),
     beginTransaction
   });
+  };
+  return facade();
 }

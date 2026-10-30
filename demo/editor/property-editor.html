@@ -1,0 +1,21 @@
+<!-- demo/editor/property-editor.html -->
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Clés et accélérations · Timeline</title></head>
+<body class="JsTimeLine property-editor-page">
+<main>
+  <header><nav><a href="index.html">← Démonstrations</a> · <a href="property-timelines.html">Démonstration de l’API</a></nav>
+    <p class="eyebrow">JsAnimationTimeline · Éditeur par propriété</p>
+    <h1>Composez le mouvement.</h1>
+    <p>Sélectionnez un objet pour déplier ses propriétés. Deux clés d’une même ligne définissent une interpolation.</p>
+  </header>
+  <section aria-label="Aperçu de la scène"><canvas id="preview" width="1100" height="160" role="img" aria-label="Deux objets animés sur un canevas"></canvas></section>
+  <div class="instructions"><p><strong>À essayer :</strong> sélectionnez deux clés avec Ctrl, puis « Créer une interpolation ». Un clic droit sur la transition ouvre le choix d’accélération.</p>
+    <p>F6 capture la valeur à l’image choisie. Les propriétés se modifient dans le panneau à droite ; Échap annule un brouillon.</p></div>
+  <div id="editor-host" aria-label="Éditeur de propriétés"></div>
+  <div class="document-actions"><button type="button" id="save-document">Mémoriser le document</button><button type="button" id="reload-document">Recharger la copie</button><button type="button" id="reset-document">Réinitialiser la démonstration</button></div>
+  <p id="status" role="status">Prêt. Sélectionnez le calque Carte.</p>
+  <details><summary>Document enregistré</summary><pre id="document-json"></pre></details>
+</main>
+<script type="module" src="./src/propertyEditor.ts"></script>
+</body></html>

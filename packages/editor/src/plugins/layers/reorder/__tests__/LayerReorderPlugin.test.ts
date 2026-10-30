@@ -23,6 +23,16 @@ afterEach(() => {
   unmountAll();
 });
 
+it('treats expanded property rows as their owner block while dropping a node', () => {
+  const property = { initialValue: { kind: 'number' as const, value: 0 }, keys: [{ frame: 1, value: { kind: 'number' as const, value: 1 } }] };
+  const h = setup(doc([layer('a', { propertyTimelines: { x: property, y: property } }), layer('b'), layer('c')]));
+  h.list.setPropertiesExpanded('a', true);
+  dragRow(h, 'c', y(2, 0.9));
+  expect(show(h.editor.document.layers)).toBe('a,c,b');
+  h.editor.undo();
+  expect(show(h.editor.document.layers)).toBe('a,b,c');
+});
+
 function show(nodes: readonly LayerNode[]): string {
   return nodes.map((node) => (isFolder(node) ? `${node.id}(${show(node.children)})` : node.id)).join(',');
 }

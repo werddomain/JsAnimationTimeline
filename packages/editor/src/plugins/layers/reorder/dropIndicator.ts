@@ -41,9 +41,14 @@ export class DropIndicator {
       this.highlight(placement.rowId);
       return;
     }
-    const rows = this.list.rows();
+    const rows = this.list.visibleRows();
     const row = placement.rowId === undefined ? undefined : this.list.row(placement.rowId);
-    const slot = placement.position === 'before' ? (row?.index ?? 0) : (row?.index ?? rows.length - 1) + 1;
+    let slot = placement.position === 'before' ? (row?.index ?? 0) : (row?.index ?? rows.length - 1) + 1;
+    // A property block belongs to its node; inserting after the node must never
+    // draw the indicator between its header and its property rows.
+    if (placement.position === 'after' && row?.kind === 'layer') {
+      while (rows[slot]?.kind === 'property' && rows[slot]?.parentId === row.id) slot += 1;
+    }
     // Sous un dossier déplié, le trait « après » est au niveau de ses enfants.
     const depth = row === undefined ? 0 : row.depth + (placement.parentId === row.id ? 1 : 0);
     const line = this.ensureLine();

@@ -511,7 +511,7 @@ describe('layers.list cleanup', () => {
     const plugin = new LayerListPlugin();
     plugin.init(fakeContext);
     plugin.destroy();
-    expect(removed).toEqual(['service', 'document:loaded', 'document:changed']);
+    expect(removed).toEqual(['service', 'document:loaded', 'document:changed', 'layers:selectionChanged', 'frames:selectionChanged']);
   });
 
   it('still accepts collapse commands created outside the list', () => {

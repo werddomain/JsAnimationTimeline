@@ -13,7 +13,7 @@ peuvent varier selon l'outil : ils ne constituent pas un mécanisme de coordinat
    état actuel observé, opérations conceptuelles et scénarios de conformité.
 3. [Message de démarrage pour la session Designer](designer-session.md) — contexte
    à transmettre à la session qui travaillera dans HtmlAnimation.
-4. [API HA1](timeline-ha1-api.md), puis [API HA2](timeline-ha2-api.md) — capacités
+4. [API HA1](timeline-ha1-api.md), [API HA2](timeline-ha2-api.md), puis [API HA3](timeline-ha3-api.md) — capacités
    effectivement implémentées, méthodes publiques, vérifications et limites restantes.
 
 Les documents suffisent sans relire les discussions et sans suivre les références

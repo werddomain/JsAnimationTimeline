@@ -9,6 +9,8 @@
 export interface ToolbarEditKeyframeEvent {
   /** Calque de l'image clé à modifier. */
   readonly layerId: string;
+  /** Independent property, absent for a legacy layer keyframe. */
+  readonly property?: string;
   /** Image à modifier. */
   readonly frame: number;
   /** Vrai si l'image est dans une interpolation de mouvement. */

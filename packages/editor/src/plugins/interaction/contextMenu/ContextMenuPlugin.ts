@@ -77,7 +77,9 @@ export class ContextMenuPlugin implements EditorPlugin {
     if (grid.element()?.contains(target) || (point === undefined && target === ctx.container)) {
       const selection = ctx.services.require('frames.selection');
       const cell = point === undefined ? selection.anchor() ?? selection.cells()[0] : grid.cellAt(point.x, point.y);
-      if (cell === undefined || ctx.services.require('layers.list').row(cell.rowId)?.node.type !== 'layer') return undefined;
+      if (cell === undefined) return undefined;
+      const row = grid.rows().find((candidate) => candidate.id === cell.rowId);
+      if (row === undefined || row.kind === 'folder') return undefined;
       return { kind: 'frames', cell: { rowId: cell.rowId, frame: cell.frame } };
     }
     const list = ctx.services.require('layers.list');

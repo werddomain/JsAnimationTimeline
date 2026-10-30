@@ -12,8 +12,8 @@ implémentation. Les choix produit ne sont pas remis en discussion.
 | Phase | Tâche / branche | Résultat | État |
 | --- | --- | --- | --- |
 | A — Socle et API | HA1 / `v2/HA1-property-tracks` | Pistes indépendantes, valeurs typées, évaluation, accélérations paramétrées, schéma et .NET. | PR #122 fusionnée dans v2/base (`1b0232b`). |
-| A — Socle et API | HA2 / `v2/HA2-property-editing-api` | Commandes par propriété, découpe exacte, transactions publiques et démo moteur/API. | Vérifications locales et revues ECC réussies ; validation utilisateur de phase A à venir. |
-| B — Éditeur et HTML | HA3 / `v2/HA3-property-rows-selection` | Lignes, sélection, dépliage, commandes visuelles et choix d'accélération avec courbe. | À faire après validation A. |
+| A — Socle et API | HA2 / `v2/HA2-property-editing-api` | Commandes par propriété, découpe exacte, transactions publiques et démo moteur/API. | PR #123 fusionnée dans v2/base (`afcdb6b`). Phase A validée par l’utilisateur le 30 octobre 2026 (« 1. a »). |
+| B — Éditeur et HTML | HA3 / `v2/HA3-property-rows-selection` | Lignes, sélection, dépliage, commandes visuelles et choix d'accélération avec courbe. | Implémentation, vérification complète et revues ECC terminées ; intégration dans v2/base. |
 | B — Éditeur et HTML | HA4 / `v2/HA4-html-target-resolution` | Groupes, bases DOM, valeurs CSS riches, spécificité, cas 59 et conflits. | À faire après HA3. |
 | C — Sorties et raccordement | HA5 / `v2/HA5-playback-exports` | JSON préévalué, lecteur, export JS autonome HTML. | À faire après validation B. |
 | C — Sorties et raccordement | HA6 / `v2/HA6-css-export-conformance` | CSS fidèle/refus explicite, parité, démo et passation API réelle. | À faire après HA5. |

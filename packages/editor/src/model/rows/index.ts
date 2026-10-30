@@ -6,4 +6,5 @@
 
 export { DEFAULT_FRAME_WIDTH, ROW_HEIGHT } from './rowMetrics';
 export { visibleRows } from './visibleRows';
-export type { IVisibleRow } from './visibleRows';
+export type { IVisibleRow, INodeVisibleRow, IPropertyVisibleRow } from './visibleRows';
+export { RowProjection, rowProjection } from './rowProjection';

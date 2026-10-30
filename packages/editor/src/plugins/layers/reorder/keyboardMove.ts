@@ -16,7 +16,7 @@
 
 import { findNodeById, isFolder, resolveCollapsed } from '@kazo-ca/timeline-runtime';
 import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
-import type { IVisibleRow } from '../../../model/rows';
+import type { IVisibleRow, INodeVisibleRow } from '../../../model/rows';
 import { computeDropTarget, toDropTarget } from './dropTarget';
 import type { ILayerDropTarget } from './moveNodes';
 import { findNodeLocation, topMostIds } from './treeMoves';
@@ -46,7 +46,7 @@ function aroundFolder(doc: ITimelineDocument, folderId: string, offset: 0 | 1): 
   return location === undefined ? undefined : withParent(location.parentId, location.index + offset);
 }
 
-function upTarget(doc: ITimelineDocument, rows: readonly IVisibleRow[], firstId: string): ILayerDropTarget | undefined {
+function upTarget(doc: ITimelineDocument, rows: readonly INodeVisibleRow[], firstId: string): ILayerDropTarget | undefined {
   const index = rows.findIndex((row) => row.id === firstId);
   const own = rows[index];
   const previous = rows[index - 1];
@@ -60,7 +60,7 @@ function upTarget(doc: ITimelineDocument, rows: readonly IVisibleRow[], firstId:
   return location === undefined ? undefined : withParent(location.parentId, location.index + 1);
 }
 
-function downTarget(doc: ITimelineDocument, rows: readonly IVisibleRow[], lastId: string): ILayerDropTarget | undefined {
+function downTarget(doc: ITimelineDocument, rows: readonly INodeVisibleRow[], lastId: string): ILayerDropTarget | undefined {
   const index = rows.findIndex((row) => row.id === lastId);
   const own = rows[index];
   if (own === undefined) return undefined;
@@ -85,8 +85,9 @@ export function keyboardMoveTarget(
   ids: readonly string[],
   direction: MoveDirection
 ): ILayerDropTarget | undefined {
+  const nodeRows = rows.filter((row): row is INodeVisibleRow => row.kind !== 'property');
   const top = topMostIds(doc.layers, ids);
   const edge = direction === 'up' ? top[0] : top[top.length - 1];
   if (edge === undefined) return undefined;
-  return direction === 'up' ? upTarget(doc, rows, edge) : downTarget(doc, rows, edge);
+  return direction === 'up' ? upTarget(doc, nodeRows, edge) : downTarget(doc, nodeRows, edge);
 }

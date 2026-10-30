@@ -50,6 +50,7 @@ import { Editor, releaseEditorParts } from './Editor';
 import type { IEditorParts } from './Editor';
 import { EditorLifecycle } from './EditorLifecycle';
 import { createEmptyDocument } from './emptyDocument';
+import { createPropertyTimelines } from './createPropertyTimelines';
 import type { EditorOptions, IEditor } from './types';
 
 /** Classe de l'élément racine de l'éditeur (portée des styles LESS, même nom que le contrôle v1). */
@@ -125,8 +126,9 @@ function createParts(container: HTMLElement, options: EditorOptions): IEditorPar
     const playbackFacade = createPlaybackFacade(playback, assertActive);
     const stageFacade = createStageFacade(stageHost, assertActive);
     const services = new ServiceRegistry();
+    const propertyFacade = createPropertyTimelines({ bus, store, commands, lifecycle, playbackFacade, registry, stageHost });
     return {
-      bus, store, commands, host, services, registry, playback, playbackFacade, stageHost, stageFacade, element, lifecycle
+      bus, store, commands, host, services, registry, playback, playbackFacade, stageHost, stageFacade, element, lifecycle, propertyFacade
     };
   } catch (error) {
     // Rien ne doit rester : lecture arrêtée, scènes relâchées et détachées, élément retiré.
@@ -149,6 +151,7 @@ function startPlugins(parts: IEditorParts): void {
     playback: parts.playbackFacade,
     stage: parts.stageFacade,
     registry: parts.registry,
+    propertyTimelines: parts.propertyFacade,
     assertActive: (operation) => parts.lifecycle.assertActive(operation)
   });
   try {

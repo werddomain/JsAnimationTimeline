@@ -50,6 +50,7 @@ export function readPanelState(ctx: IEditorContext, revision: number): IPanelSta
     const descriptors = ctx.services.require('tweens.propertyKeyframes').propertiesFor(node.id);
     const sample = ctx.playback.sample(frame).layer(node.id);
     const span = node.spans.find((entry) => entry.start <= frame && frame <= entry.end);
+    const modern = Object.keys(node.propertyTimelines ?? {}).length > 0;
     const visit = flattenLayers(doc.layers).find(({ node: entry }) => entry.id === node.id);
     const locked = resolveLocked(node) || visit?.parentIds.some((id) => {
       const parent = findNodeById(doc.layers, id);
@@ -59,10 +60,18 @@ export function readPanelState(ctx: IEditorContext, revision: number): IPanelSta
     if (ctx.playback.playing) reason = 'Lecture en cours : modification indisponible.';
     else if (locked) reason = 'Ce calque est verrouillé (directement ou par son dossier).';
     else if (!Number.isInteger(frame) || frame < 1 || frame > doc.settings.totalFrames) reason = 'Cette image est indisponible.';
-    else if (span === undefined || span.kind === 'blank') reason = 'Aucun contenu à cette image : consultation uniquement.';
+    else if ((!modern && span === undefined) || span?.kind === 'blank') reason = 'Aucun contenu à cette image : consultation uniquement.';
     else if (descriptors.length === 0) reason = 'Aucune propriété autorisée pour cette cible.';
     const fields = descriptors.map((descriptor): IPanelField => {
       const name = descriptor.name;
+      const timeline = node.propertyTimelines !== undefined && Object.prototype.hasOwnProperty.call(node.propertyTimelines, name)
+        ? node.propertyTimelines[name] : undefined;
+      if (timeline !== undefined) {
+        const evaluated = sample?.propertyValues?.[name];
+        const stored = timeline.keys.find((key) => key.frame === frame)?.value;
+        return { descriptor, value: evaluated?.kind === 'number' ? evaluated.value : descriptor.defaultValue,
+          defaultOrigin: false, ...(stored?.kind === 'number' ? { stored: stored.value } : {}) };
+      }
       const values = sample?.values;
       const own = values !== undefined && Object.prototype.hasOwnProperty.call(values, name);
       const track = span?.tracks !== undefined && Object.prototype.hasOwnProperty.call(span.tracks, name) ? span.tracks[name] : [];

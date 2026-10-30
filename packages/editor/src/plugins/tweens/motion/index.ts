@@ -16,5 +16,6 @@ export type {
   IMotionTweenAvailability,
   IMotionTweenService,
   MotionAvailabilityChangedEvent,
-  MotionTweenEvent
+  MotionTweenEvent,
+  PropertyMotionTweenEvent
 } from './types';

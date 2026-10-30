@@ -11,7 +11,7 @@ import type { IFrameRange, IRowRange } from './gridCells';
 
 /** Une cellule de la grille : une image d'une ligne. */
 export interface IGridCell {
-  /** Id du calque ou du dossier de la ligne. */
+  /** Opaque visual row id. Resolve rows() to obtain a property's explicit layerId and property. */
   readonly rowId: string;
   /** Index de la ligne dans les lignes visibles (0 en haut). */
   readonly rowIndex: number;

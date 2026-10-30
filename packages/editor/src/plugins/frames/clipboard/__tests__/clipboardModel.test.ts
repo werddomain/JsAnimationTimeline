@@ -14,6 +14,17 @@ import type { IClipSpan } from '../types';
 
 const registry: PropertyRegistry = createRegistry();
 
+it('refuses a mixed selection containing an independent property instead of silently copying only legacy cells', () => {
+  const doc = createDoc([layer('legacy', [{ id: 'still', start: 1, end: 10, kind: 'static' }]),
+    layer('modern', [], { propertyTimelines: { x: { initialValue: { kind: 'number', value: 0 },
+      keys: [{ frame: 1, value: { kind: 'number', value: 1 } }] } } })]);
+  const rows = visibleRows(doc, new Set(['modern']));
+  const row = rows.find((entry) => entry.kind === 'property');
+  if (row === undefined) throw new Error('Missing property row');
+  expect(() => buildClip(doc, rows, [{ rowId: 'legacy', frame: 1 }, { rowId: row.id, frame: 1 }], registry))
+    .toThrow(/propriétés indépendantes/i);
+});
+
 /** Interpolation x : 0 (image 1) -> 100 (image 11), puis une plage fixe 12-14 et une vide 15-16. */
 const source: ILayer = layer('a', [
   { id: 't', start: 1, end: 11, kind: 'tween', tracks: { x: [{ frame: 1, value: 0 }, { frame: 11, value: 100 }] } },

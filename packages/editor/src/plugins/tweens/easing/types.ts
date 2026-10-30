@@ -1,5 +1,12 @@
 // packages/editor/src/plugins/tweens/easing/types.ts
-import type { Easing } from '@kazo-ca/timeline-runtime';
+import type { Easing, PropertyEasing } from '@kazo-ca/timeline-runtime';
+
+/** Stable identity of one independent property transition. */
+export interface IPropertyEasingTarget {
+  readonly layerId: string;
+  readonly property: string;
+  readonly transitionId: string;
+}
 
 /** Availability with a French refusal reason when the target cannot be edited. */
 export interface IEasingAvailability { readonly enabled: boolean; readonly reason?: string; }
@@ -9,6 +16,9 @@ export interface IEasingService {
   canSetAt(layerId: string, frame: number): IEasingAvailability;
   setAt(layerId: string, frame: number, easing: Easing): boolean;
   openAt(layerId: string, frame: number): boolean;
+  canSetProperty(target: IPropertyEasingTarget): IEasingAvailability;
+  setProperty(target: IPropertyEasingTarget, easing?: PropertyEasing): boolean;
+  openProperty(target: IPropertyEasingTarget): boolean;
   close(): void;
 }
 

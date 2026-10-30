@@ -49,7 +49,7 @@ export class PropertiesPanelPlugin implements EditorPlugin {
         }), ctx.events.on('playhead:changed', invalidate),
         ctx.events.on('playback:play', invalidate), ctx.events.on('playback:pause', invalidate),
         ctx.events.on('playback:complete', invalidate), ctx.events.on('stage:targetsChanged', () => this.metadataChanged()),
-        ctx.events.on('toolbar:editKeyframe', ({ layerId, frame }) => { this.focusAt(layerId, frame); }));
+        ctx.events.on('toolbar:editKeyframe', ({ layerId, frame, property }) => { this.focusAt(layerId, frame, property); }));
       for (const stage of ctx.stage.stages) {
         const remove = stage.targets?.subscribe?.(() => this.metadataChanged());
         if (remove !== undefined) this.cleanups.push(remove);
@@ -104,11 +104,17 @@ export class PropertiesPanelPlugin implements EditorPlugin {
     if (this.ctx !== ctx) return;
     if (generation !== this.contextGeneration || !this.isCurrent(ctx, fresh) || !samePanelContext(ticket, fresh) || fresh.reason !== '' || fresh.layerId === undefined ||
         !fresh.fields.some(({ descriptor }) => descriptor.name === name)) { this.refresh(); return; }
+    const current = (): boolean => generation === this.contextGeneration && this.isCurrent(ctx, fresh);
+    const layer = findLayer(ctx.document, fresh.layerId);
+    if (Object.keys(layer?.propertyTimelines ?? {}).length > 0) {
+      ctx.propertyTimelines.guarded(current).set(fresh.layerId, name, { kind: 'number', value }, { frame: fresh.frame });
+      this.refresh(true);
+      return;
+    }
     const command = new SetPropertyCommand(fresh.layerId, name, value, fresh.frame,
       createStagePropertyEditContext(ctx.registry, ctx.stage.stages));
     // Keep the same W2 command and strict metadata policy inside a local first-do guard.
-    ctx.commands.execute(new GuardedPropertyCommand(command, () =>
-      generation === this.contextGeneration && this.isCurrent(ctx, fresh)));
+    ctx.commands.execute(new GuardedPropertyCommand(command, current));
     this.refresh(true);
   }
 
@@ -119,7 +125,7 @@ export class PropertiesPanelPlugin implements EditorPlugin {
       JSON.stringify(ctx.services.require('layers.selection').selected()) === state.selection;
   }
 
-  private focusAt(layerId: string, frame: number): boolean {
+  private focusAt(layerId: string, frame: number, property?: string): boolean {
     const ctx = this.context();
     const doc = ctx.document;
     const beforeFrame = ctx.playback.frame;
@@ -136,7 +142,7 @@ export class PropertiesPanelPlugin implements EditorPlugin {
     if (!current(frame)) return false;
     this.refresh();
     if (!current(frame)) return false;
-    this.view?.focus();
+    this.view?.focus(property);
     if (!current(frame)) { this.refresh(); return false; }
     return true;
   }
