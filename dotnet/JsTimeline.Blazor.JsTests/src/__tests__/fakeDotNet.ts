@@ -4,7 +4,7 @@
  * its promise open until the test settles it, like a .NET method still running.
  */
 
-import type { IStage, ITimelineDocument } from '@kazo-ca/timeline-runtime';
+import type { IStage, ITimelineDocument, TimelinePropertyValue } from '@kazo-ca/timeline-runtime';
 // The module under test is the plain JavaScript shipped in the Blazor package.
 import { createDotNetStage } from '../../../JsTimeline.Blazor/wwwroot/stage/dotnetStage.js';
 
@@ -18,6 +18,7 @@ export interface ISentFrame {
     readonly layerId: string;
     readonly target: unknown;
     readonly values: Readonly<Record<string, number>>;
+    readonly propertyValues?: Readonly<Record<string, TimelinePropertyValue>>;
     readonly active: boolean;
     readonly visible: boolean;
   }[];

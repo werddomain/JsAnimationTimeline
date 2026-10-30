@@ -16,6 +16,32 @@ function playerWith(receiver: FakeDotNetReference, mode?: FrameMode, onListenerE
 }
 
 describe('frames sent to .NET', () => {
+  it('preserves typed property values without coercion and snapshots the sent frame', async () => {
+    const receiver = new FakeDotNetReference();
+    const stage = heroStage(receiver, 'everyTick');
+    const propertyValues = {
+      x: { kind: 'number' as const, value: 20 },
+      caption: { kind: 'text' as const, value: 'Hello' },
+      enabled: { kind: 'boolean' as const, value: true },
+      color: { kind: 'color' as const, r: 0, g: 0.5, b: 1, a: 1 }
+    };
+    const expected = JSON.parse(JSON.stringify(propertyValues)) as unknown;
+    const states = [{
+      layerId: 'typed', target: { ref: 'hero' }, object: 'hero', values: { x: 20 }, propertyValues,
+      active: true, editorVisible: true
+    }];
+    stage.render?.({ timeMs: 0, frame: 1, integerFrame: 1 }, states);
+    await flush();
+    propertyValues.caption.value = 'Changed after render';
+    const layer = receiver.frames[0].layers[0];
+    expect(layer.propertyValues).toEqual(expected);
+    expect(layer.values.x).toBe(20);
+    expect(layer.values).not.toHaveProperty('caption');
+    expect(layer.values).not.toHaveProperty('enabled');
+    expect(layer.values).not.toHaveProperty('color');
+    expect(JSON.parse(JSON.stringify(layer))).toEqual(layer);
+  });
+
   it('sends the compact state of each layer, values completed with the defaults', async () => {
     // Arrange
     const receiver = new FakeDotNetReference();

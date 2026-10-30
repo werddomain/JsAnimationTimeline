@@ -30,3 +30,4 @@ export { floorInterpolator, getInterpolator, interpolators, roundInterpolator, s
 export type { InterpolatorName } from './interpolators';
 export { composeTransform, computeCssDeclarations, cssNameToCamelCase } from './compose';
 export type { CssDeclarations } from './compose';
+export type { TimelinePropertyValues } from './timelineValues';

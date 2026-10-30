@@ -10,6 +10,9 @@ export { TARGET_KEYS } from './target';
 export type { IElementTarget, IRefTarget, ISelectorTarget, LayerTarget, SerializableLayerTarget } from './target';
 export { isValidPropertyName, PROPERTY_NAME_PATTERN, RESERVED_PROPERTY_NAMES } from './names';
 export type { IPropertyKeyframe, ISpan, PropertyTracks, SpanKind } from './span';
+export type { IPropertyTimeline, IPropertyTimelineKeyframe, IPropertyTransition, IPropertyCurveSource, TimelinePropertyValue } from './propertyTimeline';
+export type { PropertyEasingFamily, PropertyEasingMode, IEffectParameters, IBezierPropertyEasing, IEffectPropertyEasing, PropertyEasing } from './propertyEasing';
+export { isPropertyEasing } from './propertyEasing';
 export {
   CUBIC_BEZIER_PATTERN,
   DEFAULT_EASING,

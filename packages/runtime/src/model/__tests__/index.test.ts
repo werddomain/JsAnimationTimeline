@@ -28,6 +28,7 @@ describe('runtime entry point', () => {
       'isElementTarget',
       'isFolder',
       'isLayer',
+      'isPropertyEasing',
       'isRefTarget',
       'isSelectorTarget',
       'isValidPropertyName',

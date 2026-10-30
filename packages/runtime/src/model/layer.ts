@@ -5,6 +5,7 @@
  */
 
 import type { ISpan } from './span';
+import type { IPropertyTimeline } from './propertyTimeline';
 import type { LayerTarget } from './target';
 
 /** Discriminator of a layer tree node. */
@@ -31,6 +32,8 @@ export interface ILayer extends ILayerNodeBase {
   readonly target?: LayerTarget;
   /** Sorted, contiguous spans starting at frame 1 (may be empty). */
   readonly spans: readonly ISpan[];
+  /** Independent typed property tracks, disjoint from legacy span tracks. */
+  readonly propertyTimelines?: Readonly<Record<string, IPropertyTimeline>>;
 }
 
 /** A folder groups layers and folders. */

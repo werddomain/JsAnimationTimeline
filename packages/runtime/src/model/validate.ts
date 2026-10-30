@@ -17,6 +17,7 @@ import type { IValidationIssue, ValidationCode } from './issues';
 import { checkDocumentShape } from './shape';
 import type { IShapeOptions } from './shape';
 import { walkLayers } from './traverse';
+import { validatePropertyTimelines } from './propertyTimelineValidation';
 
 export { ValidationCodes } from './issues';
 export type { IValidationIssue, ValidationCode } from './issues';
@@ -124,6 +125,7 @@ function checkLayer(ctx: IValidationContext, layer: ILayer, pointer: string): vo
   const spansPath = `${pointer}/spans`;
   checkSpanSequence(ctx, layer.spans, spansPath);
   layer.spans.forEach((span, index) => checkSpan(ctx, span, `${spansPath}/${index}`));
+  ctx.issues.push(...validatePropertyTimelines(layer, ctx.totalFrames, pointer, (id, path) => checkUniqueId(ctx, id, path)));
 }
 
 /** Runs the shape check; `true` (and no issue added) when `doc` has the document form. */

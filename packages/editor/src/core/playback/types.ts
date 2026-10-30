@@ -9,7 +9,7 @@
  * branchée (mode tiré, robot, état Blazor...).
  */
 
-import type { ITransportTime, LayerTarget, PropertyValues } from '@kazo-ca/timeline-runtime';
+import type { ITransportTime, LayerTarget, PropertyValues, TimelinePropertyValues } from '@kazo-ca/timeline-runtime';
 
 /** Valeurs d'un calque à une image. */
 export interface ILayerSample {
@@ -18,9 +18,11 @@ export interface ILayerSample {
   readonly target: LayerTarget | undefined;
   /** Valeur de chaque propriété animée dans le calque (pistes inconnues du registre exclues). */
   readonly values: PropertyValues;
+  /** Frozen typed values and entries for independent property timelines; absent on legacy-only samples. */
+  readonly propertyValues?: TimelinePropertyValues;
   /** Plage qui contient l'image, `undefined` hors de toute plage. */
   readonly spanId: string | undefined;
-  /** `false` dans une plage vide (`blank`), avant la première plage et après la dernière. */
+  /** False outside explicit content spans or in a blank span; spanless property timelines are active from frame 1. */
   readonly active: boolean;
   /** Œil du calque dans l'éditeur : `false` si le calque ou un dossier parent est masqué. */
   readonly editorVisible: boolean;

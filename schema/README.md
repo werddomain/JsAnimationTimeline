@@ -1,3 +1,4 @@
+<!-- schema/README.md -->
 # Timeline document format v2
 
 `timeline.schema.json` (JSON Schema draft 2020-12) describes the documents
@@ -26,7 +27,75 @@ easing                   "linear" | "ease" | "ease-in" | "ease-out" | "ease-in-o
 Examples: `examples/minimal.json`, `examples/tween-and-static.json` (the example
 of the analysis report), `examples/folders.json`.
 
-## Decisions
+## Independent property timelines
+
+Layers may add `propertyTimelines`, a dictionary keyed by property name. These
+tracks use explicit typed values and do not require a browser or a property
+registry. Legacy `spans` remain supported unchanged. One property cannot appear
+in both `propertyTimelines` and a legacy span's `tracks` in the same layer.
+
+```json
+{
+  "propertyTimelines": {
+    "opacity": {
+      "initialValue": { "kind": "number", "value": 1 },
+      "keys": [
+        { "frame": 1, "value": { "kind": "number", "value": 0 } },
+        { "frame": 100, "value": { "kind": "number", "value": 1 } }
+      ],
+      "transitions": [{
+        "id": "fade", "fromFrame": 1, "toFrame": 100,
+        "easing": { "kind": "effect", "family": "sine", "mode": "in-out" }
+      }]
+    }
+  }
+}
+```
+
+Values are closed objects: `{kind:"number",value:number}`,
+`{kind:"text",value:string}`, `{kind:"boolean",value:boolean}`, or
+`{kind:"color",r,g,b,a}` with every channel normalized to 0..1. Numbers are
+finite. A property's value kind remains the same across its initial value,
+keys, and preserved curve sources. `label` and `group` are optional metadata.
+
+Keys use strictly increasing absolute frames in 1..`totalFrames`. A key holds
+its value until the next key; interpolation happens only through an explicit
+transition connecting two consecutive keys of that property. Before the first
+key, `beforeFirst: "initial"` (the default) uses `initialValue`;
+`beforeFirst: "first-key"` uses the first key's value. With no keys, both use
+`initialValue`. Transitions have unique ids and cannot overlap. Only number
+and color properties support transitions; text and boolean keys are discrete.
+
+A transition's optional `source` preserves an original curve after splitting:
+`{start,end,keys,easing?}`. It contains the transition interval, has keys at both
+bounds, and shares the property's value kind. This snapshot has no nested
+source and preserves the original timing curve instead of restarting it for
+each piece. Runtime state carries these values in optional `propertyValues`,
+alongside the existing numeric `values` projection. The .NET stage bridge
+preserves both fields and omits `propertyValues` for legacy layers.
+
+Modern easing is either `{kind:"bezier",x1,y1,x2,y2}` or
+`{kind:"effect",family,mode,parameters?}`. Bezier x coordinates are 0..1 and y
+coordinates are -100..100. Modes are `in`, `out`, and `in-out`. Families are
+`linear`, `sine`, `circle`, `quadratic`, `cubic`, `quartic`, `quintic`, `power`,
+`exponential`, `back`, `bounce`, and `elastic`. Only the chosen family's
+parameters are accepted:
+
+| Family | Parameters and limits | Defaults |
+| --- | --- | --- |
+| power | power 0.1..20 | 2 |
+| exponential | exponent 0..30 | 2 |
+| back | amplitude 0..10 | 1 |
+| bounce | integer bounces 0..32; bounciness 1..10 | 3; 2 |
+| elastic | integer oscillations 0..32; springiness 0..30 | 3; 3 |
+| Other families | No parameters | — |
+
+All modern model objects reject unknown fields. JSON Schema checks structure,
+types, and easing parameters; `validateDocument` additionally checks frame
+ordering, duration, kind consistency, transition adjacency/overlap, preserved
+source bounds, global identifier uniqueness, and legacy/modern conflicts.
+
+## Legacy span decisions
 
 - **Frames are absolute and 1-based** (like Flash), in spans and in keyframes;
   they are never relative to their span. Frames go from 1 to `settings.totalFrames`.

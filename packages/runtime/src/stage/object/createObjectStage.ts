@@ -24,6 +24,8 @@ import { collectLayerProperties } from '../../evaluate/evaluateLayer';
 import type { LayerTarget } from '../../model/target';
 import { defaultPropertyRegistry } from '../../properties/PropertyRegistry';
 import type { PropertyRegistry } from '../../properties/PropertyRegistry';
+import { boundTimelineValue, numericTimelineValues, typedNumericValues } from '../../properties/timelineValues';
+import type { TimelinePropertyValues } from '../../properties/timelineValues';
 import { refStage } from '../routing';
 import type { IStageContext, IStageLayer, IStageLayerState, ITargetInfo, ITargetPropertyInfo } from '../types';
 import type { IObjectStage, IObjectStageEntry, IObjectStageOptions, ObjectStageState } from './types';
@@ -48,6 +50,9 @@ interface IBoundLayer<T> {
   readonly object: T;
   /** Declared properties of the object and properties animated by the layer's tracks. */
   readonly names: readonly string[];
+  /** Initial typed states retained while the object declares or animates the property. */
+  readonly initialValues: TimelinePropertyValues;
+  readonly animated: readonly string[];
 }
 
 /** `targets` without duplicates: a `{ ref, stage }` target is kept once; other targets are kept as is. */
@@ -122,34 +127,49 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
   const stageNames = (): string[] => (options.properties ?? []).map((p) => p.name);
 
   /** Registry defaults of `names` and of `extra`. */
-  const defaultsFor = (names: readonly string[], extra: Iterable<string> = []): Record<string, number> => {
+  const defaultsFor = (names: readonly string[], initial: TimelinePropertyValues = {}): Record<string, number> => {
     const defaults: Record<string, number> = {};
-    [...names, ...extra].forEach((name) => {
-      defaults[name] = registry.get(name)?.defaultValue ?? 0;
+    names.forEach((name) => {
+      if (Object.prototype.hasOwnProperty.call(initial, name)) {
+        const value = initial[name];
+        if (value.kind === 'number') defaults[name] = value.value;
+      } else defaults[name] = registry.get(name)?.defaultValue ?? 0;
     });
     return defaults;
   };
 
+  const defaultState = (names: readonly string[], initial: TimelinePropertyValues) => {
+    const values = defaultsFor(names, initial);
+    const propertyValues = Object.fromEntries(Object.entries(initial)
+      .filter(([name]) => names.includes(name))
+      .map(([name, value]) => [name, boundTimelineValue(value, registry.get(name))]));
+    Object.assign(values, numericTimelineValues(propertyValues));
+    return { values, ...(Object.keys(propertyValues).length === 0 ? {} : {
+      propertyValues: { ...typedNumericValues(values), ...propertyValues }
+    }) };
+  };
+
   const prepare = (state: IStageLayerState<T>): ObjectStageState<T> => {
-    const defaults = defaultsFor(bound.get(state.layerId)?.names ?? stageNames());
-    if (state.active) {
-      return { ...state, values: { ...defaults, ...state.values } };
+    const layer = bound.get(state.layerId);
+    const defaults = defaultState(layer?.names ?? stageNames(), layer?.initialValues ?? {});
+    if (state.active || options.reset !== undefined) {
+      if (!state.active) options.reset?.(state.object);
+      return { ...defaults, ...state, values: { ...defaults.values, ...state.values },
+        ...(defaults.propertyValues === undefined && state.propertyValues === undefined ? {} : {
+          propertyValues: { ...defaults.propertyValues, ...typedNumericValues(state.values), ...state.propertyValues }
+        }) };
     }
-    if (options.reset !== undefined) {
-      options.reset(state.object);
-      return { ...state, values: { ...defaults, ...state.values } };
-    }
-    return { ...state, values: defaults };
+    return { ...state, ...defaults };
   };
 
   /** Gives `object` the registry defaults of `names` (or calls `reset` when provided). */
-  const restoreDefaults = (layerId: string, target: LayerTarget, object: T, names: readonly string[]): void => {
+  const restoreDefaults = (layerId: string, target: LayerTarget, object: T, names: readonly string[], initial: TimelinePropertyValues): void => {
     if (options.reset !== undefined) {
       options.reset(object);
       return;
     }
-    const values = defaultsFor(names);
-    options.apply(object, values, { layerId, target, object, values, active: false, editorVisible: true });
+    const defaults = defaultState(names, initial);
+    options.apply(object, defaults.values, { layerId, target, object, ...defaults, active: false, editorVisible: true });
   };
 
   const stage: IObjectStage<T> = {
@@ -185,11 +205,18 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
       layers.forEach((layer) => {
         const declared = declaredNames(layer.object, layer.target);
         const names = Array.from(new Set([...declared, ...collectLayerProperties(layer.layer)]));
-        bound.set(layer.layerId, { target: layer.target, object: layer.object, names });
         const before = previous.get(layer.layerId);
-        const dropped = before === undefined || before.object !== layer.object ? [] : before.names.filter((name) => !names.includes(name));
+        const sameObject = before?.object === layer.object;
+        const animated = Object.keys(layer.layer.propertyTimelines ?? {});
+        const retained = sameObject ? Object.entries(before.initialValues).filter(([name]) => declared.includes(name)) : [];
+        const initialValues = Object.fromEntries([...retained, ...Object.entries(layer.layer.propertyTimelines ?? {})
+          .map(([name, timeline]) => [name, boundTimelineValue(timeline.initialValue, registry.get(name))] as const)]);
+        bound.set(layer.layerId, { target: layer.target, object: layer.object, names, initialValues, animated });
+        const dropped = !sameObject ? [] : Array.from(new Set([
+          ...before.names.filter((name) => !names.includes(name)), ...before.animated.filter((name) => !animated.includes(name))
+        ]));
         if (dropped.length > 0) {
-          restores.push(() => restoreDefaults(layer.layerId, layer.target, layer.object, [...declared, ...dropped]));
+          restores.push(() => restoreDefaults(layer.layerId, layer.target, layer.object, [...declared, ...dropped], before?.initialValues ?? {}));
         }
       });
       runAll(restores);
@@ -209,7 +236,7 @@ export function createObjectStage<T>(options: IObjectStageOptions<T>): IObjectSt
       if (layer === undefined) {
         return;
       }
-      restoreDefaults(layerId, layer.target, object, layer.names);
+      restoreDefaults(layerId, layer.target, object, layer.names, layer.initialValues);
     },
     add(entry) {
       addEntry(entry);

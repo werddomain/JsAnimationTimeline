@@ -14,11 +14,14 @@ import type { PropertyRegistry } from '@kazo-ca/timeline-runtime';
  *   (`kind` other than `transform` / `style`);
  * - `unknown-property`: the track's property is not in the registry;
  * - `invalid-layer`: the layer could not be evaluated (invalid easing...);
+ * - `unsupported-property-timeline`: modern independent property tracks need
+ *   the forthcoming HTML adapter; the complete export is refused;
  * - `invalid-document`: `fps` or `totalFrames` is not a positive number, or
  *   `layers` is not an array;
  *   nothing is exported.
  */
-export type ExportCssWarningCode = 'unsupported-target' | 'non-css-property' | 'unknown-property' | 'invalid-layer' | 'invalid-document';
+export type ExportCssWarningCode = 'unsupported-target' | 'non-css-property' | 'unknown-property' | 'invalid-layer'
+  | 'invalid-document' | 'unsupported-property-timeline';
 
 /** Something the export skipped; the rest of the document is still exported. */
 export interface IExportCssWarning {

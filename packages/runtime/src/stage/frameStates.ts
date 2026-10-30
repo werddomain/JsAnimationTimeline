@@ -45,6 +45,7 @@ export function evaluateStageLayers<T>(
       target,
       object,
       values: state.values,
+      ...(state.propertyValues === undefined ? {} : { propertyValues: state.propertyValues }),
       spanId: state.spanId,
       active: state.visible,
       editorVisible: isEditorVisible(layerId) !== false
