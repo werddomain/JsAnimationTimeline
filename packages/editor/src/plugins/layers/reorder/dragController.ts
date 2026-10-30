@@ -278,10 +278,15 @@ export class DragController {
 
   private rowBoxes(): IRowBox[] {
     const boxes: IRowBox[] = [];
+    const propertyCounts = new Map<string, number>();
+    this.deps.list.visibleRows().forEach((row) => {
+      if (row.kind === 'property') propertyCounts.set(row.layerId, (propertyCounts.get(row.layerId) ?? 0) + 1);
+    });
     this.deps.list.rows().forEach((row) => {
       const rect = this.deps.list.rowElement(row.id)?.getBoundingClientRect();
       if (rect === undefined) return;
-      boxes.push({ id: row.id, kind: row.kind, top: rect.top, height: rect.height > 0 ? rect.height : ROW_HEIGHT });
+      const height = (rect.height > 0 ? rect.height : ROW_HEIGHT) + (propertyCounts.get(row.id) ?? 0) * ROW_HEIGHT;
+      boxes.push({ id: row.id, kind: row.kind, top: rect.top, height });
     });
     return boxes;
   }

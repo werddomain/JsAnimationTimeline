@@ -17,6 +17,7 @@ import { SetPropertyCommand } from '../../../model/properties/SetPropertyCommand
 import { getTargetPropertyNames } from '../../../model/properties/targetProperties';
 import { findLayer } from '../../../model/spans/layerAccess';
 import type { IPropertyKeyframesService } from './types';
+import { modernDescriptors } from './modernDescriptors';
 
 export const PROPERTY_KEYFRAMES_PLUGIN_ID = 'tweens.propertyKeyframes';
 
@@ -48,6 +49,9 @@ export class PropertyKeyframesPlugin implements EditorPlugin {
     const ctx = this.requireContext();
     const layer = findLayer(ctx.document, layerId);
     if (layer === undefined) return Object.freeze([]);
+    if (Object.keys(layer.propertyTimelines ?? {}).length > 0) {
+      return Object.freeze(modernDescriptors(layer, createStagePropertyEditContext(ctx.registry, ctx.stage.stages)));
+    }
     const names = new Set(getTargetPropertyNames(layer.target, createStagePropertyEditContext(ctx.registry, ctx.stage.stages)));
     return Object.freeze(ctx.registry.list().filter(({ name }) => names.has(name)));
   }
@@ -55,6 +59,10 @@ export class PropertyKeyframesPlugin implements EditorPlugin {
   private setProperty(layerId: string, name: string, value: number, options: SetPropertyOptions = {}): boolean {
     const ctx = this.requireContext();
     const frame = options.frame === undefined ? ctx.playback.frame : options.frame;
+    const layer = findLayer(ctx.document, layerId);
+    if (Object.keys(layer?.propertyTimelines ?? {}).length > 0) {
+      return ctx.propertyTimelines.set(layerId, name, { kind: 'number', value }, { frame }).status === 'changed';
+    }
     return ctx.commands.execute(new SetPropertyCommand(layerId, name, value, frame, createStagePropertyEditContext(ctx.registry, ctx.stage.stages)));
   }
 

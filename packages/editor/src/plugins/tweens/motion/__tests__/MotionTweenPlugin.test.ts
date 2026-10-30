@@ -485,6 +485,7 @@ describe('tweens.motion registry and lifecycle', () => {
       events: { on: jest.fn(() => unsubscribe), emit: jest.fn() },
       services: {
         provide: jest.fn(() => unprovide),
+        get: jest.fn(() => undefined),
         require: jest.fn(() => ({ cells: () => [] }))
       }
     } as unknown as IEditorContext;
@@ -496,8 +497,8 @@ describe('tweens.motion registry and lifecycle', () => {
     plugin.destroy();
 
     // Assert
-    expect(ctx.events.on).toHaveBeenCalledTimes(3);
-    expect(unsubscribe).toHaveBeenCalledTimes(3);
+    expect(ctx.events.on).toHaveBeenCalledTimes(4);
+    expect(unsubscribe).toHaveBeenCalledTimes(4);
     expect(unprovide).toHaveBeenCalledTimes(1);
   });
 

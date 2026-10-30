@@ -39,4 +39,24 @@
   }
   .jt-easing-dialog__actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
   .jt-easing-dialog__custom { overflow-wrap: anywhere; font-size: 12px; }
+  .jt-property-easing {
+    width: 560px;
+    label[hidden] { display: none; }
+    &__choices, &__parameters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    &__choices select { box-sizing: border-box; margin: 6px 0 12px; min-width: 0; color: inherit; background: #fff; }
+    &__parameters input { box-sizing: border-box; width: 100%; padding: 8px; font: inherit; border: 1px solid #687887; border-radius: 3px; }
+    &__provenance { padding: 10px 12px; border-left: 3px solid var(--jt-easing-accent); background: #eaf2f8; font-size: 13px; }
+    &__provenance:empty { display: none; }
+    &__graph { display: block; width: 100%; height: auto; margin: 12px 0; overflow: visible; }
+    &__graph text { font: 10px system-ui, sans-serif; fill: #364553; }
+    &__axis { fill: none; stroke: #a4aeb7; stroke-width: 1; }
+    &__curve { fill: none; stroke: var(--jt-easing-accent); stroke-width: 2; }
+    &__curve--1 { stroke: #287d48; }
+    &__curve--2 { stroke: #a24528; }
+    &__curve--3 { stroke: #7550a1; stroke-dasharray: 4 3; }
+  }
+  @media (max-width: 440px) {
+    .jt-property-easing { padding: 16px; }
+    .jt-property-easing__choices { grid-template-columns: 1fr; gap: 0; }
+  }
 }

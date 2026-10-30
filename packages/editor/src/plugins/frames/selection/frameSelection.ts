@@ -13,12 +13,26 @@
 
 import type { IVisibleRow } from '../../../model/rows';
 
-/** Une cellule sélectionnable : une image d'un calque. */
+/** A selectable cell on a legacy layer or modern property row. */
 export interface IFrameCell {
-  /** Id du calque. */
+  /** Visual row identity, not necessarily a layer id. */
   readonly rowId: string;
   /** Image, de 1 à `totalFrames`. */
   readonly frame: number;
+}
+
+/** Canonical modern selection; ownership is resolved from the visible projection. */
+export interface IPropertyFrameCell extends IFrameCell {
+  readonly layerId: string;
+  readonly property: string;
+}
+
+function frameCell(row: IVisibleRow, frame: number): IFrameCell {
+  if (row.kind === 'property') {
+    const cell: IPropertyFrameCell = { rowId: row.id, frame, layerId: row.layerId, property: row.property };
+    return cell;
+  }
+  return { rowId: row.id, frame };
 }
 
 /** État de la sélection des images. */
@@ -42,11 +56,11 @@ export function sameCell(a: IFrameCell | undefined, b: IFrameCell | undefined): 
   return a === b || (a !== undefined && b !== undefined && a.rowId === b.rowId && a.frame === b.frame);
 }
 
-/** Index d'affichage des lignes de calque visibles, par id (les dossiers en sont exclus). */
+/** Display index of selectable layer/property rows; folders have no selectable cells. */
 function layerRowIndex(rows: readonly IVisibleRow[]): Map<string, number> {
   const index = new Map<string, number>();
   rows.forEach((row) => {
-    if (row.kind === 'layer') index.set(row.id, row.index);
+    if (row.kind !== 'folder') index.set(row.id, row.index);
   });
   return index;
 }
@@ -58,13 +72,15 @@ function validCell(cell: IFrameCell, index: ReadonlyMap<string, number>, totalFr
 /** Cellules valides de `cells`, sans doublon, triées dans l'ordre d'affichage. */
 function normalize(cells: readonly IFrameCell[], rows: readonly IVisibleRow[], totalFrames: number): IFrameCell[] {
   const index = layerRowIndex(rows);
+  const rowsById = new Map(rows.map((row) => [row.id, row] as const));
   const seen = new Set<string>();
   const kept: IFrameCell[] = [];
   cells.forEach((cell) => {
     const key = cellKey(cell);
     if (!validCell(cell, index, totalFrames) || seen.has(key)) return;
     seen.add(key);
-    kept.push({ rowId: cell.rowId, frame: cell.frame });
+    const row = rowsById.get(cell.rowId);
+    if (row !== undefined) kept.push(frameCell(row, cell.frame));
   });
   return kept.sort((a, b) => (index.get(a.rowId) ?? 0) - (index.get(b.rowId) ?? 0) || a.frame - b.frame);
 }
@@ -98,8 +114,9 @@ export function toggleCell(
     const anchor = sameCell(state.anchor, cell) ? undefined : state.anchor;
     return anchor === undefined ? { cells } : { cells, anchor };
   }
-  const anchor: IFrameCell = { rowId: cell.rowId, frame: cell.frame };
-  return { cells: normalize([...state.cells, cell], rows, totalFrames), anchor };
+  const cells = normalize([...state.cells, cell], rows, totalFrames);
+  const anchor = cells.find((candidate) => sameCell(candidate, cell));
+  return { cells, ...(anchor === undefined ? {} : { anchor }) };
 }
 
 /**
@@ -123,8 +140,8 @@ export function rectangleCells(
   const last = Math.min(totalFrames, Math.max(from.frame, to.frame));
   const cells: IFrameCell[] = [];
   rows.forEach((row) => {
-    if (row.kind !== 'layer' || row.index < top || row.index > bottom) return;
-    for (let frame = first; frame <= last; frame += 1) cells.push({ rowId: row.id, frame });
+    if (row.kind === 'folder' || row.index < top || row.index > bottom) return;
+    for (let frame = first; frame <= last; frame += 1) cells.push(frameCell(row, frame));
   });
   return cells;
 }
@@ -148,7 +165,7 @@ export function selectRectangle(
     // Comme un clic seul : une cellule invalide (dossier...) vide la sélection.
     if (!additive) return selectOnly(to, rows, totalFrames);
     if (!isSelectableCell(to, rows, totalFrames)) return state;
-    return { cells: normalize([...state.cells, to], rows, totalFrames), anchor: { rowId: to.rowId, frame: to.frame } };
+    return { cells: normalize([...state.cells, to], rows, totalFrames), anchor: normalize([to], rows, totalFrames)[0] };
   }
   if (!isSelectableCell(to, rows, totalFrames)) return state;
   const rectangle = rectangleCells(anchor, to, rows, totalFrames);
@@ -207,5 +224,5 @@ export function selectCells(
   const kept = normalize(cells, rows, totalFrames);
   const index = layerRowIndex(rows);
   const last = [...cells].reverse().find((cell) => validCell(cell, index, totalFrames));
-  return last === undefined ? EMPTY_FRAME_SELECTION : { cells: kept, anchor: { rowId: last.rowId, frame: last.frame } };
+  return last === undefined ? EMPTY_FRAME_SELECTION : { cells: kept, anchor: kept.find((cell) => sameCell(cell, last)) };
 }

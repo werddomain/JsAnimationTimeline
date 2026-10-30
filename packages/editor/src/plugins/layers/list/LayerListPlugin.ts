@@ -27,11 +27,16 @@
 
 import type { ITimelineDocument } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
+import { rowProjection } from '../../../model/rows';
+import type { IVisibleRow } from '../../../model/rows';
 import { LAYOUT_SLOTS } from '../../layout/shell/layoutSlots';
 import { layerRows, sameRowLayout } from './layerRows';
 import { createSetCollapsedCommand, createToggleCollapsedCommand, findFolder } from './layerTree';
 import { LayerRowView, collectError } from './LayerRowView';
 import type { ILayerListService, ILayerRow, ILayerRowControl } from './types';
+import { propertyRowElement, updatePropertyRowView } from './PropertyRowView';
+import type {} from '../selection/types';
+import type {} from '../../frames/selection/types';
 import './LayerList.less';
 
 /** Identifiant du plugin et de son service. */
@@ -74,15 +79,20 @@ export class LayerListPlugin implements EditorPlugin {
   private header: HTMLElement | undefined;
   private headerControls: HTMLElement | undefined;
   private readonly views = new Map<string, LayerRowView>();
+  private readonly propertyViews = new Map<string, HTMLElement>();
   private controls: ILayerRowControl[] = [];
   private readonly headerCells = new Map<string, HTMLElement>();
   private rowsDocument: ITimelineDocument | undefined;
   private currentRows: readonly ILayerRow[] = [];
   private emittedRows: readonly ILayerRow[] | undefined;
+  private projected: readonly IVisibleRow[] | undefined;
+  private emittedProjection: readonly IVisibleRow[] | undefined;
 
   readonly init = (ctx: IEditorContext): void => {
     this.ctx = ctx;
     const service: ILayerListService = {
+      visibleRows: () => rowProjection(ctx).rows(ctx.document),
+      setPropertiesExpanded: (id, expanded) => this.setPropertiesExpanded(id, expanded),
       rows: () => this.rows(),
       row: (id) => this.rows().find((row) => row.id === id),
       rowElement: (id) => this.views.get(id)?.element,
@@ -101,8 +111,12 @@ export class LayerListPlugin implements EditorPlugin {
     };
     this.cleanups = [
       ctx.services.provide(LAYERS_LIST_PLUGIN_ID, service),
-      ctx.events.on('document:loaded', () => this.refresh()),
-      ctx.events.on('document:changed', () => this.refresh())
+      ctx.events.on('document:loaded', () => { rowProjection(ctx).reset(); this.refresh(); }),
+      ctx.events.on('document:changed', () => this.refresh()),
+      ctx.events.on('layers:selectionChanged', ({ ids }) => {
+        if (rowProjection(ctx).select(ids)) this.refresh();
+      }),
+      ctx.events.on('frames:selectionChanged', () => this.paintPropertySelection())
     ];
   };
 
@@ -135,6 +149,7 @@ export class LayerListPlugin implements EditorPlugin {
     this.views.forEach((view) => errors.push(...view.dispose()));
     this.controls.forEach((control) => this.removeHeaderCell(control, errors));
     this.views.clear();
+    this.propertyViews.clear();
     this.headerCells.clear();
     this.list?.remove();
     this.empty?.remove();
@@ -147,15 +162,20 @@ export class LayerListPlugin implements EditorPlugin {
     this.rowsDocument = undefined;
     this.currentRows = [];
     this.emittedRows = undefined;
+    this.projected = undefined;
+    this.emittedProjection = undefined;
     this.ctx = undefined;
     rethrowFirst(errors);
   }
 
   private rows(): readonly ILayerRow[] {
-    const doc = this.requireContext().document;
-    if (doc !== this.rowsDocument) {
-      this.currentRows = layerRows(doc, this.currentRows);
+    const ctx = this.requireContext();
+    const doc = ctx.document;
+    const projected = rowProjection(ctx).rows(doc);
+    if (doc !== this.rowsDocument || projected !== this.projected) {
+      this.currentRows = layerRows(doc, this.currentRows, projected);
       this.rowsDocument = doc;
+      this.projected = projected;
     }
     return this.currentRows;
   }
@@ -172,8 +192,11 @@ export class LayerListPlugin implements EditorPlugin {
     const errors = this.reconcile(this.list, rows);
     const previous = this.emittedRows;
     this.emittedRows = rows;
-    if (previous === undefined || !sameRowLayout(previous, rows)) {
+    const projectionChanged = !sameRowLayout(this.emittedProjection ?? [], this.projected ?? []);
+    this.emittedProjection = this.projected;
+    if (previous === undefined || !sameRowLayout(previous, rows) || projectionChanged) {
       this.requireContext().events.emit('layers:rowsChanged', { rows, previous: previous ?? [] });
+      this.requireContext().services.get('layout.scrollSync')?.refresh();
     }
     rethrowFirst(errors);
   }
@@ -190,11 +213,28 @@ export class LayerListPlugin implements EditorPlugin {
       errors.push(...view.dispose());
       this.views.delete(id);
     });
-    rows.forEach((row, index) => {
+    rows.forEach((row) => {
       const view = this.views.get(row.id) ?? this.createView(list, row, errors);
       if (view.row !== row) errors.push(...view.update(row));
-      if (list.children[index] !== view.element) list.insertBefore(view.element, list.children[index] ?? null);
     });
+    const projected = this.projected ?? [];
+    const propertyIds = new Set(projected.filter((row) => row.kind === 'property').map((row) => row.id));
+    this.propertyViews.forEach((element, id) => {
+      if (propertyIds.has(id)) return;
+      element.remove();
+      this.propertyViews.delete(id);
+    });
+    projected.forEach((row, index) => {
+      let element = this.views.get(row.id)?.element;
+      if (row.kind === 'property') {
+        element = this.propertyViews.get(row.id) ?? propertyRowElement(this.requireContext(), row);
+        const owner = this.views.get(row.layerId)?.row.node;
+        updatePropertyRowView(this.requireContext(), element, row, owner?.type === 'layer' ? owner.propertyTimelines?.[row.property] : undefined);
+        this.propertyViews.set(row.id, element);
+      }
+      if (element !== undefined && list.children[index] !== element) list.insertBefore(element, list.children[index] ?? null);
+    });
+    this.paintPropertySelection();
     if (this.empty !== undefined) this.empty.hidden = rows.length > 0;
     return errors;
   }
@@ -287,6 +327,28 @@ export class LayerListPlugin implements EditorPlugin {
     const ctx = this.requireContext();
     if (findFolder(ctx.document, id) !== undefined) {
       ctx.commands.execute(createToggleCollapsedCommand(ctx.document, id));
+    } else {
+      const row = this.rows().find((candidate) => candidate.id === id);
+      if (row?.propertiesExpanded !== undefined) this.setPropertiesExpanded(id, !row.propertiesExpanded);
+    }
+  }
+
+  private setPropertiesExpanded(id: string, expanded: boolean): boolean {
+    const ctx = this.requireContext();
+    const row = this.rows().find((candidate) => candidate.id === id);
+    if (row?.propertiesExpanded === undefined || !rowProjection(ctx).setExpanded(id, expanded)) return false;
+    this.refresh();
+    return true;
+  }
+
+  private paintPropertySelection(): void {
+    const selected = new Set(this.ctx?.services.get('frames.selection')?.cells().map((cell) => cell.rowId));
+    this.propertyViews.forEach((element, id) => {
+      element.setAttribute('aria-selected', String(selected.has(id)));
+      element.tabIndex = element.ownerDocument.activeElement === element ? 0 : -1;
+    });
+    if ([...this.propertyViews.values()].some((element) => element.tabIndex === 0)) {
+      this.views.forEach((view) => { view.element.tabIndex = -1; });
     }
   }
 

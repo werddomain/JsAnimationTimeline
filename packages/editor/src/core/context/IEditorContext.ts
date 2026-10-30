@@ -33,6 +33,7 @@ import type { ICommand } from '../commands/ICommand';
 import type { CancellableHandler, EventHandler, EventName } from '../events/EventBus';
 import type { TimelineEventMap } from '../events/TimelineEventMap';
 import type { IEditorPlayback } from '../playback/types';
+import type { IEditorPropertyTimelines } from '../editor/propertyTimelineTypes';
 import type { IPlugin } from '../plugin/IPlugin';
 import type { IEditorStage } from '../stage/types';
 import type { SlotRegistry } from '../plugin/SlotRegistry';
@@ -194,6 +195,8 @@ export interface IEditorContext {
   readonly document: ITimelineDocument;
   /** Exécution des commandes et historique (sans `clear` ni `load`). */
   readonly commands: IEditorCommands;
+  /** Independent property editing; shared with the public editor facade. */
+  readonly propertyTimelines: IEditorPropertyTimelines;
   /** Emplacements de rendu nommés ; `ROOT_SLOT` désigne `container`. */
   readonly slots: SlotRegistry;
   /** Élément racine de l'éditeur (classe `JsTimeLine`), enfant du conteneur hôte. */

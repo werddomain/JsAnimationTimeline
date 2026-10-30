@@ -24,6 +24,7 @@ import { batchCommand } from './batchCommand';
 import { clampOffset, landedCells, movableKeyframes, overwritesKeyframe, planMove } from './keyframeMove';
 import type { IPlannedMove } from './keyframeMove';
 import { insertFrameTargets, keyframeTargets } from './keyframeTargets';
+import { movePropertyKeys, propertyKeys, runPropertySpanAction } from './propertyKeyframeActions';
 
 /** Actions de plage sur les images visées. */
 export type SpanAction = 'insertKeyframe' | 'insertBlankKeyframe' | 'deleteKeyframe' | 'insertFrame' | 'removeFrame';
@@ -59,6 +60,8 @@ function actionBatch(ctx: IEditorContext, commands: ISpanCommands, action: SpanA
 
 /** Exécute `action` ; vrai si le document a changé. */
 export function runSpanAction(ctx: IEditorContext, commands: ISpanCommands, action: SpanAction): boolean {
+  const modern = runPropertySpanAction(ctx, action);
+  if (modern !== undefined) return modern;
   const batch = actionBatch(ctx, commands, action);
   return batch !== undefined && executeChanged(ctx, batch);
 }
@@ -120,6 +123,8 @@ export function moveKeyframes(
 /** Déplace les images clés sélectionnées de `offset` images, borné à la timeline. */
 export function moveSelectedKeyframes(ctx: IEditorContext, commands: ISpanCommands, offset: number): boolean {
   const selection = ctx.services.require('frames.selection');
+  const modern = propertyKeys(ctx, selection.cells());
+  if (modern.length > 0) return movePropertyKeys(ctx, modern, selection.cells(), clampOffset(offset, modern, ctx.document.settings.totalFrames));
   const keyframes = selection.keyframes();
   const movable = movableKeyframes(ctx.document, keyframes);
   // Toutes sur des lignes verrouillées : bornes calculées sur elles, pour que le refus de K1 s'affiche.

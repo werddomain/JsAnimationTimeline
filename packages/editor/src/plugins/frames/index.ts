@@ -29,8 +29,10 @@ export { FRAMES_SELECTION_CLASSES, FRAMES_SELECTION_PLUGIN_ID, FramesSelectionPl
 export type {
   FramesSelectionChangedEvent,
   IFrameCell,
+  IPropertyFrameCell,
   IFramesSelectionService,
   ISelectedKeyframe,
+  ISelectedPropertyKeyframe,
   SelectedKeyframeKind
 } from './selection';
 export {

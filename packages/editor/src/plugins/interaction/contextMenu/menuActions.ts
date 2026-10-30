@@ -5,6 +5,9 @@ import type { IEditorContext } from '../../../core/context/IEditorContext';
 import { rowMarks } from '../../frames/grid/gridCells';
 import { lockedLayerIds } from '../../frames/keyframes/keyframeTargets';
 import { computeKeyframeActionsState } from '../../toolbar/keyframeActions/keyframeActionsState';
+import { propertyActionsState } from '../../toolbar/keyframeActions/propertyActionsState';
+import { propertyCells, propertyRow, UNSUPPORTED_PROPERTY_REASON } from '../../frames/keyframes/propertyKeyframeActions';
+import { propertyTransitionAt } from '../../tweens/motion/propertyMotion';
 import type { IActionAvailability } from '../../toolbar/keyframeActions/keyframeActionsState';
 import type { ContextMenuTarget, IContextMenuAction } from './types';
 import type {} from '../../frames/clipboard/types';
@@ -28,7 +31,8 @@ function frameActions(ctx: IEditorContext, cell: Extract<ContextMenuTarget, { ki
   const selection = ctx.services.require('frames.selection');
   const keyframes = ctx.services.require('frames.keyframes');
   const motion = ctx.services.require('tweens.motion');
-  const state = computeKeyframeActionsState({
+  const modernState = propertyActionsState(ctx);
+  const state = modernState ?? computeKeyframeActionsState({
     doc: ctx.document, cells: selection.cells(), selectedKeyframes: selection.keyframes(),
     playheadFrame: ctx.playback.frame, layerIds: ctx.services.require('layers.selection').selected(),
     keyframeAt: (id, frame) => {
@@ -37,26 +41,32 @@ function frameActions(ctx: IEditorContext, cell: Extract<ContextMenuTarget, { ki
     },
     tweenAt: (id, frame) => motion.tweenAt(id, frame), canCreate: motion.canCreate(), canRemove: motion.canRemove()
   });
+  const spanState = modernState === undefined ? state.insert : { enabled: false, reason: UNSUPPORTED_PROPERTY_REASON };
   const items = [
     action(ctx, 'createTween', "Créer une interpolation de mouvement", state.createTween, () => motion.create()),
-    action(ctx, 'insertFrame', 'Insérer une image', state.insert, () => keyframes.insertFrame()),
-    action(ctx, 'removeFrame', "Supprimer l'image", state.insert, () => keyframes.removeFrame()),
+    action(ctx, 'insertFrame', 'Insérer une image', spanState, () => keyframes.insertFrame()),
+    action(ctx, 'removeFrame', "Supprimer l'image", spanState, () => keyframes.removeFrame()),
     action(ctx, 'insertKeyframe', 'Insérer une image clé', state.insert, () => keyframes.insertKeyframe()),
-    action(ctx, 'insertBlankKeyframe', 'Insérer une image clé vide', state.insert, () => keyframes.insertBlankKeyframe()),
+    action(ctx, 'insertBlankKeyframe', 'Insérer une image clé vide', spanState, () => keyframes.insertBlankKeyframe()),
     action(ctx, 'delete', state.delete.label, state.delete, () => state.delete.action === 'removeTween' ? motion.remove() : keyframes.deleteKeyframe())
   ];
   // Easing applies only to the context span, even when several cells are selected.
   const easing = ctx.services.get('tweens.easing');
-  if (easing !== undefined && motion.tweenAt(cell.rowId, cell.frame) !== undefined) {
+  const modernTransition = propertyTransitionAt(ctx, cell);
+  if (easing !== undefined && modernTransition !== undefined) {
+    items.push(action(ctx, 'easing', 'Modifier l’accélération', easing.canSetProperty(modernTransition), () => easing.openProperty(modernTransition)));
+  } else if (easing !== undefined && propertyRow(ctx, cell.rowId) === undefined && motion.tweenAt(cell.rowId, cell.frame) !== undefined) {
     items.push(action(ctx, 'easing', 'Modifier l’accélération', easing.canSetAt(cell.rowId, cell.frame), () => easing.openAt(cell.rowId, cell.frame)));
   }
   const clipboard = ctx.services.get('frames.clipboard');
   if (clipboard !== undefined) {
     const cells = selection.cells();
+    const hasProperties = propertyCells(ctx, cells).length > 0;
     const locked = lockedLayerIds(ctx.document);
-    const pasteEnabled = clipboard.hasContent() && cells.length > 0 && !locked.has(cells[0].rowId);
-    items.push(action(ctx, 'copy', 'Copier les images', { enabled: cells.length > 0, reason: 'Sélectionnez des images à copier.' }, () => clipboard.copy(), false));
-    items.push(action(ctx, 'paste', 'Coller les images', { enabled: pasteEnabled, reason: !clipboard.hasContent() ? 'Le presse-papiers est vide.' : 'Sélectionnez une image sur un calque déverrouillé.' }, () => clipboard.paste()));
+    const pasteEnabled = !hasProperties && clipboard.hasContent() && cells.length > 0 && !locked.has(cells[0].rowId);
+    const propertyReason = 'Le presse-papiers de plages ne prend pas en charge les lignes de propriétés.';
+    items.push(action(ctx, 'copy', 'Copier les images', { enabled: !hasProperties && cells.length > 0, reason: hasProperties ? propertyReason : 'Sélectionnez des images à copier.' }, () => clipboard.copy(), false));
+    items.push(action(ctx, 'paste', 'Coller les images', { enabled: pasteEnabled, reason: hasProperties ? propertyReason : !clipboard.hasContent() ? 'Le presse-papiers est vide.' : 'Sélectionnez une image sur un calque déverrouillé.' }, () => clipboard.paste()));
   }
   return items;
 }

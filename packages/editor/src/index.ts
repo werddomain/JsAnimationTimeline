@@ -202,6 +202,8 @@ export type {
   IFramesClipboardService,
   IFramesSelectionService,
   ISelectedKeyframe,
+  ISelectedPropertyKeyframe,
+  IPropertyFrameCell,
   SelectedKeyframeKind,
   GridMarkKind,
   GridSegmentKind,
@@ -243,6 +245,7 @@ export type {
   MotionTweenCode,
   MotionTweenCommandKind,
   MotionTweenEvent,
+  PropertyMotionTweenEvent,
   MotionTweenRefusal,
   IResolutionRefusal,
   IResolved,
@@ -362,7 +365,8 @@ export { CONTEXT_MENU_PLUGIN_ID, ContextMenuPlugin } from './plugins/interaction
 export type { ContextMenuTarget, IContextMenuAction, IMenuPosition } from './plugins/interaction/contextMenu/types';
 // Tween easing presets and their undoable command.
 export { EASING_PLUGIN_ID, EasingPlugin, createEasingPlugin, createSetEasingCommand, setSpanEasing } from './plugins/tweens/easing';
-export type { IEasingAvailability, IEasingService } from './plugins/tweens/easing';
+export type { IEasingAvailability, IEasingService, IPropertyEasingTarget } from './plugins/tweens/easing';
+export type { IVisibleRow, INodeVisibleRow, IPropertyVisibleRow } from './model/rows';
 // Core property-writing contract, usable without UI plugins.
 export { SetPropertyCommand } from './model/properties/SetPropertyCommand';
 export { applyPropertyValue, PropertyOperationError } from './model/properties/propertyValue';

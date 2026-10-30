@@ -20,7 +20,7 @@ export interface IPlannedMove {
 }
 
 /** Ramène `offset` dans [1 - première image, `totalFrames` - dernière image] ; 0 sans image clé. */
-export function clampOffset(offset: number, keyframes: readonly ISelectedKeyframe[], totalFrames: number): number {
+export function clampOffset(offset: number, keyframes: readonly Pick<ISelectedKeyframe, 'frame'>[], totalFrames: number): number {
   if (keyframes.length === 0) return 0;
   // Boucle (et non Math.min(...)) : une très grande sélection dépasserait la pile d'appel.
   let first = Infinity;

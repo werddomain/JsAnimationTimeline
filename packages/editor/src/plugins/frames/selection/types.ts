@@ -9,7 +9,10 @@
  */
 
 import type { GridMarkKind } from '../grid/gridCells';
-import type { IFrameCell } from './frameSelection';
+import type { IFrameCell, IPropertyFrameCell } from './frameSelection';
+
+/** An actual key on an independent property track; it has no legacy span id. */
+export type ISelectedPropertyKeyframe = IPropertyFrameCell;
 
 /** Nature d'une image clé sélectionnée (les marques de fin de plage n'en sont pas). */
 export type SelectedKeyframeKind = Exclude<GridMarkKind, 'spanEnd'>;
@@ -37,6 +40,8 @@ export interface IFramesSelectionService {
   cells(): readonly IFrameCell[];
   /** Cellules sélectionnées qui portent une image clé (document courant), dans l'ordre d'affichage. */
   keyframes(): readonly ISelectedKeyframe[];
+  /** Selected actual keys from modern property rows, retaining their explicit owner. */
+  propertyKeyframes(): readonly ISelectedPropertyKeyframe[];
   /** Vrai si l'image `frame` du calque `rowId` est sélectionnée. */
   isSelected(rowId: string, frame: number): boolean;
   /** Ancre de Maj+clic. */

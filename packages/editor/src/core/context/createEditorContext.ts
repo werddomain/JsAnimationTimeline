@@ -20,6 +20,7 @@ import type { ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runt
 import type { CommandStack } from '../commands/CommandStack';
 import type { EventBus } from '../events/EventBus';
 import type { IEditorPlayback } from '../playback/types';
+import type { IEditorPropertyTimelines } from '../editor/propertyTimelineTypes';
 import type { SlotRegistry } from '../plugin/SlotRegistry';
 import type { IEditorStage } from '../stage/types';
 import type { Store } from '../store/Store';
@@ -34,6 +35,7 @@ export interface IEditorContextSources {
   readonly bus: EventBus;
   readonly store: Store;
   readonly commands: CommandStack;
+  readonly propertyTimelines: IEditorPropertyTimelines;
   readonly slots: SlotRegistry;
   readonly services: IEditorServices;
   readonly container: HTMLElement;
@@ -135,6 +137,7 @@ export function createEditorContext(sources: IEditorContextSources): IEditorCont
       return store.document;
     },
     commands,
+    propertyTimelines: sources.propertyTimelines,
     slots: sources.slots,
     container: sources.container,
     playback: sources.playback,

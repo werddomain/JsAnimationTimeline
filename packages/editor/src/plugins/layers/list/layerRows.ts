@@ -8,7 +8,7 @@
 import { isFolder, resolveLocked, resolveVisible } from '@kazo-ca/timeline-runtime';
 import type { ITimelineDocument, LayerNode } from '@kazo-ca/timeline-runtime';
 import { visibleRows } from '../../../model/rows';
-import type { IVisibleRow } from '../../../model/rows';
+import type { IVisibleRow, INodeVisibleRow } from '../../../model/rows';
 import type { ILayerRow } from './types';
 
 interface INodeInfo {
@@ -30,7 +30,7 @@ function indexNodes(
   }
 }
 
-function sameRow(row: ILayerRow, visible: IVisibleRow, info: INodeInfo): boolean {
+function sameRow(row: ILayerRow, visible: INodeVisibleRow, info: INodeInfo): boolean {
   return (
     row.node === info.node &&
     row.lockedByAncestor === info.lockedByAncestor &&
@@ -38,6 +38,7 @@ function sameRow(row: ILayerRow, visible: IVisibleRow, info: INodeInfo): boolean
     row.kind === visible.kind &&
     row.depth === visible.depth &&
     row.parentId === visible.parentId &&
+    row.propertiesExpanded === visible.propertiesExpanded &&
     row.index === visible.index
   );
 }
@@ -47,11 +48,11 @@ function sameRow(row: ILayerRow, visible: IVisibleRow, info: INodeInfo): boolean
  * de `previous` identique (même nœud, même place, même verrou) est reprise
  * telle quelle : `===` suffit pour savoir qu'une ligne n'a pas changé.
  */
-export function layerRows(doc: ITimelineDocument, previous: readonly ILayerRow[] = []): readonly ILayerRow[] {
+export function layerRows(doc: ITimelineDocument, previous: readonly ILayerRow[] = [], projected: readonly IVisibleRow[] = visibleRows(doc)): readonly ILayerRow[] {
   const infos = new Map<string, INodeInfo>();
   indexNodes(doc.layers, { locked: false, hidden: false }, infos);
   const before = new Map(previous.map((row) => [row.id, row]));
-  return visibleRows(doc).map((visible) => {
+  return projected.filter((row): row is INodeVisibleRow => row.kind !== 'property').map((visible) => {
     const info = infos.get(visible.id);
     if (info === undefined) throw new Error(`layers.list : nœud « ${visible.id} » absent du document.`);
     const old = before.get(visible.id);
@@ -66,7 +67,7 @@ export function layerRows(doc: ITimelineDocument, previous: readonly ILayerRow[]
 }
 
 /** Vrai si les deux listes ont les mêmes lignes au même endroit (id, type, profondeur, parent, index). */
-export function sameRowLayout(a: readonly ILayerRow[], b: readonly ILayerRow[]): boolean {
+export function sameRowLayout(a: readonly IVisibleRow[], b: readonly IVisibleRow[]): boolean {
   if (a.length !== b.length) return false;
   return a.every((row, i) => {
     const other = b[i];
@@ -76,6 +77,7 @@ export function sameRowLayout(a: readonly ILayerRow[], b: readonly ILayerRow[]):
       row.kind === other.kind &&
       row.depth === other.depth &&
       row.parentId === other.parentId &&
+      (row.kind === 'property' || other.kind === 'property' || row.propertiesExpanded === other.propertiesExpanded) &&
       row.index === other.index
     );
   });

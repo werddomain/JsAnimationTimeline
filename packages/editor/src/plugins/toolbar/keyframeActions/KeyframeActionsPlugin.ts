@@ -34,6 +34,7 @@ import { findNodeById } from '@kazo-ca/timeline-runtime';
 import { rowMarks } from '../../frames/grid/gridCells';
 import { ToolbarGroupOrders } from '../main/ToolbarItems';
 import { computeKeyframeActionsState } from './keyframeActionsState';
+import { propertyActionsState } from './propertyActionsState';
 import type { IKeyframeActionsInput, IKeyframeActionsState } from './keyframeActionsState';
 import './types';
 import './KeyframeActions.less';
@@ -89,6 +90,7 @@ export class KeyframeActionsPlugin implements EditorPlugin {
       cleanups.push(ctx.events.on('layers:selectionChanged', refresh));
       cleanups.push(ctx.events.on('document:changed', refresh));
       cleanups.push(ctx.events.on('document:loaded', refresh));
+      cleanups.push(ctx.events.on('stage:targetsChanged', refresh));
       cleanups.push(ctx.events.on('tweens:motionAvailabilityChanged', refresh));
       cleanups.push(ctx.events.on('playback:pause', refresh));
       cleanups.push(ctx.events.on('playback:complete', refresh));
@@ -191,7 +193,7 @@ export class KeyframeActionsPlugin implements EditorPlugin {
   private refresh(): void {
     const ctx = this.ctx;
     if (ctx === null || this.buttons.size === 0) return;
-    const state = computeKeyframeActionsState(this.readInput(ctx));
+    const state = propertyActionsState(ctx) ?? computeKeyframeActionsState(this.readInput(ctx));
     this.state = state;
     const shortcuts = ctx.services.require('interaction.shortcuts');
     BUTTONS.forEach((spec) => {

@@ -1,8 +1,29 @@
+// packages/editor/src/plugins/layers/list/LayerList.less
 // Liste des calques (layers.list) et son en-tête. Réglages par variables CSS :
 //   --jt-layer-row-hover   fond d'une ligne survolée
 //   --jt-layer-color       couleur du calque (posée sur chaque ligne)
 
 .JsTimeLine {
+  .jt-property-row {
+    display: block;
+    flex: none;
+    box-sizing: border-box;
+    border: 0;
+    border-bottom: 1px solid #e0e0e0;
+    border-left: 4px solid transparent;
+    padding-right: 8px;
+    color: inherit;
+    background: #f7f9fc;
+    font: inherit;
+    font-size: 12px;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+
+    &:hover { background: #eaf3fb; }
+    &[aria-selected="true"] { background: #d0e8ff; }
+    &:focus-visible { outline: 2px solid #2678bd; outline-offset: -2px; }
+  }
   .jt-layer-list {
     display: flex;
     flex-direction: column;

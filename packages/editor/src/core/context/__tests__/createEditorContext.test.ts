@@ -16,6 +16,8 @@ import { EditorStageHost } from '../../stage/EditorStageHost';
 import { createStageFacade } from '../../stage/stageFacade';
 import { SlotRegistry } from '../../plugin/SlotRegistry';
 import { Store } from '../../store/Store';
+import { EditorLifecycle } from '../../editor/EditorLifecycle';
+import { createPropertyTimelines } from '../../editor/createPropertyTimelines';
 import { catchError, createCounter } from '../../editor/__tests__/fixtures';
 import { CORE_EVENT_NAMES } from '../coreEvents';
 import { createEditorContext } from '../createEditorContext';
@@ -42,16 +44,17 @@ function createHarness(): IContextHarness {
   };
   const registry = defaultPropertyRegistry;
   const controller = new PlaybackController({ bus, store, registry, clock: createManualClock() });
+  const lifecycle = new EditorLifecycle();
+  const stageHost = new EditorStageHost({ bus, store, registry, stages: [], onError: () => undefined, now: () => controller.now });
+  const playback = createPlaybackFacade(controller, assertActive);
   const ctx = createEditorContext({
     bus, store, commands, services, container, assertActive, registry,
+    propertyTimelines: createPropertyTimelines({ bus, store, commands, registry, lifecycle, stageHost, playbackFacade: playback }),
     slots: new SlotRegistry(),
-    playback: createPlaybackFacade(controller, assertActive),
-    stage: createStageFacade(
-      new EditorStageHost({ bus, store, registry, stages: [], onError: () => undefined, now: () => controller.now }),
-      assertActive
-    )
+    playback,
+    stage: createStageFacade(stageHost, assertActive)
   });
-  return { ctx, bus, store, services, kill: () => (alive = false) };
+  return { ctx, bus, store, services, kill: () => { alive = false; lifecycle.beginDestroy(); lifecycle.finishDestroy(); } };
 }
 
 describe('createEditorContext facades', () => {
@@ -193,7 +196,7 @@ describe('createEditorContext facades', () => {
     expect('load' in ctx.commands).toBe(false);
     expect('clear' in ctx.services).toBe(false);
     expect(Object.keys(ctx).sort()).toEqual([
-      'commands', 'container', 'document', 'events', 'playback', 'registry', 'services', 'slots', 'stage'
+      'commands', 'container', 'document', 'events', 'playback', 'propertyTimelines', 'registry', 'services', 'slots', 'stage'
     ]);
   });
 

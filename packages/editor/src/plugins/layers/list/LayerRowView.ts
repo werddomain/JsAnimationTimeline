@@ -98,7 +98,7 @@ export class LayerRowView {
   /** Met à jour la ligne et ses contrôles ; retourne les erreurs des contrôles. */
   update(row: ILayerRow): unknown[] {
     const previous = this.current;
-    const kindChanged = row.kind !== previous.kind;
+    const kindChanged = row.kind !== previous.kind || (row.propertiesExpanded === undefined) !== (previous.propertiesExpanded === undefined);
     this.current = row;
     this.paint(row, kindChanged);
     const errors: unknown[] = [];
@@ -152,7 +152,8 @@ export class LayerRowView {
     const { element } = this;
     const node = row.node;
     const folder = isFolder(node);
-    const collapsed = folder && resolveCollapsed(node);
+    const expandable = folder || row.propertiesExpanded !== undefined;
+    const collapsed = folder ? resolveCollapsed(node) : row.propertiesExpanded === false;
     element.classList.toggle(LAYER_ROW_CLASSES.folder, folder);
     element.classList.toggle(LAYER_ROW_CLASSES.layer, !folder);
     element.classList.toggle(LAYER_ROW_CLASSES.collapsed, collapsed);
@@ -161,14 +162,14 @@ export class LayerRowView {
     element.dataset.rowKind = row.kind;
     element.setAttribute('aria-level', String(row.depth + 1));
     element.setAttribute('aria-label', node.name);
-    if (folder) element.setAttribute('aria-expanded', String(!collapsed));
+    if (expandable) element.setAttribute('aria-expanded', String(!collapsed));
     else element.removeAttribute('aria-expanded');
     element.style.setProperty('--jt-row-depth', String(row.depth));
     element.style.paddingLeft = `${row.depth * DEPTH_INDENT}px`;
     if (node.color === undefined) element.style.removeProperty('--jt-layer-color');
     else element.style.setProperty('--jt-layer-color', node.color);
-    if (rebuildToggle) this.buildToggle(folder);
-    if (folder) this.paintToggle(collapsed);
+    if (rebuildToggle) this.buildToggle(expandable);
+    if (expandable) this.paintToggle(collapsed, !folder);
     renderLayerIcon(node, this.icon);
     this.paintName(node.name);
   }
@@ -197,11 +198,12 @@ export class LayerRowView {
     this.toggleSlot.replaceChildren(replacement);
   }
 
-  private paintToggle(collapsed: boolean): void {
+  private paintToggle(collapsed: boolean, properties = false): void {
     const button = this.toggleSlot.firstElementChild;
     if (!(button instanceof HTMLElement)) return;
     button.textContent = collapsed ? '▶' : '▼';
-    const label = collapsed ? TOGGLE_LABELS.expand : TOGGLE_LABELS.collapse;
+    const label = properties ? (collapsed ? 'Déplier les propriétés' : 'Replier les propriétés')
+      : (collapsed ? TOGGLE_LABELS.expand : TOGGLE_LABELS.collapse);
     button.setAttribute('aria-label', label);
     button.title = label;
   }

@@ -40,6 +40,7 @@ import { removeMotionTweens } from './removeMotionTween';
 import type { IRemoveTarget } from './removeMotionTween';
 import { resolveCreateTarget, resolveRemoveTargets } from './resolveTarget';
 import type { Resolution } from './resolveTarget';
+import { propertyMotionPlan, runPropertyMotion } from './propertyMotion';
 import type {
   IMotionTweenAvailability,
   IMotionTweenService,
@@ -101,7 +102,8 @@ export class MotionTweenPlugin implements EditorPlugin {
       ctx.services.provide(MOTION_TWEEN_PLUGIN_ID, this.service()),
       ctx.events.on('frames:selectionChanged', refresh),
       ctx.events.on('document:changed', refresh),
-      ctx.events.on('document:loaded', refresh)
+      ctx.events.on('document:loaded', refresh),
+      ctx.events.on('stage:targetsChanged', refresh)
     ];
   };
 
@@ -135,6 +137,8 @@ export class MotionTweenPlugin implements EditorPlugin {
 
   private createAvailability(): IMotionTweenAvailability {
     const ctx = this.requireContext();
+    const modern = propertyMotionPlan(ctx, 'create');
+    if (modern !== undefined) return modern.availability;
     const resolved = resolveCreateTarget(ctx.document, this.selectedCells());
     if (!resolved.ok) return disabled(resolved.message);
     return dryRun(() => createMotionTween(ctx.document, resolved.target, ctx.registry));
@@ -142,6 +146,8 @@ export class MotionTweenPlugin implements EditorPlugin {
 
   private removeAvailability(): IMotionTweenAvailability {
     const ctx = this.requireContext();
+    const modern = propertyMotionPlan(ctx, 'remove');
+    if (modern !== undefined) return modern.availability;
     const resolved = resolveRemoveTargets(ctx.document, this.selectedCells());
     if (!resolved.ok) return disabled(resolved.message);
     const targets = resolved.target;
@@ -165,12 +171,16 @@ export class MotionTweenPlugin implements EditorPlugin {
   }
 
   private createFromSelection(): boolean {
+    const modern = runPropertyMotion(this.requireContext(), 'create');
+    if (modern !== undefined) return modern;
     const resolved: Resolution<IMotionTarget> = resolveCreateTarget(this.requireContext().document, this.selectedCells());
     if (!resolved.ok) return this.execute(this.requireCommands().refused('create', resolved.message));
     return this.executeCreate(resolved.target);
   }
 
   private removeFromSelection(): boolean {
+    const modern = runPropertyMotion(this.requireContext(), 'remove');
+    if (modern !== undefined) return modern;
     const resolved = resolveRemoveTargets(this.requireContext().document, this.selectedCells());
     if (!resolved.ok) return this.execute(this.requireCommands().refused('remove', resolved.message));
     return this.executeRemove(resolved.target);

@@ -32,7 +32,6 @@ import { SetPropertyCommand } from '../../model/properties/SetPropertyCommand';
 import { PropertyOperationError } from '../../model/properties/propertyValue';
 import type { EditorLifecycle } from './EditorLifecycle';
 import type { IEditor, SetPropertyOptions } from './types';
-import { createPropertyTimelines } from './createPropertyTimelines';
 import type { IEditorPropertyTimelines } from './propertyTimelineTypes';
 
 /** Pièces d'un éditeur, créées par `createEditor()`. */
@@ -55,6 +54,7 @@ export interface IEditorParts {
   /** Élément racine (classe `JsTimeLine`), défini comme `ROOT_SLOT`. */
   readonly element: HTMLElement;
   readonly lifecycle: EditorLifecycle;
+  readonly propertyFacade: IEditorPropertyTimelines;
 }
 
 /**
@@ -74,15 +74,11 @@ export function releaseEditorParts(parts: IEditorParts): void {
 
 /** Éditeur v2 retourné par `createEditor()`. */
 export class Editor implements IEditor {
-  private readonly propertyFacade: IEditorPropertyTimelines;
-
-  constructor(private readonly parts: IEditorParts) {
-    this.propertyFacade = createPropertyTimelines(parts);
-  }
+  constructor(private readonly parts: IEditorParts) {}
 
   get propertyTimelines(): IEditorPropertyTimelines {
     this.assertActive('propertyTimelines');
-    return this.propertyFacade;
+    return this.parts.propertyFacade;
   }
 
   get isDestroyed(): boolean {

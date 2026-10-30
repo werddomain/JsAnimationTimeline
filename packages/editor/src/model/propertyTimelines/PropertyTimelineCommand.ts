@@ -22,16 +22,21 @@ export class PropertyTimelineCommand implements ICommand {
   readonly label: string;
   private readonly operation: PropertyTimelineOperation;
   private snapshot: ILayer | undefined;
+  private initial = true;
 
-  constructor(operation: PropertyTimelineOperation, private readonly context: IPropertyEditContext) {
+  constructor(operation: PropertyTimelineOperation, private readonly context: IPropertyEditContext,
+    private readonly current?: () => boolean) {
     this.operation = clonePropertyOperation(operation);
     this.label = LABELS[this.operation.kind] ?? 'Modifier une propriété';
   }
 
   do(doc: ITimelineDocument): ITimelineDocument {
     try {
+      this.assertCurrent();
       const next = applyPropertyTimelineOperation(doc, this.operation, this.context);
+      this.assertCurrent();
       this.snapshot = next === doc ? undefined : findLayer(doc, this.operation.layerId);
+      this.initial = false;
       return next;
     } catch (error) {
       if (error instanceof PropertyOperationError || error instanceof SpanOperationError) {
@@ -43,5 +48,12 @@ export class PropertyTimelineCommand implements ICommand {
 
   undo(doc: ITimelineDocument): ITimelineDocument {
     return this.snapshot === undefined ? doc : replaceLayer(doc, this.snapshot);
+  }
+
+  private assertCurrent(): void {
+    if (!this.initial || this.current === undefined) return;
+    let valid = false;
+    try { valid = this.current(); } catch { /* A failed UI check cannot authorize a mutation. */ }
+    if (!valid) throw new CommandRefusedError(this.label, 'Le contexte a changé : la modification a été annulée.');
   }
 }

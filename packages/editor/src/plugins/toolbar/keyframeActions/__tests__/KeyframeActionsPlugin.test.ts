@@ -866,7 +866,7 @@ describe('destroy', () => {
     expect(() => plugin.init({ ...context, events: { ...context.events, on } })).toThrow(/déjà|duplicate/i);
 
     // Assert
-    expect(unsubscribes).toHaveLength(8);
+    expect(unsubscribes).toHaveLength(9);
     unsubscribes.forEach((unsubscribe) => expect(unsubscribe).toHaveBeenCalledTimes(1));
     plugin.destroy();
     unsubscribes.forEach((unsubscribe) => expect(unsubscribe).toHaveBeenCalledTimes(1));

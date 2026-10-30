@@ -18,6 +18,7 @@
 import type { ILayer, ISpan, ITimelineDocument, PropertyRegistry } from '@kazo-ca/timeline-runtime';
 import type { IVisibleRow } from '../../../model/rows';
 import { assertLegacyLayer, findLayer } from '../../../model/spans/layerAccess';
+import { SpanOperationError } from '../../../model/spans/SpanOperationError';
 import { lastFrame, shiftSpan } from '../../../model/spans/tracks';
 import { cellRuns } from '../selection/frameSelection';
 import type { IFrameCell } from '../selection/frameSelection';
@@ -127,6 +128,10 @@ export function buildClip(
   cells: readonly IFrameCell[],
   registry: PropertyRegistry
 ): IFrameClip | undefined {
+  const selected = new Set(cells.map((cell) => cell.rowId));
+  if (rows.some((row) => row.kind === 'property' && selected.has(row.id))) {
+    throw new SpanOperationError('modern-property-layer', 'La copie des propriétés indépendantes n’est pas encore disponible.');
+  }
   const sources = sourcesOf(doc, rows, cells);
   if (sources.length === 0) return undefined;
   const firstFrame = bounds(sources.map((source) => source.first)).min;

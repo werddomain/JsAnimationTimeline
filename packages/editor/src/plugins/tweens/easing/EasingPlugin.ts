@@ -9,7 +9,7 @@
  * Span-wide easing commands and an accessible French preset dialog. Any document
  * or selection change closes a pending dialog so confirmation cannot target stale data.
  */
-import type { Easing } from '@kazo-ca/timeline-runtime';
+import type { Easing, PropertyEasing } from '@kazo-ca/timeline-runtime';
 import type { EditorPlugin, IEditorContext } from '../../../core/context/IEditorContext';
 import { CommandRefusedError } from '../../../core/commands/CommandRefusedError';
 import type {} from '../motion/types';
@@ -18,7 +18,12 @@ import type {} from '../../frames/selection/types';
 import { createSetEasingCommand, requireEasingTarget } from './easingCommands';
 import { createEasingDialog } from './EasingDialog';
 import type { IEasingDialog } from './EasingDialog';
-import type { IEasingAvailability, IEasingService } from './types';
+import { createPropertyEasingDialog } from './PropertyEasingDialog';
+import { requirePropertyEasingTarget } from './propertyEasingTarget';
+import { PropertyOperationError } from '../../../model/properties/propertyValue';
+import { SpanOperationError } from '../../../model/spans/SpanOperationError';
+import { sameEasing } from '../../../model/propertyTimelines/values';
+import type { IEasingAvailability, IEasingService, IPropertyEasingTarget } from './types';
 import './Easing.less';
 
 export const EASING_PLUGIN_ID = 'tweens.easing';
@@ -31,6 +36,7 @@ export class EasingPlugin implements EditorPlugin {
   private dialog: IEasingDialog | undefined;
   private openingToken = 0;
   private cleanups: Array<() => void> = [];
+  private propertyCleanups: Array<() => void> = [];
 
   readonly init = (ctx: IEditorContext): void => {
     this.ctx = ctx;
@@ -40,6 +46,9 @@ export class EasingPlugin implements EditorPlugin {
         canSetAt: (layerId, frame) => this.canSetAt(layerId, frame),
         setAt: (layerId, frame, easing) => this.setAt(layerId, frame, easing),
         openAt: (layerId, frame) => this.openAt(layerId, frame),
+        canSetProperty: (target) => this.canSetProperty(target),
+        setProperty: (target, easing) => this.setProperty(target, easing),
+        openProperty: (target) => this.openProperty(target),
         close: () => { this.close(); }
       };
       this.cleanups.push(ctx.services.provide(EASING_PLUGIN_ID, service));
@@ -78,6 +87,65 @@ export class EasingPlugin implements EditorPlugin {
     return ctx.commands.execute(createSetEasingCommand(layerId, frame, easing, spanId));
   }
 
+  private canSetProperty(target: IPropertyEasingTarget): IEasingAvailability {
+    const ctx = this.context();
+    try {
+      requirePropertyEasingTarget(ctx, target);
+      return this.ctx === ctx ? { enabled: true } : { enabled: false, reason: 'L’éditeur a été détruit.' };
+    } catch (error) {
+      if (error instanceof PropertyOperationError || error instanceof SpanOperationError || error instanceof CommandRefusedError) {
+        return { enabled: false, reason: error.message };
+      }
+      throw error;
+    }
+  }
+
+  private setProperty(target: IPropertyEasingTarget, easing?: PropertyEasing): boolean {
+    const ctx = this.context();
+    return ctx.propertyTimelines.setEasing(target.layerId, target.property, target.transitionId, easing).status === 'changed';
+  }
+
+  private openProperty(input: IPropertyEasingTarget): boolean {
+    const ctx = this.context();
+    const target = { ...input };
+    const document = ctx.document;
+    const token = this.close();
+    const current = (): boolean => this.ctx === ctx && this.openingToken === token && ctx.document === document;
+    if (!current()) return false;
+    let resolved: ReturnType<typeof requirePropertyEasingTarget>;
+    try { resolved = requirePropertyEasingTarget(ctx, target); }
+    catch (error) {
+      if (error instanceof PropertyOperationError || error instanceof SpanOperationError || error instanceof CommandRefusedError) return false;
+      throw error;
+    }
+    if (!current()) return false;
+    try {
+      this.propertyCleanups.push(ctx.events.on('stage:targetsChanged', () => this.close()));
+      for (const stage of ctx.stage.stages) {
+        const cleanup = stage.targets?.subscribe?.(() => this.close());
+        if (cleanup !== undefined) {
+          if (current()) this.propertyCleanups.push(cleanup);
+          else cleanup();
+        }
+        if (!current()) return false;
+      }
+      const dialog = createPropertyEasingDialog({ owner: ctx.container, property: target.property, ...resolved,
+        descriptor: ctx.registry.get(target.property),
+        apply: (easing) => {
+          if (!current() || !this.canSetProperty(target).enabled || !current()) return false;
+          const result = ctx.propertyTimelines.guarded(current).setEasing(target.layerId, target.property, target.transitionId, easing);
+          return result.status === 'changed' || result.status === 'noop' && resolved.transition.source === undefined && sameEasing(resolved.transition.easing, easing);
+        }, close: () => { if (this.openingToken === token) this.close(); }
+      });
+      if (!current()) { dialog.destroy(); return false; }
+      this.dialog = dialog;
+      return true;
+    } catch (error) {
+      if (this.openingToken === token) this.close();
+      throw error;
+    }
+  }
+
   private openAt(layerId: string, frame: number): boolean {
     const ctx = this.context();
     if (!this.canSetAt(layerId, frame).enabled) return false;
@@ -108,6 +176,9 @@ export class EasingPlugin implements EditorPlugin {
     const token = ++this.openingToken;
     const dialog = this.dialog;
     this.dialog = undefined;
+    const propertyCleanups = this.propertyCleanups;
+    this.propertyCleanups = [];
+    propertyCleanups.reverse().forEach((cleanup) => cleanup());
     dialog?.destroy();
     return token;
   }

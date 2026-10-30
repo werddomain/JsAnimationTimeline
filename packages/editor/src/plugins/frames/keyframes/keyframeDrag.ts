@@ -22,6 +22,8 @@ import type { ISelectedKeyframe } from '../selection/types';
 import { moveBatch, moveKeyframes } from './keyframeActions';
 import type { IKeyframeGhost } from './keyframeGhost';
 import { clampOffset, movableKeyframes, overwritesKeyframe, planMove } from './keyframeMove';
+import { checkPropertyOperations, movePropertyKeys, propertyCells, propertyKeys, propertyMoveOperations } from './propertyKeyframeActions';
+import type { IPropertyCell } from './propertyKeyframeActions';
 
 /** Bouton principal de la souris. */
 const PRIMARY_BUTTON = 0;
@@ -33,6 +35,7 @@ interface IDragState {
   readonly startFrame: number;
   /** Images clés des lignes modifiables, au départ. */
   readonly keyframes: readonly ISelectedKeyframe[];
+  readonly propertyKeys: readonly IPropertyCell[];
   /** Sélection au départ. */
   readonly cells: readonly IFrameCell[];
   /** Décalage courant, borné. */
@@ -77,11 +80,14 @@ export class KeyframeDrag {
     if (cell === undefined) return;
     // La sélection a déjà traité cet appui (écouteur posé avant celui-ci).
     const keyframes = movableKeyframes(this.ctx.document, selection.keyframes());
-    if (!keyframes.some((key) => key.rowId === cell.rowId && key.frame === cell.frame)) return;
+    const modern = propertyKeys(this.ctx, selection.cells());
+    if (modern.length > 0 && propertyCells(this.ctx, selection.cells()).length !== selection.cells().length) return;
+    if (![...keyframes, ...modern].some((key) => key.rowId === cell.rowId && key.frame === cell.frame)) return;
     this.state = {
       pointerId: event.pointerId,
       startFrame: cell.frame,
       keyframes,
+      propertyKeys: modern,
       cells: selection.cells(),
       offset: 0,
       active: false,
@@ -101,6 +107,10 @@ export class KeyframeDrag {
     const onDocument = (): void => this.abort();
     const stopLoaded = this.ctx.events.on('document:loaded', onDocument);
     const stopChanged = this.ctx.events.on('document:changed', onDocument);
+    const stopSelection = this.ctx.events.on('frames:selectionChanged', onDocument);
+    const stopRows = this.ctx.events.on('layers:rowsChanged', onDocument);
+    const view = doc.defaultView;
+    view?.addEventListener('blur', onDocument);
     doc.addEventListener('pointermove', onMove, true);
     doc.addEventListener('pointerup', onUp, true);
     doc.addEventListener('pointercancel', onCancel, true);
@@ -108,6 +118,9 @@ export class KeyframeDrag {
     return () => {
       stopLoaded();
       stopChanged();
+      stopSelection();
+      stopRows();
+      view?.removeEventListener('blur', onDocument);
       doc.removeEventListener('pointermove', onMove, true);
       doc.removeEventListener('pointerup', onUp, true);
       doc.removeEventListener('pointercancel', onCancel, true);
@@ -125,14 +138,17 @@ export class KeyframeDrag {
     }
     const delta = this.frameUnder(event) - state.startFrame;
     if (!state.active && delta === 0) return;
-    const offset = clampOffset(delta, state.keyframes, this.ctx.document.settings.totalFrames);
+    const offset = clampOffset(delta, state.propertyKeys.length > 0 ? state.propertyKeys : state.keyframes, this.ctx.document.settings.totalFrames);
     // Pas de sélection de texte du navigateur pendant le glisser.
     event.preventDefault();
     if (state.active && offset === state.offset) return;
     // Le glisser démarre : le relâchement ne doit plus compter comme un clic de la sélection.
     if (!state.active) this.ctx.services.require('frames.selection').cancelPendingClick();
     this.state = { ...state, offset, active: true };
-    this.preview(state.keyframes, offset);
+    if (state.propertyKeys.length > 0) {
+      const validity = checkPropertyOperations(this.ctx, propertyMoveOperations(state.propertyKeys, offset));
+      this.ghost.show(state.propertyKeys.map((key) => ({ rowId: key.rowId, frame: key.frame + offset })), validity.enabled);
+    } else this.preview(state.keyframes, offset);
   }
 
   private up(event: PointerEvent): void {
@@ -140,6 +156,10 @@ export class KeyframeDrag {
     if (state === undefined || event.pointerId !== state.pointerId) return;
     this.finish();
     if (!state.active || state.offset === 0) return;
+    if (state.propertyKeys.length > 0) {
+      movePropertyKeys(this.ctx, state.propertyKeys, state.cells, state.offset);
+      return;
+    }
     moveKeyframes(this.ctx, this.commands, state.keyframes, state.cells, state.offset);
   }
 

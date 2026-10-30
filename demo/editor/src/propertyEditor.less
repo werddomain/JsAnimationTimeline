@@ -1,0 +1,19 @@
+// demo/editor/src/propertyEditor.less
+.JsTimeLine.property-editor-page {
+  margin: 0; background: #f2f4f1; color: #203432; font: 15px/1.5 'Segoe UI', sans-serif;
+  > main { margin: 0 auto; max-width: 1600px; padding: 28px; }
+  header { margin-bottom: 22px; }
+  h1 { margin: 4px 0 12px; font-size: 38px; }
+  a { color: #176c63; }
+  .eyebrow { margin: 24px 0 0; text-transform: uppercase; letter-spacing: .12em; font-size: 12px; font-weight: 700; }
+  #preview { display: block; width: 100%; height: 160px; border: 1px solid #c7d6ce; background: #e8eee5; }
+  .instructions { display: flex; gap: 30px; font-size: 13px; color: #506461; }
+  .instructions p { flex: 1; }
+  #editor-host { height: 480px; background: white; border: 1px solid #c7d6ce; }
+  #editor-host > .JsTimeLine { width: 100%; height: 100%; }
+  .document-actions { display: flex; gap: 8px; margin-top: 18px; }
+  .document-actions button { padding: 8px 14px; border: 1px solid #829f93; border-radius: 4px; background: white; color: #203432; font: inherit; cursor: pointer; }
+  #status { min-height: 24px; }
+  pre { max-height: 320px; overflow: auto; font-size: 12px; padding: 16px; background: white; }
+  @media (max-width: 800px) { > main { padding: 12px; } .instructions { display: block; } .document-actions { flex-wrap: wrap; } }
+}

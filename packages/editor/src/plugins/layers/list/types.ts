@@ -6,10 +6,10 @@
  */
 
 import type { LayerNode } from '@kazo-ca/timeline-runtime';
-import type { IVisibleRow } from '../../../model/rows';
+import type { IVisibleRow, INodeVisibleRow } from '../../../model/rows';
 
 /** Une ligne affichée, avec son nœud du document courant. */
-export interface ILayerRow extends IVisibleRow {
+export interface ILayerRow extends INodeVisibleRow {
   /** Calque ou dossier de la ligne (document courant, figé). */
   readonly node: LayerNode;
   /**
@@ -59,7 +59,8 @@ export interface ILayerRowControl {
 /**
  * Charge utile de `layers:rowsChanged`. L'événement part au rendu de la
  * liste (premier envoi, `previous` vide), puis chaque fois que la
- * disposition des lignes change (ids, ordre, profondeur, parent), après la
+ * disposition visuelle des lignes change (ids, ordre, profondeur, parent ou
+ * dépliage des propriétés), après la
  * mise à jour du DOM. Un changement qui garde la disposition (nom, couleur,
  * verrou...) ne le déclenche pas : pour le contenu des nœuds, écouter
  * `document:changed` et `document:loaded` (un chargement n'émet que ce
@@ -67,7 +68,7 @@ export interface ILayerRowControl {
  * du document au moment de l'envoi : ne pas les garder en cache.
  */
 export interface LayerRowsChangedEvent {
-  /** Lignes affichées, en ordre d'affichage. */
+  /** Node rows in display order; use the list service's visibleRows() for property geometry. */
   readonly rows: readonly ILayerRow[];
   /** Lignes d'avant (vide au premier rendu). */
   readonly previous: readonly ILayerRow[];
@@ -75,7 +76,11 @@ export interface LayerRowsChangedEvent {
 
 /** API publiée sous le service `layers.list`. */
 export interface ILayerListService {
-  /** Lignes affichées (document courant), en ordre d'affichage. */
+  /** Complete visual geometry, including property rows. Node actions must use rows(). */
+  visibleRows(): readonly IVisibleRow[];
+  /** Property expansion is presentation state, independent of folder history commands. */
+  setPropertiesExpanded(layerId: string, expanded: boolean): boolean;
+  /** Visible node rows only. Their indices include the intervening property rows. */
   rows(): readonly ILayerRow[];
   /** Ligne `id`, ou `undefined` si elle n'est pas affichée (inconnue ou dans un dossier replié). */
   row(id: string): ILayerRow | undefined;
@@ -86,7 +91,7 @@ export interface ILayerListService {
    * l'attribut `data-editing`, la liste ne réécrit pas son texte.
    */
   nameElement(id: string): HTMLElement | undefined;
-  /** Id de la ligne qui contient `target` (délégation d'événements), ou `undefined`. */
+  /** Node id containing target; property labels return undefined to protect node actions. */
   rowIdAt(target: EventTarget | null): string | undefined;
   /** Élément de la liste (`role="tree"`), ou `undefined` avant le rendu et après la destruction. */
   element(): HTMLElement | undefined;

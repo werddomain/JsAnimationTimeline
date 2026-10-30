@@ -58,9 +58,9 @@ export class PanelView {
     state.fields.forEach((field, i) => this.updateField(this.controls[i], state, field, reset));
   }
 
-  focus(): void {
+  focus(property?: string): void {
     if (!this.alive) return;
-    const input = this.controls.find(({ input: control }) => !control.disabled)?.input;
+    const input = this.controls.find(({ input: control, name }) => !control.disabled && (property === undefined || name === property))?.input;
     (input ?? this.element).focus({ preventScroll: true });
   }
 

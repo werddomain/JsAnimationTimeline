@@ -86,8 +86,8 @@ function toNavRow(row: ILayerRow): NavRow {
   return {
     id: row.id,
     ...(row.parentId === undefined ? {} : { parentId: row.parentId }),
-    isFolder: folder,
-    collapsed: folder && resolveCollapsed(row.node)
+    isFolder: folder || row.propertiesExpanded !== undefined,
+    collapsed: folder ? resolveCollapsed(row.node) : row.propertiesExpanded === false
   };
 }
 
@@ -221,7 +221,11 @@ export class LayerSelectionPlugin implements EditorPlugin {
   private syncRowFocus(target: Element | null): void {
     const list = this.requireList();
     const id = list.rowIdAt(target);
-    if (id !== undefined && list.rowElement(id) === target) this.commit(focusRow(this.state, this.rowIds(), id));
+    if (id !== undefined && list.rowElement(id) === target) {
+      this.commit(focusRow(this.state, this.rowIds(), id));
+      list.element()?.querySelectorAll<HTMLElement>('[data-property-row-id]').forEach((element) => { element.tabIndex = -1; });
+      paintRows(list, this.state);
+    }
   }
 
   /**
@@ -506,6 +510,17 @@ export class LayerSelectionPlugin implements EditorPlugin {
     const onRow = rowId !== undefined && list.rowElement(rowId) === target;
     if (event.defaultPrevented || (!onRow && target !== list.element())) return;
     const current = rowId ?? this.state.focused;
+    if (onRow && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+      const rows = list.visibleRows();
+      const index = rows.findIndex((row) => row.id === current);
+      const offset = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : 0;
+      const next = offset === 0 ? undefined : rows[index + offset];
+      if (next?.kind === 'property') {
+        const element = Array.from(list.element()?.querySelectorAll<HTMLElement>('[data-property-row-id]') ?? [])
+          .find((candidate) => candidate.dataset.propertyRowId === next.id);
+        if (element !== undefined) { event.preventDefault(); element.focus(); element.click(); return; }
+      }
+    }
     const action = resolveKey(
       { key: event.key, ctrl: event.ctrlKey || event.metaKey, shift: event.shiftKey, alt: event.altKey },
       { rows: list.rows().map(toNavRow), current, hasSelection: this.state.ids.size > 0 }
@@ -523,7 +538,8 @@ export class LayerSelectionPlugin implements EditorPlugin {
       case 'collapse':
       case 'expand':
         this.commit(focusRow(this.state, this.rowIds(), action.id));
-        list.setCollapsed(action.id, action.kind === 'collapse');
+        if (list.row(action.id)?.node.type === 'folder') list.setCollapsed(action.id, action.kind === 'collapse');
+        else list.setPropertiesExpanded(action.id, action.kind === 'expand');
         return;
       case 'toggleRow':
         return this.select([action.id], 'toggle');

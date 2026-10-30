@@ -31,6 +31,15 @@ export interface MotionTweenEvent {
   readonly end: number;
 }
 
+/** A modern property transition has its own identity, never a synthetic span ID. */
+export interface PropertyMotionTweenEvent {
+  readonly layerId: string;
+  readonly property: string;
+  readonly transitionId: string;
+  readonly start: number;
+  readonly end: number;
+}
+
 /** API publiée sous le service `tweens.motion`. */
 export interface IMotionTweenService {
   /** La sélection d'images permet-elle de créer une interpolation ? (essai à blanc, même verdict que `create`.) */
@@ -67,5 +76,7 @@ declare module '../../../core/events/TimelineEventMap' {
     'tweens:motionAvailabilityChanged': MotionAvailabilityChangedEvent;
     'tweens:motionCreated': MotionTweenEvent;
     'tweens:motionRemoved': MotionTweenEvent;
+    'tweens:propertyMotionCreated': PropertyMotionTweenEvent;
+    'tweens:propertyMotionRemoved': PropertyMotionTweenEvent;
   }
 }

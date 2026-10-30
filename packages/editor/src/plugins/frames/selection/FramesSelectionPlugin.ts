@@ -58,7 +58,8 @@ import {
   toggleCell
 } from './frameSelection';
 import type { IFrameCell, IFrameSelectionState } from './frameSelection';
-import type { ISelectedKeyframe, SelectedKeyframeKind } from './types';
+import type { ISelectedKeyframe, ISelectedPropertyKeyframe, SelectedKeyframeKind } from './types';
+import type {} from '../../layers/selection/types';
 import './FramesSelection.less';
 
 /** Identifiant du plugin (et de son service). */
@@ -109,9 +110,13 @@ export class FramesSelectionPlugin implements EditorPlugin {
       ctx.services.provide('frames.selection', {
         cells: () => this.state.cells,
         keyframes: () => this.keyframes(),
+        propertyKeyframes: () => this.propertyKeyframes(),
         isSelected: (rowId, frame) => this.keys.has(cellKey({ rowId, frame })),
         anchor: () => this.state.anchor,
-        select: (cell) => this.apply((rows, total) => selectOnly(cell, rows, total)),
+        select: (cell) => {
+          this.selectOwner(cell);
+          this.apply((rows, total) => selectOnly(cell, rows, total));
+        },
         toggle: (cell) => this.apply((rows, total) => toggleCell(this.state, cell, rows, total)),
         selectRange: (to, additive = false) =>
           this.apply((rows, total) => selectRectangle(this.state, to, additive, rows, total)),
@@ -164,15 +169,19 @@ export class FramesSelectionPlugin implements EditorPlugin {
     if (click.shift) event.preventDefault();
     // Toucher : la sélection suit un tap (relâché sans bouger), pas l'appui.
     const tap = event.pointerType === 'touch';
+    const movedRows = !click.ctrl && !click.shift && !tap && this.selectOwner(target);
     // Appui sur une image d'une sélection de plusieurs images (comme Flash) : elle
     // reste entière pour un glisser (K2) et se réduit à cette image au relâchement.
     const keepForDrag = !click.ctrl && !click.shift && this.state.cells.length > 1 && this.keys.has(cellKey(target));
     if (!tap && !keepForDrag) this.applyClick(target, click);
     this.trackRelease(event.pointerId, target, () => {
-      if (tap) this.applyClick(target, click);
+      if (tap) {
+        if (!click.ctrl && !click.shift) this.selectOwner(target);
+        this.applyClick(target, click);
+      }
       else if (keepForDrag) this.apply((rows, total) => selectOnly(target, rows, total));
       this.seekTo(target);
-    });
+    }, movedRows ? { x: event.clientX, y: event.clientY } : undefined);
   }
 
   /** Applique un clic (seul, Ctrl, Maj, Ctrl+Maj) sur `target`. */
@@ -202,7 +211,7 @@ export class FramesSelectionPlugin implements EditorPlugin {
    * document) : `onClick` est appelé s'il est relâché sur `target` (un clic,
    * pas un glisser). Annulé par `pointercancel` ou une perte de capture.
    */
-  private trackRelease(pointerId: number, target: IFrameCell, onClick: () => void): void {
+  private trackRelease(pointerId: number, target: IFrameCell, onClick: () => void, originalPoint?: { readonly x: number; readonly y: number }): void {
     const overlay = this.overlay;
     const grid = overlay?.parentElement;
     if (overlay === undefined || grid === null || grid === undefined) return;
@@ -212,7 +221,8 @@ export class FramesSelectionPlugin implements EditorPlugin {
       if (up.pointerId !== pointerId) return;
       this.cancelRelease();
       const cell = this.ctx?.services.get('frames.grid')?.cellAt(up.clientX, up.clientY);
-      if (cell?.rowId === target.rowId && cell.frame === target.frame) onClick();
+      const samePoint = originalPoint !== undefined && Math.abs(up.clientX - originalPoint.x) <= 3 && Math.abs(up.clientY - originalPoint.y) <= 3;
+      if (samePoint || (cell?.rowId === target.rowId && cell.frame === target.frame)) onClick();
     };
     const onCancel = (cancel: PointerEvent): void => {
       if (cancel.pointerId === pointerId) this.cancelRelease();
@@ -226,6 +236,18 @@ export class FramesSelectionPlugin implements EditorPlugin {
       grid.removeEventListener('lostpointercapture', onCancel);
       this.cancelRelease = NO_OP;
     };
+  }
+
+  /** Auto-expansion follows the owner, not the opaque property-row identity. */
+  private selectOwner(cell: IFrameCell): boolean {
+    const ctx = this.requireContext();
+    const grid = ctx.services.require('frames.grid');
+    const rows = grid.rows();
+    const row = rows.find((candidate) => candidate.id === cell.rowId);
+    const selection = ctx.services.get('layers.selection');
+    if (row?.kind !== 'property' || selection === undefined) return false;
+    if (selection.selected().length !== 1 || !selection.isSelected(row.layerId)) selection.select([row.layerId]);
+    return rows !== grid.rows();
   }
 
   /** Calcule le nouvel état sur les lignes et la durée courantes, puis le publie. */
@@ -269,6 +291,21 @@ export class FramesSelectionPlugin implements EditorPlugin {
       return rowMarks(node, totalFrames, { first: run.first, last: run.last })
         .filter((mark): mark is IGridMark & { kind: SelectedKeyframeKind } => mark.kind !== 'spanEnd')
         .map((mark) => ({ rowId: run.rowId, frame: mark.frame, kind: mark.kind, spanId: mark.spanId }));
+    });
+  }
+
+  private propertyKeyframes(): ISelectedPropertyKeyframe[] {
+    const ctx = this.requireContext();
+    const rows = new Map(ctx.services.require('frames.grid').rows().map((row) => [row.id, row] as const));
+    const nodes = new Map<string, LayerNode>();
+    walkLayers(ctx.document.layers, ({ node }) => void nodes.set(node.id, node));
+    return this.state.cells.flatMap((cell) => {
+      const row = rows.get(cell.rowId);
+      if (row?.kind !== 'property') return [];
+      const layer = nodes.get(row.layerId);
+      const track = layer?.type === 'layer' ? layer.propertyTimelines?.[row.property] : undefined;
+      return track?.keys.some((key) => key.frame === cell.frame)
+        ? [{ rowId: row.id, layerId: row.layerId, property: row.property, frame: cell.frame }] : [];
     });
   }
 

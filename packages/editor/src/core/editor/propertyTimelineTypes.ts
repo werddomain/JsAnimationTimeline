@@ -24,6 +24,12 @@ export interface IPropertyTimelineTransaction {
 
 /** Independent property tracks, usable without editor plugins or a DOM stage. */
 export interface IEditorPropertyTimelines {
+  /**
+   * Derive an edit facade that checks a UI ticket before and after its initial
+   * execution. Redo rechecks permissions but does not depend on the old selection.
+   * The predicate must be read-only; false or an exception refuses the edit.
+   */
+  guarded(isCurrent: () => boolean): IEditorPropertyTimelines;
   set(layerId: string, property: string, value: TimelinePropertyValue, options?: PropertyTimelineEditOptions): PropertyTimelineMutationResult;
   capture(layerId: string, property: string, options?: PropertyTimelineEditOptions): PropertyTimelineMutationResult;
   deleteKey(layerId: string, property: string, frame?: number): PropertyTimelineMutationResult;

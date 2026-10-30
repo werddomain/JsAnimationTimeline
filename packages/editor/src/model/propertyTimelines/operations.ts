@@ -15,13 +15,19 @@ function hasOwn(value: object | undefined, name: string): boolean {
   return value !== undefined && Object.prototype.hasOwnProperty.call(value, name);
 }
 
-function assertAllowedProperty(layer: ILayer, name: string, context: IPropertyEditContext): void {
-  if (!isValidPropertyName(name)) throw new PropertyOperationError(`Le nom de propriété « ${String(name)} » est invalide.`);
-  if (layer.target === undefined) return;
+/** Undefined means unrestricted; an explicit empty list allows no edits. */
+export function allowedPropertyNames(layer: ILayer, context: IPropertyEditContext): readonly string[] | undefined {
+  if (layer.target === undefined) return undefined;
   const target = layer.target;
   const properties = context.describe?.(target)?.properties
     ?? context.listTargets?.().find((info) => sameTarget(info.target, target))?.properties;
-  if (properties !== undefined && !properties.some((property) => (typeof property === 'string' ? property : property.name) === name)) {
+  return properties?.map((property) => typeof property === 'string' ? property : property.name);
+}
+
+function assertAllowedProperty(layer: ILayer, name: string, context: IPropertyEditContext): void {
+  if (!isValidPropertyName(name)) throw new PropertyOperationError(`Le nom de propriété « ${String(name)} » est invalide.`);
+  const names = allowedPropertyNames(layer, context);
+  if (names !== undefined && !names.includes(name)) {
     throw new PropertyOperationError(`La propriété « ${name} » n'est pas modifiable pour cette cible.`);
   }
 }
