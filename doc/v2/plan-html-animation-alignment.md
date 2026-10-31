@@ -15,8 +15,8 @@ implémentation. Les choix produit ne sont pas remis en discussion.
 | A — Socle et API | HA2 / `v2/HA2-property-editing-api` | Commandes par propriété, découpe exacte, transactions publiques et démo moteur/API. | PR #123 fusionnée dans v2/base (`afcdb6b`). Phase A validée par l’utilisateur le 30 octobre 2026 (« 1. a »). |
 | B — Éditeur et HTML | HA3 / `v2/HA3-property-rows-selection` | Lignes, sélection, dépliage, commandes visuelles et choix d'accélération avec courbe. | PR #124 fusionnée dans v2/base (`2f5295d`). |
 | B — Éditeur et HTML | HA4 / `v2/HA4-html-target-resolution` | Groupes, bases DOM, valeurs CSS riches, spécificité, cas 59 et conflits. | PR #125 fusionnée dans v2/base (`fef760a`). Phase B validée par l’utilisateur le 30 octobre 2026 (« a »). |
-| C — Sorties et raccordement | HA5 / `v2/HA5-playback-exports` | JSON préévalué, lecteur, export JS autonome HTML. | En cours depuis `fef760a` ; cadrage ECC planner/TDD terminé. |
-| C — Sorties et raccordement | HA6 / `v2/HA6-css-export-conformance` | CSS fidèle/refus explicite, parité, démo et passation API réelle. | À faire après HA5. |
+| C — Sorties et raccordement | HA5 / `v2/HA5-playback-exports` | JSON préévalué, lecteur, export JS autonome HTML. | PR #126 fusionnée dans v2/base (`79aea4c`) après vérification locale et revues ECC. |
+| C — Sorties et raccordement | HA6 / `v2/HA6-css-export-conformance` | CSS fidèle/refus explicite, parité, démo et passation API réelle. | Implémentation vérifiée depuis `79aea4c`, revues ECC favorables ; phase C en attente de validation utilisateur. |
 
 Chaque tâche produit une PR vers `v2/base`. Fusion autorisée seulement après
 validation complète et revues sans constat bloquant. Aucune fusion vers `main`.
@@ -121,3 +121,30 @@ La compilation est bornée, validée et sans mutation du document éditable. Les
 consommateurs d'archives, les tests sans DOM et une démo de relecture autonome
 vérifient la frontière réellement publiée par les fichiers du dépôt. HA6 traite
 ensuite séparément la fidélité des animations CSS et leurs motifs de refus.
+
+## Décision de fidélité CSS HA6
+
+L'API moderne `exportHtmlCss` inspecte la scène source et annonce une fidélité
+continue uniquement pour les trajectoires qu'elle peut traduire exactement.
+Les images discrètes HA5 ne servent jamais à ajuster une courbe présentée comme
+exacte. Les segments proviennent des clés, transitions et choix HTML résolus.
+
+Le sous-ensemble prévu comprend les propriétés numériques CSS compatibles,
+les maintiens de valeurs, les transitions linéaires/Bézier et les transformations
+2D dont la composition est démontrable. Les effets non représentables, les
+interpolateurs personnalisés, les courbes découpées non traduisibles et les
+compositions incompatibles produisent un refus global contextualisé, avec
+alternatives JavaScript/JSON. Ces alternatives gardent leur précision par image.
+
+Les règles sont limitées au container source. Une cascade prioritaire, des
+animations concurrentes ou une inspection impossible empêchent la certification.
+Les déclarations importantes dominent les animations et ne peuvent pas être
+contournées en ajoutant `!important` dans `@keyframes` ; voir
+[CSS Animations du W3C](https://www.w3.org/TR/css-animations-1/) et
+[CSS Easing du W3C](https://www.w3.org/TR/css-easing-1/).
+
+L'ancienne API sans DOM conserve sa signature mais refuse désormais toute sortie
+partielle. Elle reste un chemin historique sans certification continue. La démo
+moderne et l'intégration Designer utilisent la nouvelle API stricte. Les tests
+comparent des animations CSS réelles à l'aperçu aux images fractionnaires et
+aux bornes exactes des clés, en plus des refus et de l'absence de mutation.

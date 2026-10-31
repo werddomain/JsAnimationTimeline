@@ -3,10 +3,10 @@ import { collectLayers, evaluateDocument } from '../../evaluate/evaluateDocument
 import type { ITimelineDocument } from '../../model/document';
 import { isSelectorTarget } from '../../model/guards';
 import { defaultPropertyRegistry } from '../../properties/PropertyRegistry';
-import { cloneHtmlAnimationContext } from '../../stage/html/animationContext';
 import type { IHtmlResolvedLayer } from '../../stage/html/animationTypes';
 import { prepareHtmlAnimation, composeHtmlAnimationFrame } from '../../stage/html/preparedAnimation';
 import { HtmlPropertyInspection } from '../../stage/html/propertyInspection';
+import { assertHtmlExportPreparationBudget, cloneBoundedHtmlExportContext, HtmlExportResourceError } from '../../stage/html/exportWork';
 import { compilePlayback } from '../compilePlayback';
 import { clonePlaybackJson } from '../json';
 import { MAX_PLAYBACK_CELLS } from '../limits';
@@ -19,7 +19,7 @@ function compile(doc: ITimelineDocument, options: ICompileHtmlPlaybackOptions): 
   const generic = compilePlayback(doc, options);
   if (generic.status === 'refused') return generic;
   const document = clonePlaybackJson(doc) as ITimelineDocument;
-  const context = cloneHtmlAnimationContext(options.animationContext ?? { version: 1 });
+  const context = cloneBoundedHtmlExportContext(options.animationContext);
   const registry = options.registry ?? defaultPropertyRegistry;
   const layers: IHtmlResolvedLayer[] = collectLayers(document).map((layer) => {
     if (layer.target === undefined || !isSelectorTarget(layer.target)) throw new Error(`L’objet « ${layer.name} » exige un sélecteur HTML exportable.`);
@@ -28,6 +28,7 @@ function compile(doc: ITimelineDocument, options: ICompileHtmlPlaybackOptions): 
     if (elements.some((element) => !('style' in element))) throw new Error('La cible ne possède pas de styles inline compatibles.');
     return { layerId: layer.id, layer, target: layer.target, elements };
   });
+  assertHtmlExportPreparationBudget(layers, context, document.settings.totalFrames);
   const inspection = new HtmlPropertyInspection();
   const prepared = prepareHtmlAnimation(document, layers, context, registry, inspection);
   if (prepared.diagnostics.length > 0) return { status: 'refused', diagnostics: prepared.diagnostics.map((issue) => ({
@@ -65,5 +66,6 @@ function compile(doc: ITimelineDocument, options: ICompileHtmlPlaybackOptions): 
 /** Compile while source styles are visible; a live stage can suspend its preview for this operation. */
 export function compileHtmlPlayback(doc: ITimelineDocument, options: ICompileHtmlPlaybackOptions): PlaybackResult<IHtmlPlaybackDocument> {
   try { return options.sourceStage === undefined ? compile(doc, options) : options.sourceStage.withSourceStyles(() => compile(doc, options)); }
-  catch (error) { return { status: 'refused', diagnostics: [{ code: 'html-export-refused', message: error instanceof Error ? error.message : 'L’export HTML a été refusé.' }] }; }
+  catch (error) { return { status: 'refused', diagnostics: [{ code: error instanceof HtmlExportResourceError ? 'resource-limit' : 'html-export-refused',
+    message: error instanceof Error ? error.message : 'L’export HTML a été refusé.' }] }; }
 }

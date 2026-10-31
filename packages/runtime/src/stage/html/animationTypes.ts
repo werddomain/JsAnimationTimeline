@@ -1,7 +1,8 @@
 // packages/runtime/src/stage/html/animationTypes.ts
 import type { ITimelineDocument } from '../../model/document';
 import type { ILayer } from '../../model/layer';
-import type { TimelinePropertyValue } from '../../model/propertyTimeline';
+import type { IPropertyTimeline, TimelinePropertyValue } from '../../model/propertyTimeline';
+import type { PropertyDescriptor } from '../../properties/types';
 import type { LayerTarget } from '../../model/target';
 import type { HtmlPropertyBinding, IHtmlGradientDefinition, IHtmlResolvedBinding } from './cssTypes';
 
@@ -66,10 +67,30 @@ export type HtmlResolvedSample =
   | { readonly status: 'value'; readonly value: TimelinePropertyValue }
   | { readonly status: 'refused'; readonly code: 'unrecorded' | 'unavailable'; readonly reason: string };
 
+/** Exact selected provenance for exporters; no curve is reconstructed from samples. */
+export interface IHtmlResolvedTrajectory {
+  readonly layerId: string;
+  readonly property: string;
+  readonly binding: IHtmlResolvedBinding;
+  readonly timeline?: IPropertyTimeline;
+  readonly descriptor?: PropertyDescriptor;
+  readonly before?: {
+    readonly until: number;
+    readonly policy?: HtmlBeforeFirstPolicy;
+    readonly underlying?: IHtmlResolvedTrajectory;
+  };
+}
+
+export interface IHtmlResolvedElementTrajectories {
+  readonly element: Element;
+  readonly properties: readonly IHtmlResolvedTrajectory[];
+}
+
 /** Immutable prepared inputs. Each evaluation returns fresh values and arrays. */
 export interface IHtmlResolutionPlan {
   readonly document: ITimelineDocument;
   readonly diagnostics: readonly IHtmlResolutionDiagnostic[];
   evaluate(frame: number): readonly IHtmlResolvedElementState[];
+  trajectories(): readonly IHtmlResolvedElementTrajectories[];
   sample(layerId: string, property: string, frame: number, initialValue?: TimelinePropertyValue): HtmlResolvedSample;
 }

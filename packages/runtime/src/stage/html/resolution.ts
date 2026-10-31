@@ -10,7 +10,8 @@ import { boundTimelineValue } from '../../properties/timelineValues';
 import type { PropertyDescriptor } from '../../properties/types';
 import type {
   HtmlResolutionDiagnosticCode, IHtmlAnimationContext, IHtmlResolvedElementState, IHtmlResolvedLayer,
-  IHtmlResolutionDiagnostic, IHtmlResolutionPlan, HtmlResolvedSample, HtmlBeforeFirstPolicy, IHtmlConflictResolution
+  IHtmlResolutionDiagnostic, IHtmlResolutionPlan, HtmlResolvedSample, HtmlBeforeFirstPolicy, IHtmlConflictResolution,
+  IHtmlResolvedTrajectory
 } from './animationTypes';
 import { canonicalHtmlData, cloneHtmlAnimationContext } from './animationContext';
 import { htmlBindingDestination, resolveHtmlBinding } from './cssBindings';
@@ -404,5 +405,14 @@ export function prepareHtmlResolution(
     }
     return { status: 'value', value: values[0] };
   };
-  return { document: doc, diagnostics: [...diagnostics.values()], evaluate, sample };
+  const trajectory = (item: IChosenProperty): IHtmlResolvedTrajectory => ({
+    layerId: item.contribution.source.layerId, property: item.contribution.property, binding: item.contribution.binding,
+    ...(item.contribution.track === undefined ? {} : { timeline: { ...item.contribution.track,
+      ...(item.useFirstKey ? { beforeFirst: 'first-key' as const } : {}) } }),
+    descriptor: evaluationDescriptor(item.contribution, registry),
+    ...(item.before === undefined ? {} : { before: { until: item.before.until, policy: item.before.policy,
+      ...(item.before.underlying === undefined ? {} : { underlying: trajectory(item.before.underlying) }) } })
+  });
+  const trajectories = () => Array.from(chosen, ([element, properties]) => ({ element, properties: properties.map(trajectory) }));
+  return { document: doc, diagnostics: [...diagnostics.values()], evaluate, sample, trajectories };
 }

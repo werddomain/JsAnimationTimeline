@@ -22,7 +22,7 @@ describe('CSS export with modern property timelines', () => {
     expect(result.css).toBe('');
     expect(result.html).not.toContain('@keyframes');
     expect(result.warnings).toEqual([{ code: 'unsupported-property-timeline', layerId: 'modern',
-      message: expect.stringMatching(/adaptateur HTML.*indisponible/i) }]);
+      message: expect.stringMatching(/exportHtmlCss.*scène HTML/i) }]);
     expect(JSON.stringify(document)).toBe(original);
   });
 

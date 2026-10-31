@@ -7,8 +7,10 @@
  * Dépend de : runtime (registre de propriétés R1, évaluation R2, images clés
  * du lecteur R3).
  *
- * Seule la scène HTML a un équivalent CSS. Le reste est sauté avec un
- * avertissement, sans jamais faire échouer l'export :
+ * Chemin historique sans inspection DOM, sans garantie de fidélité continue.
+ * Pour le contrat HTML moderne, utiliser exportHtmlCss. La sortie historique est
+ * atomique : toute partie non représentable produit des avertissements et vide
+ * entièrement css/html. Les motifs sont :
  * - calque sans cible `{ selector }` (ou sélecteur dangereux) → `unsupported-target` ;
  * - piste d'une propriété non CSS → `non-css-property` ;
  * - piste d'une propriété inconnue du registre → `unknown-property` ;
@@ -143,14 +145,13 @@ function toStyleElement(css: string): string {
 }
 
 function result(css: string, warnings: readonly IExportCssWarning[]): IExportCssResult {
+  if (warnings.length > 0) return { css: '', html: '', warnings };
   return { css, html: toStyleElement(css), warnings };
 }
 
 /**
- * Pure CSS version of `doc`: one `@keyframes` block per layer of the HTML
- * stage, in display order, then one rule per selector. Never throws for a
- * layer or a track it cannot export: it skips them and lists them in
- * `warnings`.
+ * Historical DOM-free exporter. Unsupported layers/tracks produce warnings and
+ * refuse the entire output. Use exportHtmlCss for inspected continuous fidelity.
  */
 export function exportCss(doc: ITimelineDocument, options: IExportCssOptions = {}): IExportCssResult {
   if (!isPositiveFinite(doc.settings?.fps) || !isPositiveFinite(doc.settings?.totalFrames) || !Array.isArray(doc.layers)) {
@@ -164,7 +165,7 @@ export function exportCss(doc: ITimelineDocument, options: IExportCssOptions = {
     return result('', unsupported.map((layer): IExportCssWarning => ({
       code: 'unsupported-property-timeline',
       layerId: layer.id,
-      message: `Calque « ${layer.id} » : l'adaptateur HTML des pistes de propriétés est indisponible dans cette phase. L'export CSS complet est refusé pour préserver l'animation.`
+      message: `Calque « ${layer.id} » : les pistes de propriétés nécessitent exportHtmlCss et sa scène HTML. L'export CSS historique complet est refusé pour préserver l'animation.`
     })));
   }
   const ctx: IExportContext = {

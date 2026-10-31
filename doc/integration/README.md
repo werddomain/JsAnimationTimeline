@@ -13,8 +13,10 @@ peuvent varier selon l'outil : ils ne constituent pas un mécanisme de coordinat
    état actuel observé, opérations conceptuelles et scénarios de conformité.
 3. [Message de démarrage pour la session Designer](designer-session.md) — contexte
    à transmettre à la session qui travaillera dans HtmlAnimation.
-4. [API HA1](timeline-ha1-api.md), [API HA2](timeline-ha2-api.md), [API HA3](timeline-ha3-api.md), [API HA4](timeline-ha4-api.md) et [API HA5](timeline-ha5-api.md) — capacités
+4. [API HA1](timeline-ha1-api.md), [API HA2](timeline-ha2-api.md), [API HA3](timeline-ha3-api.md), [API HA4](timeline-ha4-api.md), [API HA5](timeline-ha5-api.md) et [API HA6](timeline-ha6-api.md) — capacités
    effectivement implémentées, méthodes publiques, vérifications et limites restantes.
+5. [Raccordement réel et référence de travail](timeline-integration-status.md) —
+   interfaces à consommer, parcours réutilisables et distinction avec les versions publiées.
 
 Les documents suffisent sans relire les discussions et sans suivre les références
 numérotées aux anciennes questions. Les cas concernés sont décrits intégralement.
@@ -123,7 +125,10 @@ conserve l'évaluation fractionnaire de ses courbes. Le format HTML contient ses
 déclarations résolues et ne doit pas être remplacé par une application DOM du
 JSON générique. Voir l'API HA5 et `doc/v2/todo/ha5-validation.md` dans Timeline
 pour les signatures réelles, les conditions de ciblage et les preuves obtenues.
-La fidélité de l'export CSS reste HA6.
+La PR #126 est fusionnée dans `v2/base` au commit `79aea4c`.
+HA6 ajoute l'API CSS stricte, avec refus global lorsqu'une trajectoire ou la cascade
+ne permettent pas une reproduction continue. Consulter le document de raccordement
+et l'API HA6 pour la référence à intégrer et les limites exactes.
 
 ## Règles de travail à emporter
 

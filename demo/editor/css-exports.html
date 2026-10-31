@@ -1,0 +1,31 @@
+<!-- demo/editor/css-exports.html -->
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Animation CSS fidèle · Timeline</title></head>
+<body class="JsTimeLine css-exports-page"><main>
+  <header><nav aria-label="Démonstrations"><a href="index.html">← Démonstrations</a> · <a href="playback-exports.html">Exports JSON et JavaScript</a></nav>
+    <p class="eyebrow">JsAnimationTimeline · Export CSS continu</p><h1>La même courbe, en CSS.</h1>
+    <p>Explorez l’animation entre les images. À gauche, le lecteur de la Timeline ; à droite, le CSS exporté appliqué par le navigateur.</p>
+    <p class="fidelity-note">97 images à 29 img/s. Les transitions acceptées conservent leur courbe continue. Les sorties impossibles sont expliquées avant l’export.</p>
+  </header>
+  <section class="export-toolbar" aria-label="Commandes d’export">
+    <label for="curve-select">Courbe de l’opacité</label><select id="curve-select"><option value="linear">Linéaire</option><option value="bezier">Bézier · entrée / sortie</option></select>
+    <button id="compile-css" type="button">Exporter et comparer</button><button id="download-css" type="button" data-css-control disabled>Télécharger le CSS</button>
+    <p id="export-status" role="status">Prêt à exporter. Vos clés restent inchangées.</p>
+  </section>
+  <form id="seek-form" class="transport" aria-label="Lecture comparée">
+    <label for="frame-input">Image</label><input id="frame-input" type="number" min="1" max="97" step="any" value="1">
+    <button type="submit" data-css-control disabled>Afficher cette image</button><button id="play-css" type="button" data-css-control disabled>Lire</button><button id="pause-css" type="button" data-css-control disabled>Pause</button>
+    <output id="frame-output" data-frame="1">Image 1 / 97</output>
+  </form>
+  <section class="comparison" aria-label="Comparaison des rendus">
+    <article><div class="scene-heading"><span>01</span><h2>Lecture Timeline</h2></div><p>Propriétés indépendantes et accélération du document éditable.</p><div id="source-scene"></div></article>
+    <article><div class="scene-heading"><span>02</span><h2>Animation CSS</h2></div><p>La feuille produite, dans une scène isolée avec les mêmes styles sources.</p><iframe id="css-frame" title="Scène animée par le CSS exporté"></iframe></article>
+  </section>
+  <section class="verification" aria-labelledby="verification-heading"><h2 id="verification-heading">Une sortie fidèle, ou une explication.</h2>
+    <p>La courbe élastique et une propriété protégée par une classe prioritaire illustrent deux refus. Le dernier export valide reste disponible.</p>
+    <div class="actions"><button id="test-elastic" type="button">Tester une courbe élastique</button><button id="test-important" type="button">Tester une classe prioritaire</button><button id="restore-styles" type="button" data-css-control disabled>Restaurer les styles</button></div>
+    <p id="refusal-status" role="status"></p><p id="document-state">Document éditable : inchangé.</p>
+  </section>
+  <details><summary>Voir la feuille CSS produite</summary><pre id="css-output"></pre></details>
+</main><script type="module" src="./src/cssExports.ts"></script></body></html>

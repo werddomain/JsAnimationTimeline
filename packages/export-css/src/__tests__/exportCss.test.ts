@@ -78,17 +78,29 @@ const referenceDoc = doc([
   { id: 'no-target', type: 'layer', name: 'Sans cible', spans: [{ id: 'n1', start: 1, end: 24, kind: 'static' }] }
 ]);
 
+const cssHero: ILayer = { ...hero, spans: hero.spans.map((span) => span.id === 'h1'
+  ? { ...span, tracks: { x: span.tracks!.x } } : span) };
+const supportedReferenceDoc = doc([cssHero, {
+  ...referenceDoc.layers[1], children: referenceDoc.layers[1].type === 'folder'
+    ? referenceDoc.layers[1].children.filter((layer) => layer.id === 'badge') : []
+}] as ITimelineDocument['layers']);
+
 describe('exportCss', () => {
-  it('matches the reference file and lists what it skipped', () => {
+  it('refuses the entire mixed document and lists every unsupported part', () => {
     const result = exportCss(referenceDoc, { registry: new RegistryWithValueProperty() });
 
-    expect(result.css).toBe(readFixture('reference.css'));
+    expect(result.css).toBe('');
+    expect(result.html).toBe('');
     expect(result.warnings.map(({ code, layerId, property }) => [code, layerId, property])).toEqual([
       ['non-css-property', 'hero', 'frameIndex'],
       ['unknown-property', 'hero', 'glow'],
       ['unsupported-target', 'canvas-sprite', undefined],
       ['unsupported-target', 'no-target', undefined]
     ]);
+  });
+
+  it('preserves the reference CSS when every layer and property is supported', () => {
+    expect(exportCss(supportedReferenceDoc).css).toBe(readFixture('reference.css'));
   });
 
   it('warns about a live element target and an unsafe selector, and never throws', () => {
@@ -104,7 +116,7 @@ describe('exportCss', () => {
     expect(result.warnings.filter((w) => w.code === 'unsupported-target').map((w) => w.layerId)).toEqual(['live', 'unsafe']);
   });
 
-  it('skips a layer that cannot be evaluated with an invalid-layer warning', () => {
+  it('refuses the complete export when a layer cannot be evaluated', () => {
     const broken: ILayer = {
       ...hero,
       id: 'broken',
@@ -114,14 +126,14 @@ describe('exportCss', () => {
     const result = exportCss(doc([broken, { ...hero, id: 'ok' }]));
 
     expect(result.warnings.find((w) => w.code === 'invalid-layer')).toEqual(expect.objectContaining({ layerId: 'broken' }));
-    expect(result.css).toContain('@keyframes tl-ok {');
+    expect(result.css).toBe('');
     expect(result.css).not.toContain('tl-broken');
   });
 
   it('applies the prefix and the loop option, and skips layers that never change', () => {
     const still: ILayer = { id: 'still', type: 'layer', name: 'Fixe', target: { selector: '#still' }, spans: [{ id: 's', start: 1, end: 24, kind: 'static' }] };
 
-    const result = exportCss(doc([still, { ...hero, id: 'hero' }]), { prefix: 'anim-', loop: true });
+    const result = exportCss(doc([still, { ...cssHero, id: 'hero' }]), { prefix: 'anim-', loop: true });
 
     expect(result.css).toContain('@keyframes anim-hero {');
     expect(result.css).toContain('animation-iteration-count: infinite;');
@@ -129,12 +141,12 @@ describe('exportCss', () => {
   });
 
   it('writes the duration from totalFrames / fps', () => {
-    expect(exportCss(doc([hero], 24, 12)).css).toContain('animation-duration: 2000ms;');
-    expect(exportCss(doc([hero], 10, 3)).css).toContain('animation-duration: 3333.3333ms;');
+    expect(exportCss(doc([cssHero], 24, 12)).css).toContain('animation-duration: 2000ms;');
+    expect(exportCss(doc([cssHero], 10, 3)).css).toContain('animation-duration: 3333.3333ms;');
   });
 
   it('wraps the style sheet in a <style> element', () => {
-    const { css, html } = exportCss(doc([hero]));
+    const { css, html } = exportCss(doc([cssHero]));
 
     expect(html).toBe(`<style>\n${css}</style>`);
   });
@@ -144,7 +156,7 @@ describe('exportCss', () => {
 
     const { html, warnings } = exportCss(doc([tricky]));
 
-    expect(html).toBe('<style>\n</style>');
+    expect(html).toBe('');
     expect(warnings.map((w) => w.code)).toEqual(['unsupported-target']);
   });
 
@@ -157,7 +169,7 @@ describe('exportCss', () => {
       spans: [{ id: 'f1', start: 1, end: 24, kind: 'tween', tracks: { opacity: [{ frame: 1, value: 0 }, { frame: 24, value: 1 }] } }]
     };
 
-    const { css } = exportCss(doc([hero, fade]));
+    const { css } = exportCss(doc([cssHero, fade]));
 
     expect(css.match(/^#hero \{/gm)).toHaveLength(1);
     expect(css).toContain('animation-name: tl-hero, tl-fade;');
@@ -165,13 +177,13 @@ describe('exportCss', () => {
     expect(css).toContain('animation-fill-mode: both, both;');
   });
 
-  it('skips a malformed layer with invalid-layer and keeps exporting the others', () => {
+  it('refuses the complete export for a malformed layer', () => {
     const malformed = { ...hero, id: 'malformed', spans: [{ id: 'm', start: 1, end: 5, kind: 'tween', tracks: null }] } as unknown as ILayer;
 
     const result = exportCss(doc([malformed, { ...hero, id: 'ok' }]));
 
     expect(result.warnings.filter((w) => w.layerId === 'malformed').map((w) => w.code)).toEqual(['invalid-layer']);
-    expect(result.css).toContain('@keyframes tl-ok {');
+    expect(result.css).toBe('');
   });
 
   it.each([

@@ -6,3 +6,5 @@
 
 export { DEFAULT_PREFIX, exportCss } from './exportCss';
 export type { ExportCssWarningCode, IExportCssOptions, IExportCssResult, IExportCssWarning } from './types';
+export { exportHtmlCss } from './exportHtmlCss';
+export type { IExportHtmlCssOptions, IHtmlCssExportDiagnostic, HtmlCssExportResult } from './htmlTypes';
