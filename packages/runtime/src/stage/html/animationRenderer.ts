@@ -1,28 +1,17 @@
 // packages/runtime/src/stage/html/animationRenderer.ts
 import type { ITimelineDocument } from '../../model/document';
-import type { IPropertyTimeline } from '../../model/propertyTimeline';
 import type { LayerTarget } from '../../model/target';
 import type { PropertyRegistry } from '../../properties/PropertyRegistry';
 import { sameTarget } from '../routing';
 import type { IStageLayer, IStageLayerState, ITargetPropertyInfo } from '../types';
 import type { IHtmlAnimationContext, IHtmlResolvedLayer, IHtmlResolutionDiagnostic, IHtmlResolutionPlan } from './animationTypes';
 import { cloneHtmlAnimationContext } from './animationContext';
-import { composeHtmlDeclarations } from './cssCompose';
 import { htmlGradientValueKind } from './cssBindings';
-import type { IHtmlGradientDefinition, IHtmlResolvedBinding } from './cssTypes';
 import type { HtmlElements } from './elements';
 import { InlineStyleKeeper } from './inlineStyles';
-import { needsVisibility } from './keyframes';
 import { HtmlPropertyInspection } from './propertyInspection';
 import type { IHtmlInspectPropertyOptions, IHtmlPropertyInspection } from './propertyInspection';
-import { prepareHtmlResolution } from './resolution';
-
-function capabilityDiagnostic(layer: IHtmlResolvedLayer, property: string, message: string, totalFrames: number): IHtmlResolutionDiagnostic {
-  return { code: 'unsupported-binding', id: JSON.stringify(['capability', layer.layerId, property]),
-    signature: JSON.stringify(layer.layer.propertyTimelines?.[property]), property, layerIds: [layer.layerId],
-    targets: ['selector' in layer.target ? layer.target.selector : layer.layerId], fromFrame: 1, toFrame: totalFrames,
-    choices: [], blocking: true, message };
-}
+import { composeHtmlAnimationFrame, prepareHtmlAnimation } from './preparedAnimation';
 
 /** Exact HTML rendering shared by seeking and playback, independent of editor selection. */
 export class HtmlAnimationRenderer {
@@ -165,65 +154,22 @@ export class HtmlAnimationRenderer {
   }
 
   private prepare(doc: ITimelineDocument, layers: readonly IHtmlResolvedLayer[]): void {
-    const issues: IHtmlResolutionDiagnostic[] = [];
-    const metadata = new Map<string, ReadonlyMap<string, IHtmlPropertyInspection>>();
-    const accepted = layers.map((layer) => {
-      const infos = new Map<string, IHtmlPropertyInspection>();
-      const tracks: Record<string, IPropertyTimeline> = {};
-      for (const [name, track] of Object.entries(layer.layer.propertyTimelines ?? {})) {
-        let info = this.inspection.inspect(layer.elements, name, layer.layerId, track.initialValue.kind, this.context, this.registry());
-        const reason = !info.editable || !info.interpolable && (track.transitions?.length ?? 0) > 0 ? info.reason
-          : this.inspection.validate(layer, name, track, this.context, this.registry());
-        if (reason !== undefined) {
-          // Keep source capabilities: an invalid loaded track must still be repairable by a valid edit.
-          info = { ...info, reason };
-          issues.push(capabilityDiagnostic(layer, name, reason, doc.settings.totalFrames));
-        } else tracks[name] = track;
-        infos.set(name, info);
-      }
-      metadata.set(layer.layerId, infos);
-      // Preserve legacy spans, whose numeric tracks are evaluated by the same resolution plan.
-      return { ...layer, layer: { ...layer.layer, propertyTimelines: tracks } };
-    });
-    const plan = prepareHtmlResolution(doc, accepted, this.context, this.registry());
-    this.doc = doc; this.layers = layers; this.metadata = metadata; this.plan = plan;
-    this.issues = [...issues, ...plan.diagnostics];
+    const prepared = prepareHtmlAnimation(doc, layers, this.context, this.registry(), this.inspection);
+    this.doc = doc; this.layers = layers; this.metadata = new Map(prepared.metadata); this.plan = prepared.plan;
+    this.issues = prepared.diagnostics;
   }
 
   private draw(): void {
     if (this.sourceDepth > 0 || this.plan === undefined || this.doc === undefined) return;
-    const renderIssues: IHtmlResolutionDiagnostic[] = [];
-    const evaluated = this.plan.evaluate(Math.max(1, Math.min(this.doc.settings.totalFrames, this.frame)));
-    const states = [...evaluated, ...[...this.held].filter((element) => !evaluated.some((state) => state.element === element))
-      .map((element) => ({ element, properties: [] }))];
-    for (const state of states) {
-      if (!this.held.has(state.element)) continue;
-      const values: Record<string, import('../../model/propertyTimeline').TimelinePropertyValue> = {};
-      const bindings: Record<string, IHtmlResolvedBinding> = {};
-      const gradients = new Map<string, IHtmlGradientDefinition>();
-      state.properties.forEach((property, index) => {
-        const name = `value-${index}`;
-        values[name] = property.value; bindings[name] = property.binding;
-        for (const gradient of this.context.gradients?.[property.layerId] ?? []) gradients.set(gradient.id, gradient);
-      });
-      const transform = this.inspection.transform(state.element);
-      const css = composeHtmlDeclarations(state.element, values, bindings, [...gradients.values()],
-        transform.status === 'value' ? transform.value : undefined);
-      for (const issue of css.diagnostics) {
-        const property = state.properties[Number(issue.property.slice('value-'.length))];
-        const layer = this.layers.find((entry) => entry.layerId === property?.layerId);
-        if (layer !== undefined && property !== undefined) renderIssues.push(capabilityDiagnostic(layer, property.property, issue.reason, this.doc.settings.totalFrames));
-      }
-      const declarations: Record<string, string> = { ...css.declarations };
-      const owners = this.layers.filter((layer) => layer.elements.includes(state.element));
-      const managed = owners.filter((layer) => layer.layer.spans.length > 0 && needsVisibility(layer.layer, this.doc!.settings.totalFrames));
-      if (owners.some((layer) => this.visible.get(layer.layerId) === false) || managed.some((layer) => this.active.get(layer.layerId) === false)) declarations.visibility = 'hidden';
-      else if (managed.length > 0) declarations.visibility = 'visible';
-      const previous = this.written.get(state.element) ?? new Set<string>();
-      for (const name of previous) if (!(name in declarations)) this.keeper.restore(state.element, name);
-      for (const [name, value] of Object.entries(declarations)) this.keeper.write(state.element, name, value, 'important');
-      this.written.set(state.element, new Set(Object.keys(declarations)));
+    const frame = composeHtmlAnimationFrame(this.doc, this.layers, this.plan, this.context, this.inspection,
+      this.frame, this.visible, this.active);
+    for (const element of this.held) {
+      const declarations = frame.elements.get(element) ?? {};
+      const previous = this.written.get(element) ?? new Set<string>();
+      for (const name of previous) if (!(name in declarations)) this.keeper.restore(element, name);
+      for (const [name, value] of Object.entries(declarations)) this.keeper.write(element, name, value, 'important');
+      this.written.set(element, new Set(Object.keys(declarations)));
     }
-    this.renderIssues = [...new Map(renderIssues.map((issue) => [issue.id, issue])).values()];
+    this.renderIssues = frame.diagnostics;
   }
 }

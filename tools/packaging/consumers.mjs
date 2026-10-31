@@ -52,6 +52,26 @@ try {
   }
   write('consumer.mjs', `import { createRequire } from 'node:module';\nimport { createEmptyDocument } from '@kazo-ca/timeline-editor';\nimport { exportCss } from '@kazo-ca/timeline-export-css';\nimport { validateDocument } from '@kazo-ca/timeline-runtime';\nimport assert from 'node:assert/strict';\nfor (const fn of [createEmptyDocument, exportCss, validateDocument]) assert.equal(typeof fn, 'function');\nconst require = createRequire(import.meta.url);\nfor (const name of ['runtime', 'editor', 'export-css']) assert.ok(Object.keys(require('@kazo-ca/timeline-' + name)).length);\nassert.ok(require.resolve('@kazo-ca/timeline-editor/timeline-editor.css'));\n`);
   run(process.execPath, ['consumer.mjs'], temp);
+  write('playback-consumer.mjs', [
+    "import assert from 'node:assert/strict';",
+    "import { createRequire } from 'node:module';",
+    "import { createEmptyDocument } from '@kazo-ca/timeline-editor';",
+    "import { compilePlayback, parsePlayback, samplePlayback, createPlaybackPlayer, compileHtmlPlayback, parseHtmlPlayback, createHtmlPlaybackPlayer, exportHtmlJavascript } from '@kazo-ca/timeline-runtime';",
+    "const require = createRequire(import.meta.url);",
+    "const commonjs = require('@kazo-ca/timeline-runtime');",
+    "for (const name of ['compilePlayback', 'parsePlayback', 'samplePlayback', 'createPlaybackPlayer', 'compileHtmlPlayback', 'parseHtmlPlayback', 'createHtmlPlaybackPlayer', 'exportHtmlJavascript']) assert.equal(typeof commonjs[name], 'function');",
+    "for (const fn of [createPlaybackPlayer, compileHtmlPlayback, parseHtmlPlayback, createHtmlPlaybackPlayer, exportHtmlJavascript]) assert.equal(typeof fn, 'function');",
+    "const document = { ...createEmptyDocument(), settings: { fps: 24, totalFrames: 20 }, layers: [{ id: 'object', name: 'Object', type: 'layer', spans: [], propertyTimelines: { opacity: { initialValue: { kind: 'number', value: 1 }, keys: [{ frame: 10, value: { kind: 'number', value: 0.5 } }] } } }] };",
+    "const source = JSON.stringify(document);",
+    "const compiled = compilePlayback(document);",
+    "assert.equal(compiled.status, 'exported');",
+    "const playback = parsePlayback(JSON.parse(JSON.stringify(compiled.data)));",
+    "assert.equal(playback.sampling, 'frames');",
+    "assert.equal(samplePlayback(playback, 20).object.values.opacity.value, 0.5);",
+    "assert.equal(samplePlayback(playback, 1).object.values.opacity.value, 1);",
+    "assert.equal(JSON.stringify(document), source);",
+  ].join('\n'));
+  run(process.execPath, ['playback-consumer.mjs'], temp);
   write('consumer.ts', `import { createEmptyDocument } from '@kazo-ca/timeline-editor';\nimport { exportCss } from '@kazo-ca/timeline-export-css';\nimport { validateDocument } from '@kazo-ca/timeline-runtime';\nexportCss(createEmptyDocument());\nvalidateDocument(createEmptyDocument());\n`);
   run(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--module', 'esnext', '--moduleResolution', 'bundler', '--target', 'es2020', 'consumer.ts'], temp);
   for (const extension of ['mts', 'cts']) {
@@ -59,7 +79,20 @@ try {
     write(file, readFileSync(join(temp, 'consumer.ts'), 'utf8'));
     run(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--module', 'nodenext', '--moduleResolution', 'nodenext', '--target', 'es2020', file], temp);
   }
-  console.log('npm: three archives, license, ESM, CommonJS, CSS and TypeScript Bundler/NodeNext OK');
+  write('playback-consumer.ts', [
+    "import { createEmptyDocument } from '@kazo-ca/timeline-editor';",
+    "import { compilePlayback, parsePlayback, samplePlayback, createPlaybackPlayer, compileHtmlPlayback, parseHtmlPlayback, createHtmlPlaybackPlayer, exportHtmlJavascript } from '@kazo-ca/timeline-runtime';",
+    "const result = compilePlayback(createEmptyDocument());",
+    "if (result.status === 'exported') samplePlayback(parsePlayback(result.data), 1);",
+    "void [createPlaybackPlayer, compileHtmlPlayback, parseHtmlPlayback, createHtmlPlaybackPlayer, exportHtmlJavascript];",
+  ].join('\n'));
+  run(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--module', 'esnext', '--moduleResolution', 'bundler', '--target', 'es2020', 'playback-consumer.ts'], temp);
+  for (const extension of ['mts', 'cts']) {
+    const file = `playback-consumer.${extension}`;
+    write(file, readFileSync(join(temp, 'playback-consumer.ts'), 'utf8'));
+    run(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--module', 'nodenext', '--moduleResolution', 'nodenext', '--target', 'es2020', file], temp);
+  }
+  console.log('npm: three archives, license, ESM, CommonJS, CSS, playback APIs and TypeScript Bundler/NodeNext OK');
 
   mkdirSync(join(temp, 'nuget-feed'));
   copyFileSync(nupkg, join(temp, 'nuget-feed', basename(nupkg)));

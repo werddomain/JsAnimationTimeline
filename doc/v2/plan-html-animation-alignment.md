@@ -14,8 +14,8 @@ implémentation. Les choix produit ne sont pas remis en discussion.
 | A — Socle et API | HA1 / `v2/HA1-property-tracks` | Pistes indépendantes, valeurs typées, évaluation, accélérations paramétrées, schéma et .NET. | PR #122 fusionnée dans v2/base (`1b0232b`). |
 | A — Socle et API | HA2 / `v2/HA2-property-editing-api` | Commandes par propriété, découpe exacte, transactions publiques et démo moteur/API. | PR #123 fusionnée dans v2/base (`afcdb6b`). Phase A validée par l’utilisateur le 30 octobre 2026 (« 1. a »). |
 | B — Éditeur et HTML | HA3 / `v2/HA3-property-rows-selection` | Lignes, sélection, dépliage, commandes visuelles et choix d'accélération avec courbe. | PR #124 fusionnée dans v2/base (`2f5295d`). |
-| B — Éditeur et HTML | HA4 / `v2/HA4-html-target-resolution` | Groupes, bases DOM, valeurs CSS riches, spécificité, cas 59 et conflits. | Implémenté et vérifié ; preuves dans `todo/ha4-validation.md`. Phase B en attente de validation utilisateur. |
-| C — Sorties et raccordement | HA5 / `v2/HA5-playback-exports` | JSON préévalué, lecteur, export JS autonome HTML. | À faire après validation B. |
+| B — Éditeur et HTML | HA4 / `v2/HA4-html-target-resolution` | Groupes, bases DOM, valeurs CSS riches, spécificité, cas 59 et conflits. | PR #125 fusionnée dans v2/base (`fef760a`). Phase B validée par l’utilisateur le 30 octobre 2026 (« a »). |
+| C — Sorties et raccordement | HA5 / `v2/HA5-playback-exports` | JSON préévalué, lecteur, export JS autonome HTML. | En cours depuis `fef760a` ; cadrage ECC planner/TDD terminé. |
 | C — Sorties et raccordement | HA6 / `v2/HA6-css-export-conformance` | CSS fidèle/refus explicite, parité, démo et passation API réelle. | À faire après HA5. |
 
 Chaque tâche produit une PR vers `v2/base`. Fusion autorisée seulement après
@@ -101,3 +101,23 @@ une inspection visuelle de l'interface historique de Blend 4.
 
 La copie du contrat destinée à HtmlAnimation sera actualisée sans écraser ses
 modifications. Une simulation côté Designer ne vaut jamais conformité du moteur réel.
+
+## Décision de lecture HA5
+
+Le JSON demandé en section 7 du contrat est préévalué aux images entières. Son
+champ `sampling: 'frames'` rend cette précision explicite : la recherche applique
+le plancher et le bornage, puis lit directement un état complet des seules
+propriétés pilotées. Aucun lissage entre échantillons n'est inventé. Le document
+éditable et sa lecture exacte aux images fractionnaires restent disponibles.
+
+Le format générique ne dépend pas du DOM. Le format HTML conserve les objets
+sources distincts et ajoute les déclarations résolues qui font autorité pour le
+rendu HTML. Le JavaScript autonome lit ces déclarations avec la même précision
+par image, sans réimplémenter les courbes. Un groupe ne dépend jamais de l'ordre
+des éléments dans `querySelectorAll` : les bases imposant plusieurs résultats
+exigent des sélecteurs stables vérifiés, ou produisent un refus explicite.
+
+La compilation est bornée, validée et sans mutation du document éditable. Les
+consommateurs d'archives, les tests sans DOM et une démo de relecture autonome
+vérifient la frontière réellement publiée par les fichiers du dépôt. HA6 traite
+ensuite séparément la fidélité des animations CSS et leurs motifs de refus.

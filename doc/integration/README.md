@@ -13,7 +13,7 @@ peuvent varier selon l'outil : ils ne constituent pas un mécanisme de coordinat
    état actuel observé, opérations conceptuelles et scénarios de conformité.
 3. [Message de démarrage pour la session Designer](designer-session.md) — contexte
    à transmettre à la session qui travaillera dans HtmlAnimation.
-4. [API HA1](timeline-ha1-api.md), [API HA2](timeline-ha2-api.md), [API HA3](timeline-ha3-api.md) et [API HA4](timeline-ha4-api.md) — capacités
+4. [API HA1](timeline-ha1-api.md), [API HA2](timeline-ha2-api.md), [API HA3](timeline-ha3-api.md), [API HA4](timeline-ha4-api.md) et [API HA5](timeline-ha5-api.md) — capacités
    effectivement implémentées, méthodes publiques, vérifications et limites restantes.
 
 Les documents suffisent sans relire les discussions et sans suivre les références
@@ -113,6 +113,17 @@ les groupes, les bases CSS, les valeurs riches et les décisions de conflit.
 Consulter les API ci-dessus et leurs preuves de vérification avant raccordement.
 Les formats de lecture/export modernes restent le chantier HA5/HA6 ; aucun nouveau
 package publié ne doit être déduit de ces mises à jour documentaires.
+
+### Mise à jour HA5
+
+La phase B est validée. La branche `v2/HA5-playback-exports`, issue de `fef760a`
+(PR #125), ajoute les formats de lecture préévalués et le JavaScript autonome.
+Leur précision est explicitement `sampling: 'frames'` ; le document éditable
+conserve l'évaluation fractionnaire de ses courbes. Le format HTML contient ses
+déclarations résolues et ne doit pas être remplacé par une application DOM du
+JSON générique. Voir l'API HA5 et `doc/v2/todo/ha5-validation.md` dans Timeline
+pour les signatures réelles, les conditions de ciblage et les preuves obtenues.
+La fidélité de l'export CSS reste HA6.
 
 ## Règles de travail à emporter
 
