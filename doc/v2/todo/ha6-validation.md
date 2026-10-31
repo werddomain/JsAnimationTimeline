@@ -3,6 +3,8 @@
 
 30 octobre 2026. Branche `v2/HA6-css-export-conformance`, base `79aea4c`.
 Dernier lot de la phase C autorisée après validation de la phase B.
+Référence fonctionnelle vérifiée : `3345e1ca499c5141527275bf72ba9e7c1e5e5811`,
+PR #127 vers `v2/base`. Les changements suivants de cette PR sont documentaires.
 
 ## Résultat et limites
 

@@ -2,7 +2,9 @@
 # HA6 — Export CSS continu et refus explicites
 
 Contrat HA-TL-001 r2. Branche `v2/HA6-css-export-conformance`, issue de
-`79aea4c` (HA5, PR #126). Cette page décrit l'API du chantier ; elle ne constitue
+`79aea4c` (HA5, PR #126). Référence fonctionnelle vérifiée :
+`3345e1ca499c5141527275bf72ba9e7c1e5e5811`, PR #127 vers `v2/base`.
+Cette page décrit l'API du chantier ; elle ne constitue
 pas une annonce de publication. Les résultats finaux sont consignés dans
 `doc/v2/todo/ha6-validation.md` du dépôt Timeline.
 

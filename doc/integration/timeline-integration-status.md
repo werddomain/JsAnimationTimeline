@@ -8,8 +8,12 @@ au chantier HtmlAnimation d'avancer sans accès à la conversation Timeline.
 
 Les changements sont intégrés par PR dans `Kazo-ca/JsAnimationTimeline`, branche
 `v2/base`. HA1 à HA5 sont fusionnés (PR #122 à #126, dernière fusion `79aea4c`).
-HA6 se termine sur `v2/HA6-css-export-conformance` ; consulter sa PR et
-`doc/v2/todo/ha6-validation.md` avant de choisir le commit d'intégration.
+La référence fonctionnelle HA6 vérifiée est
+`3345e1ca499c5141527275bf72ba9e7c1e5e5811`, dans la
+[PR #127](https://github.com/Kazo-ca/JsAnimationTimeline/pull/127).
+Ce commit contient les API HA1 à HA6 et les preuves décrites dans
+`doc/v2/todo/ha6-validation.md`. Les commits documentaires suivants ne changent
+pas les binaires vérifiés.
 La validation utilisateur de la phase C reste à obtenir après sa démonstration.
 
 Ces changements ne désignent pas une nouvelle version publiée. Le numéro de
