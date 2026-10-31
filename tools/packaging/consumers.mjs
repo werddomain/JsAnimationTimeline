@@ -56,8 +56,11 @@ try {
     "import assert from 'node:assert/strict';",
     "import { createRequire } from 'node:module';",
     "import { createEmptyDocument } from '@kazo-ca/timeline-editor';",
+    "import { exportHtmlCss } from '@kazo-ca/timeline-export-css';",
     "import { compilePlayback, parsePlayback, samplePlayback, createPlaybackPlayer, compileHtmlPlayback, parseHtmlPlayback, createHtmlPlaybackPlayer, exportHtmlJavascript } from '@kazo-ca/timeline-runtime';",
     "const require = createRequire(import.meta.url);",
+    "assert.equal(typeof exportHtmlCss, 'function');",
+    "assert.equal(typeof require('@kazo-ca/timeline-export-css').exportHtmlCss, 'function');",
     "const commonjs = require('@kazo-ca/timeline-runtime');",
     "for (const name of ['compilePlayback', 'parsePlayback', 'samplePlayback', 'createPlaybackPlayer', 'compileHtmlPlayback', 'parseHtmlPlayback', 'createHtmlPlaybackPlayer', 'exportHtmlJavascript']) assert.equal(typeof commonjs[name], 'function');",
     "for (const fn of [createPlaybackPlayer, compileHtmlPlayback, parseHtmlPlayback, createHtmlPlaybackPlayer, exportHtmlJavascript]) assert.equal(typeof fn, 'function');",
@@ -81,6 +84,9 @@ try {
   }
   write('playback-consumer.ts', [
     "import { createEmptyDocument } from '@kazo-ca/timeline-editor';",
+    "import { exportHtmlCss, type HtmlCssExportResult, type IExportHtmlCssOptions } from '@kazo-ca/timeline-export-css';",
+    "const exportContinuous: (options: IExportHtmlCssOptions) => HtmlCssExportResult = options => exportHtmlCss(createEmptyDocument(), options);",
+    "void exportContinuous;",
     "import { compilePlayback, parsePlayback, samplePlayback, createPlaybackPlayer, compileHtmlPlayback, parseHtmlPlayback, createHtmlPlaybackPlayer, exportHtmlJavascript } from '@kazo-ca/timeline-runtime';",
     "const result = compilePlayback(createEmptyDocument());",
     "if (result.status === 'exported') samplePlayback(parsePlayback(result.data), 1);",

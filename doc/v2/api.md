@@ -27,7 +27,9 @@ The [runtime object-stage demo](../../demo/runtime/src/objectStage/) combines ca
 
 ## CSS export
 
-`@kazo-ca/timeline-export-css` exports `exportCss(document, options)` returning `{ css, html, warnings }`. Options include a keyframe `prefix`, a property `registry` and `loop`. Inspect warnings before using the result: unsupported or unsafe selectors, non-CSS and unknown properties, invalid layers and invalid documents can be skipped. The exporter does not render developer-owned objects. See [export options and warnings](../../packages/export-css/src/types.ts) and the [CSS parity browser test](../../e2e/export-css/).
+`@kazo-ca/timeline-export-css` provides `exportHtmlCss(document, options)` for inspected HTML scenes. It returns either an export with `fidelity: 'continuous'` or an explicit refusal with empty CSS/HTML and JavaScript/JSON alternatives. See [the HA6 API](../integration/timeline-ha6-api.md) for supported curves, source scene requirements and cascade limitations.
+
+The historical DOM-free `exportCss(document, options)` keeps `{ css, html, warnings }`, with `prefix`, `registry` and `loop` options. Any unsupported target/property or invalid layer now refuses the entire export: both `css` and `html` are empty when warnings are present. It does not certify continuous parity or inspect the source cascade. Existing fully supported legacy documents retain their output. See [export options and warnings](../../packages/export-css/src/types.ts) and the [legacy CSS browser tests](../../e2e/export-css/).
 
 ## Blazor
 

@@ -64,7 +64,7 @@ player.play();
 // The player also exposes pause() and seek(frame).
 ```
 
-See [the runtime demo](demo/runtime/src/main.ts) and [its example document](demo/runtime/src/animation.ts) for a complete integration. The [editor demo](demo/editor/src/main.ts) shows an editor with sample data, and [the scene demo](demo/editor/src/scene.ts) shows canvas and audio integration. `@kazo-ca/timeline-export-css` exports `exportCss` for generating CSS from supported document properties.
+See [the runtime demo](demo/runtime/src/main.ts) and [its example document](demo/runtime/src/animation.ts) for a complete integration. The [editor demo](demo/editor/src/main.ts) shows an editor with sample data, and [the scene demo](demo/editor/src/scene.ts) shows canvas and audio integration. `@kazo-ca/timeline-export-css` provides `exportHtmlCss` for inspected, continuously faithful HTML exports or an explicit refusal. The historical `exportCss` API retains legacy support and refuses partial output. See the [integration API documents](doc/integration/README.md) for the independent property editor, HTML targeting, playback formats and export requirements in this branch.
 
 See the [v2 API and integration guide](doc/v2/api.md) for runtime, editor, developer-owned scenes, undo, CSS export, and Blazor integration.
 

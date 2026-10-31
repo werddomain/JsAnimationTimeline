@@ -9,7 +9,8 @@ export default defineConfig({
   base: './',
   resolve: { alias: [
     { find: /^@kazo-ca\/timeline-runtime$/, replacement: fileURLToPath(new URL('../../packages/runtime/src/index.ts', import.meta.url)) },
-    { find: /^@kazo-ca\/timeline-editor$/, replacement: fileURLToPath(new URL('../../packages/editor/src/index.ts', import.meta.url)) }
+    { find: /^@kazo-ca\/timeline-editor$/, replacement: fileURLToPath(new URL('../../packages/editor/src/index.ts', import.meta.url)) },
+    { find: /^@kazo-ca\/timeline-export-css$/, replacement: fileURLToPath(new URL('../../packages/export-css/src/index.ts', import.meta.url)) }
   ] },
   build: { outDir: 'dist', emptyOutDir: true, rollupOptions: { input: {
     main: fileURLToPath(new URL('index.html', import.meta.url)),
@@ -17,7 +18,8 @@ export default defineConfig({
     propertyTimelines: fileURLToPath(new URL('property-timelines.html', import.meta.url)),
     propertyEditor: fileURLToPath(new URL('property-editor.html', import.meta.url)),
     htmlProperties: fileURLToPath(new URL('html-properties.html', import.meta.url)),
-    playbackExports: fileURLToPath(new URL('playback-exports.html', import.meta.url))
+    playbackExports: fileURLToPath(new URL('playback-exports.html', import.meta.url)),
+    cssExports: fileURLToPath(new URL('css-exports.html', import.meta.url))
   } } },
   server: { port, strictPort: true },
   preview: { port, strictPort: true }

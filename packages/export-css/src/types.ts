@@ -6,7 +6,7 @@
 import type { PropertyRegistry } from '@kazo-ca/timeline-runtime';
 
 /**
- * Why part of a document was left out of the CSS:
+ * Why the complete historical export was refused:
  * - `unsupported-target`: the layer has no `{ selector }` target (no target,
  *   a live `{ element }`, a `{ ref }` of a developer stage...), or its
  *   selector cannot be written safely in a style sheet;
@@ -15,7 +15,7 @@ import type { PropertyRegistry } from '@kazo-ca/timeline-runtime';
  * - `unknown-property`: the track's property is not in the registry;
  * - `invalid-layer`: the layer could not be evaluated (invalid easing...);
  * - `unsupported-property-timeline`: modern independent property tracks need
- *   the forthcoming HTML adapter; the complete export is refused;
+ *   exportHtmlCss and a source HTML scene; the complete export is refused;
  * - `invalid-document`: `fps` or `totalFrames` is not a positive number, or
  *   `layers` is not an array;
  *   nothing is exported.
@@ -23,7 +23,7 @@ import type { PropertyRegistry } from '@kazo-ca/timeline-runtime';
 export type ExportCssWarningCode = 'unsupported-target' | 'non-css-property' | 'unknown-property' | 'invalid-layer'
   | 'invalid-document' | 'unsupported-property-timeline';
 
-/** Something the export skipped; the rest of the document is still exported. */
+/** A reason the historical export refuses the complete document. */
 export interface IExportCssWarning {
   readonly code: ExportCssWarningCode;
   /** Layer concerned; empty for `invalid-document`. */
@@ -50,6 +50,6 @@ export interface IExportCssResult {
   readonly css: string;
   /** The same style sheet in a `<style>` element, ready to paste in a page. */
   readonly html: string;
-  /** What was skipped, in document order. */
+  /** Refusal reasons, in document order; any entry means css/html are empty. */
   readonly warnings: readonly IExportCssWarning[];
 }
