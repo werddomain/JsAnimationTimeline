@@ -13,3 +13,5 @@ export * from './evaluate';
 export * from './player';
 export * from './transport';
 export * from './stage';
+export * from './playback';
+export * from './playback/html';

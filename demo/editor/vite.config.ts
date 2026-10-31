@@ -16,7 +16,8 @@ export default defineConfig({
     scene: fileURLToPath(new URL('scene.html', import.meta.url)),
     propertyTimelines: fileURLToPath(new URL('property-timelines.html', import.meta.url)),
     propertyEditor: fileURLToPath(new URL('property-editor.html', import.meta.url)),
-    htmlProperties: fileURLToPath(new URL('html-properties.html', import.meta.url))
+    htmlProperties: fileURLToPath(new URL('html-properties.html', import.meta.url)),
+    playbackExports: fileURLToPath(new URL('playback-exports.html', import.meta.url))
   } } },
   server: { port, strictPort: true },
   preview: { port, strictPort: true }

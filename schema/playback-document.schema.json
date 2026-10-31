@@ -1,0 +1,62 @@
+{
+  "$comment": "schema/playback-document.schema.json — dense integer-frame playback data, separate from the editable timeline.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jstimeline.kazo.ca/schema/playback-document.schema.json",
+  "title": "JsTimeline integer-frame playback document",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "sampling", "fps", "totalFrames", "objects", "frames"],
+  "properties": {
+    "version": { "const": 1 },
+    "sampling": { "const": "frames" },
+    "fps": { "type": "integer", "minimum": 1, "maximum": 240 },
+    "totalFrames": { "type": "integer", "minimum": 1, "maximum": 100000 },
+    "objects": {
+      "type": "object", "maxProperties": 10000,
+      "propertyNames": { "$ref": "#/$defs/identity" },
+      "additionalProperties": { "$ref": "#/$defs/object" }
+    },
+    "frames": {
+      "type": "object", "minProperties": 1, "maxProperties": 100000,
+      "propertyNames": { "pattern": "^[1-9][0-9]*$" },
+      "additionalProperties": { "$ref": "#/$defs/frame" }
+    }
+  },
+  "$defs": {
+    "identity": { "type": "string", "minLength": 1, "not": { "enum": ["__proto__", "constructor", "prototype"] } },
+    "propertyName": { "type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9]*$", "not": { "enum": ["constructor", "prototype"] } },
+    "target": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["selector"], "properties": { "selector": { "type": "string", "minLength": 1 } } },
+        { "type": "object", "additionalProperties": false, "required": ["ref"], "properties": { "ref": { "type": "string", "minLength": 1 }, "stage": { "type": "string", "minLength": 1 } } }
+      ]
+    },
+    "object": {
+      "type": "object", "additionalProperties": false, "required": ["name"],
+      "properties": { "name": { "type": "string" }, "target": { "$ref": "#/$defs/target" } }
+    },
+    "frame": {
+      "type": "object", "maxProperties": 10000,
+      "propertyNames": { "$ref": "#/$defs/identity" },
+      "additionalProperties": { "$ref": "#/$defs/state" }
+    },
+    "state": {
+      "type": "object", "additionalProperties": false, "required": ["active", "values"],
+      "properties": {
+        "active": { "type": "boolean" },
+        "values": { "type": "object", "propertyNames": { "$ref": "#/$defs/propertyName" }, "additionalProperties": { "$ref": "#/$defs/value" } }
+      }
+    },
+    "value": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["kind", "value"], "properties": { "kind": { "const": "number" }, "value": { "type": "number" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "value"], "properties": { "kind": { "const": "text" }, "value": { "type": "string" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "value"], "properties": { "kind": { "const": "boolean" }, "value": { "type": "boolean" } } },
+        { "type": "object", "additionalProperties": false, "required": ["kind", "r", "g", "b", "a"], "properties": {
+          "kind": { "const": "color" }, "r": { "type": "number", "minimum": 0, "maximum": 1 }, "g": { "type": "number", "minimum": 0, "maximum": 1 },
+          "b": { "type": "number", "minimum": 0, "maximum": 1 }, "a": { "type": "number", "minimum": 0, "maximum": 1 }
+        } }
+      ]
+    }
+  }
+}

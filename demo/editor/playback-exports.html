@@ -1,0 +1,34 @@
+<!-- demo/editor/playback-exports.html -->
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lecture JSON et JavaScript autonome · Timeline</title></head>
+<body class="JsTimeLine playback-exports-page"><main>
+  <header><nav><a href="index.html">← Démonstrations</a> · <a href="html-properties.html">Groupes et propriétés HTML</a></nav>
+    <p class="eyebrow">JsAnimationTimeline · Exports de lecture</p>
+    <h1>Une animation. Trois lectures.</h1>
+    <p>Comparez la scène d’origine, un JSON rechargé et un module JavaScript autonome dans une page isolée.</p>
+    <p id="sampling-note" class="sampling-note">Les exports décrivent chaque image entière à 24 img/s. Entre deux images, la valeur est maintenue ; les courbes originales restent dans le document éditable.</p>
+  </header>
+  <section class="export-toolbar" aria-label="Commandes d’export">
+    <button id="compile-exports" type="button">Compiler et charger les exports</button>
+    <button id="reload-json" type="button" data-export-control disabled>Relire le JSON HTML</button>
+    <button id="download-html" type="button" data-export-control disabled>Télécharger le JSON HTML</button>
+    <button id="download-js" type="button" data-export-control disabled>Télécharger le JavaScript</button>
+    <p id="export-status" role="status">Prêt à compiler. Le document éditable restera inchangé.</p>
+  </section>
+  <form id="seek-form" class="transport" aria-label="Lecture comparée">
+    <label for="frame-input">Image</label><input id="frame-input" type="number" min="1" max="100" step="any" value="1">
+    <button type="submit" data-export-control disabled>Afficher cette image</button>
+    <button id="play-exports" type="button" data-export-control disabled>Lire les exports</button>
+    <button id="pause-exports" type="button" data-export-control disabled>Mettre en pause</button>
+    <output id="frame-output" data-frame="1">Image 1 / 100</output>
+  </form>
+  <section class="comparison" aria-label="Comparaison des rendus">
+    <article><div class="scene-heading"><span>01</span><h2>Scène d’origine</h2></div><p>Le vrai lecteur de la Timeline et sa scène HTML.</p><div id="source-scene"></div></article>
+    <article><div class="scene-heading"><span>02</span><h2>JSON rechargé</h2></div><p>Valeurs et priorités résolues, sans recalcul des courbes.</p><iframe id="json-frame" title="Scène relue depuis le JSON HTML"></iframe></article>
+    <article><div class="scene-heading"><span>03</span><h2>JavaScript autonome</h2></div><p>Le module produit, sans importer la bibliothèque Timeline.</p><iframe id="javascript-frame" title="Scène du module JavaScript autonome"></iframe></article>
+  </section>
+  <section class="generic-section" aria-labelledby="generic-heading"><div><p class="eyebrow">Le moteur reste générique</p><h2 id="generic-heading">Un objet simple, sans DOM</h2><p>Gain, libellé et état booléen utilisent le même format de lecture. Aucun style CSS n’est appliqué à cet objet.</p><button id="download-generic" type="button" data-export-control disabled>Télécharger le JSON générique</button></div><pre id="generic-values" aria-live="off">Compilez les exports pour lire cet objet.</pre></section>
+  <section class="verification" aria-label="Contrôles de fidélité"><p id="document-state">Document éditable : inchangé.</p><div class="actions"><button id="test-conflict" type="button">Tester un conflit non résolu</button><button id="restore-styles" type="button" data-export-control disabled>Restaurer les styles</button></div><p id="refusal-status" role="status"></p></section>
+  <details><summary>Données HTML exportées</summary><pre id="html-json"></pre></details>
+</main><script type="module" src="./src/playbackExports.ts"></script></body></html>

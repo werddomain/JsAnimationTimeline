@@ -18,6 +18,22 @@ applicability of a `beforeFirst` decision are rechecked against the actual docum
 by the HTML resolution plan; schema validation alone cannot authorize a stale
 decision. The host owns the context's project history and persistence.
 
+`playback-document.schema.json` describes the separate version-1 compiled playback
+format. It stores `sampling: "frames"`, timing, distinct source objects and a full
+snapshot of recorded properties at every integer frame. `parsePlayback()` also
+checks exact object/frame coverage, stable property kinds, resource budgets and
+safe detached data. Seeking uses the preceding integer frame; this format does
+not replace the editable document or its exact fractional evaluation.
+
+`html-playback-document.schema.json` adds a separate HTML playback document. Its
+`source` is a generic playback document; its selector groups and resolved CSS
+frame table are the rendering authority for HTML, including priority decisions.
+Load both playback schemas into a schema validator to resolve that reference.
+`parseHtmlPlayback()` checks group/frame references and aggregate budgets; the
+HTML player verifies actual selector matches and browser CSS support before
+writing managed inline declarations. These formats add no fields to the editable
+timeline or its .NET model.
+
 ## Structure
 
 ```text
